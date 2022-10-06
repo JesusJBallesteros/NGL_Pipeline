@@ -1,8 +1,11 @@
-# Sample GitLab Project
+# First edition of 'Ephys-data-pipeline'
 
-This sample project shows how a project in GitLab looks for demonstration purposes. It contains issues, merge requests and Markdown files in many branches,
-named and filled with lorem ipsum.
+Main Scripts, functions and tools to work with electrophysiological data at NGL.
 
-You can look around to get an idea how to structure your project and, when done, you can safely delete this project.
+A first Script 'NGL01_Main' transforms data from (most) INTAN formats. Data can be converted into:
+- Neurodata Without Borders (.nwb) single file. A HDF5 file format. 
+- Matlab (.mat) single file. A 'struct' with FieldTrip format.
 
-[Learn more about creating GitLab projects.](https://docs.gitlab.com/ee/gitlab-basics/create-project.html)
+A second Script 'NGL02_NWB_managing' contains information and instructions to manage .nwb (HDF5) files.
+
+A third...
