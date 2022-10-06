@@ -14,7 +14,7 @@
 % %  file and navigate it as a folder system. I don't think it allows to
 % %  edit or add new info, tho.
 %
-% Last modified Jesus 04.10.2022
+% Last modified Jesus 06.10.2022
 
 %% 00. Needed input
 % Although this script makes sense more as a compilation of commands and 
