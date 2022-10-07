@@ -27,13 +27,13 @@
 % FRN: {'20181029' '20181105' '20181106'}
 % FAT: {'20220909'}
 % 427: {'20220929'}
-input.mainfolder = pwd;                 % string. Main Code folder. Gets current by default
+input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline'; % string. Main pipeline folder
 input.datafolder = "D:\Experiments\";   % chr array. Main data folder
 
-input.animal   = '427';   % string 'TES', 'FAT' , 'FRN', '427' ...
-input.dates    = 'all';   % cell array {'yyyymmdd' ...} or string 'all'
+input.animal   = 'FRN';   % string 'TES', 'FAT' , 'FRN', '427' ...
+input.dates    = {'20181105'};   % cell array {'yyyymmdd' ...} or string 'all'
 input.test_ch  = 2:2:12;  % int array If ~empty, plot snippet signal for channels
-input.useNWB   = 0;       % int 1/0 for use/not use of NWB.
+input.useNWB   = 1;       % int 1/0 for use/not use of NWB.
 
 % TODO: 'high', 'spike' not yet available
 input.bandpass = {'low' 'amp'};  % cell array up to {'low' 'amp' 'high' 'spike'}
@@ -41,13 +41,11 @@ input.bandpass = {'low' 'amp'};  % cell array up to {'low' 'amp' 'high' 'spike'}
 %% 00. Dependencies and defaults
 cd(input.mainfolder)
 addpath functions\
-addpath functions\toolboxes\fieldtrip_light
-addpath(genpath('functions\toolboxes\chronux_2_12')) 
-
+addpath toolboxes\fieldtrip_light
 ft_defaults
 
-% Adds to useNWB input to indicate that core has not been generated on first run. 
-input.useNWB(2) = 0;
+% % Adds to useNWB input to indicate that core has not been generated on first run. 
+% input.useNWB(2) = 0;
 
 %% 01. Find sessions
 % Get some/all sessions in animal folder
@@ -150,15 +148,13 @@ for ss=1:sessions.nSessions
     clear settingStruct
 
     %% 03. Proceed with conversion, depending on desired path
-    
     % Format IS 'fileperch' or 'filepertype'
     if ~strcmp(sessions.info.fileformat,'Intanformat')
-         
          % We want a .NWB file
             % Run wrapper for the INTAN to NWB functionality:
             %   A good thing is that it does not care about the file format, 
             %   the NWB functionality will put any version together.
-         if input.useNWB(1)
+         if input.useNWB
             % This NEEDS A PYTHON installation and the tooldbox inside!
             % Detailed explanation:
             % WHAT IT IS: function to convert data from INTAN to .NWB format.
@@ -175,29 +171,27 @@ for ss=1:sessions.nSessions
             % (https://de.mathworks.com/help/matlab/matlab_external/install-supported-python-implementation.html)
             %  To check access to Python Modules from MATLAB, look that 'pe' is correctly populated when running the script.
             intan2NWB_wrapper(sessions)
-
-            % TODO: There seems to be an error when using the NWB to Matlab
-            % functionalities, where after a first run, the consecutive
-            % ones will not find an .mex file. Not sure why.
-        
-            % Then, Convert the NWB into pseudo-FieldTrip
-            % INPUT:    Sessions info
-            %           Current session ordinal
-            %           Input about 'nwbmat' core functions being built.
-            % OUTPUT:   Data. Is a Pseudo-FieldTrip structure
-            %           Modified input, if it was first run.
-            cd(input.mainfolder) % Back to code folder
-            [data, input.useNWB(2)] = nwb2fieldtrip(sessions, input.useNWB(2));
-        
+      
+%           % Then, Convert the NWB into pseudo-FieldTrip
+%             % INPUT:    Sessions info
+%             %           Current session ordinal
+%             %           Input about 'nwbmat' core functions being built.
+%             % OUTPUT:   Data. Is a Pseudo-FieldTrip structure
+%             %           Modified input, if it was first run.
+%             cd(input.mainfolder) % Back to code folder
+% 
+%            % TODO: There seems to be an error when using the NWB to Matlab
+%             % functionalities, where after a first run, the consecutive
+%             % ones will not find an .mex file. Not sure why.
+%             [data, input.useNWB(2)] = nwb2fieldtrip(sessions, input.useNWB(2));
+%         
             
-         % We DO NOT want NWB.        
-         else 
+         % Then we convert from INTAn to matlab
+         end 
             % Run wrapper for the INTAN to MATLAB.
             %  Includes a mix of INTAN funtions. Can be run for 
             %  both 'filepertype' or 'fileperch'
             [data, sessions] = intan2MAT_wrapper(sessions);
-            
-         end
 
     % Format is NOT 'fileperch' or 'filepertype'     
     else
@@ -256,6 +250,7 @@ end
 
 %% Plot funtion
 function plot_testsignal(FT_data,ch)
+addpath(genpath('toolboxes\chronux_2_12')) 
 
 for i=ch
     data = FT_data.trial{1,1}(i,:)';

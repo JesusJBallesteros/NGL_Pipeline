@@ -14,22 +14,22 @@
 % %  file and navigate it as a folder system. I don't think it allows to
 % %  edit or add new info, tho.
 %
-% Last modified Jesus 06.10.2022
+% Last modified Jesus 10.2022
 
 %% 00. Needed input
 % Although this script makes sense more as a compilation of commands and 
 % routines, I guess it could become a Script for a bulk of sessions from a
 % single animal. Not sure. Anyways... locating things never hurts
-input.mainfolder = pwd;                 % string. Gets current folder by default
+input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline'; % string. Gets current folder by default
 input.datafolder = "D:\Experiments\";   % char.
-input.animal     = 'FAT';               % string. TES, FAT, FRN
-input.dates      = {'20220909'};        % cell array. Probably only one session will be feeded at a time
+input.animal     = 'FRN';               % string. TES, FAT, FRN
+input.dates      = {'20181029'};        % cell array. Probably only one session will be feeded at a time
 
 %% 00. Dependencies
 cd(input.mainfolder) % Code folder
 cd functions\toolboxes\matnwb; % Get in toolbox folder
 addpath(genpath(pwd)); % recursively add all subfolders
-% generateCore()  % Install the API. Only first time, I think. Needs to be in 'nwbmat' folder
+generateCore()  % Install the API. Only first time, I think. We need to be at '\nwbmat'
 
 %% Locate and get session
 % Locate and get in session folder
@@ -68,7 +68,7 @@ nwb = nwbRead(sessions.nwbfile.name);
 % However, it is possible, and not very complicated, to add metadata and data.
 % Here are few relevant examples from the online tutorial, described.
 
-% General ID info:
+%% General ID info:
     subject = types.core.Subject( ... % Generate a 'Subject' OBJECT with properties
         'subject_id', input.animal, ... % ID
         'age', 'NaN', ...               % age
@@ -83,81 +83,120 @@ nwb = nwbRead(sessions.nwbfile.name);
      nwb.general_subject % should print the metadata, 
     % and so could be indexed into a single variable.
 
-% Adding BEHAVIOR data:
-% This could be useful for arena position, eye movements, peaking ...
-    %  In this example I call it here 'spatialdata':
-    spatialdata = types.core.SpatialSeries( ...          % create a SpatialSeries OBJECT
-        'data', [linspace(0,10,100); linspace(0,8,100)], ... % [X1,X2,... ; Y1,Y2,...] positions
-        'reference_frame', '(0,0) is bottom left corner', ... % Framework description
-        'timestamps', linspace(0, 100)/200 ...              % time for each position
+% Adding behavior data.
+
+    %% Adding RAW EVENT CODES and TIMESTAMPS.
+    %  'BehavioralEvents' is an interface for storing behavioral events. 
+    %  We can use it for storing the timing of stimuli, trial outputs, 
+    %  or peacking times.
+        
+        % For a generic set of arrays of events and timestamps
+        event_codes      = [1, 3, 6, 8]; % Mix, uninterpreted, event codes in a continuous fashion
+        event_timestamps = [1.0, 1.5, 1.8, 2.5]; % corresponding timestamps
+         
+        % Create a TimeSeries with appropiate properties
+        time_series = types.core.TimeSeries( ...
+            'data', event_codes, ...
+            'timestamps', event_timestamps, ...
+            'description', 'Event codes sent by software into acquisition system', ...
+            'data_unit', 'NaN' ...
         );
-    
-    % Create a 'Top_view' OBJECT adding the 'spatialdata' to it. This would
-    % assume it is 'possition in a plane' (i.e. arena). In this example 
-    % imagine it is data of position recorded from the top of the arena.
-    Top_view = types.core.Position('Top_view', spatialdata);
+         
+        % Create an object for behavioral events
+        behavioral_events = types.core.BehavioralEvents();
 
-    % In parallel, create a 'processing module'. This is a "folder" apart from 
-    %  'acquisition' that stores somehow processed data, to separate it from
-    %  pure raw data. (Note that extracted position from a video is somehow
-    %  'processed', versus the video frames themselves, whose would be the
-    %  raw data). Let's name it 'behavior_module':
-    behavior_module = types.core.ProcessingModule('description', 'contains behavioral data');
+        % And include the TimeSeries containing the event codes
+        behavioral_events.timeseries.set('trial_output', time_series);
+         
+        % behavior_processing_module = types.core.ProcessingModule("stores behavioral data.");  % if you have not already created it
+        
+        % In a processing module created for behavior, set the behavioral events
+        behavior_processing_module.nwbdatainterface.set('BehavioralEvents', behavioral_events);
+        
+        % And add the behavior processing module to the main nwb data. (if not done yet)
+        nwb.processing.set('behavior', behavior_processing_module); % if you have not already added it
 
-    % Insert the Top_view object into the module, as 'Position'. We annidate this because 
-    %  we could have multiple positions from different angles, for other 
-    %  porpouses (e.g. a screen-level camera). 
-    % Or we could have other behavioral measurements (not positions).
-    % To add ('set') it as 'Position' data, tagged as Top_view:
-    behavior_module.nwbdatainterface.set('Position', Top_view);
+        % get rid of objects
+        clear event_codes event_timestamps time_series behavioral_events
 
-    % Finally, we bring the behaviour module, with the position data on it,
-    % to the .nwb file. We set it as behavior data under Processing.
-    nwb.processing.set('behavior', behavior_module);
-    clear Top_view behavior_module % We can get rid of the intermediates
-
-    % Now we could obtain the data back from the .nwb file calling:
-    read_bhv_series = nwb.processing.get('behavior'). ...     % Inside the behavior module
-                        nwbdatainterface.get('Position'). ... % We have Position data
-                        spatialseries.get('Top_view');        % coming from the Top_view
-    % Which gives us an Object with all metadata plus '.data' and '.timestamps' 
-    %  fields (data itself). Index them , for example, as:
-    position_data = read_bhv_series.data; % for the x,y coordinates
-    % Note that this data can be indexed to get only portions of it:
-    % position_data = read_bhv_series.data(1:2, 1:10); both x,y for only 10 frames
-
-    % To get used to this structures, I understand it as asking to get
-    %  the 'behavior' that we have stored as processed data.
-    % From it, we want data tagged as 'Position', and no ther (which could live here).
-    % From it, we want the Positions tagged 'Top_view'. (Which are 'SpatialSeries')
-
-% Adding Trials information:
-    % Here is a long call, which creates a 'trials' object with many fields 
-    trials = types.core.TimeIntervals( ...  % Is a 'TimeInterval' table
-            'colnames', {'start_time', 'stop_time', 'correct'}, ... % Headers
-            'description', 'trial data and properties', ...         % module description
-            'id', types.hdmf_common.ElementIdentifiers('data', 0:2), ... % three trials (0, 1, 2)
-            'start_time', types.hdmf_common.VectorData( ...         % with vectors:
-                'data', [0.1, 1.5, 2.5], ...                        % for start_time
-   	            'description','start time of trial in seconds' ... 
-                ), ...
-            'stop_time', types.hdmf_common.VectorData( ...          
-                'data', [1.0, 2.0, 3.0], ...                        % for end_time
-   	            'description','end of each trial in seconds' ...
-                ), ...
-            'correct', types.hdmf_common.VectorData( ...
-                'data', [false, true, false], ...                   % and for output
-   	            'description', 'whether the trial was correct') ...
+    %% Adding SPATIAL coordinates.
+    %  This could be useful for arena position, eye movements, peaking ...
+    %  In this example I call it here 'spatialdata':
+        spatialdata = types.core.SpatialSeries( ...          % create a SpatialSeries OBJECT
+            'data', [linspace(0,10,100); linspace(0,8,100)], ... % [X1,X2,... ; Y1,Y2,...] positions
+            'reference_frame', '(0,0) is bottom left corner', ... % Framework description
+            'timestamps', linspace(0, 100)/200 ...              % time for each position
             );
+        
+        % Create a 'Top_view' OBJECT adding the 'spatialdata' to it. This would
+        % assume it is 'possition in a plane' (i.e. arena). In this example 
+        % imagine it is data of position recorded from the top of the arena.
+        Top_view = types.core.Position('Top_view', spatialdata);
+    
+        % In parallel, create a 'processing module'. This is a "folder" apart from 
+        %  'acquisition' that stores somehow processed data, to separate it from
+        %  pure raw data. (Note that extracted position from a video is somehow
+        %  'processed', versus the video frames themselves, whose would be the
+        %  raw data). Let's name it 'behavior_module':
+        behavior_module = types.core.ProcessingModule('description', 'contains behavioral data');
+    
+        % Insert the Top_view object into the module, as 'Position'. We annidate this because 
+        %  we could have multiple positions from different angles, for other 
+        %  porpouses (e.g. a screen-level camera). 
+        % Or we could have other behavioral measurements (not positions).
+        % To add ('set') it as 'Position' data, tagged as Top_view:
+        behavior_module.nwbdatainterface.set('Position', Top_view);
+    
+        % Finally, we bring the behaviour module, with the position data on it,
+        % to the .nwb file. We set it as behavior data under Processing.
+        nwb.processing.set('behavior', behavior_module);
+        clear Top_view behavior_module % We can get rid of the intermediates
+    
+        % Now we could obtain the data back from the .nwb file calling:
+        read_bhv_series = nwb.processing.get('behavior'). ...     % Inside the behavior module
+                            nwbdatainterface.get('Position'). ... % We have Position data
+                            spatialseries.get('Top_view');        % coming from the Top_view
+        % Which gives us an Object with all metadata plus '.data' and '.timestamps' 
+        %  fields (data itself). Index them , for example, as:
+        position_data = read_bhv_series.data; % for the x,y coordinates
+        % Note that this data can be indexed to get only portions of it:
+        % position_data = read_bhv_series.data(1:2, 1:10); both x,y for only 10 frames
+    
+        % To get used to this structures, I understand it as asking to get
+        %  the 'behavior' that we have stored as processed data.
+        % From it, we want data tagged as 'Position', and no ther (which could live here).
+        % From it, we want the Positions tagged 'Top_view'. (Which are 'SpatialSeries')
 
-    % Add it to the .nwb file in the corresponding folder 'intervals_trials'
-    nwb.intervals_trials = trials;
-    clear trials % And get rid of the variable
+    %% Adding TRIAL information.
+    % This is a variation to adding EVENTS, In this case we would have already 
+    %  extracted and interpreted the EVENTCODES to its actual meaning in a 
+    %  trial context different approach. Having timestamp arrays for each event code,
+    %  they can be added as the timing for each category.
+    % Here is a long call, which creates a 'trials' object with desired fields 
+        trials = types.core.TimeIntervals( ...  % Is a 'TimeInterval' table
+                'colnames', {'start_time', 'stop_time', 'correct'}, ... % Headers
+                'description', 'trial data and properties', ...         % module description
+                'id', types.hdmf_common.ElementIdentifiers('data', 0:2), ... % three trials (0, 1, 2)
+                'start_time', types.hdmf_common.VectorData( ...         % with vectors:
+                    'data', [0.1, 1.5, 2.5], ...                        % timestamps for start_time
+   	                'description','start time of trial in seconds' ... 
+                    ), ...
+                'stop_time', types.hdmf_common.VectorData( ...          
+                    'data', [1.0, 2.0, 3.0], ...                        % for end_time
+   	                'description','end of each trial in seconds' ...
+                    ), ...
+                'correct', types.hdmf_common.VectorData( ...
+                    'data', [false, true, false], ...                   % and for output
+   	                'description', 'whether the trial was correct') ...
+                );
+    
+        % Add it to the .nwb file in the corresponding folder 'intervals_trials'
+        nwb.intervals_trials = trials;
+        clear trials % And get rid of the variable
 
-% TODO Adding Processed VOLTAGE data:
+%% TODO Adding Processed VOLTAGE data
 % This could be useful to add the processed LFP, but potentially to add any 
 %   spectrographic, coherence, etc. :
-% TODO
 
 %% Searching and reading VOLTAGE data
 % We can check if the ephys data is readable. The voltage data are stored
@@ -178,3 +217,14 @@ read_ephys_series = nwb.acquisition.get('ElectricalSeries');
     data_chunk = read_ephys_series.data(:, timeIndex);
     % Which already gives a nCh*samples array of data.
 
+%% Searching and reading EVENTS data (DIG IN)
+read_events_series = nwb.acquisition.get('TimeSeries_digital_input'); 
+chunks = read_events_series.data.chunkSize;
+
+for ch=1:chunks(1)
+    for stp = 1:50
+        events = read_events_series.data(1,stpSz:stpSz*2);
+
+
+    end
+end

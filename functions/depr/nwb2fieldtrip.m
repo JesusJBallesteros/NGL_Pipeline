@@ -6,7 +6,7 @@ function [data, cored] = nwb2fieldtrip(sessions,cored)
 disp('- Creating necessary dependencies:')
 
 if cored==0
-    cd \functions\toolboxes\matnwb;
+    cd functions\toolboxes\matnwb;
     addpath(genpath(pwd));
     generateCore()
     cored = 1;
