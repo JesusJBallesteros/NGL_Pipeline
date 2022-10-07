@@ -279,7 +279,7 @@ for i=ch
         set(gca, 'clim', [cmin*0.1 cmax]); 
         c = colorbar('location','eastoutside');
         c.Label.String = 'dB';
-        ylabel('Power (dB) and Voltage (uV/50)', 'fontsize', 12);
+        ylabel('Frequency (Hz) or Voltage (uV/50)', 'fontsize', 12);
         xlabel('sec', 'fontsize', 12);
         plot(FT_data.time{1}, ((data)/50)+35, 'Color', 'w', 'LineWidth', 1)
         xlim([15 55]); 
