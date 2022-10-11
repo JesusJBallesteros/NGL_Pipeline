@@ -171,21 +171,7 @@ for ss=1:sessions.nSessions
             % (https://de.mathworks.com/help/matlab/matlab_external/install-supported-python-implementation.html)
             %  To check access to Python Modules from MATLAB, look that 'pe' is correctly populated when running the script.
             intan2NWB_wrapper(sessions)
-      
-%           % Then, Convert the NWB into pseudo-FieldTrip
-%             % INPUT:    Sessions info
-%             %           Current session ordinal
-%             %           Input about 'nwbmat' core functions being built.
-%             % OUTPUT:   Data. Is a Pseudo-FieldTrip structure
-%             %           Modified input, if it was first run.
-%             cd(input.mainfolder) % Back to code folder
-% 
-%            % TODO: There seems to be an error when using the NWB to Matlab
-%             % functionalities, where after a first run, the consecutive
-%             % ones will not find an .mex file. Not sure why.
-%             [data, input.useNWB(2)] = nwb2fieldtrip(sessions, input.useNWB(2));
-%         
-            
+                  
          % Then we convert from INTAn to matlab
          end 
             % Run wrapper for the INTAN to MATLAB.

@@ -282,22 +282,18 @@ clear dIN
 ev.smpInd = ev.smpInd-smpSkip;
 clear smpRate skipDur smpSkip smpSum
 
-% Find standard events 0, and substitute by associated extra event
 idx = ev.eventStandard==0;
 events.rawEvents = [ev.smpInd ev.eventStandard];
 events.rawEvents(idx,2) = ev.eventExtra(idx);
 clear idx
 
-% Remove repetitions (consecutive equal eventcodes not expected)
+% Remove repetitions
 idx = find(diff(events.rawEvents(:,2))==0)+1;
 events.rawEvents(idx,:) = [];
 
-% Find each start of trial and grab all events until the next one.
-% If the resulting vector contains more than 3 events, consider it valid
-% and include it in events.trialEvents. If not, discard it.
 idx = find(events.rawEvents(:,2)==1);
 c = 0;
-trial = [];
+trials = [];
 for i = 1:length(idx)-1
     tr = events.rawEvents(idx(i):idx(i+1)-1,2);
     if length(tr)>3
@@ -306,4 +302,3 @@ for i = 1:length(idx)-1
     end
 end
 events.trialEvents = trial';
-clear tr trial idx c i
