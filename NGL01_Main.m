@@ -31,9 +31,9 @@ input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline'; % string. Main pipelin
 input.datafolder = "D:\Experiments\";   % chr array. Main data folder
 
 input.animal   = 'FRN';   % string 'TES', 'FAT' , 'FRN', '427' ...
-input.dates    = {'20181105'};   % cell array {'yyyymmdd' ...} or string 'all'
+input.dates    = {'20181029'}; % cell array {'yyyymmdd' ...} or string 'all'
 input.test_ch  = 2:2:12;  % int array If ~empty, plot snippet signal for channels
-input.useNWB   = 1;       % int 1/0 for use/not use of NWB.
+input.useNWB   = 0;       % int 1/0 for use/not use of NWB.
 
 % TODO: 'high', 'spike' not yet available
 input.bandpass = {'low' 'amp'};  % cell array up to {'low' 'amp' 'high' 'spike'}
@@ -43,9 +43,6 @@ cd(input.mainfolder)
 addpath functions\
 addpath toolboxes\fieldtrip_light
 ft_defaults
-
-% % Adds to useNWB input to indicate that core has not been generated on first run. 
-% input.useNWB(2) = 0;
 
 %% 01. Find sessions
 % Get some/all sessions in animal folder
@@ -200,7 +197,6 @@ for ss=1:sessions.nSessions
     end
 
     %% 04. Give proper FieldTrip format
-    
     % If the file is being created now, look for 'data'
     if exist('data','var')
 
@@ -236,35 +232,51 @@ end
 
 %% Plot funtion
 function plot_testsignal(FT_data,ch)
-addpath(genpath('toolboxes\chronux_2_12')) 
+if ~exist('ch','var')
+    ch = input.test_ch;
+end
+addpath(genpath('toolboxes\multitaper_prerau'))
+
+% Parameters for MT
+Fs              = FT_data.fsample; % double - sampling frequency (Hz)
+frequency_range = [0 100]; % [<min frequency>, <max frequency>]
+taper_params    = [2 3];   % [<TW>, <N>]
+                           % Time-half bandwidth product (TW) is N*BW/2 where
+                           %  N is window length (s), BW is main lobe bandwidth
+                           % optimal number of tapers (N) is 2*TW-1
+window_params   = [2 .4];  % [window length, step size] (s)
+min_NFFT        = 0;       % double - minimum allowable NFFT size, adds zero 
+                           %  padding for interpolation (closest 2^x)
+detrend_opt     = 'linear';% string - detrend data window ('linear' (def.), 'constant', 'off')
+weighting       = 'unity'; % string - weighting of tapers ('unity' (def.), 'eigen', 'adapt')
+plot_on         = false;   % boolean - plot results
+verbose         = false;   % boolean - display spectrogram properties
 
 for i=ch
-    data = FT_data.trial{1,1}(i,:)';
-
-    % Parameters for MT
-    params.tapers = [1 1 1]; % [W T p] -> 2TW-p tapers are used 
-    params.Fs = FT_data.fsample;
-    params.fpass = [0 100];
-    params.pad = 0;
-    movingwin = [1 .25];  % movingwin(1) MUST == T
+    data = FT_data.trial{1,1}(i,:)'; % samples x 1 vector - time series data
        
-    % COMPUTE MULTI-TAPER SPECTROGRAM AND Z-SCORE-IT
-    [spectral.data, spectral.t, spectral.f] = mtspecgramc(data, movingwin, params);
-    cmax = max(max(max(mag2db(spectral.data))));
-    cmin = min(min(min(mag2db(spectral.data))));
+    % COMPUTE MULTITAPER SPECTROGRAM
+    [spectral.data, spectral.t, spectral.f] = ...
+        multitaper_spectrogram_mex(data, Fs, frequency_range, ...
+                                   taper_params, window_params, min_NFFT, ...
+                                   detrend_opt, weighting, plot_on, verbose);
     
-    % PLOT IT
-    figure(1), pcolor(spectral.t, spectral.f, mag2db(spectral.data)'); hold on;
+    % Obtain max/min values (in dB)
+    cmax = max(max(mag2db(spectral.data)));
+    cmin = min(min(mag2db(spectral.data)));
+    
+    % PLOT MTSpectrogram, in dB
+    figure(1), pcolor(spectral.t, spectral.f, mag2db(spectral.data)); hold on;
         shading interp; 
-        colormap("turbo");
-        set(gca, 'clim', [cmin*0.1 cmax]); 
-        c = colorbar('location','eastoutside');
-        c.Label.String = 'dB';
-        ylabel('Frequency (Hz) or Voltage (uV/50)', 'fontsize', 12);
-        xlabel('sec', 'fontsize', 12);
+        colormap("turbo"); % improved 'jet'
+        set(gca, 'clim', [cmin*.25 cmax*.95]);  % Adjust dB scale
+        c = colorbar('location','eastoutside'); % set scale location
+        c.Label.String = 'dB'; % scale label
+        % plot voltage trace, scaled to fit on the low frequency range
         plot(FT_data.time{1}, ((data)/50)+35, 'Color', 'w', 'LineWidth', 1)
-        xlim([15 55]); 
-        ylim([0 50]);
+        ylabel('Frequency (Hz) and Voltage (uV/50)', 'fontsize', 12); % graph label
+        xlabel('sec', 'fontsize', 12); % graph label
+        xlim([15 45]); ylim([0 50]);   % graph limits
     title(sprintf('Spectrogram for Ch: %s',FT_data.label{i,1}));
 %     sdf(1,'800x300_hdpi_spectrum'), box('off');
     saveas(gca,sprintf('testsignal_ch%s',FT_data.label{i,1}),'png')
