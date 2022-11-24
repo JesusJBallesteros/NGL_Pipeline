@@ -226,7 +226,13 @@ for ss=1:sessions.nSessions
 
     clear data2save cfg FT_data
 
-    %% Proceed to extract the spikes from the 'spike.dat' files if requested
+
+    % TODO: this is not ready yet
+    %  elseif ~isempty(files) && strcmp(input.bandpass{i},'high')
+    %     sessions.info.files = dir('high*.dat');
+    %     break
+
+    % Proceed to extract the spikes from the 'spike.dat' files if requested
     if ~isempty(files) && strcmp(input.bandpass{3},'spike')
         % Read files
         sessions.info.files = dir('spike*.dat');
@@ -241,19 +247,11 @@ for ss=1:sessions.nSessions
         % or for time given by the pair 'XLimForCell', [0 10]
         plot_spikeraster(spiketimes,'PlotType','vertline', ...
                                     'SpikeDuration', 0.001, ...
-                                    'XLimForCell', [0 20], ...
+                                    'XLimForCell', [0 120], ...
                                     'VertSpikeHeight',.5);
         ylabel('Channel'), xlabel('Time (s)');
- %save
+        
     end
-
-
-
-    %% TODO: this is not ready yet
-    %  elseif ~isempty(files) && strcmp(input.bandpass{i},'high')
-    %     sessions.info.files = dir('high*.dat');
-    %     break
-
 
 end
 

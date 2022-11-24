@@ -26,6 +26,7 @@ input.dates      = {'20181029'};        % cell array. Probably only one session 
 
 %% 00. Dependencies
 cd(input.mainfolder) % Code folder
+addpath functions\
 cd toolboxes\matnwb; % Get in toolbox folder
 addpath(genpath(pwd)); % recursively add all subfolders
 % generateCore()  % Install the API. Only first time, I think. We need to be at '\nwbmat'
@@ -220,7 +221,7 @@ read_ephys_series = nwb.acquisition.get('ElectricalSeries');
     % Which already gives a nCh*samples array of data.
 
 
-%% Read events from INTAN's DIG IN  to bring into the NWB file
+%% Read events from INTAN's DIG IN to bring into the NWB file
 [ev2, ~, ~] = readEvents('path',pwd);
 %TODO
 
