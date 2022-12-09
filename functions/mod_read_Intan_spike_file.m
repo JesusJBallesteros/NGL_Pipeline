@@ -1,4 +1,4 @@
-function all_spikes = mod_read_Intan_spike_file(artifacts,files)
+function spikes = mod_read_Intan_spike_file(artifacts,files)
 
 % read_Intan_spike_file(option)
 %
@@ -58,8 +58,8 @@ else
 end
 
 % Open data files one by one
-for ch=1:nfiles
-    filename = [path{1}, '\' file{ch}];
+for nf=1:nfiles
+    filename = [path{1}, '\' file{nf}];
     fid = fopen(filename, 'r');
     
     s = dir(filename);
@@ -145,7 +145,8 @@ for ch=1:nfiles
     % Close data file
     fclose(fid);
     
-    all_spikes(ch,:) = spikes;
+end
+
 %     move_to_base_workspace(spikes);
 %     move_to_base_workspace(sample_rate);
     

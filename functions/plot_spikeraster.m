@@ -107,11 +107,10 @@ function [xPoints, yPoints] = plot_spikeraster(spikes,varargin)
 %           'MarkerFormat',MarkerFormat);
 %               Plots raster plot using dots with a format specified by
 %               MarkerFormat.
-%% AUTHOR    : Jeffrey Chiou
-%% $DATE     : 07-Feb-2014 12:15:47 $
-%% $Revision : 1.2 $
-%% DEVELOPED : 8.1.0.604 (R2013a)
-%% FILENAME  : plotSpikeRaster.m
+% AUTHOR: Jeffrey Chiou
+% DATE: 07-Feb-2014 12:15:47 
+% MODIFIED by Jesus. 25.11.2022
+
 %% Set Defaults and Load optional arguments
 LineFormat.Color = [0.2 0.2 0.2];
 MarkerFormat.MarkerSize = 1;
@@ -119,18 +118,18 @@ MarkerFormat.Color = [0.2 0.2 0.2];
 MarkerFormat.LineStyle = 'none';
 p = inputParser;
 p.addRequired('spikes',@(x) islogical(x) || iscell(x));
-p.addParamValue('FigHandle',gcf,@isinteger);
-p.addParamValue('PlotType','horzLine',@ischar);
-p.addParamValue('LineFormat',LineFormat,@isstruct)
-p.addParamValue('MarkerFormat',MarkerFormat,@isstruct);
-p.addParamValue('AutoLabel',0, @islogical);
-p.addParamValue('XLimForCell',[NaN NaN],@(x) isnumeric(x) && isvector(x));
-p.addParamValue('TimePerBin',0.001,@(x) isnumeric(x) && isscalar(x));
-p.addParamValue('SpikeDuration',0.001,@(x) isnumeric(x) && isscalar(x));
-p.addParamValue('RelSpikeStartTime',0,@(x) isnumeric(x) && isscalar(x));
-p.addParamValue('RasterWindowOffset',NaN,@(x) isnumeric(x) && isscalar(x));
-p.addParamValue('VertSpikePosition',0,@(x) isnumeric(x) && isscalar(x));
-p.addParamValue('VertSpikeHeight',1,@(x) isnumeric(x) && isscalar(x));
+p.addParameter('FigHandle',gcf,@isinteger);
+p.addParameter('PlotType','horzLine',@ischar);
+p.addParameter('LineFormat',LineFormat,@isstruct)
+p.addParameter('MarkerFormat',MarkerFormat,@isstruct);
+p.addParameter('AutoLabel',0, @islogical);
+p.addParameter('XLimForCell',[NaN NaN],@(x) isnumeric(x) && isvector(x));
+p.addParameter('TimePerBin',0.001,@(x) isnumeric(x) && isscalar(x));
+p.addParameter('SpikeDuration',0.001,@(x) isnumeric(x) && isscalar(x));
+p.addParameter('RelSpikeStartTime',0,@(x) isnumeric(x) && isscalar(x));
+p.addParameter('RasterWindowOffset',NaN,@(x) isnumeric(x) && isscalar(x));
+p.addParameter('VertSpikePosition',0,@(x) isnumeric(x) && isscalar(x));
+p.addParameter('VertSpikeHeight',1,@(x) isnumeric(x) && isscalar(x));
 p.parse(spikes,varargin{:});
 spikes = p.Results.spikes;
 figH = p.Results.FigHandle;
@@ -152,6 +151,7 @@ elseif ~isnan(rasterWindowOffset) && relSpikeStartTime~=0
         'The value set in RasterWindowOffset will be used over RelSpikesStartTime']);
     relSpikeStartTime = rasterWindowOffset;
 end
+
 %% Initialize figure and begin plotting logic
 figure(figH);
 hold on;
@@ -318,8 +318,8 @@ if islogical(spikes)
         ylabel('Trial');
     end
 else % Equivalent to elseif iscell(spikes).
-    %% Cell case
     
+    %% Cell case
     % Validation: First check to see if cell array is a vector, and each
     % trial within is a vector.
     if ~isvector(spikes)
@@ -463,6 +463,7 @@ else % Equivalent to elseif iscell(spikes).
     end
     
 end % logical vs cell switching
+
 %% Figure formatting
 % Draw the tick marks on the outside
 set(gca,'TickDir','out') 
@@ -475,7 +476,8 @@ if size(spikes,1) == 1
     ylim([0.5 1.5])
 end
 hold off;
-end % main function
+end
+
 function paramCell = struct2opt(paramStruct)
 % Converts structure to parameter-value pairs
 %   Example usage:
@@ -488,8 +490,8 @@ function paramCell = struct2opt(paramStruct)
 % Adapted from:
 % http://stackoverflow.com/questions/15013026/how-can-i-unpack-a-matlab-structure-into-function-arguments
 % by user 'yuk'
-fname = fieldnames(paramStruct);
-fval = struct2cell(paramStruct);
-paramCell = [fname, fval]';
-paramCell = paramCell(:);
-end % struct2opt
+    fname = fieldnames(paramStruct);
+    fval = struct2cell(paramStruct);
+    paramCell = [fname, fval]';
+    paramCell = paramCell(:);
+end

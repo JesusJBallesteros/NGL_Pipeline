@@ -20,26 +20,31 @@
 %       
 %       
 
-% Last modified By Jesus J. Ballesteros 06.10.2022
+% Last modified By Jesus J. Ballesteros 25.11.2022
 
-%% 00. Needed input
-% TES: {'20220609' '20220809' '20220922'}
-% FRN: {'20181029' '20181105' '20181106'}
-% FAT: {'20220909'}
-% 427: {'20220929'}
-% 478: {'20221103'} % Test pigeon 1
+%% Subjects and sessions list
+% TES: {'20220609' '20220809' '20220922'} % Generated Test signals
+% FRN: {'20181029' '20181105' '20181106'} % Jackdow
+% FAT: {'20220909'} % Pigeon Fatboy
+% 427: {'20220929'} % Pigeon SPP
+% 478: {'20221103' '20221208'} % Test pigeon 1
 % SNT: {'20221123'} % Test pigeon 2
 
+%% Needed input
 input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline'; % string. Main pipeline folder
-input.datafolder = "D:\Experiments\";   % chr array. Main data folder
+input.datafolder = "D:\Experiments\";  % chr array. Main data folder
 
-input.animal   = 'SNT';   % string 'TES', 'FAT' , 'FRN', '427' ...
-input.dates    = {'20221123'}; % cell array {'yyyymmdd' ...} or string 'all'
-input.test_ch  = 1:32;  % int array If ~empty, plot snippet signal for channels
-input.useNWB   = 1;       % int 1/0 for use/not use of NWB.
+input.animal   = '478';         % string. 'TES', 'FAT' , 'FRN', '427' ...
+input.dates    = {'20221208'};  % cell array. {'yyyymmdd' ...} or string 'all'
+input.test_ch  = 1:2:32;          % int array. If ~empty, plot snippet signal for channels
+input.useNWB   = 1;             % int. 1/0 for creating/skip NWB file.
+input.plots    = [1 , 1 , 0];   % int array. Indicate plots to draw [spectrograms , raster, raster + traces, ...] 
 
-% TODO: 'high', 'spike' not yet available
+% TODO: 'high' not yet available
 input.bandpass = {'low' 'amp' 'spike' ''};  % cell array up to {'low' 'amp' 'spike' 'high'}. Make empty fields with ''.
+% 'low' (when available) and 'amp' are used to extract the signal at low frequencies (LFP).
+% 'spike' are used to extract spike times as they come from INTAN threshold. Unsorted, possibly contaminated with artifacts/noise
+% NOT YET. 'high' could be used to re-threshold the high frequency-pass signal and re-extract spike times offline for better control.
 
 %% 00. Dependencies and defaults
 cd(input.mainfolder)
@@ -220,7 +225,7 @@ for ss=1:sessions.nSessions
     % This test plotting uses Chronux Multitaper approach to generate fast
     % single-tappered Spectrograms on a subset of channels for a small chunck
     % of time. Just to have a preview of how the signal looks like
-    if ~isempty(input.test_ch)
+    if ~isempty(input.test_ch) && input.plots(1) == 1
         plot_testsignal(FT_data,input.test_ch)
     end
 
@@ -237,14 +242,55 @@ for ss=1:sessions.nSessions
         % Isolate Spike times
         spiketimes = spikes(:,3);
         
-        % Plot spike raster for the whole time
-        % or for time given by the pair 'XLimForCell', [0 10]
-        plot_spikeraster(spiketimes,'PlotType','vertline', ...
-                                    'SpikeDuration', 0.001, ...
-                                    'XLimForCell', [0 20], ...
-                                    'VertSpikeHeight',.5);
-        ylabel('Channel'), xlabel('Time (s)');
- %save
+        % Transform into fieldtrip spike data
+        % ---
+        %%%
+
+        if input.plots(2) == 1
+            % Plots spike rasters for all channels and the whole session but 
+            % shows only the time given by the pair 'XLimForCell', [0 10].
+            % Drag to move the timeline.
+            [~,~] = plot_spikeraster(spiketimes,'PlotType','vertline', ...
+                                                'SpikeDuration', 0.001, ...
+                                                'XLimForCell', [0 20], ...
+                                                'VertSpikeHeight',.5);
+            ylabel('Channel'), xlabel('Time (s)');
+            %save
+
+            % TODO: Then, plot the average waveform for each channel
+            for sp = 1:length(spikes)
+                figure, plot(mean(spikes{sp,5},2));
+                % give axes
+                % give title
+                % save
+            end
+        end
+
+        if input.plots(3) == 1
+            % TODO
+            % Plots spike rasters for all channels and the whole session 
+            % plus voltage traces for a small sample of channels.
+            % Shows only the time given by the pair 'XLimForCell', [0 10].
+            % Drag to move the timeline.
+            subplot(2,1,1)
+            [~,~] = plot_spikeraster(spiketimes,'PlotType','vertline', ...
+                                                'SpikeDuration', 0.001, ...
+                                                'XLimForCell', [0 1500], ...
+                                                'VertSpikeHeight',.5);
+            ylabel('Channel'), xlabel('Time (s)'); 
+            hold on
+            
+            % try load few amp channels, downsampling 32x
+            volt_data = getNWB_VoltageTrace(input,[1:5:32],'all',32);
+            
+            subplot(2,1,2)
+            plot(volt_data+[10;20;30;40;50;60;70])
+
+
+
+            %save
+        end
+        
     end
 
 
@@ -278,6 +324,12 @@ detrend_opt     = 'linear';% string - detrend data window ('linear' (def.), 'con
 weighting       = 'unity'; % string - weighting of tapers ('unity' (def.), 'eigen', 'adapt')
 plot_on         = false;   % boolean - plot results
 verbose         = false;   % boolean - display spectrogram properties
+
+% Check if channel requirements are possible
+if ch(end) > size(FT_data.trial{1,1},1)
+    ch = 1:2:size(FT_data.trial{1,1},1);
+    disp('The channel list to plot has been modified because the requested list was not possible')
+end
 
 for i=ch
     data = FT_data.trial{1,1}(i,:)'; % samples x 1 vector - time series data
