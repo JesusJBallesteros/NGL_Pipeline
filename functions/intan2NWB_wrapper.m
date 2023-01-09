@@ -1,5 +1,5 @@
-function intan2NWB_wrapper(sessions)
-% Make sure there is no '.nwb' files in directory. Then, run the wrapper
+function intan2NWB_wrapper(sessions,ss)
+% Makes sure there is no '.nwb' files in directory. Then, run the wrapper
 % for the INTANtoNWB tool.
 % INPUT:    sessions = struct with folder, name and number of sessions
 % OUTPUT:   none explicit.
@@ -24,7 +24,7 @@ files = dir('*.nwb');
         % Copy one by one.
         for i=1:length(files)
             fprintf('- Copying file %d of %d.\n', i , length(files));
-            [copy.status, copy.msg] = copyfile(files(i).name,IntanToNWB_folder);
+            [copy.status, copy.msg] = copyfile(files(i).name, IntanToNWB_folder);
         end
 
         % Navigate to python folder
@@ -109,7 +109,7 @@ files = dir('*.nwb');
         nwbfile = dir('*.nwb'); 
         if ~isempty(nwbfile)
             disp('- Done! Moving NWB file back to original folder...');
-            movefile(nwbfile.name, strcat(sessions.folder,'\',sessions.name));
+            movefile(nwbfile.name, strcat(sessions.folder,'\',sessions.list(ss).name));
         else
             disp('- Something went wrong. Cannot find NWB files.');
             return
@@ -119,8 +119,9 @@ files = dir('*.nwb');
         delete(files(:).name);
         
         % Navigate back to original data folder
-        cd(strcat(sessions.folder, '\', sessions.name));
-        movefile(nwbfile.name,string([sessions.name + '.nwb']))
+        cd(strcat(sessions.folder, '\', sessions.list(ss).name));
+        % Edif file name.
+        movefile(nwbfile.name,strcat([sessions.list(ss).name, '.nwb']))
 
     else
     %% If there is any, exit the function and continue

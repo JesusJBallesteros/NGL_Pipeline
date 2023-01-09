@@ -1,366 +1,263 @@
 %% Jesus' Pipeline to read INTAN continous data
-% Will read INTAN data, from selected sessions for a given animal, to MATLAB.
-% For that, we can use two methods:
-% First one involves a transformation INTAN-to-NWB format (HDF5 format) and 
-%  then NWB-to-FieldTrip. This could, in priciple, keep metadata from INTAN 
-%  files and access data in chunks. However the INTAN-to-NWB is kinda buggy,
-%  and involves the installation and use of python (wrapped here).
-% The second makes use of INTAN file reading into MATLAB and is much
-%  straight forward. However all metadata would need to be added 'manually'
-%  and the MAT files are supposed to be readed as a whole.
-% Next, it should give format to fit in any FieldTrip pipeline.
-% Should be able to recognize INTAN channel-per-file and type-per-file
-% formats. For now, it will be limited to create continous data or
-% fix-length trials, not using eventcodes.
-% Eventually, merge with Sara's spike pipeline for Kilosort.
+% Will read INTAN, DEUTERON or ALLEGO data, from selected sessions for a given animal.
+% NEEDED INPUTS:
+%       mainfoldder:    chr array.  Main pipeline folder as 'C:\...'.
+%       datafolder:     string.     Main data folder as "D:\...".
+%       animal:         chr array.  A 3 letter code as 'FAT', 'FRN', '427' ...
+% 
+% OPTIONAL:
+%       dates:          cell of chr array. Specfic dates as {'yyyymmdd' 'yyyymmdd' ...} or chr array 'all'.
+%                                   Default: 'all'
+%       bandpass:       cell of chr array. As {'low' 'amp' 'spike' 'high'}. Make empty fields with ''.
+%                                   'low' or 'amp' are used to extract the signal at low frequencies.
+%                                   'spike' to extract spike times as they come from INTAN. Unsorted, contaminated.
+%                                   'high' to re-threshold the high frequency-pass signal and re-extract spike times offline.
+%       useNWB:         true/false  To create/skip NWB file.
+%                                   Default: true.
+%       ToKilosort:     true/false  To create/skip binary and h5 files.
+%                                   Default: true.
+%       plots:          int array.  If not empty, to draw plots as [1 0 0 ... ]
+%                                   Sequence is [spectrograms , raster, raster + traces, ...] 
+%                                   Default: empty [].
+%       test_ch:        int array.  If not empty, to plot snippet of requested channels.
+%                                   Default: empty [].
+% 
+% GENERATES
+% For one single session or for a batch of sessions, from one single animal:
+%       00. A set of default inputs and paths.
+%       01. A list of sessions, with associated info.
+%       02. Fieldtrip (.mat), binary (.bin), HDF5 (.hf) (and NWB?) files from
+%           1. Deuteron .DT2 (and .DF1) format data.
+%           2. INTAN file-per-type and file-per-channel format data.
+%           3. (ALLEGO data?)
+%       03. Plots from snippets of time- and frequency-domain data
+%       
+% Last modified 05.01.2023 (Jesus)
 
 % TODO 
-%       set several bandpass to read more than one sort of data.
 %       There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
-%       
-%       
+%       'high' bandpass not yet available
+%       create the wrapper for an INTAN fileperchannel format to Kilosort
+%       implement the new Deuteron format conversion, from Sara
+%       Check if we NEED to keep both .bin and h5 files
+%       Create Fieldtrip files from Deuteron data
+%       Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
+%       Figure out how to work with Allego files (most likely, after Allego's self preprocessing tool?)
+%       Save the 'sessions' variable by default, at the end, with a date timestamp perhaps?
+%
+%
 
-% Last modified By Jesus J. Ballesteros 25.11.2022
+% Make 'input' available for all functions.
+global input
 
-%% Subjects and sessions list
-% TES: {'20220609' '20220809' '20220922'} % Generated Test signals
-% FRN: {'20181029' '20181105' '20181106'} % Jackdow
-% FAT: {'20220909'} % Pigeon Fatboy
-% 427: {'20220929'} % Pigeon SPP
-% 478: {'20221103' '20221208'} % Test pigeon 1
-% SNT: {'20221123'} % Test pigeon 2
+% Necessary inputs will be actively asked for, if left empty.
+input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline';
+input.datafolder = "D:\Experiments\";
+input.animal     = '478';
+input.useNWB     = false;  % Due to some conflict at h5 python-matlab dlls if either transformation is performed,
+input.ToKilosort = true; % the following one will crash. It needs a Matlab restart, to clear some cache or smth...
+                          % TODO: figure this out
 
-%% Needed input
-input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline'; % string. Main pipeline folder
-input.datafolder = "D:\Experiments\";  % chr array. Main data folder
+% Optatives will be set to default if missing here. 
+input.dates      = 'all';
+input.bandpass   = {'low' 'amp' '' 'high'};
+input.plots      = [];
+input.test_ch    = [];
 
-input.animal   = '478';         % string. 'TES', 'FAT' , 'FRN', '427' ...
-input.dates    = {'20221208'};  % cell array. {'yyyymmdd' ...} or string 'all'
-input.test_ch  = 1:2:32;          % int array. If ~empty, plot snippet signal for channels
-input.useNWB   = 1;             % int. 1/0 for creating/skip NWB file.
-input.plots    = [1 , 1 , 0];   % int array. Indicate plots to draw [spectrograms , raster, raster + traces, ...] 
+%% 00. Check inputs, set defaults and dependencies.
+set_default;
 
-% TODO: 'high' not yet available
-input.bandpass = {'low' 'amp' 'spike' ''};  % cell array up to {'low' 'amp' 'spike' 'high'}. Make empty fields with ''.
-% 'low' (when available) and 'amp' are used to extract the signal at low frequencies (LFP).
-% 'spike' are used to extract spike times as they come from INTAN threshold. Unsorted, possibly contaminated with artifacts/noise
-% NOT YET. 'high' could be used to re-threshold the high frequency-pass signal and re-extract spike times offline for better control.
+%% 01. Find and list sessions. 
+% Read requested sessions from animal folder.
+% This 'sessions' variable can be used for summary, book keeping and
+% debugging at the end of the pipeline.
+% It will not be saved automatically, tho. TODO?
 
-%% 00. Dependencies and defaults
-cd(input.mainfolder)
-addpath functions\
-addpath toolboxes\fieldtrip_light
-addpath(genpath('toolboxes\multitaper_prerau'))
-ft_defaults
-
-%% 01. Find sessions
-% Get some/all sessions in animal folder
 if iscell(input.dates) % input is cell array of dates
-    input.dates = input.datafolder + input.animal + "\" + input.animal + "_" + input.dates(:);
+    input.dates = input.datafolder + input.animal + "\" + input.animal + "_" + input.dates(:) + '*';
     [sessions.folder,sessions.name,~] = fileparts(input.dates);
     sessions.folder = unique(sessions.folder);
 
+    % Get and Count sessions
+    cd(sessions.folder)
+    sessions.nSessions = length(sessions.name);
+    for s = 1:sessions.nSessions
+        sessions.list(s) = dir(sessions.name(s));
+    end
+    clear s
+
 elseif strcmp(input.dates, 'all') % input is 'all'
     sessions.folder = input.datafolder + input.animal;
-    sessions.name   = dir(sessions.folder + '\' + input.animal + '*');
-    sessions.name   = {sessions.name(:).name}';
+    sessions.list   = dir(sessions.folder + '\' + input.animal + '*');
+    
+    % Get and Count sessions
+    cd(sessions.folder)
+    sessions.nSessions = length(sessions.list);
 end
 
-% Count sessions
-sessions.nSessions = length(sessions.name);
-
-% Read into MATLAB
+% Loop sessions and read into MATLAB
 for ss=1:sessions.nSessions
-    % Navigate to session folder.
-    cd(strcat(sessions.folder,'\',sessions.name(ss)));
-    
-    %% 02. Find out INTAN settings and header file. Extract info
-    % Only exists when 'filepertype' or 'fileperch'
-    if isfile('info.rhd') 
-        % Get more info from main INTAN header file. 
-        %  Uses a modified Intan funtion to output info
-        [sessions.info.INTAN_hdr] = mod_read_Intan_RHD2000_file('info.rhd');
 
-        % Number of channels.
-        sessions.info.nchannels = length(sessions.info.INTAN_hdr.amplifier_channels);
+    % Go to session folder.
+    cd(strcat(sessions.folder,'\',sessions.list(ss).name));
 
-        % Here we look for files of each of the bandpass selected as input. 
-        %  'amp' should always exist. Would be used as ultimate source of
-        %  data if others do not. If others are requested AND exist, the 
-        %  loop breaks and takes the last indexed file list.
-        for i=1:numel(input.bandpass)
-            files = dir([input.bandpass{i},'*.dat']);
-             if ~isempty(files) && strcmp(input.bandpass{i},'low')
-                sessions.info.files = dir('low*.dat');
-                break
-             else
-                sessions.info.files = dir('amp*.dat');
-             end
-        end
+    %% 02. Check file type and versions
+    sessions.info{ss} = chckV(input);
 
-        % The final bandpass to use.
-        sessions.info.bandpass = input.bandpass{i};
+    % Determine pipeline based on type of data
+    switch sessions.info{ss}.fileformat
+        case {'DT2', 'DT4', 'DT8', 'DAT', 'DF1'}
+            %% 03.1 Deuteron Pipline
+               
+            % 01 TODO Create Fieldtrip files from Deuteron data
+            % So far, Deuteron does not seem ideal for LFP, but it should be possible at some point.
+             %%%
+             % Then, here will go the LFP extraction and conversion to NWB? and FT.
+             %%%   
 
-        % How many files exist for this sessions.
-        if length(sessions.info.files)>1
-            % If there are many files, is 'fileperch'
-            sessions.info.fileformat = 'fileperch';
-        else
-            % If there is only one, is 'filepertype'
-            sessions.info.fileformat = 'filepertype';
-        end
-        % If we have several types ('low' & 'amp') with file per channel
-        % format, 'fileperch' applies.
-
-    else % TODO 'Intanformat'. Very low priority
-        sessions.info.fileformat = 'Intanformat';
-        disp('- Support for Intanformat files not yet ready.')
-        return
-    end
-    
-    % If available, parse info from 'settings.xml' (for easy access).
-    %  Contains metadata that may be worth to keep. Some data is relocated
-    %  to have easier access.
-    if isfile('settings.xml')
-        settingStruct = parseXML('settings.xml');
-        sessions.info.amplifier_sample_rate   = str2double(settingStruct.Attributes(1).Value); 
-        sessions.info.lowpass_downsample      = str2double(settingStruct.Children(2).Attributes(85).Value); 
-        sessions.info.Version                 = settingStruct.Attributes(3).Value;
-        sessions.info.Name                    = settingStruct.Name;
-        sessions.info.Children                = settingStruct.Children;
-        
-        % We calculate lowpass sampling rate
-        sessions.info.lowpass_sample_rate     = sessions.info.amplifier_sample_rate / sessions.info.lowpass_downsample;
-    else
-        % Old datasets do not necessarily have an associatted .xml file
-        % We have to look for basic info in the header. Some cannot be
-        % populated yet.
-        sessions.info.amplifier_sample_rate   = sessions.info.INTAN_hdr.frequency_parameters.amplifier_sample_rate  ;
-        sessions.info.lowpass_downsample      = []; 
-        sessions.info.Version                 = str2double(sessions.info.INTAN_hdr.version);
-        sessions.info.Name                    = [];
-        sessions.info.Children                = [];
-        
-        % Lowpass sampling rate not available
-        sessions.info.lowpass_sample_rate     = [];
-    end
-    clear settingStruct
-
-    %% 03. Proceed with conversion, depending on desired path
-    % Format IS 'fileperch' or 'filepertype'
-    if ~strcmp(sessions.info.fileformat,'Intanformat')
-         % We want a .NWB file
-            % Run wrapper for the INTAN to NWB functionality:
-            %   A good thing is that it does not care about the file format, 
-            %   the NWB functionality will put any version together.
-         if input.useNWB
-            % This NEEDS A PYTHON installation and the tooldbox inside!
-            % Detailed explanation:
-            % WHAT IT IS: function to convert data from INTAN to .NWB format.
-            % WHAT IT DOES: Checks for Python engine in computer. Adds the necessary
-            %  dependences. Locates input session, copies ALL files to the IntanToNWB
-            %  folder and merges them into a new 'info.nwb' file. This file 
-            %  is renamed to 'session_name.nwb'. Moves this new file back to 
-            %  the original session folder. Removes the copied data from the 
-            %  IntanToNWB folder.
-            %
-            % Requires Python installed in the machine. 
-            %  To date, MATLAB 2021b accepts up to Python 3.9. Install the
-            %  64 bits version:
-            % (https://de.mathworks.com/help/matlab/matlab_external/install-supported-python-implementation.html)
-            %  To check access to Python Modules from MATLAB, look that 'pe' is correctly populated when running the script.
-            intan2NWB_wrapper(sessions)
+            % 02 Create .bin (and .h5) files with spiking data from highpass data
+            if input.ToKilosort & ~isfile([sessions.list(ss).name '.h5'])
+               % To modify any input, example:
+                  % in = struct();
+                  % in.createAvrgDatMat = false;
                   
-         % Then we convert from INTAn to matlab
-         end 
-            % Run wrapper for the INTAN to MATLAB.
-            %  Includes a mix of INTAN funtions. Can be run for 
-            %  both 'filepertype' or 'fileperch'
-            [data, sessions] = intan2MAT_wrapper(sessions);
+               % TODO: implement the new format conversion from Sara
+               Deuteron2Kilosort_wrapper(sessions, ss); % add 'in' if desired
+            end
 
-    % Format is NOT 'fileperch' or 'filepertype'     
-    else
-        disp('- Support for Intanformat files not yet available.')
-        return
-    end
+        case {'fileperch', 'filepertype'}
+          %% 03.2 INTAN Pipeline
 
-    % Check for created FT file.
-    if isempty(data) 
-        % If true, there was an existing FT file, and the step was
-        % skipped. Load the pre-existing one.
-        disp('Loading...');
-        datafile = dir('*_FT.mat');
-        load(datafile.name, 'FT_data');
-        clear datafile data
+          % 01 Find out INTAN settings and header file. Extract info.
+            %  Uses a modified Intan function to output info
+          [sessions.info{ss}.INTAN_hdr] = mod_read_Intan_RHD2000_file('info.rhd');
 
-        % A couple details could have been lost if not processing
-        sessions.info.nSamples       = FT_data.sampleinfo(2);
-        sessions.info.recording_time = sessions.info.nSamples / (sessions.info.amplifier_sample_rate/32);
-    end
+          % Number of channels.
+          sessions.info{ss}.nchannels = length(sessions.info{ss}.INTAN_hdr.amplifier_channels);
 
-    %% 04. Give proper FieldTrip format
-    % If the file is being created now, look for 'data'
-    if exist('data','var')
+          % If available, parse info from 'settings.xml' (for easy access).
+            %  Contains metadata that may be worth to keep. Some data is relocated
+            %  to have easier access.
+          if isfile('settings.xml')
+                settingStruct = parseXML('settings.xml');
+                sessions.info{ss}.amplifier_sample_rate   = str2double(settingStruct.Attributes(1).Value); 
+                sessions.info{ss}.lowpass_downsample      = str2double(settingStruct.Children(2).Attributes(85).Value); 
+                sessions.info{ss}.Version                 = settingStruct.Attributes(3).Value;
+                sessions.info{ss}.Name                    = settingStruct.Name;
+                sessions.info{ss}.Children                = settingStruct.Children;
+                
+                % We calculate lowpass sampling rate
+                sessions.info{ss}.lowpass_sample_rate     = sessions.info{ss}.amplifier_sample_rate / sessions.info{ss}.lowpass_downsample;
+          else
+                % Old datasets do not necessarily have an associatted .xml file
+                % We have to look for basic info in the header. Some cannot be
+                % populated yet.
+                sessions.info{ss}.amplifier_sample_rate   = sessions.info{ss}.INTAN_hdr.frequency_parameters.amplifier_sample_rate  ;
+                sessions.info{ss}.lowpass_downsample      = []; 
+                sessions.info{ss}.Version                 = str2double(sessions.info{ss}.INTAN_hdr.version);
+                sessions.info{ss}.Name                    = [];
+                sessions.info{ss}.Children                = [];
+                
+                % Lowpass sampling rate not available
+                sessions.info{ss}.lowpass_sample_rate     = [];
+          end
+          clear settingStruct
 
-        % Check that Fieldtrip likes what we have (it should).
-        FT_data = ft_checkdata(data, 'feedback' ,'yes');
-        clear data
-    
-        % Then give the FT_data a proper 'continous' state.
-        cfg = [];
-         cfg.continuous = 'yes';
-    
-        FT_data = ft_redefinetrial(cfg, FT_data);
-        clear cfg
-    
-        % Save this session data. Generates a file with continous data for a
-        %   SINGLE session only into the session folder.
-        save(strcat(sessions.folder,'\',sessions.name,'\',sessions.name,'_continous_FT.mat'), ...
-            'sessions', 'input', 'FT_data', '-v7.3')
-    end
+          % 02 Create NWB file
+          if input.useNWB % We want a .NWB file.
+                % Run wrapper for the INTAN to NWB functionality:               
+                % This NEEDS A PYTHON installation and the tooldbox inside!
+                % Detailed explanation:
+                % WHAT IT IS: function to convert data from INTAN to .NWB format.
+                % WHAT IT DOES: Checks for Python engine in computer. Adds the necessary
+                %  dependences. Locates input session, copies ALL files to the IntanToNWB
+                %  folder and merges them into a new 'info.nwb' file. This file 
+                %  is renamed to 'session_name.nwb'. Moves this new file back to 
+                %  the original session folder. Removes the copied data from the 
+                %  IntanToNWB folder.
+                %
+                % Requires Python installed in the machine. 
+                %  To date, MATLAB 2021b accepts up to Python 3.9. Install the
+                %  64 bits version:
+                % (https://de.mathworks.com/help/matlab/matlab_external/install-supported-python-implementation.html)
+                %  To check access to Python Modules from MATLAB, look that 'pe' is correctly populated when running the script.
+               intan2NWB_wrapper(sessions,ss)
+          end 
 
-    % If the file comes from a loaded file, it is named 'FT_data'
-    % And it should be on real FT format already.
+          % 03 Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
+          if input.ToKilosort & ~isfile([sessions.list(ss).name '.h5'])
+              % Based on Sara, Aylin and Lukas' scripts. To modify any input, example:
+                 % in = struct();
+                 % in.createAvrgDatMat = false;
+              Intan2Kilosort_wrapper(sessions, ss); % add 'in' if desired
+          end
 
-    % This test plotting uses Chronux Multitaper approach to generate fast
+          % 04 Run wrapper for the INTAN to MATLAB.
+          % Includes a mix of INTAN funtions.
+          [data, sessions] = intan2MAT_wrapper(sessions, ss);
+
+          % 05 CREATE and GIVE proper FieldTrip format.
+          % If the file comes from a loaded file, will be named 'FT_data'
+          % And it should be on real FT format already. Otherwise:
+          if isvarname('FT_data')
+                if isempty(data) 
+                   % If true, there was an existing FT file, and the step was skipped. Load the pre-existing one.
+                   disp('Loading...');
+                   datafile = dir('*_FT.mat');
+                   load(datafile.name, 'FT_data');
+                   clear datafile data
+                    
+                   % A couple details could have been lost if not processing
+                   sessions.info{ss}.nSamples       = FT_data.sampleinfo(2);
+                   sessions.info{ss}.recording_time = sessions.info{ss}.nSamples / (sessions.info{ss}.amplifier_sample_rate/32);
+                end
+                
+                % If the file is being created now, look for 'data'
+                if exist('data','var')
+                   % Check that Fieldtrip likes what we have (it should).
+                   FT_data = ft_checkdata(data, 'feedback' ,'yes');
+                   clear data
+                
+                   % Then give the FT_data a proper 'continous' state.
+                   cfg = [];
+                    cfg.continuous = 'yes';
+                
+                   FT_data = ft_redefinetrial(cfg, FT_data);
+                   clear cfg
+                
+                   % Save this session data. Generates a file with continous data for a
+                   %   SINGLE session only into the session folder.
+                   save(strcat(sessions.folder,'\',sessions.list(ss).name,'\',sessions.list(ss).name,'_continous_FT.mat'), ...
+                        'sessions', 'input', 'FT_data', '-v7.3')
+                end
+          end
+
+        case 'Allego'
+          %% 03.3 Allego Pipeline
+            warning('Allego format not implemented yet.'); % TODO
+
+        case 'Intanformat'
+            warning('INTAN old format not implemented. Probably will not be.');
+
+        case 'NAN'
+            warning('The format of this session could not be recognized. Skipping.');
+            continue
+
+        otherwise
+            warning('Something went wrong during format verification. Skipping');
+            sessions.info{ss}.fileformat = 'ERR'; % Flag for ERROR
+            continue
+    end 
+
+    %% 04 This test plotting uses Chronux Multitaper approach to generate fast
     % single-tappered Spectrograms on a subset of channels for a small chunck
-    % of time. Just to have a preview of how the signal looks like
-    if ~isempty(input.test_ch) && input.plots(1) == 1
+    % of time. Just to have a preview of how the signal looks like in
+    % the LFP range.
+    if ~isempty(input.test_ch) & any(input.plots)
         plot_testsignal(FT_data,input.test_ch)
     end
-
+    
+    %% 05 Clean up to mov on to next session
     clear data2save cfg FT_data
 
-    %% Proceed to extract the spikes from the 'spike.dat' files if requested
-    if ~isempty(files) && strcmp(input.bandpass{3},'spike')
-        % Read files
-        sessions.info.files = dir('spike*.dat');
-        
-        % Read spikes from all
-        spikes = mod_read_Intan_spike_file('noartifacts',sessions.info.files);
-        
-        % Isolate Spike times
-        spiketimes = spikes(:,3);
-        
-        % Transform into fieldtrip spike data
-        % ---
-        %%%
-
-        if input.plots(2) == 1
-            % Plots spike rasters for all channels and the whole session but 
-            % shows only the time given by the pair 'XLimForCell', [0 10].
-            % Drag to move the timeline.
-            [~,~] = plot_spikeraster(spiketimes,'PlotType','vertline', ...
-                                                'SpikeDuration', 0.001, ...
-                                                'XLimForCell', [0 20], ...
-                                                'VertSpikeHeight',.5);
-            ylabel('Channel'), xlabel('Time (s)');
-            %save
-
-            % TODO: Then, plot the average waveform for each channel
-            for sp = 1:length(spikes)
-                figure, plot(mean(spikes{sp,5},2));
-                % give axes
-                % give title
-                % save
-            end
-        end
-
-        if input.plots(3) == 1
-            % TODO
-            % Plots spike rasters for all channels and the whole session 
-            % plus voltage traces for a small sample of channels.
-            % Shows only the time given by the pair 'XLimForCell', [0 10].
-            % Drag to move the timeline.
-            subplot(2,1,1)
-            [~,~] = plot_spikeraster(spiketimes,'PlotType','vertline', ...
-                                                'SpikeDuration', 0.001, ...
-                                                'XLimForCell', [0 1500], ...
-                                                'VertSpikeHeight',.5);
-            ylabel('Channel'), xlabel('Time (s)'); 
-            hold on
-            
-            % try load few amp channels, downsampling 32x
-            volt_data = getNWB_VoltageTrace(input,[1:5:32],'all',32);
-            
-            subplot(2,1,2)
-            plot(volt_data+[10;20;30;40;50;60;70])
-
-
-
-            %save
-        end
-        
-    end
-
-
-
-    %% TODO: this is not ready yet
-    %  elseif ~isempty(files) && strcmp(input.bandpass{i},'high')
-    %     sessions.info.files = dir('high*.dat');
-    %     break
-
-
-end
-
-%% Plot funtion
-function plot_testsignal(FT_data,ch)
-if ~exist('ch','var')
-    ch = input.test_ch;
-end
-addpath(genpath('toolboxes\multitaper_prerau'))
-
-% Parameters for MT
-Fs              = FT_data.fsample; % double - sampling frequency (Hz)
-frequency_range = [0 100]; % [<min frequency>, <max frequency>]
-taper_params    = [2 3];   % [<TW>, <N>]
-                           % Time-half bandwidth product (TW) is N*BW/2 where
-                           %  N is window length (s), BW is main lobe bandwidth
-                           % optimal number of tapers (N) is 2*TW-1
-window_params   = [2 .4];  % [window length, step size] (s)
-min_NFFT        = 0;       % double - minimum allowable NFFT size, adds zero 
-                           %  padding for interpolation (closest 2^x)
-detrend_opt     = 'linear';% string - detrend data window ('linear' (def.), 'constant', 'off')
-weighting       = 'unity'; % string - weighting of tapers ('unity' (def.), 'eigen', 'adapt')
-plot_on         = false;   % boolean - plot results
-verbose         = false;   % boolean - display spectrogram properties
-
-% Check if channel requirements are possible
-if ch(end) > size(FT_data.trial{1,1},1)
-    ch = 1:2:size(FT_data.trial{1,1},1);
-    disp('The channel list to plot has been modified because the requested list was not possible')
-end
-
-for i=ch
-    data = FT_data.trial{1,1}(i,:)'; % samples x 1 vector - time series data
-       
-    % COMPUTE MULTITAPER SPECTROGRAM
-    [spectral.data, spectral.t, spectral.f] = ...
-        multitaper_spectrogram_mex(data, Fs, frequency_range, ...
-                                   taper_params, window_params, min_NFFT, ...
-                                   detrend_opt, weighting, plot_on, verbose);
-    
-    % Obtain max/min values (in dB)
-    cmax = max(max(mag2db(spectral.data)));
-    cmin = min(min(mag2db(spectral.data)));
-    
-    % PLOT MTSpectrogram, in dB
-    figure(1), pcolor(spectral.t, spectral.f, mag2db(spectral.data)); hold on;
-        shading interp; 
-        colormap("turbo"); % improved 'jet'
-        set(gca, 'clim', [cmin*.25 cmax*.95]);  % Adjust dB scale
-        c = colorbar('location','eastoutside'); % set scale location
-        c.Label.String = 'dB'; % scale label
-        
-        % plot voltage trace, scaled to fit on the low frequency range
-        plot(FT_data.time{1}, ((data)/50)+35, 'Color', 'w', 'LineWidth', 1)
-        
-        ylabel('Frequency (Hz) and Voltage (uV/50)', 'fontsize', 12); % graph label
-        xlabel('sec', 'fontsize', 12); % graph label
-        xlim([15 45]); ylim([0 50]);   % graph limits
-    title(sprintf('Spectrogram for Ch: %s',FT_data.label{i,1}));
-%     sdf(1,'800x300_hdpi_spectrum'), box('off');
-    saveas(gca,sprintf('testsignal_ch%s',FT_data.label{i,1}),'png')
-    close all
-end
-end
+end 

@@ -1,5 +1,4 @@
 function [info] = mod_read_Intan_RHD2000_file(filename)
-
 % Orig: read_Intan_RHD2000_file
 %
 % MOD by Jesus 09.2022: Mostly, output variable management. Creates 'info'

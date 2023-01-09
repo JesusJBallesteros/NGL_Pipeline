@@ -208,4 +208,3 @@ function [spec,b,a] = bandFilter(data,dim,freqBands,smpRate,varargin)
     spec = permute(spec, dimPerm);
   end    
 end
-

@@ -100,7 +100,7 @@ if ~isfield(ft_default, 'trackconfig'),       ft_default.trackconfig    = 'off';
 if ~isfield(ft_default, 'checkconfig'),       ft_default.checkconfig    = 'loose';    end % pedantic, loose, silent
 if ~isfield(ft_default, 'checkpath'),         ft_default.checkpath      = 'pedantic'; end % pedantic, once, no
 if ~isfield(ft_default, 'checksize'),         ft_default.checksize      = 1e5;        end % number in bytes, can be inf
-if ~isfield(ft_default, 'showlogo'),          ft_default.showlogo       = 'yes';      end % yes or no, this is relevant for SPM and EEGLAB
+if ~isfield(ft_default, 'showlogo'),          ft_default.showlogo       = 'no';       end % yes or no, this is relevant for SPM and EEGLAB
 if ~isfield(ft_default, 'showcallinfo'),      ft_default.showcallinfo   = 'yes';      end % yes or no, this is used in ft_pre/postamble_provenance
 if ~isfield(ft_default, 'debug'),             ft_default.debug          = 'no';       end % no, save, saveonerror, display, displayonerror, this is used in ft_pre/postamble_debug
 if ~isfield(ft_default, 'outputfilepresent'), ft_default.outputfilepresent = 'overwrite'; end % can be keep, overwrite, error
@@ -247,8 +247,8 @@ if ~isdeployed
     % external/signal contains alternative implementations of some signal processing functions
     if ~ft_platform_supports('signal') || ~strcmp(ft_default.toolbox.signal, 'matlab') || ~ft_hastoolbox('signal')
       addpath(fullfile(fileparts(which('ft_defaults')), 'external', 'signal'));
-    else
-      rmpath(fullfile(fileparts(which('ft_defaults')), 'external', 'signal'));
+%     else
+%       rmpath(fullfile(fileparts(which('ft_defaults')), 'external', 'signal'));
     end
   end
 
@@ -256,8 +256,8 @@ if ~isdeployed
     % external/stats contains alternative implementations of some statistics functions
     if ~ft_platform_supports('stats') || ~strcmp(ft_default.toolbox.stats, 'matlab') || ~ft_hastoolbox('stats')
       addpath(fullfile(fileparts(which('ft_defaults')), 'external', 'stats'));
-    else
-      rmpath(fullfile(fileparts(which('ft_defaults')), 'external', 'stats'));
+%     else
+%       rmpath(fullfile(fileparts(which('ft_defaults')), 'external', 'stats'));
     end
   end
 
@@ -265,8 +265,8 @@ if ~isdeployed
     % external/images contains alternative implementations of some image processing functions
     if ~ft_platform_supports('images') || ~strcmp(ft_default.toolbox.images, 'matlab') || ~ft_hastoolbox('images')
       addpath(fullfile(fileparts(which('ft_defaults')), 'external', 'images'));
-    else
-      rmpath(fullfile(fileparts(which('ft_defaults')), 'external', 'images'));
+%     else
+%       rmpath(fullfile(fileparts(which('ft_defaults')), 'external', 'images'));
     end
   end
 
