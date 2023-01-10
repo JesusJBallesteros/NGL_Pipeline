@@ -59,7 +59,7 @@ input.ToKilosort = true; % the following one will crash. It needs a Matlab resta
                           % TODO: figure this out
 
 % Optatives will be set to default if missing here. 
-input.dates      = 'all';
+input.dates      = {'20230110'};
 input.bandpass   = {'low' 'amp' '' 'high'};
 input.plots      = [];
 input.test_ch    = [];

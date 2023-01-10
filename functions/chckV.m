@@ -35,8 +35,8 @@ function [info] = chckV(input)
             % Checks which type of logger was used and sets some parameters:
             metaData                = Deuteron_GetMetaData(info.fileformat);
             info.numChannels        = metaData.numChannels;
-            info.numberOfADCBits    = metaData.numberOfADCBits;
-            info.voltageResolution  = metaData.voltageResolution;
+            info.numADCBits         = metaData.numADCBits;
+            info.voltageRes         = metaData.voltageRes;
             info.sampleRate         = metaData.fSample;
             info.HDF5chunkSize      = 300*info.sampleRate;
             info.bandpass           = input.bandpass{4}; % It uses highpass data
@@ -45,8 +45,8 @@ function [info] = chckV(input)
             warning('Something went wrong with this Deuteron flat format session.')
             info.fileformat     = 'NAN'; % Flag for error with the file format
             info.numChannels    = [];
-            info.numberOfADCBits    = [];
-            info.voltageResolution  = [];
+            info.numOfADCBits    = [];
+            info.voltageRes  = [];
             info.sampleRate     = [];
             info.HDF5chunkSize  = [];
             info.bandpass       = [];
@@ -69,8 +69,8 @@ function [info] = chckV(input)
             warning('Something went wrong with this Deuteron block format session.')
             info.fileformat     = 'NAN'; % Flag for error with the file format
             info.numChannels    = [];
-            info.numberOfADCBits    = [];
-            info.voltageResolution  = [];
+            info.numADCBits    = [];
+            info.voltageRes  = [];
             info.sampleRate     = [];
             info.HDF5chunkSize  = [];
             info.bandpass       = [];
@@ -121,8 +121,8 @@ function [info] = chckV(input)
             warning('The format of the sessions could not be determined.')
             info.fileformat     = 'NAN'; % Flag for error with the file format
             info.numChannels    = [];
-            info.numberOfADCBits    = [];
-            info.voltageResolution  = [];
+            info.numADCBits    = [];
+            info.voltageRes  = [];
             info.sampleRate     = [];
             info.HDF5chunkSize  = [];
             info.bandpass       = [];
