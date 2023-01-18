@@ -1,4 +1,4 @@
-function D2K = Deuteron2Kilosort_wrapper(sessions, ss, varargin)
+function D2K = Deuteron2Kilosort_wrapper(sessions, varargin)
 % Adaptation from the common pipeline for Deuteron. Prepares recorded data for spike sorting with Kilosort.
 % For now, uses *.DT2 files and creates .h5 and .bin files.
 %
@@ -28,9 +28,11 @@ function D2K = Deuteron2Kilosort_wrapper(sessions, ss, varargin)
 % VERSION HISTORY:
 % Author:         Aylin, Lukas & Sara
 % Version:        1
-% Last Change:    05.01.2023 (Jesus)
+% Last Change:    18.01.2023 (Jesus)
 
-if nargin < 3, in = struct(); end
+global ss
+
+if nargin < 2, in = struct(); end
 
 %% Defaults
 if ~isfield(in,'createAvrgDatMat'),     in.createAvrgDatMat     = false;    end
@@ -56,31 +58,29 @@ if in.createAvrgDatMat
     mkdir(in.folderProcDataMatAveraged);% create folder for avereged data matrix
 end
 
+%% MAIN CALL
+% Converts Deuteron DT2 and DF1 files into the 'oneFilePerChannel' format.
+% Also filters the data and retrieve event codes if requested. 
+disp('Generating single channel files from Deuteron...')
+out = Deuteron2Kilosort(in, sessions);
+
 %% Get already existing Parameters
 numChannels     = sessions.info{ss}.numChannels;
 HDF5chunkSize   = sessions.info{ss}.HDF5chunkSize;
 
-%% MAIN CALL
-disp('Generating single channel files from Deuteron...')
-if strcmp(sessions.info{ss}.fileformat,'DT2')
-    % converts Deuteron DT2 files into the 'oneFilePerChannel' format.
-    % Also filters the data and retrieve event codes if requested. 
-    out = Deuteron2Kilosort(in, sessions, ss);
-
-elseif strcmp(sessions.info{ss}.fileformat,'DF1')
-    % TODO: implement the new format conversion from Sara
-    % converts Deuteron DF1 files into the 'oneFilePerChannel' format.
-    % Also filters the data and retrieve event codes if requested. 
-%     out = Deuteron2Kilosort_DF1(in, sessions, ss);
-end
-
 %% Pre-define data matrix and average subtracted matrix.
 % Create HDF5 file to compile data matrix
-h5create(fullfile(in.folderProcDataMat, [in.savFileName '.h5']), '/allChnMat', [numChannels Inf], 'ChunkSize', [1 HDF5chunkSize], 'Datatype', 'int16')
+h5create(fullfile(in.folderProcDataMat, [in.savFileName '.h5']), ...
+         '/allChnMat', [numChannels Inf], ...
+         'ChunkSize', [1 HDF5chunkSize], ...
+         'Datatype', out.datatype)
 
 % create HDF5 file to compile averaged data matrix
 if in.createAvrgDatMat
-    h5create(fullfile(in.folderProcDataMatAveraged,[in.savFileNameAvrg '.h5']), '/avgSubtracted', [numChannels Inf], 'ChunkSize', [1 in.stpSz], 'Datatype', 'int16') 
+    h5create(fullfile(in.folderProcDataMatAveraged,[in.savFileNameAvrg '.h5']), ...
+             '/avgSubtracted', [numChannels Inf], ...
+             'ChunkSize', [1 in.stpSz], ...
+             'Datatype', out.datatype) 
 end
 
 % Find out total number of samples per channel by reading .h5 file metadata
@@ -123,11 +123,13 @@ for j = in.startEvent:in.stpSz:out.ChunkStart(end)
     end
 
     for i = 1:numChannels
-        sngChn{i,1} = h5read(fullfile(in.folderSingleChannels, out.myFiles(i,:)), ['/channel_' num2str(i)], [1 j], [1 in.stpSz]);
+        sngChn{i,1} = h5read(fullfile(in.folderSingleChannels, out.myFiles(i,:)), ...
+                            ['/channel_' num2str(i)], [1 j], [1 in.stpSz]);
         
         if in.keeph5
             % compile channels -> unaltered matrix to load into kilosort
-            h5write(fullfile(in.folderProcDataMat, [in.savFileName '.h5']), '/allChnMat', sngChn{i,1}, [i j-(out.ChunkStart(1)-1)], [1 in.stpSz]);
+            h5write(fullfile(in.folderProcDataMat, [in.savFileName '.h5']), ...
+                '/allChnMat', sngChn{i,1}, [i j-(out.ChunkStart(1)-1)], [1 in.stpSz]);
         end
 
         if in.createAvrgDatMat
@@ -137,9 +139,13 @@ for j = in.startEvent:in.stpSz:out.ChunkStart(end)
 
     if in.createAvrgDatMat
         % write into a new matrix and a new binary file the average subtracted channel data 
-        subtrAverage(meanForSub,numChannels, sngChn, in.folderProcDataMatAveraged, in.savFileNameAvrg, j, in.stpSz, fidDataMatAvg, out.ChunkStart);
+        subtrAverage(meanForSub,numChannels, ...
+                    sngChn, in.folderProcDataMatAveraged, ...
+                    in.savFileNameAvrg, j, in.stpSz, ...
+                    fidDataMatAvg, out.ChunkStart);
     end
-
+    
+    % Write bin file
     fwrite(fidDataMat, cell2mat(sngChn), 'int16');
 end
 

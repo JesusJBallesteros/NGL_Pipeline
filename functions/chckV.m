@@ -1,4 +1,4 @@
-function [info] = chckV(input)
+function [info] = chckV()
 % Onc in the session folder, checks for existence of any of the following
 % files:
 %   'EVENTLOG.NLE': characteristic of Deuteron flat format
@@ -13,6 +13,8 @@ function [info] = chckV(input)
 % Calls to: 'Deuteron_GetMetaData'
 %
 % 06.01.2023. Jesus
+
+global input
 
     if isfile('EVENTLOG.NLE') 
         % For this format, we list the files with neural data and extract some
@@ -33,7 +35,7 @@ function [info] = chckV(input)
             % Corresponding files: get all DT2 files in folder with raw data.
             % Get meta data from Deuteron:
             % Checks which type of logger was used and sets some parameters:
-            metaData                = Deuteron_GetMetaData(info.fileformat);
+            metaData                = Deuteron_GetMetaData(info);
             info.numChannels        = metaData.numChannels;
             info.numADCBits         = metaData.numADCBits;
             info.voltageRes         = metaData.voltageRes;
@@ -60,10 +62,13 @@ function [info] = chckV(input)
         info.files = dir(['*.' info.fileformat]);
         if ~isempty(info.files)
             % Extract metadata
-            % here
-            % info.numChannels    = ;
-            % info.sampleRate     = ;
-            % info.HDF5chunkSize  = 300*info.sampleRate;
+            metaData                = Deuteron_GetMetaData(info);
+            info.numChannels        = metaData.numChannels;
+            info.numADCBits         = metaData.numADCBits;
+            info.voltageRes         = metaData.voltageRes;
+            info.sampleRate         = metaData.fSample;
+            info.HDF5chunkSize      = 300*info.sampleRate;
+            info.bandpass           = input.bandpass{4}; % It uses highpass data
     
         else
             warning('Something went wrong with this Deuteron block format session.')

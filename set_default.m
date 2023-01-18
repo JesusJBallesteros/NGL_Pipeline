@@ -75,6 +75,7 @@ if ~isfield(input,'test_ch'),       input.test_ch = [];                     end
 cd(input.mainfolder)
 addpath functions\
 addpath toolboxes\fieldtrip_light
+addpath toolboxes\Deuteron_BlockFileFormat
 addpath(genpath('toolboxes\multitaper_prerau'))
 ft_defaults
 

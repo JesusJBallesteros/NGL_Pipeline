@@ -32,7 +32,7 @@
 %           3. (ALLEGO data?)
 %       03. Plots from snippets of time- and frequency-domain data
 %       
-% Last modified 05.01.2023 (Jesus)
+% Last modified 18.01.2023 (Jesus)
 
 % TODO 
 %       There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
@@ -48,7 +48,7 @@
 %
 
 % Make 'input' available for all functions.
-global input
+global input ss
 
 % Necessary inputs will be actively asked for, if left empty.
 input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline';
@@ -59,7 +59,7 @@ input.ToKilosort = true; % the following one will crash. It needs a Matlab resta
                           % TODO: figure this out
 
 % Optatives will be set to default if missing here. 
-input.dates      = {'20230110'};
+input.dates      = {'20221219_Deut02'};
 input.bandpass   = {'low' 'amp' '' 'high'};
 input.plots      = [];
 input.test_ch    = [];
@@ -102,7 +102,7 @@ for ss=1:sessions.nSessions
     cd(strcat(sessions.folder,'\',sessions.list(ss).name));
 
     %% 02. Check file type and versions
-    sessions.info{ss} = chckV(input);
+    sessions.info{ss} = chckV();
 
     % Determine pipeline based on type of data
     switch sessions.info{ss}.fileformat
@@ -122,7 +122,7 @@ for ss=1:sessions.nSessions
                   % in.createAvrgDatMat = false;
                   
                % TODO: implement the new format conversion from Sara
-               Deuteron2Kilosort_wrapper(sessions, ss); % add 'in' if desired
+               Deuteron2Kilosort_wrapper(sessions); % add 'in' if desired
             end
 
         case {'fileperch', 'filepertype'}

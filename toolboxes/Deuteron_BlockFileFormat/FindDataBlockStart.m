@@ -1,4 +1,3 @@
-
 function [ indicesOfSubarray ] = FindDataBlockStart( mainArray, subArray )
 %FINDSUBARRAY finds all instances of subarray in mainArray
 
