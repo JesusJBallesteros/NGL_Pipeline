@@ -53,13 +53,13 @@ global input ss
 % Necessary inputs will be actively asked for, if left empty.
 input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline';
 input.datafolder = "D:\Experiments\";
-input.animal     = '478';
+input.animal     = '451';
 input.useNWB     = false;  % Due to some conflict at h5 python-matlab dlls if either transformation is performed,
 input.ToKilosort = true; % the following one will crash. It needs a Matlab restart, to clear some cache or smth...
                           % TODO: figure this out
 
 % Optatives will be set to default if missing here. 
-input.dates      = {'20221219_Deut02'};
+input.dates      = {'20230120'};
 input.bandpass   = {'low' 'amp' '' 'high'};
 input.plots      = [];
 input.test_ch    = [];
@@ -72,42 +72,22 @@ set_default;
 % This 'sessions' variable can be used for summary, book keeping and
 % debugging at the end of the pipeline.
 % It will not be saved automatically, tho. TODO?
+sessions = findSessions;
 
-if iscell(input.dates) % input is cell array of dates
-    input.dates = input.datafolder + input.animal + "\" + input.animal + "_" + input.dates(:) + '*';
-    [sessions.folder,sessions.name,~] = fileparts(input.dates);
-    sessions.folder = unique(sessions.folder);
-
-    % Get and Count sessions
-    cd(sessions.folder)
-    sessions.nSessions = length(sessions.name);
-    for s = 1:sessions.nSessions
-        sessions.list(s) = dir(sessions.name(s));
-    end
-    clear s
-
-elseif strcmp(input.dates, 'all') % input is 'all'
-    sessions.folder = input.datafolder + input.animal;
-    sessions.list   = dir(sessions.folder + '\' + input.animal + '*');
-    
-    % Get and Count sessions
-    cd(sessions.folder)
-    sessions.nSessions = length(sessions.list);
-end
-
-% Loop sessions and read into MATLAB
-for ss=1:sessions.nSessions
-
+%% 02. Loop sessions and read into MATLAB
+for ss = 1:sessions.nSessions
+    %% 03. Check file type and versions
     % Go to session folder.
     cd(strcat(sessions.folder,'\',sessions.list(ss).name));
 
-    %% 02. Check file type and versions
+    % Check System, version. 
     sessions.info{ss} = chckV();
+    disp(sessions.info{ss});
 
-    % Determine pipeline based on type of data
+    %% 04. Determine pipeline based on type of data
     switch sessions.info{ss}.fileformat
         case {'DT2', 'DT4', 'DT8', 'DAT', 'DF1'}
-            %% 03.1 Deuteron Pipline
+            %% 04.1 Deuteron Pipline
                
             % 01 TODO Create Fieldtrip files from Deuteron data
             % So far, Deuteron does not seem ideal for LFP, but it should be possible at some point.
@@ -126,42 +106,9 @@ for ss=1:sessions.nSessions
             end
 
         case {'fileperch', 'filepertype'}
-          %% 03.2 INTAN Pipeline
-
+          %% 04.2 INTAN Pipeline
           % 01 Find out INTAN settings and header file. Extract info.
-            %  Uses a modified Intan function to output info
-          [sessions.info{ss}.INTAN_hdr] = mod_read_Intan_RHD2000_file('info.rhd');
-
-          % Number of channels.
-          sessions.info{ss}.nchannels = length(sessions.info{ss}.INTAN_hdr.amplifier_channels);
-
-          % If available, parse info from 'settings.xml' (for easy access).
-            %  Contains metadata that may be worth to keep. Some data is relocated
-            %  to have easier access.
-          if isfile('settings.xml')
-                settingStruct = parseXML('settings.xml');
-                sessions.info{ss}.amplifier_sample_rate   = str2double(settingStruct.Attributes(1).Value); 
-                sessions.info{ss}.lowpass_downsample      = str2double(settingStruct.Children(2).Attributes(85).Value); 
-                sessions.info{ss}.Version                 = settingStruct.Attributes(3).Value;
-                sessions.info{ss}.Name                    = settingStruct.Name;
-                sessions.info{ss}.Children                = settingStruct.Children;
-                
-                % We calculate lowpass sampling rate
-                sessions.info{ss}.lowpass_sample_rate     = sessions.info{ss}.amplifier_sample_rate / sessions.info{ss}.lowpass_downsample;
-          else
-                % Old datasets do not necessarily have an associatted .xml file
-                % We have to look for basic info in the header. Some cannot be
-                % populated yet.
-                sessions.info{ss}.amplifier_sample_rate   = sessions.info{ss}.INTAN_hdr.frequency_parameters.amplifier_sample_rate  ;
-                sessions.info{ss}.lowpass_downsample      = []; 
-                sessions.info{ss}.Version                 = str2double(sessions.info{ss}.INTAN_hdr.version);
-                sessions.info{ss}.Name                    = [];
-                sessions.info{ss}.Children                = [];
-                
-                % Lowpass sampling rate not available
-                sessions.info{ss}.lowpass_sample_rate     = [];
-          end
-          clear settingStruct
+          sessions = findIntanSetting(sessions);
 
           % 02 Create NWB file
           if input.useNWB % We want a .NWB file.
@@ -233,7 +180,7 @@ for ss=1:sessions.nSessions
           end
 
         case 'Allego'
-          %% 03.3 Allego Pipeline
+          %% 04.3 Allego Pipeline
             warning('Allego format not implemented yet.'); % TODO
 
         case 'Intanformat'
@@ -249,7 +196,7 @@ for ss=1:sessions.nSessions
             continue
     end 
 
-    %% 04 This test plotting uses Chronux Multitaper approach to generate fast
+    %% 05 This test plotting uses Chronux Multitaper approach to generate fast
     % single-tappered Spectrograms on a subset of channels for a small chunck
     % of time. Just to have a preview of how the signal looks like in
     % the LFP range.
@@ -257,7 +204,7 @@ for ss=1:sessions.nSessions
         plot_testsignal(FT_data,input.test_ch)
     end
     
-    %% 05 Clean up to mov on to next session
+    %% 06 Clean up to mov on to next session
     clear data2save cfg FT_data
 
 end 

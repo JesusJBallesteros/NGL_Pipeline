@@ -82,11 +82,17 @@ end
 
 %% Pre-define data matrix and average subtracted matrix
 % create HDF5 file to compile data matrix
-h5create(fullfile(in.folderProcDataMat,[in.savFileName '.h5']), '/allChnMat', [in.numChannels Inf], 'ChunkSize', [1 in.HDF5chunkSize], 'Datatype', 'int16')
+h5create(fullfile(in.folderProcDataMat, [in.savFileName '.h5']), ...
+        '/allChnMat', [in.numChannels Inf], ...
+        'ChunkSize', [1 in.HDF5chunkSize], ...
+        'Datatype', 'int16')
 
 if in.createAvrgDatMat
     % create HDF5 file to compile averaged data matrix
-    h5create(fullfile(in.folderProcDataMatAveraged,[in.savFileNameAvrg '.h5']), '/avgSubtracted', [in.numChannels Inf], 'ChunkSize', [1 in.stpSz], 'Datatype', 'int16') 
+    h5create(fullfile(in.folderProcDataMatAveraged,[in.savFileNameAvrg '.h5']), ...
+            '/avgSubtracted', [in.numChannels Inf], ...
+            'ChunkSize', [1 in.stpSz], ...
+            'Datatype', 'int16') 
 end
 
 % total number of samples per channel 
@@ -116,11 +122,13 @@ for j = 1:in.stpSz:out.ChunkStart(end)
     end
 
     for i = 1:in.numChannels
-        sngChn{i,1} = h5read(fullfile(in.folderSingleChannels, out.myFiles(i,:)), ['/channel_' num2str(i)], [1 j], [1 in.stpSz]);
+        sngChn{i,1} = h5read(fullfile(in.folderSingleChannels, out.myFiles(i,:)), ...
+                         ['/channel_' num2str(i)], [1 j], [1 in.stpSz]);
         
         if in.keeph5
             % compile channels -> unaltered matrix to load into kilosort
-            h5write(fullfile(in.folderProcDataMat, [in.savFileName '.h5']), '/allChnMat', sngChn{i,1}, [i j-(out.ChunkStart(1)-1)], [1 in.stpSz]);
+            h5write(fullfile(in.folderProcDataMat, [in.savFileName '.h5']), ...
+                     '/allChnMat', sngChn{i,1}, [i j-(out.ChunkStart(1)-1)], [1 in.stpSz]);
         end
 
         if in.createAvrgDatMat

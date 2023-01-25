@@ -56,19 +56,22 @@ end
 % list with all pre-allocated files
 allFileNames = ls([in.folderSingleChannels,'\Ch*']); 
 
+%% Differentiate between old and new Deuteron Formats
+% open each neural data file, resize data for detection with Kilosort,
+% allocate data to its respective single-channel file.
 if ~strcmp(ext, 'DF1')
-    %% Allocate data to its respective single-channel file
-    % open each neural data file, resize data for detection with Kilosort,
-    % allocate data to its respective single-channel file.
+    % OLD
     indexPos = 0;
     for i = 1:numFiles
+        % Neural data points are 16 bit words
         fid = fopen(fullfile(in.pathRaw, Files(i).name));
-        data = fread(fid, 'uint16'); % each data point of neural data is a 16 bit word
+            data = fread(fid, 'uint16'); 
         fclose(fid);
-        
-        dataMatrix = reshape(data', numChannels, []); % data are now in form of channels x samples
-%         KSRawdata = int16(int32(dataMatrix) - int32(intmax('uint16')/2)); % resize for detection with Kilosort
-        KSRawdata = dataMatrix;
+
+        % Shape as channels x samples
+        data = reshape(data', numChannels, []); 
+        KSRawdata = int16(int32(data) - int32(intmax('uint16')/2)); % resize for detection with Kilosort
+        clear data
 
         % distribute each row of data to its respective single-channel file
         for b = 1:numChannels
@@ -80,7 +83,6 @@ if ~strcmp(ext, 'DF1')
         end
         
         indexPos = indexPos+size(KSRawdata,2);
-        clear dataMatrix
     end
     
     %% Set and apply filters. 

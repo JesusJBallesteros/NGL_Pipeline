@@ -30,17 +30,19 @@ allFileNames = ls([in.folderSingleChannels,'\Ch*']);
 % allocate data to its respective single-channel file.
 for i = 1:length(in.myFiles)
     fid = fopen(fullfile(in.pathRaw, in.myFiles(i).name));
-    data = fread(fid, [1 inf], 'int16'); % each data point of neural data is a 16 bit word
+    data = int16(fread(fid, [1 inf], 'int16')); % each data point of neural data is a 16 bit word
     fclose(fid);
-    
+    data = data * 0.195;
+
     % data in form of channels x samples
-    data = reshape(data', 1, []);
+%     data = reshape(data', 1, []);
 
     % resize for Kilosort
-    KSRawdata = int16(int32(data) - int32(intmax('int16')/2));
+%     KSRawdata = int16(int32(data) - int32(intmax('int16')/2));
     
     % distribute each row of data to its respective single-channel file
-    h5write(fullfile(in.folderSingleChannels, allFileNames(i,:)), ['/channel_' num2str(i)], KSRawdata, [1 1], [1 size(KSRawdata,2)]);
+%     h5write(fullfile(in.folderSingleChannels, allFileNames(i,:)), ['/channel_' num2str(i)], KSRawdata, [1 1], [1 size(KSRawdata,2)]);
+    h5write(fullfile(in.folderSingleChannels, allFileNames(i,:)), ['/channel_' num2str(i)], data, [1 1], [1 size(data,2)]);
 end
 
 clear data KSRawdata
