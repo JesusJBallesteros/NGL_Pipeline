@@ -44,35 +44,32 @@
 %       Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 %       Figure out how to work with Allego files (most likely, after Allego's self preprocessing tool?)
 %       Save the 'sessions' variable by default, at the end, with a date timestamp perhaps?
+%       Continue with 'Deuteron_GetDigInEvents' when I get a recording with EVENTS
 %
-%
-
-% Make 'input' available for all functions.
-global input ss
 
 % Necessary inputs will be actively asked for, if left empty.
 input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline';
 input.datafolder = "D:\Experiments\";
-input.animal     = '451';
+input.animal     = 'MSD';
 input.useNWB     = false;  % Due to some conflict at h5 python-matlab dlls if either transformation is performed,
 input.ToKilosort = true; % the following one will crash. It needs a Matlab restart, to clear some cache or smth...
                           % TODO: figure this out
 
 % Optatives will be set to default if missing here. 
-input.dates      = {'20230120'};
+input.dates      = {'20230215_SN03_2'};
 input.bandpass   = {'low' 'amp' '' 'high'};
 input.plots      = [];
 input.test_ch    = [];
 
 %% 00. Check inputs, set defaults and dependencies.
-set_default;
+set_default(input);
 
 %% 01. Find and list sessions. 
 % Read requested sessions from animal folder.
 % This 'sessions' variable can be used for summary, book keeping and
 % debugging at the end of the pipeline.
 % It will not be saved automatically, tho. TODO?
-sessions = findSessions;
+sessions = findSessions(input);
 
 %% 02. Loop sessions and read into MATLAB
 for ss = 1:sessions.nSessions
@@ -81,13 +78,13 @@ for ss = 1:sessions.nSessions
     cd(strcat(sessions.folder,'\',sessions.list(ss).name));
 
     % Check System, version. 
-    sessions.info{ss} = chckV();
+    sessions.info{ss} = chckV(input);
     disp(sessions.info{ss});
 
     %% 04. Determine pipeline based on type of data
     switch sessions.info{ss}.fileformat
         case {'DT2', 'DT4', 'DT8', 'DAT', 'DF1'}
-            %% 04.1 Deuteron Pipline
+            %% 04.1 Deuteron Pipeline. Neural Data
                
             % 01 TODO Create Fieldtrip files from Deuteron data
             % So far, Deuteron does not seem ideal for LFP, but it should be possible at some point.
@@ -96,13 +93,15 @@ for ss = 1:sessions.nSessions
              %%%   
 
             % 02 Create .bin (and .h5) files with spiking data from highpass data
-            if input.ToKilosort & ~isfile([sessions.list(ss).name '.h5'])
+            if input.ToKilosort
                % To modify any input, example:
-                  % in = struct();
-                  % in.createAvrgDatMat = false;
+%                   in = struct();
+%                     in.createAvrgDatMat = false;
+%                     in.keeph5 = false;
+%                     in.keepbin = false;
                   
-               % TODO: implement the new format conversion from Sara
-               Deuteron2Kilosort_wrapper(sessions); % add 'in' if desired
+               % TODO: implement the new format conversion
+               Deuteron_PipelineWrapper(sessions, ss); % add 'in' if desired
             end
 
         case {'fileperch', 'filepertype'}

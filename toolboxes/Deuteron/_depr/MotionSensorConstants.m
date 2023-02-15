@@ -1,16 +1,9 @@
 classdef MotionSensorConstants
     properties (Constant = true)
-        
-        
-        % =================== General info =================== %
-%         FILE_SIZE_IN_BYTES = 2^24;
-          NumberOfAxes = 3; %x, y, z
+        % General info 
+        NumberOfAxes = 3; %x, y, z
 
-
-
-        % =================== Header indices and values =================== %
-        
-%         HexConstId =  
+        % Header indices and values
         AccelerometerOffsetPosition = 2;
         GyroscopeOffsetPosition = 3;
         MagnetometerOffsetPosition = 4;
@@ -18,28 +11,18 @@ classdef MotionSensorConstants
         GyroscopeLengthPosition = 7;
         MagnetometerLengthPosition = 8;
         TimestampIndex = [10 11];
-        
         ConstId = [13579 24680];
 
-        
-        
-        
-        
-        % ================ Accelerometer info ================= %         
+        % Accelerometer info       
         G = 9.81;
         AccelerometerNumberOfBits = 16;
         AccelerometerFrequency = 1000; %kHz
-        
-        
-        
-        
-        % =================== Gyroscope info ==================== % 
+
+        % Gyroscope info 
         GyroscopeNumberOfBits = 16;
         GyroscopeFrequency = 1000; % kHz
         
-
-        
-        % ================ Magnetometer info ================= %
+        % Magnetometer info
         % use 9150 values for Spikelog16 and Ratlog64
         Magnetometer9150NumberOfBits = 13; 
         Magnetometer9150Range = 1200e-6;
@@ -51,9 +34,8 @@ classdef MotionSensorConstants
         MagnetometerFrequency = 1000; % kHz;
         MagnetometerNumberOfBits = 13;
         
-        % ================ Timestamp info ================= % 
+        % Timestamp info  
         TimeResolution = 62.5e-3; %ms
-        
         
     end
 end

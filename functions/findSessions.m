@@ -1,8 +1,6 @@
-function sessions = findSessions
+function sessions = findSessions(input)
 % UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
-
-global input
 
 if iscell(input.dates) % input is cell array of dates
     input.dates = input.datafolder + input.animal + "\" + input.animal + "_" + input.dates(:) + '*';

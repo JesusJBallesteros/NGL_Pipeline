@@ -1,4 +1,4 @@
-function [info] = chckV()
+function [info] = chckV(input)
 % Onc in the session folder, checks for existence of any of the following
 % files:
 %   'EVENTLOG.NLE': characteristic of Deuteron flat format
@@ -13,8 +13,6 @@ function [info] = chckV()
 % Calls to: 'Deuteron_GetMetaData'
 %
 % 06.01.2023. Jesus
-
-global input
 
     if isfile('EVENTLOG.NLE') 
         % For this format, we list the files with neural data and extract some

@@ -1,4 +1,4 @@
-function set_default
+function set_default(input)
 % 'set_default' adds the dependencies, included under the main folder.
 %
 % It reads the inputs, if any, and validates them.
@@ -10,8 +10,6 @@ function set_default
 % For missing optionals, it uses defaults.
 %
 % Jesus. 04.01.2023
-
-global input
 
 %% Necessary Inputs
 % Toolbox Main folder
@@ -75,7 +73,7 @@ if ~isfield(input,'test_ch'),       input.test_ch = [];                     end
 cd(input.mainfolder)
 addpath functions\
 addpath toolboxes\fieldtrip_light
-addpath toolboxes\Deuteron_BlockFileFormat
+addpath toolboxes\Deuteron
 addpath(genpath('toolboxes\multitaper_prerau'))
 ft_defaults
 
