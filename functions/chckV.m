@@ -34,7 +34,7 @@ function [info] = chckV(input)
             % Get meta data from Deuteron:
             % Checks which type of logger was used and sets some parameters:
             metaData                = Deuteron_GetMetaData(info);
-            info.numChannels        = metaData.numChannels;
+            info.numChannels        = 32;
             info.numADCBits         = metaData.numADCBits;
             info.voltageRes         = metaData.voltageRes;
             info.sampleRate         = metaData.fSample;

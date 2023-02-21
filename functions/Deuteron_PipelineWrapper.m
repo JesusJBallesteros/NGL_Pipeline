@@ -103,55 +103,11 @@ end
 %% Motion Data to Matlab
 if in.GetMotionSensors
     disp('Generating single channel files from Deuteron...')
-    [Accelerometer, Gyroscope, Magnetometer, param] = Deuteron_GetMotionSensors(in, sessions, ss);
+    [Accelerometer, Gyroscope, Magnetometer, param] = ...
+        Deuteron_GetMotionSensors(in, sessions, ss);
 
-    % Plots 
-    figure,
-    if ~isempty(Accelerometer)
-        MSData = Accelerometer;
-
-        subplot(3,1,1)
-        title('Accelerometer');
-        % General plot
-        plot(MSData.t, MSData.X); hold on
-        plot(MSData.t, MSData.Y); hold on
-        plot(MSData.t, MSData.Z);
-        ylim([-param.acclMax param.acclMax]); ylabel('m/s^2');
-        xlabel('ms');
-        legend({'X' 'Y' 'Z'}, 'Box','off');
-         box("off")
-    end
-
-    if ~isempty(Gyroscope)
-        MSData = Gyroscope;
-
-        subplot(3,1,2)
-        title('Gyroscope');
-        % General plot
-        plot(MSData.t, MSData.X); hold on
-        plot(MSData.t, MSData.Y); hold on
-        plot(MSData.t, MSData.Z);
-        ylim([-param.gyroMax param.gyroMax]); ylabel('deg/s')
-        xlabel('ms');
-        legend({'X' 'Y' 'Z'}, 'Box','off');
-        box("off")
-    end
-
-    if ~isempty(Magnetometer)
-        MSData = Magnetometer;
-
-        subplot(3,1,3)
-        title('Magnetometer');
-        % General plot
-        plot(MSData.t, MSData.X); hold on
-        plot(MSData.t, MSData.Y); hold on
-        plot(MSData.t, MSData.Z);
-%         ylim([-param.magMax param.magMax]);
-        ylim([-1e-4 1e-4]);  ylabel('Tesla')
-        xlabel('ms');
-        legend({'X' 'Y' 'Z'}, 'Box','off');
-        box("off")
-    end
+    disp('Plotting Sensor reading examples')
+    Deuteron_PlotMotionSensors(Accelerometer, Gyroscope, Magnetometer, param)
 
 end
 

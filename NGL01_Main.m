@@ -50,13 +50,13 @@
 % Necessary inputs will be actively asked for, if left empty.
 input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline';
 input.datafolder = "D:\Experiments\";
-input.animal     = 'MSD';
-input.useNWB     = false;  % Due to some conflict at h5 python-matlab dlls if either transformation is performed,
+input.animal     = '420';
+input.useNWB     = false; % Due to some conflict at h5 python-matlab dlls if either transformation is performed,
 input.ToKilosort = true; % the following one will crash. It needs a Matlab restart, to clear some cache or smth...
                           % TODO: figure this out
 
 % Optatives will be set to default if missing here. 
-input.dates      = {'20230215_SN03_2'};
+input.dates      = {'20230220_Deut'};
 input.bandpass   = {'low' 'amp' '' 'high'};
 input.plots      = [];
 input.test_ch    = [];
@@ -99,15 +99,17 @@ for ss = 1:sessions.nSessions
 %                     in.createAvrgDatMat = false;
 %                     in.keeph5 = false;
 %                     in.keepbin = false;
-                  
+                      in.retrieveEvents = false;
+                      in.GetMotionSensors = false;
+
                % TODO: implement the new format conversion
-               Deuteron_PipelineWrapper(sessions, ss); % add 'in' if desired
+               Deuteron_PipelineWrapper(sessions, ss, in); % add 'in' if desired
             end
 
         case {'fileperch', 'filepertype'}
           %% 04.2 INTAN Pipeline
           % 01 Find out INTAN settings and header file. Extract info.
-          sessions = findIntanSetting(sessions);
+          sessions = findIntanSetting(sessions, ss);
 
           % 02 Create NWB file
           if input.useNWB % We want a .NWB file.

@@ -1,8 +1,6 @@
-function sessions = findIntanSetting(sessions)
+function sessions = findIntanSetting(sessions, ss)
 % Find out INTAN settings and header file. Extract info.
 %  Uses a modified Intan function to output info
-
-global ss
 
 [sessions.info{ss}.INTAN_hdr] = mod_read_Intan_RHD2000_file('info.rhd');
 
