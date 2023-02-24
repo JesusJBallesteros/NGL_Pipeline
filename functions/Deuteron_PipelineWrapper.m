@@ -56,28 +56,19 @@ if ~isfield(in,'folderProcDataMatAveraged'), in.folderProcDataMatAveraged = in.p
 %% Event data, using dll
 if ~isfile('COMP_EVENTS.DF1')
     if in.retrieveEvents
-        % Proceed to extract all events during session
+        % Proceed to extract all events during session. Give some feedback.
         disp('Retrieving Events from Deuteron...')
-        EventRecord = Deuteron_EventFileReaderDll(in, sessions, ss);
-        
-        % Use event log to determine number of channels.
-        modechange = find(strcmp({EventRecord.EventType}, 'Mode change')==1);
-        geninfo = split(EventRecord(modechange(1)+1).Details, ";");
-        geninfo = regexp(geninfo,'\d*','Match');
-        sessions.info{ss}.numChannels = str2double(geninfo{3});
-        clear geninfo modechange
+        [EventRecord, sessions.info{ss}.numChannels] = ...
+            Deuteron_EventFileReaderDll(in, sessions, ss);
+        disp(EventRecord);
+        disp(['Found ', int2str(sessions.info{ss}.numChannels), ' channels']);
 
-        % Proceed to extract DigIn events from full event record
-        % TODO when I get a session with DIGIn events
-    %     Events = Deuteron_GetDigInEvents(EventRecord);
-        
-        % TODO save event record and DigIn events at session folder
-        save("EventRecord.mat","EventRecord","-mat");
     else
        disp('Event extraction not requested, skipping...')
     end
-else
-    disp('Found collected Events from Deuteronm, skipping...')
+
+else % Probably only useful while testing.
+    disp('Found collected Events from Deuteron, skipping...')
     load("EventRecord.mat", "EventRecord");
 
     % Use event log to determine number of channels.
@@ -90,27 +81,36 @@ end
 
 %% Neural Data To .bin and .h5.
 if ~isfile([sessions.list(ss).name '.h5'])
-    % Converts Deuteron DT2 and DF1 files into the 'oneFilePerChannel' format.
-    % Creates full single files (.bin and .h5) to further use (i.e. with Kilosort)
-    % Creates and saves D2K.mat file with few details (TODO, necessary?)
-    disp('Generating single channel files from Deuteron...')
-    Deuteron2Kilosort(in, sessions, ss);
-    
+    if in.keeph5 || in.keepbin
+        % Converts Deuteron DT2 and DF1 files into the 'oneFilePerChannel' format.
+        % Creates full single files (.bin and .h5) to further use (i.e. with Kilosort)
+        % Creates and saves D2K.mat file with few details (TODO, necessary?)
+        disp('Generating single channel files from Deuteron...')
+        Deuteron2Kilosort(in, sessions, ss);
+    else
+        disp('No Neural data found in folder, but also not requested. Skipping...')
+    end
+
 else
     disp('Found .h5 file, skipping and recovering Header...')
+    % TOD, case where data was already extracted. prob only useful while
+    % testing.
 end
 
 %% Motion Data to Matlab
 if in.GetMotionSensors
-    disp('Generating single channel files from Deuteron...')
-    [Accelerometer, Gyroscope, Magnetometer, param] = ...
-        Deuteron_GetMotionSensors(in, sessions, ss);
-
-    disp('Plotting Sensor reading examples')
-    Deuteron_PlotMotionSensors(Accelerometer, Gyroscope, Magnetometer, param)
-
+    if ~isfile('MotionData.mat')
+        disp('Extracting Motion Sensor data from Deuteron...')
+        [Accelerometer, Gyroscope, Magnetometer] = ...
+            Deuteron_GetMotionSensors(in, sessions, ss);
+    else
+        disp('Motion Sensor data file found. Loading...')
+        load("MotionData.mat","Accelerometer","Gyroscope","Magnetometer");
+    end
+    
+    disp('Processing and Plotting Motion Sensor data.')
+    % Add (..., 1, 1) to input if visualization and video recording wanted (respectively) 
+    [rotators] = Deuteron_PlotMotionSensors(Accelerometer, Gyroscope, Magnetometer, [], [])
 end
-
-
 
 end

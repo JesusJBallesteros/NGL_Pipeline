@@ -1,4 +1,4 @@
-function [rotators] = Deuteron_PlotMotionSensors(Accelerometer, Gyroscope, Magnetometer, varargin)
+function Deuteron_PlotMotionSensors(Accelerometer, Gyroscope, Magnetometer, varargin)
 % An attitude and heading reference system (AHRS) consist of a 9-axis system 
 % that uses an accelerometer, gyroscope, and magnetometer to compute orientation 
 % of the device. The 'ahrsfilter' produces a smoothly changing estimate of 
@@ -107,7 +107,7 @@ if visual
     end
 
 else
-    % Run the thing for every single timepoint
+    % Run the whole data for every single timepoint
     rotators = FUSE(Acc,Gyr,Mag);
 end
 
@@ -132,13 +132,8 @@ ptrot = rotatepoint(rotators, pt0);
 % truth for the following ones?) In case animals don't cooperate??
 %
 % Obtaining a rotation matrix in degrees is trivial. 
-rot_matrix = rotvecd(rotators); % is a [x y z] rotation matrix in degrees. 
+rot_matrix = rotvecd(rotators); % is a 
 
-% We only need the rotation around X (our vertical axis) does that mean we
-% only need the first column? or the other two?
-
-rot_plane = rot_matrix.*[0 1 1]; % Zeroing the x axis, we generate a rotation plane?
-rot_plane = rot_plane(:,2:3);
 
 % TODO
 % plot(rotators);

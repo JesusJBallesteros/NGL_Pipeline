@@ -1,4 +1,4 @@
-function [EventRecord] = Deuteron_EventFileReaderDll(in, varargin)
+function [EventRecord, nchan] = Deuteron_EventFileReaderDll(in, varargin)
 % Use the Event_File_Reader_7_2 dll to extract events from a Deuteron
 % recording with Block Format.
 % The user must enter the full path of the dll and the file they wish to load. 
@@ -29,7 +29,7 @@ folderName = in.pathRaw;
 %% Set up files to load 
 % Block file format
 minFileIndex = 1; % the number of the first file to load (e.g. for NEUR0003, set minFileIndex = 3);
-maxFileIndex = length(dir([folderName '\' filePrefix '*'])) - 1; % cero indexed, so [0, Nfiles-1]
+maxFileIndex = length(dir([folderName '\' filePrefix '*'])) - 1; % cero indexed, so [0:Nfiles-1]
 count = 1;
 if (IncludeEventFile)
     listOfFilesToLoad = cell(maxFileIndex - minFileIndex + 2, 1);
@@ -88,5 +88,18 @@ for recIdx = numberOfRecords:-1:1 % iterates backwards to preallocate array by a
     EventRecord(recIdx).Details = char(myRecord(6));
 end
 fprintf('Successfully loaded file into EventRecords struct.\n');
+
+%% Use event log to determine number of channels.
+modechange = find(strcmp({EventRecord.EventType}, 'Mode change')==1);
+geninfo = split(EventRecord(modechange(1)+1).Details, ";");
+geninfo = regexp(geninfo,'\d*','Match');
+nchan = str2double(geninfo{3});
+
+%% Proceed to extract DigIn events from full event record
+% TODO when I get a session with DIGIn events
+%     Events = Deuteron_GetDigInEvents(EventRecord);
+
+%% TODO save event record and DigIn events at session folder
+save("EventRecord.mat","EventRecord","-mat");
 
 end
