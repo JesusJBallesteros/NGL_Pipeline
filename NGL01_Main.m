@@ -1,48 +1,58 @@
 %% Jesus' Pipeline to read INTAN continous data
-% Will read INTAN, DEUTERON or ALLEGO data, from selected sessions for a given animal.
-% NEEDED INPUTS:
-%       mainfoldder:    chr array.  Main pipeline folder as 'C:\...'.
-%       datafolder:     string.     Main data folder as "D:\...".
-%       animal:         chr array.  A 3 letter code as 'FAT', 'FRN', '427' ...
+% Will read and process INTAN, DEUTERON or ALLEGO data, from selected sessions 
+% for a given animal.
+%
+% INPUTS:
+%       mainfoldder:    chr array.  Full path to pipeline Code folder, as 'C:\...'. 
+%                                   To include all dependencies.
+%       datafolder:     string.     Full path to data folder, as "D:\...".
+%                                   Where raw data is got from.
+%       animal:         chr array.  A 3 character code as 'FAT', '427' ..., to be agreed upon.
 % 
 % OPTIONAL:
-%       dates:          cell of chr array. Specfic dates as {'yyyymmdd' 'yyyymmdd' ...} or chr array 'all'.
+%       dates:          cell of chr array. Specfic dates as {'yyyymmdd' 'yyyymmdd' ...} 
+%                       or chr array.  'all'
+%                                   At testing stages, 'yyyymmdd_system' or variations may exists
 %                                   Default: 'all'
-%       bandpass:       cell of chr array. As {'low' 'amp' 'spike' 'high'}. Make empty fields with ''.
-%                                   'low' or 'amp' are used to extract the signal at low frequencies.
-%                                   'spike' to extract spike times as they come from INTAN. Unsorted, contaminated.
-%                                   'high' to re-threshold the high frequency-pass signal and re-extract spike times offline.
 %       useNWB:         true/false  To create/skip NWB file.
 %                                   Default: true.
 %       ExtractData:    true/false  To create/skip binary and h5 files. Also extract motion sensor 
 %                                   data if it comes from Deuteron.
 %                                   Default: true.
-%       plots:          int array.  If not empty, to draw plots as [1 0 0 ... ]
-%                                   Sequence is [spectrograms , raster, raster + traces, ...] 
+%       plots:          int array.  If not empty, to draw plots, as [1 0 0]
+%                                   for [spectrograms , raster, raster&traces].
 %                                   Default: empty [].
 %       test_ch:        int array.  If not empty, to plot snippet of requested channels.
+%                                   As i.e. [1, 2, 5:15, 32].
 %                                   Default: empty [].
+% Deprecating:
+%       bandpass:       cell of chr array. Up to {'low' 'amp' 'high'}. Any empty field as ''.
+%                                   'low'/'amp' are used to extract the signal at low frequencies for FieldTrip.
+%                                   'high' to re-threshold the high frequency-pass signal and re-extract spike times offline.
+%                                   Default: {'low' 'amp' ''}.
 % 
 % GENERATES
 % For one single session or for a batch of sessions, from one single animal:
-%       00. A set of default inputs and paths.
-%       01. A list of sessions, with associated info.
-%       02. Fieldtrip (.mat), binary (.bin), HDF5 (.hf) (and NWB?) files from
-%           1. Deuteron .DT2 (and .DF1) format data.
+%       A set of default inputs and paths.
+%       A list of sessions, with their associated info.
+%       Fieldtrip (.mat), binary (.bin), HDF5 (.h5) and .nwb files from
+%           1. Deuteron .DT2 or .DF1 data.
 %           2. INTAN file-per-type and file-per-channel format data.
 %           3. (ALLEGO data?)
-%       03. Plots from snippets of time- and frequency-domain data
+%       EventRecord.mat file, from Deuteron session.
+%       MotionData.mat file, From Deuteron sensors.
+%       Plots snippets of time- and frequency-domain data.
+%   .mat files will be saved under ../rawfolder
+%   .h5 and .bin files will be saved under ../rawfolder/processed
 %       
-% Last modified 18.01.2023 (Jesus)
+% Last modified 24.02.2023 (Jesus)
 
-% TODO 
+% TODO LIST 
 %       There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
+%       Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 %       'high' bandpass not yet available
 %       create the wrapper for an INTAN fileperchannel format to Kilosort
-%       implement the new Deuteron format conversion, from Sara
-%       Check if we NEED to keep both .bin and h5 files
 %       Create Fieldtrip files from Deuteron data
-%       Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 %       Figure out how to work with Allego files (most likely, after Allego's self preprocessing tool?)
 %       Save the 'sessions' variable by default, at the end, with a date timestamp perhaps?
 %       Continue with 'Deuteron_GetDigInEvents' when I get a recording with EVENTS
@@ -50,35 +60,35 @@
 
 % Necessary inputs.
 input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline';
-input.datafolder = "D:\Experiments\";
+input.datafolder = 'D:\Experiments\';
 input.animal     = '420';
-input.dates      = {'20230222_Int' '20230222_Deut'};
-input.useNWB     = false; % Due to some conflict at h5 python-matlab dlls, if either transformation is performed,
-input.ExtractData = true;  % the following one will crash. It needs a Matlab restart, to clear some cache or smth...
-                          % TODO: figure this out
 
 % Optatives will be set to default if missing here. 
-input.bandpass   = {'low' 'amp' '' 'high'};
-% input.plots      = [];
-% input.test_ch    = [];
+input.dates       = {'20230222_Int'}; % while testing, 'yyyymmdd_system' or other variations may exists
+input.useNWB      = false; % Due to a conflict at h5 python-matlab dlls, when either transformation is performed,
+input.ExtractData = true;  %    the following one will crash. It needs a Matlab restart between runs.
+                           % TODO: figure this out.
+input.plots      = []; % Only for Fieldtrip ready .mat files
+input.test_ch    = []; % Only for Fieldtrip ready .mat files
+% input.bandpass   = {'low' 'amp' 'high'}; deprecating
 
 %% 00. Check inputs, set defaults and dependencies.
 set_default(input);
 
 %% 01. Find and list sessions. 
-% Read requested sessions from animal folder.
+% Read requested sessions from specified animal folder.
 % This 'sessions' variable can be used for summary, book keeping and
-% debugging at the end of the pipeline.
-% It will not be saved automatically, tho. TODO?
+% debugging at the end of the pipeline. But it will not be saved
+% automatically. % smt TODO?
 sessions = findSessions(input);
 
 %% 02. Loop sessions to process
 for ss = 1:sessions.nSessions
     %% 03. Check file type and versions
-    % Go to session folder.
+    % Find session folder and work there.
     cd(strcat(sessions.folder,'\',sessions.list(ss).name));
-
-    % Check System, version. 
+    
+    % Check System and version, based on existing files. Get info. 
     sessions.info{ss} = chckV(input);
     disp(sessions.info{ss});
 
@@ -95,17 +105,15 @@ for ss = 1:sessions.nSessions
 
             % 02 Create .bin (and .h5) files with spiking data from highpass data
             if input.ExtractData
-               % To modify any input, can be done here:
-               in = struct();
-                in.createAvrgDatMat = false;
-                in.keeph5           = true;
-                in.keepbin          = true;
-                in.retrieveEvents   = true;
-                in.GetMotionSensors = true;
+               opt = struct();
+               % To modify optional inputs:
+                opt.h5               = false;
+                opt.bin              = true;
+                opt.RetrieveEvents   = false;
+                opt.GetMotionSensors = false;
 
                % TODO: implement the new format conversion
-               Deuteron_PipelineWrapper(sessions, ss, in);
-
+               Deuteron_PipelineWrapper(sessions, ss, opt);
             end
 
         case {'fileperch', 'filepertype'}
@@ -115,7 +123,7 @@ for ss = 1:sessions.nSessions
 
           % 02 Create NWB file
           if input.useNWB % We want a .NWB file.
-                % Run wrapper for the INTAN to NWB functionality:               
+              % Run wrapper for the INTAN to NWB functionality:               
                 % This NEEDS A PYTHON installation and the tooldbox inside!
                 % Detailed explanation:
                 % WHAT IT IS: function to convert data from INTAN to .NWB format.
@@ -131,15 +139,18 @@ for ss = 1:sessions.nSessions
                 %  64 bits version:
                 % (https://de.mathworks.com/help/matlab/matlab_external/install-supported-python-implementation.html)
                 %  To check access to Python Modules from MATLAB, look that 'pe' is correctly populated when running the script.
-               intan2NWB_wrapper(sessions,ss)
+              intan2NWB_wrapper(sessions,ss)
           end 
 
           % 03 Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
           if input.ExtractData & ~isfile([sessions.list(ss).name '.h5'])
-              % Based on Sara, Aylin and Lukas' scripts. To modify any input, example:
-                 % in = struct();
-                 % in.createAvrgDatMat = false;
-              Intan2Kilosort_wrapper(sessions, ss); % add 'in' if desired
+              % Based on Sara, Aylin and Lukas' scripts.
+              % To modify optional inputs:
+              opt = struct();
+                opt.h5               = false;
+                opt.bin              = true;
+
+              Intan2Kilosort_wrapper(sessions, ss, opt); % add 'opt' if desired
           end
 
           % 04 Run wrapper for the INTAN to MATLAB.
@@ -207,7 +218,7 @@ for ss = 1:sessions.nSessions
         plot_testsignal(FT_data,input.test_ch)
     end
     
-    %% 06 Clean up to mov on to next session
+    %% 06 Clean up to move on to next session
     clear data2save cfg FT_data
 
 end 

@@ -21,8 +21,8 @@ elseif nargin == 5
     record = varargin{2};
 end
 
-% sample rate is 1000Hz for Deuteron. GyroscopeNoise and AccelerometerNoise
-% is determined from sensor hardware specifications 
+% sample rate for motion sensors is 1000Hz. GyroscopeNoise and AccelerometerNoise
+% are determined from the hardware specifications .
 %  TODO, find out the real noise of our sensors, if different model.
 fs          = 1000;         % Sample Rate of the feeded data (Hz)
 Gyro_Noise  = 3.0462e-06;   % Gyroscope Noise (variance value) in units of rad/s. (MPU-9250)
@@ -169,5 +169,8 @@ for i=1:3
         box("off")
     end
 end
+
+%% Save data to matfile
+save("MotionData.mat", "rotators", '-append');
 
 end

@@ -9,9 +9,9 @@ function set_default(input)
 % 
 % For missing optionals, it uses defaults.
 %
-% Jesus. 04.01.2023
+% Jesus. 24.01.2023
 
-%% Necessary Inputs
+%% Check necessary inputs
 % Toolbox Main folder
 if ~isfield(input,'mainfolder')
     input.mainfolder = inputdlg('Toolbox absolute folder:',...
@@ -57,23 +57,23 @@ elseif ~ischar(input.animal)
      input.animal = char(input.animal);
 end
     
-    
 %% Optional Inputs
 % Dates
 if ~isfield(input,'dates'),         input.dates = 'all';
-elseif ~iscell(input.dates),        input.dates = 'all';                    end
+elseif ~iscell(input.dates),        input.dates = 'all';                end
 
-if ~isfield(input,'bandpass'),      input.bandpass = {'low' 'amp' '' ''};   end
-if ~isfield(input,'useNWB'),        input.useNWB = true;                    end
-if ~isfield(input,'ToKilosort'),    input.ToKilosort = true;                end
-if ~isfield(input,'plots'),         input.plots = [];                       end
-if ~isfield(input,'test_ch'),       input.test_ch = [];                     end
+% if ~isfield(input,'bandpass'),      input.bandpass = {'low' 'amp' ''};  end
+if ~isfield(input,'useNWB'),        input.useNWB   = true;              end
+if ~isfield(input,'ToKilosort'),    input.ToKilosort = true;            end
+if ~isfield(input,'plots'),         input.plots    = [];                end
+if ~isfield(input,'test_ch'),       input.test_ch  = [];                end
 
 %% Set Dependencies
 cd(input.mainfolder)
 addpath functions\
 addpath toolboxes\fieldtrip_light
 addpath toolboxes\Deuteron
+addpath toolboxes\Viewer
 addpath(genpath('toolboxes\multitaper_prerau'))
 ft_defaults
 

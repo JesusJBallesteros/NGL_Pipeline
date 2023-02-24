@@ -71,7 +71,7 @@ files = dir('*continous_FT.mat');
                 fclose(fid);
                 
                 % From wide data, we need to filter/downsample the data
-                if strcmp(sessions.info{ss}.bandpass, 'amp')
+                if strcmp(sessions.info{ss}.files(1).name(1:3), 'amp')
                     fprintf('- Processing file %d of %d.\n', ff, nfiles);
                     % Use filter and downsampling functions (designed for ETALO).
                     % DETAILED explanation inside functions.
@@ -95,7 +95,7 @@ files = dir('*continous_FT.mat');
                         sessions.info{ss}.lowpass_sample_rate = New_sR;
                     end
 
-                elseif strcmp(sessions.info{ss}.bandpass, 'low')
+                elseif strcmp(sessions.info{ss}.files(1).name(1:3), 'low')
                     % If band is 'lowpass' already, directly pass it on
                     tmp.v(ff,:) = tmp.volt;
                 end

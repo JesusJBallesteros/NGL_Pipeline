@@ -17,7 +17,7 @@ function [info] = chckV(input)
     if isfile('EVENTLOG.NLE') 
         % For this format, we list the files with neural data and extract some
         % metadata with the function 'Deuteron_GetMetaData'. Apparently, it can
-        % be DT2/4/8 or DAT.
+        % be DT2/4/8 or DAT. We only have .DT2
         info.fileformat = 'DT?'; % First try most common 'DT?'
         info.files = dir(['*.' info.fileformat]); % list files
         
@@ -30,16 +30,16 @@ function [info] = chckV(input)
             [~,~,ext] = fileparts(info.files(1).name); % extract actual extension
             info.fileformat = ext(2:end); % remove dot
     
-            % Corresponding files: get all DT2 files in folder with raw data.
+            % Corresponding files: get all DT2 files in folder.
             % Get meta data from Deuteron:
             % Checks which type of logger was used and sets some parameters:
             metaData                = Deuteron_GetMetaData(info);
-            info.numChannels        = 32;
+            info.numChannels        = 32; % Coded as default here. If necessary, overrided later on.
             info.numADCBits         = metaData.numADCBits;
             info.voltageRes         = metaData.voltageRes;
             info.sampleRate         = metaData.fSample;
             info.HDF5chunkSize      = 300*info.sampleRate;
-            info.bandpass           = input.bandpass{4}; % It uses highpass data
+% info.bandpass           = input.bandpass{3}; % It uses highpass % deprecating  
     
         else % Still empty for some reason
             warning('Something went wrong with this Deuteron flat format session.')
@@ -49,7 +49,7 @@ function [info] = chckV(input)
             info.voltageRes  = [];
             info.sampleRate     = [];
             info.HDF5chunkSize  = [];
-            info.bandpass       = [];
+%             info.bandpass       = [];
             return
         end
     
@@ -66,7 +66,7 @@ function [info] = chckV(input)
             info.voltageRes         = metaData.voltageRes;
             info.sampleRate         = metaData.fSample;
             info.HDF5chunkSize      = 300*info.sampleRate;
-            info.bandpass           = input.bandpass{4}; % It uses highpass data
+%             info.bandpass           = input.bandpass{4}; % It uses highpass data
     
         else
             warning('Something went wrong with this Deuteron block format session.')
@@ -76,7 +76,7 @@ function [info] = chckV(input)
             info.voltageRes  = [];
             info.sampleRate     = [];
             info.HDF5chunkSize  = [];
-            info.bandpass       = [];
+%             info.bandpass       = [];
             return
         end
     
@@ -85,22 +85,20 @@ function [info] = chckV(input)
        %  'amp' should always exist. Would be used as ultimate source of
        %  data if 'low' do not. If 'low' is requested AND exist, the 
        %  loop breaks and takes the indexed file list with such extension.
-       for i=1:numel(input.bandpass)
-            files = dir([input.bandpass{i},'*.dat']);
-             if ~isempty(files) && strcmp(input.bandpass{i},'low')
-                info.files = dir('low*.dat');
-                break
-             else
-                info.files = dir('amp*.dat');
-             end
+       for i=1:2
+           info.files = dir('low*.dat');
+           if ~isempty(info.files)
+              break
+           else
+              info.files = dir('amp*.dat');
+           end
        end
     
        % The final bandpass to use.
-       info.bandpass = input.bandpass{i};
+%        info.bandpass = input.bandpass{i};
     
        % How many files exist for this sessions. If we have several types 
-       % ('low' & 'amp') with file per channel format, 'fileperch' applies
-       % anyways.
+       % with file per channel format, 'fileperch' applies anyways.
        if length(info.files)>1
             % If there are many files, is 'fileperch'
             info.fileformat = 'fileperch';

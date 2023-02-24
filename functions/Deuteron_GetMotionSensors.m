@@ -1,4 +1,4 @@
-function [Accelerometer, Gyroscope, Magnetometer] = Deuteron_GetMotionSensors(in, sessions, ss)
+function [Accelerometer, Gyroscope, Magnetometer] = Deuteron_GetMotionSensors(opt, sessions, ss)
 %
 %
 %
@@ -47,7 +47,7 @@ for i = 1:numFiles
         % Skips Event files (do not contain data)
         continue
     else
-        fid = fopen(fullfile(in.pathRaw, Files(i).name), 'r');
+        fid = fopen(fullfile(opt.PathRaw, Files(i).name), 'r');
         data = Deuteron_extractData(stream, fid, param);
         fclose(fid);
 

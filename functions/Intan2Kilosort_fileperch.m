@@ -1,4 +1,4 @@
-function out = Intan2Kilosort_fileperch(in)
+function out = Intan2Kilosort_fileperch(opt)
 % This function is a dependency of the script Intan2Kilosort_wrapper,
 % only necessary if the recording system in use is Intan
 % It compiles the data save as filepertype format in a HDF5file per channel
@@ -13,23 +13,23 @@ function out = Intan2Kilosort_fileperch(in)
 %% Total session Data, divided per channels
 % Create an empty file per channel:
 % space is pre-allocated to save every sample of neural data (HDF5 files with infinite slots)
-for i = 1:in.numChannels
+for i = 1:opt.numChannels
     IndChnl  = ['Channel_',sprintf('%03d',i)];
-    fileName = fullfile(in.folderSingleChannels, IndChnl);
+    fileName = fullfile(opt.FolderSingleChannels, IndChnl);
 
     if ~isfile([fileName,'.h5'])
-        h5create([fileName '.h5'],['/channel_' num2str(i)],[1 Inf],'ChunkSize',[1 in.HDF5chunkSize],'Datatype','int16');
+        h5create([fileName '.h5'],['/channel_' num2str(i)],[1 Inf],'ChunkSize',[1 opt.HDF5chunkSize],'Datatype','int16');
     end
 end
 
 % list with all pre-allocated files
-allFileNames = ls([in.folderSingleChannels,'\Ch*']); 
+allFileNames = ls([opt.FolderSingleChannels,'\Ch*']); 
 
 %% Allocate data to its respective single-channel file
 % open each neural data file, resize data for detection with Kilosort,
 % allocate data to its respective single-channel file.
-for i = 1:length(in.myFiles)
-    fid = fopen(fullfile(in.pathRaw, in.myFiles(i).name));
+for i = 1:length(opt.myFiles)
+    fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name));
     data = int16(fread(fid, [1 inf], 'int16')); % each data point of neural data is a 16 bit word
     fclose(fid);
     data = data * 0.195;
@@ -42,14 +42,14 @@ for i = 1:length(in.myFiles)
     
     % distribute each row of data to its respective single-channel file
 %     h5write(fullfile(in.folderSingleChannels, allFileNames(i,:)), ['/channel_' num2str(i)], KSRawdata, [1 1], [1 size(KSRawdata,2)]);
-    h5write(fullfile(in.folderSingleChannels, allFileNames(i,:)), ['/channel_' num2str(i)], data, [1 1], [1 size(data,2)]);
+    h5write(fullfile(opt.FolderSingleChannels, allFileNames(i,:)), ['/channel_' num2str(i)], data, [1 1], [1 size(data,2)]);
 end
 
 clear data KSRawdata
 
 %% Files for matrix compilation
-out.myFiles       = ls(fullfile(in.folderSingleChannels,'*.h5'));
-out.dataDirectory = fullfile(in.folderSingleChannels);
+out.myFiles       = ls(fullfile(opt.FolderSingleChannels,'*.h5'));
+out.dataDirectory = fullfile(opt.FolderSingleChannels);
 
 %% If events are used to crop the matrix  
 % if in.retrieveEvents == true

@@ -1,4 +1,4 @@
-function out = Deuteron2Kilosort(in, sessions, ss)
+function out = Deuteron2Kilosort(opt, sessions, ss)
 % This function is a dependency of the script Deuteron2Kilosort_wrapper,
 % only necessary if the recording system in use is Deuteron
 % It compiles the data save in DT2 files in a HDF5file per channel
@@ -20,32 +20,29 @@ function out = Deuteron2Kilosort(in, sessions, ss)
 % VERSION HISTORY:
 % Author:         Aylin, Lukas & Sara
 % Version:        1
-% Last Change:    15.02.2023 (Jesus)
+% Last Change:    24.02.2023 (Jesus)
  
 %% Get already existing Parameters
-numChannels     = sessions.info{ss}.numChannels;
-HDF5chunkSize   = sessions.info{ss}.HDF5chunkSize;
 Files           = sessions.info{ss}.files;
-numFiles        = length(sessions.info{ss}.files);
 ext             = sessions.info{ss}.fileformat;
 numberOfAdcBits = sessions.info{ss}.numADCBits;
+numChannels     = sessions.info{ss}.numChannels;
+numFiles        = length(sessions.info{ss}.files);
+HDF5chunkSize   = sessions.info{ss}.HDF5chunkSize;
 
 param.offset            = 2^(numberOfAdcBits-1);
 param.voltageResolution = 1.95e-7;
 
 %% Create folders in case they don't exist.
-mkdir(in.folderSingleChannels);	    % create folder for single channel files
-mkdir(in.folderProcDataMat);        % create folder for data matrix
-if in.createAvrgDatMat
-    mkdir(in.folderProcDataMatAveraged);% create folder for avereged data matrix
-end
+mkdir(opt.FolderSingleChannels);	    % create folder for single channel files
+mkdir(opt.FolderProcDataMat);        % create folder for data matrix
 
 %% Total session Data, divided per channels
 % Create an empty file per channel:
 % space is pre-allocated to save every sample of neural data (HDF5 files with infinite slots)
 for i = 1:numChannels
     IndChnl  = ['Channel_',sprintf('%03d',i)];
-    fileName = fullfile(in.folderSingleChannels,IndChnl);
+    fileName = fullfile(opt.FolderSingleChannels,IndChnl);
 
     if ~isfile([fileName,'.h5'])
         % Create appropiate h5 file per channel
@@ -62,7 +59,7 @@ for i = 1:numChannels
 end
 
 % list with all pre-allocated files
-allFileNames = ls([in.folderSingleChannels,'\Ch*']); 
+allFileNames = ls([opt.FolderSingleChannels,'\Ch*']); 
 
 %% Open each neural data file, resize data for detection with Kilosort,
 % Allocate data to its respective single-channel file.
@@ -72,7 +69,7 @@ if ~strcmp(ext, 'DF1')
     indexPos = 0;
     for i = 1:numFiles
         % Neural data points are 16 bit words
-        fid = fopen(fullfile(in.pathRaw, Files(i).name));
+        fid = fopen(fullfile(opt.PathRaw, Files(i).name));
             data = fread(fid, 'uint16');
         fclose(fid);
 
@@ -83,7 +80,7 @@ if ~strcmp(ext, 'DF1')
 
         % distribute each row of data to its respective single-channel file
         for b = 1:numChannels
-            h5write(fullfile(in.folderSingleChannels,allFileNames(b,:)), ...
+            h5write(fullfile(opt.FolderSingleChannels,allFileNames(b,:)), ...
                 ['/channel_' num2str(b)], ...	 % dataset name
                 KSRawdata(b,:), ...              % dataset: data of a channel stored in the DT2 file (already scaled)
                 [1 indexPos+1], ...              
@@ -108,16 +105,11 @@ if ~strcmp(ext, 'DF1')
 %     end
     
     %% Files for matrix compilation
-    if in.ApplyHighPassFilter == true 
-    %         out.myFiles       = ls(fullfile(filePathProssFilt,'*.h5')); % files that will be used to compile the final matrix
-    %         out.dataDirectory = fullfile(filePathProssFilt);
-    else
-        out.myFiles       = ls(fullfile(in.folderSingleChannels,'*.h5'));
-        out.dataDirectory = fullfile(in.folderSingleChannels);
-    end
+    out.myFiles       = ls(fullfile(opt.FolderSingleChannels,'*.h5'));
+    out.dataDirectory = fullfile(opt.FolderSingleChannels);
     
     %% If events are used to crop the matrix  
-    if in.retrieveEvents == true
+    if opt.RetrieveEvents == true
     %         out.events = Deuteron_importEventsWithDLL(in.dllFolder,in.pathRaw, sampleRate);
     else 
         out.events = false; 
@@ -136,7 +128,7 @@ else % ext = DF1
             % Skips Event files (do not contain data)
             continue
         else
-            fid = fopen(fullfile(in.pathRaw, Files(i).name), 'r');
+            fid = fopen(fullfile(opt.PathRaw, Files(i).name), 'r');
             data = Deuteron_extractData(stream, fid, param);
             fclose(fid);
 
@@ -163,12 +155,12 @@ else % ext = DF1
     %     end
 
     %% Files for matrix compilation
-    if in.ApplyHighPassFilter == true 
+    if opt.ApplyHighPassFilter == true 
     %    out.myFiles       = ls(fullfile(filePathProssFilt,'*.h5')); % files that will be used to compile the final matrix
         out.dataDirectory = fullfile(filePathProssFilt);
     else
-        out.myFiles       = ls(fullfile(in.folderSingleChannels,'*.h5'));
-        out.dataDirectory = fullfile(in.folderSingleChannels);
+        out.myFiles       = ls(fullfile(opt.FolderSingleChannels,'*.h5'));
+        out.dataDirectory = fullfile(opt.FolderSingleChannels);
     end
         
     %% If events are used to crop the matrix  
@@ -180,7 +172,7 @@ else % ext = DF1
 
     % distribute each row of data to its respective single-channel file
     for b = 1:numChannels
-        h5write(fullfile(in.folderSingleChannels,allFileNames(b,:)), ...
+        h5write(fullfile(opt.FolderSingleChannels,allFileNames(b,:)), ...
             ['/channel_' num2str(b)], ...	% dataset name
             neuralDataMat(b,:), ...             % dataset: data of a channel stored in the DT2 file (already scaled)
             [1 1], ...              
@@ -193,99 +185,71 @@ end
 disp('Single files created. Creating Full binary and h5 files.')
 
 % Create HDF5 file to compile data matrix
-h5create(fullfile(in.folderProcDataMat, [in.savFileName '.h5']), ...
-         '/allChnMat', [numChannels Inf], ...
-         'ChunkSize', [1 HDF5chunkSize], ...
-         'Datatype', out.datatype)
+if opt.h5
+    h5create(fullfile(opt.FolderProcDataMat, [opt.SavFileName '.h5']), ...
+             '/allChnMat', [numChannels Inf], ...
+             'ChunkSize', [1 HDF5chunkSize], ...
+             'Datatype', out.datatype);
+end
 
-% create HDF5 file to compile averaged data matrix
-% if in.createAvrgDatMat
-%     h5create(fullfile(in.folderProcDataMatAveraged,[in.savFileNameAvrg '.h5']), ...
-%              '/avgSubtracted', [numChannels Inf], ...
-%              'ChunkSize', [1 in.stpSz], ...
-%              'Datatype', out.datatype) 
-% end
-    
+% binary files process faster if the data is appended to it in chunks  
+if opt.bin
+    fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']), 'a'); 
+end
+
 % Find out total number of samples per channel by reading .h5 file metadata
 out.h5info = h5info(fullfile(out.dataDirectory, out.myFiles(1,:)),'/channel_1');
 out.maxSz  = out.h5info.Dataspace.Size(2);
 
 % Adjustments to the writing of the matrix
-if in.retrieveEvents
+if opt.RetrieveEvents
     % TODO: ??
     %     input.startEvent   = events{1,2}; % first trial
     %     input.endEvent     = events{end,2};
     %     output.ChunkStart  = input.startEvent:input.stpSz:output.maxSz-mod(output.maxSz,input.stpSz);
     %     output.ChunkStart(output.ChunkStart>input.endEvent) = [];
     disp('To retrieve events is still not functional here ...');
-    in.startEvent = 1;
-    out.ChunkStart = in.startEvent:in.stpSz:out.maxSz-mod(out.maxSz,in.stpSz);
+    opt.StartEvent = 1;
+    out.ChunkStart = opt.StartEvent:opt.StpSz:out.maxSz-mod(out.maxSz,opt.StpSz);
 else
-    in.startEvent = 1;
-    out.ChunkStart = in.startEvent:in.stpSz:out.maxSz-mod(out.maxSz,in.stpSz);
+    opt.StartEvent = 1;
+    out.ChunkStart = opt.StartEvent:opt.StpSz:out.maxSz-mod(out.maxSz,opt.StpSz);
 end
       
 % Fill both matrixes
-disp('Filling full matrices from single channel files...')
-
-% binary files process faster if the data is appended to it in chunks  
-fidDataMat = fopen(fullfile(in.folderProcDataMat,[in.savFileName '.bin']), 'a'); 
-
-% if in.createAvrgDatMat
-%     fidDataMatAvg = fopen(fullfile(in.folderProcDataMatAveraged,[in.savFileNameAvrg '.bin']), 'a');
-% end
-
 % Write each channel stepwise into a matrix (hdf5) and into a binary file
-for j = in.startEvent:in.stpSz:out.ChunkStart(end)
+disp('Filling full matrices from single channel files...')
+for j = opt.StartEvent:opt.StpSz:out.ChunkStart(end)
     sngChn = cell(numChannels,1);
 
-    %     if in.createAvrgDatMat
-    %         % mean, to calculate averaged matrix is computed over one chunk of data at a time
-    %         meanForSub = int16(zeros(numChannels,in.stpSz)); 
-    %     end
-
     for i = 1:numChannels
-        sngChn{i,1} = h5read(fullfile(in.folderSingleChannels, out.myFiles(i,:)), ...
-                            ['/channel_' num2str(i)], [1 j], [1 in.stpSz]);
-        
-        if in.keeph5
+        sngChn{i,1} = h5read(fullfile(opt.FolderSingleChannels, out.myFiles(i,:)), ...
+                            ['/channel_' num2str(i)], [1 j], [1 opt.StpSz]);
+        if opt.h5
             % compile channels -> unaltered matrix to load into kilosort
-            h5write(fullfile(in.folderProcDataMat, [in.savFileName '.h5']), ...
-                '/allChnMat', sngChn{i,1}, [i j-(out.ChunkStart(1)-1)], [1 in.stpSz]);
+            h5write(fullfile(opt.FolderProcDataMat, [opt.SavFileName '.h5']), ...
+                '/allChnMat', sngChn{i,1}, [i j-(out.ChunkStart(1)-1)], [1 opt.StpSz]);
         end
 
-    %         if in.createAvrgDatMat
-    %             meanForSub(i,:) = sngChn{i,1}/numChannels;   
-    %         end
     end
-
-    %     if in.createAvrgDatMat
-    %         % write into a new matrix and a new binary file the average subtracted channel data 
-    %         subtrAverage(meanForSub,numChannels, ...
-    %                     sngChn, in.folderProcDataMatAveraged, ...
-    %                     in.savFileNameAvrg, j, in.stpSz, ...
-    %                     fidDataMatAvg, out.ChunkStart);
-    %     end
     
-    % Write bin file
-    fwrite(fidDataMat, cell2mat(sngChn), 'int16');
+    if opt.bin
+        % Write bin file
+        fwrite(fidDataMat, cell2mat(sngChn), 'int16');
+    end
 end
     
 fclose(fidDataMat);
 
-if ~in.keeph5
-    delete(fullfile(in.folderProcDataMat, [in.savFileName '.h5']));
+if ~opt.h5
+    delete(fullfile(opt.FolderProcDataMat, [opt.SavFileName '.h5']));
 end
 
-if ~in.keepbin
-    delete(fullfile(in.folderProcDataMat, [in.savFileName '.bin']));
+if ~opt.bin
+    delete(fullfile(opt.FolderProcDataMat, [opt.SavFileName '.bin']));
 end
 
-if in.createAvrgDatMat
-    fclose(fidDataMatAvg);
-end
-
-D2K.in = in;
+D2K.in = opt;
 D2K.out = out;
 save('D2K.mat','D2K','-mat');
 

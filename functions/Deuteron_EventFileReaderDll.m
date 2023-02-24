@@ -1,5 +1,5 @@
-function [EventRecord, nchan] = Deuteron_EventFileReaderDll(in, varargin)
-% Use the Event_File_Reader_7_2 dll to extract events from a Deuteron
+function [EventRecord, nchan] = Deuteron_EventFileReaderDll(opt, varargin)
+% Use the Event_File_Reader_X_X dll to extract events from a Deuteron
 % recording with Block Format.
 % The user must enter the full path of the dll and the file they wish to load. 
 % This example creates a struct called EventRecords that has a length of the 
@@ -24,7 +24,7 @@ filePrefix = 'NEUR';
 % not required. You can assemble your cell array of file names in listOfFilesToLoad
 % with your own custom code, but you must afterwards run the following segment ("change this to a .NET array") 
 IncludeEventFile = 1;
-folderName = in.pathRaw;
+folderName = opt.PathRaw;
 
 %% Set up files to load 
 % Block file format
@@ -53,7 +53,7 @@ end
 %% Load events
 % to cancel this while it is running, type c.Cancel()
 % Load in assembly
-asminfo = NET.addAssembly(in.ReaderDll);        % loads in .NET dll
+asminfo = NET.addAssembly(opt.ReaderDll);        % loads in .NET dll
 c = Event_File_Reader_8_3.EFRMatlabFunctions();
 c.Initialize();
 c.LoadFiles(fileNames);

@@ -1,65 +1,69 @@
 function Deuteron_PipelineWrapper(sessions, ss, varargin)
-% Adaptation from the common pipeline for Deuteron. Prepares recorded data for spike sorting with Kilosort.
-% For now, uses *.DT2 files and creates .h5 and .bin files.
+% Adaptation from the common pipeline for Deuteron. Wraps up the most common 
+% processing lines necessary to get data from Deuteron raw files. This
+% includes the Neural data and the motion sensors, so far. Could be
+% expanded to extract audio as well.
 %
 % DEPENDENCIES
-%    Deuteron2Kilosort: function to compile recorded data in a single file per channel.
-%                      Can also filter the data and retrieve event codes. 
-%    Deuteron_EventFileReaderDll: 
+%   Deuteron_EventFileReaderDll: To extract Event Record from Deuteron Block format.
+%   Deuteron2Kilosort: To compile recorded data in a single file per channel.
+%                      Can also split the data based on event codes. 
+%   Deuteron_GetMotionSensors: To extract data from motion sensors.
+%   Deuteron_PlotMotionSensors: To process and visualize data from motion sensors.
 %
 % INPUTS:
 %    sessions: struct. Variable containing info about sessions in process
 %    ss:       int. Current session ordinal in the pipeline
-%    input:    struct. optional inputs to override the defaults:
-%               createAvrgDatMat: logic. if true, another matrix (and respective binary file) are created 
+%    in:        struct. optional inputs to override the defaults:
+%                   createAvrgDatMat: logic. if true, another matrix (and respective binary file) are created 
 %                                     with the average of all channels subtracted from every channel 
-%               retrieveEvents: logic. possibility to load event codes to build a restriced matrix
+%                   RetrieveEvents: logic. possibility to load event codes to build a restriced matrix
 %                                   (e.g., the matrix starts at the first 'itiON' and ends at 'end'
 %                                    experiment, removing paradigm irrelevant periods) 
-%               ApplyHighPassFilter: logic. Use High-pass filter
-%               stpSz: int. relative to HDF5file: chunks in which ...  
+%                   ApplyHighPassFilter: logic. Use High-pass filter
+%                   StpSz: int. relative to HDF5file: chunks in which ...  
 %
-% OUTPUT:
-%    Binary file, channels(rows) per sample (columns), with channels
-%    in increasing order as required for Kilosort.
-%    h5 file, channels(rows) per sample (columns), with channels
-%    in increasing order as required for Kilosort.
+% GENERATES:
+%    EventRecord.mat file and compressed events file.
+%    .bin file, as channels x samples. If requested.
+%    .h5 file, as channels x sample. If requested.
+%       (both with channels in increasing order as required for Kilosort.)
+%    MotionData.mat file, with [Accelerometer, Gyroscope, Magnetometer] variables
+%       containing timeseries for each sensor readings, in physical units. Plus
+%       a 'rotators' variable, containing the quaternions to create the
+%       rotation matrices and other transformations.
 %    Also, a file named 'D2K.mat' containing used inputs and outputs.
 % 
-% 14.02.2023 (Jesus)
+% 24.02.2023 (Jesus)
 
-if nargin < 3, in = struct();
-elseif nargin == 3, in = varargin{1};
+if nargin < 3, opt = struct();
+elseif nargin == 3, opt = varargin{1};
 end
 
 %% Defaults
-if ~isfield(in,'retrieveEvents'),       in.retrieveEvents       = true;     end
-if ~isfield(in,'keeph5'),               in.keeph5               = true;     end
-if ~isfield(in,'keepbin'),              in.keepbin              = true;     end
-if ~isfield(in,'GetMotionSensors'),     in.GetMotionSensors     = true;     end
+if ~isfield(opt,'RetrieveEvents'),       opt.RetrieveEvents       = true;     end
+if ~isfield(opt,'h5'),                   opt.h5                   = true;     end
+if ~isfield(opt,'bin'),                  opt.bin                  = true;     end
+if ~isfield(opt,'GetMotionSensors'),     opt.GetMotionSensors     = true;     end
 
-if ~isfield(in,'ApplyHighPassFilter'),  in.ApplyHighPassFilter  = false;    end
-if ~isfield(in,'createAvrgDatMat'),     in.createAvrgDatMat     = false;    end
-if ~isfield(in,'stpSz'),                in.stpSz                = 1000000;  end
+if ~isfield(opt,'ApplyHighPassFilter'),  opt.ApplyHighPassFilter  = false;    end
+if ~isfield(opt,'StpSz'),                opt.StpSz                = 1000000;  end
 
 % Paths and naming
-if ~isfield(in,'pathRaw'),              in.pathRaw                  = pwd;                                                  end
-if ~isfield(in,'folderSingleChannels'), in.folderSingleChannels     = fullfile(pwd,'oneFilePerChannel');                    end
-if ~isfield(in,'folderProcDataMat'),    in.folderProcDataMat        = in.pathRaw;                                           end
-if ~isfield(in,'dllFolder'),            in.dllFolder                = 'C:\Code\Scripts\ephys-data-pipeline\functions\dlls'; end
-if ~isfield(in,'ReaderDll'),            in.ReaderDll                = fullfile(in.dllFolder, 'Event_File_Reader_8_3.dll');  end
-
-if ~isfield(in,'savFileName'),          in.savFileName              = sessions.list(ss).name;                               end
-if ~isfield(in,'savFileNameAvrg'),      in.savFileNameAvrg          = ['Averaged_',sessions.list(ss).name];                 end
-if ~isfield(in,'folderProcDataMatAveraged'), in.folderProcDataMatAveraged = in.pathRaw;                                     end
+if ~isfield(opt,'PathRaw'),              opt.PathRaw                  = pwd;                                                  end
+if ~isfield(opt,'FolderSingleChannels'), opt.FolderSingleChannels     = fullfile(pwd,'oneFilePerChannel');                    end
+if ~isfield(opt,'FolderProcDataMat'),    opt.FolderProcDataMat        = fullfile(pwd,'processed');                                          end
+if ~isfield(opt,'DllFolder'),            opt.DllFolder                = 'C:\Code\Scripts\ephys-data-pipeline\functions\dlls'; end
+if ~isfield(opt,'ReaderDll'),            opt.ReaderDll                = fullfile(opt.DllFolder, 'Event_File_Reader_8_3.dll'); end
+if ~isfield(opt,'SavFileName'),          opt.SavFileName              = sessions.list(ss).name;                               end
 
 %% Event data, using dll
 if ~isfile('COMP_EVENTS.DF1')
-    if in.retrieveEvents
+    if opt.RetrieveEvents
         % Proceed to extract all events during session. Give some feedback.
         disp('Retrieving Events from Deuteron...')
         [EventRecord, sessions.info{ss}.numChannels] = ...
-            Deuteron_EventFileReaderDll(in, sessions, ss);
+            Deuteron_EventFileReaderDll(opt, sessions, ss);
         disp(EventRecord);
         disp(['Found ', int2str(sessions.info{ss}.numChannels), ' channels']);
 
@@ -81,12 +85,12 @@ end
 
 %% Neural Data To .bin and .h5.
 if ~isfile([sessions.list(ss).name '.h5'])
-    if in.keeph5 || in.keepbin
+    if opt.h5 || opt.bin
         % Converts Deuteron DT2 and DF1 files into the 'oneFilePerChannel' format.
         % Creates full single files (.bin and .h5) to further use (i.e. with Kilosort)
         % Creates and saves D2K.mat file with few details (TODO, necessary?)
         disp('Generating single channel files from Deuteron...')
-        Deuteron2Kilosort(in, sessions, ss);
+        Deuteron2Kilosort(opt, sessions, ss);
     else
         disp('No Neural data found in folder, but also not requested. Skipping...')
     end
@@ -98,19 +102,19 @@ else
 end
 
 %% Motion Data to Matlab
-if in.GetMotionSensors
+if opt.GetMotionSensors
     if ~isfile('MotionData.mat')
         disp('Extracting Motion Sensor data from Deuteron...')
         [Accelerometer, Gyroscope, Magnetometer] = ...
-            Deuteron_GetMotionSensors(in, sessions, ss);
+            Deuteron_GetMotionSensors(opt, sessions, ss);
     else
         disp('Motion Sensor data file found. Loading...')
         load("MotionData.mat","Accelerometer","Gyroscope","Magnetometer");
     end
     
     disp('Processing and Plotting Motion Sensor data.')
-    % Add (..., 1, 1) to input if visualization and video recording wanted (respectively) 
-    [rotators] = Deuteron_PlotMotionSensors(Accelerometer, Gyroscope, Magnetometer, [], [])
+    % Add (..., 1, 1) to input, if visualization and video recording are wanted.
+    Deuteron_PlotMotionSensors(Accelerometer, Gyroscope, Magnetometer, [], [])
 end
 
 end
