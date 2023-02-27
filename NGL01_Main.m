@@ -1,17 +1,27 @@
 %% Jesus' Pipeline to read INTAN continous data
-% Will read and process INTAN, DEUTERON or ALLEGO data, from selected sessions 
-% for a given animal.
+% Will read and process INTAN, DEUTERON or ALLEGO data, from selected sessions for a given animal.
+%
+% The path to data will be: '...\datafolder\animal\dates'.
+%     'datafolder', is any folder specified by user. 
+%                   Different ones can be used for different projects.
+%     'animal', is a folder with all sessions for an unique animal, 
+%               identified with a 3 character code, i.e. 'DOE'.
+%     'dates' are folders for single recordings named 'DOE_YYYYMMMDD'. 
+%             Could have appends like '_01', '_Deut'... that need to be explicited.
+% This pattern is constructed from the given inputs.
+%
+% DEPENDENCIES:
+% Requires that all pipeline dependencies are properly set as matlab path. 
+% 'set_default' will take care of this when a proper 'mainfolder' is provided.
 %
 % INPUTS:
 %       mainfoldder:    chr array.  Full path to pipeline Code folder, as 'C:\...'. 
 %                                   To include all dependencies.
 %       datafolder:     string.     Full path to data folder, as "D:\...".
 %                                   Where raw data is got from.
-%       animal:         chr array.  A 3 character code as 'FAT', '427' ..., to be agreed upon.
-% 
-% OPTIONAL:
+%       animal:         chr array.  A 3 character code as 'FAT', '427' ..., agreed upon.
 %       dates:          cell of chr array. Specfic dates as {'yyyymmdd' 'yyyymmdd' ...} 
-%                       or chr array.  'all'
+%                       or chr array. 'all'
 %                                   At testing stages, 'yyyymmdd_system' or variations may exists
 %                                   Default: 'all'
 %       useNWB:         true/false  To create/skip NWB file.
@@ -25,13 +35,7 @@
 %       test_ch:        int array.  If not empty, to plot snippet of requested channels.
 %                                   As i.e. [1, 2, 5:15, 32].
 %                                   Default: empty [].
-% Deprecating:
-%       bandpass:       cell of chr array. Up to {'low' 'amp' 'high'}. Any empty field as ''.
-%                                   'low'/'amp' are used to extract the signal at low frequencies for FieldTrip.
-%                                   'high' to re-threshold the high frequency-pass signal and re-extract spike times offline.
-%                                   Default: {'low' 'amp' ''}.
-% 
-% GENERATES
+% OUTPUTS
 % For one single session or for a batch of sessions, from one single animal:
 %       A set of default inputs and paths.
 %       A list of sessions, with their associated info.
@@ -45,7 +49,7 @@
 %   .mat files will be saved under ../rawfolder
 %   .h5 and .bin files will be saved under ../rawfolder/processed
 %       
-% Last modified 24.02.2023 (Jesus)
+% Last modified 27.02.2023 (Jesus)
 
 % TODO LIST 
 %       There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
@@ -58,19 +62,30 @@
 %       Continue with 'Deuteron_GetDigInEvents' when I get a recording with EVENTS
 %
 
-% Necessary inputs.
-input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline';
-input.datafolder = 'D:\Experiments\';
-input.animal     = '420';
+%% Necessary inputs. 
+% If not provided, a promp will ask for them or 'set_default' will use the 
+% defaults. It will also put them in the correct format if an incorrect one 
+% was given.
+input.mainfolder = []; %'C:\Code\Scripts\ephys-data-pipeline';
+input.datafolder = []; %'D:\Experiments\';
+input.animal     = []; %'420';
 
-% Optatives will be set to default if missing here. 
-input.dates       = {'20230222_Int'}; % while testing, 'yyyymmdd_system' or other variations may exists
-input.useNWB      = false; % Due to a conflict at h5 python-matlab dlls, when either transformation is performed,
-input.ExtractData = true;  %    the following one will crash. It needs a Matlab restart between runs.
-                           % TODO: figure this out.
-input.plots      = []; % Only for Fieldtrip ready .mat files
-input.test_ch    = []; % Only for Fieldtrip ready .mat files
-% input.bandpass   = {'low' 'amp' 'high'}; deprecating
+%  Will be set to default if missing here. % while testing, 'yyyymmdd_system' or other variations may exists
+input.dates       = []; % If empty will use 'all'.
+                        % example:  {'20230217_01' '20230217_02'...
+                        % '20230220_Deut' '20230221_Deut'...
+                        % '20230222_Deut' '20230220_Int'...
+                        % '20230221_Int' '20230222_Int'}; 
+
+% Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
+% are requested, the NWB will perform well but the data extraction will not. 
+% It will crash for not completely known reason. It needs a Matlab restart between runs.
+input.ExtractData = true;  
+input.useNWB      = false; 
+
+% These following apply to FieldTrip ready mat-files, only.
+input.plots      = []; % An logic array of 0/1s, to ask for specific plots. See details.
+input.test_ch    = []; % An array of numerals for channels to plot.
 
 %% 00. Check inputs, set defaults and dependencies.
 set_default(input);
@@ -84,12 +99,16 @@ sessions = findSessions(input);
 
 %% 02. Loop sessions to process
 for ss = 1:sessions.nSessions
+    % Progress report
+    txt = sprintf('Session %d out of %d.', ss, sessions.nSessions);
+    disp(txt, ' ', sessions.list(ss).name);
+
     %% 03. Check file type and versions
     % Find session folder and work there.
     cd(strcat(sessions.folder,'\',sessions.list(ss).name));
     
     % Check System and version, based on existing files. Get info. 
-    sessions.info{ss} = chckV(input);
+    sessions.info{ss} = chckV();
     disp(sessions.info{ss});
 
     %% 04. Determine pipeline based on type of data
@@ -118,10 +137,13 @@ for ss = 1:sessions.nSessions
 
         case {'fileperch', 'filepertype'}
           %% 04.2 INTAN Pipeline
-          % 01 Find out INTAN settings and header file. Extract info.
+          % 01. Find out INTAN settings and header file. Extract info.
+          %  Uses a modified Intan function, to make the basic information
+          %  available at 'sessions.info{ss}' and a more detailed info at
+          %  the '.INTAN_hdr' sub-structure.
           sessions = findIntanSetting(sessions, ss);
 
-          % 02 Create NWB file
+          % 02. Create NWB file
           if input.useNWB % We want a .NWB file.
               % Run wrapper for the INTAN to NWB functionality:               
                 % This NEEDS A PYTHON installation and the tooldbox inside!
@@ -142,10 +164,11 @@ for ss = 1:sessions.nSessions
               intan2NWB_wrapper(sessions,ss)
           end 
 
-          % 03 Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
+          % 03. Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
           if input.ExtractData & ~isfile([sessions.list(ss).name '.h5'])
               % Based on Sara, Aylin and Lukas' scripts.
-              % To modify optional inputs:
+              
+              % To modify optional inputs, can be done here:
               opt = struct();
                 opt.h5               = false;
                 opt.bin              = true;
@@ -153,11 +176,11 @@ for ss = 1:sessions.nSessions
               Intan2Kilosort_wrapper(sessions, ss, opt); % add 'opt' if desired
           end
 
-          % 04 Run wrapper for the INTAN to MATLAB.
+          % 04. Run wrapper for the INTAN to MATLAB.
           % Includes a mix of INTAN funtions.
           [data, sessions] = intan2MAT_wrapper(sessions, ss);
 
-          % 05 CREATE and GIVE proper FieldTrip format.
+          % 05. CREATE and GIVE proper FieldTrip format.
           % If the file comes from a loaded file, will be named 'FT_data'
           % And it should be on real FT format already. Otherwise:
           if isvarname('FT_data')

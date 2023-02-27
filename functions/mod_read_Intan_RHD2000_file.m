@@ -1,7 +1,8 @@
-function [info] = mod_read_Intan_RHD2000_file(filename)
+function [INTAN_hdr] = mod_read_Intan_RHD2000_file(filename)
 % Orig: read_Intan_RHD2000_file
 %
-% MOD by Jesus 09.2022: Mostly, output variable management. Creates 'info'
+% MOD by Jesus 09.2022: Mostly, output variable management. Creates 'INTAN_hdr'.
+% See below (next MOD keyword) for details.
 %
 % Version 3.0, 8 February 2021
 %
@@ -450,65 +451,65 @@ end
 % Move variables to base workspace.
 
 % MOD By Jesus 09.2022
-% Removed use of 'move_to_base_workspace' function. Substituted by
-% output an 'info' struct.
-info.notes = notes;
-info.frequency_parameters = frequency_parameters;
-info.reference_channel = reference_channel;
-info.version = [int2str(data_file_main_version_number), '.' int2str(data_file_secondary_version_number)];
+% Removed use of 'move_to_base_workspace' function (below).
+% Substituted by output as an 'INTAN_hdr' struct.
+INTAN_hdr.notes = notes;
+INTAN_hdr.frequency_parameters = frequency_parameters;
+INTAN_hdr.reference_channel = reference_channel;
+INTAN_hdr.version = [int2str(data_file_main_version_number), '.' int2str(data_file_secondary_version_number)];
 if (num_amplifier_channels > 0)
-    info.amplifier_channels = amplifier_channels;
+    INTAN_hdr.amplifier_channels = amplifier_channels;
     if (data_present)
-        info.amplifier_data = amplifier_data;
-        info.t_amplifier = t_amplifier;
+        INTAN_hdr.amplifier_data = amplifier_data;
+        INTAN_hdr.t_amplifier = t_amplifier;
     end
-    info.spike_triggers = spike_triggers;
+    INTAN_hdr.spike_triggers = spike_triggers;
 end
 
 if (num_aux_input_channels > 0)
-    info.aux_input_channels = aux_input_channels;
+    INTAN_hdr.aux_input_channels = aux_input_channels;
     if (data_present)
-        info.aux_input_data = aux_input_data;
-        info.t_aux_input = t_aux_input;
+        INTAN_hdr.aux_input_data = aux_input_data;
+        INTAN_hdr.t_aux_input = t_aux_input;
     end
 end
 
 if (num_supply_voltage_channels > 0)
-    info.supply_voltage_channels = supply_voltage_channels;
+    INTAN_hdr.supply_voltage_channels = supply_voltage_channels;
     if (data_present)
-        info.supply_voltage_data = supply_voltage_data;
-        info.t_supply_voltage = t_supply_voltage;
+        INTAN_hdr.supply_voltage_data = supply_voltage_data;
+        INTAN_hdr.t_supply_voltage = t_supply_voltage;
     end
 end
 
 if (num_board_adc_channels > 0)
-    info.board_adc_channels = board_adc_channels;
+    INTAN_hdr.board_adc_channels = board_adc_channels;
     if (data_present)
-        info.board_adc_data = board_adc_data;
-        info.t_board_adc = t_board_adc;
+        INTAN_hdr.board_adc_data = board_adc_data;
+        INTAN_hdr.t_board_adc = t_board_adc;
     end
 end
 
 if (num_board_dig_in_channels > 0)
-    info.board_dig_in_channels = board_dig_in_channels;
+    INTAN_hdr.board_dig_in_channels = board_dig_in_channels;
     if (data_present)
-        info.board_dig_in_data = board_dig_in_data;
-        info.t_dig = t_dig;
+        INTAN_hdr.board_dig_in_data = board_dig_in_data;
+        INTAN_hdr.t_dig = t_dig;
     end
 end
 
 if (num_board_dig_out_channels > 0)
-    info.board_dig_out_channels = board_dig_out_channels;
+    INTAN_hdr.board_dig_out_channels = board_dig_out_channels;
     if (data_present)
-        info.board_dig_out_data = board_dig_out_data;
-        info.t_dig = t_dig;
+        INTAN_hdr.board_dig_out_data = board_dig_out_data;
+        INTAN_hdr.t_dig = t_dig;
     end
 end
 
 if (num_temp_sensor_channels > 0)
     if (data_present)
-        info.temp_sensor_data = temp_sensor_data;
-        info.t_temp_sensor = t_temp_sensor;
+        INTAN_hdr.temp_sensor_data = temp_sensor_data;
+        INTAN_hdr.t_temp_sensor = t_temp_sensor;
     end
 end
 
@@ -606,8 +607,8 @@ end
 
 return
 
-% MOD by Jesus. Negated due to not used anymore
 % function move_to_base_workspace(variable)
+% % MOD by Jesus. Negated due to not used anymore
 % 
 % % move_to_base_workspace(variable)
 % %

@@ -9,16 +9,10 @@ function I2K = Intan2Kilosort_wrapper(sessions, ss, varargin)
 %    sessions: struct. Variable containing info about sessions in process
 %    ss:       int. Current session ordinal in the pipeline
 %    input:    struct. optional inputs to override the defaults:
-%               createAvrgDatMat: logic. if true, another matrix (and respective binary file) are created 
-%                                         with the average of all channels subtracted from every channel 
-%               retrieveEvents: logic. possibility to load event codes to build a restriced matrix
+%              retrieveEvents: logic. possibility to load event codes to build a restriced matrix
 %                                       (e.g., the matrix starts at the first 'itiON' and ends at 'end'
 %                                        experiment, removing paradigm irrelevant periods) 
-%               ApplyNotchFilter: logic. Use Line-noise filter
-%               ApplyHighPassFilter: logic. Use High-pass filter
-%               ApplyBandPassFilter: logic. Use Band-pass filter
-%               stpSz: int. relative to HDF5file: chunks in which ... 
-%               input.bandfiles: str. general name for files to use. Normally 'high*.dat' but possibility for 'amp*.dat'
+%              stpSz: int. relative to HDF5file: chunks in which ... 
 %
 % OUTPUT:
 %    Binary file, channels(rows) per sample (columns), with channels
@@ -27,23 +21,23 @@ function I2K = Intan2Kilosort_wrapper(sessions, ss, varargin)
 % VERSION HISTORY:
 % Author:         Aylin, Lukas & Sara
 % Version:        1
-% Last Change:    24.02.2023 (Jesus)
+% Last Change:    27.02.2023 (Jesus)
 
 if nargin < 3, opt = struct();
 elseif nargin == 3, opt = varargin{1};
 end
 
 %% Defaults
-if ~isfield(opt,'RetrieveEvents'),       opt.RetrieveEvents       = false;    end
-if ~isfield(opt,'StpSz'),                opt.StpSz                = 1000000;  end
-if ~isfield(opt,'h5'),                   opt.h5                   = true;     end
-if ~isfield(opt,'bin'),                  opt.bin                  = true;     end
+if ~isfield(opt,'RetrieveEvents'), opt.RetrieveEvents = false;    end
+if ~isfield(opt,'StpSz'),          opt.StpSz          = 1000000;  end
+if ~isfield(opt,'h5'),             opt.h5             = true;     end
+if ~isfield(opt,'bin'),            opt.bin            = true;     end
 
 % Paths and naming
-if ~isfield(opt,'PathRaw'),              opt.PathRaw                  = pwd;                                       end
-if ~isfield(opt,'FolderSingleChannels'), opt.FolderSingleChannels     = fullfile(pwd,'oneFilePerChannel');         end
-if ~isfield(opt,'FolderProcDataMat'),    opt.FolderProcDataMat        = fullfile(pwd,'processed');                                          end
-if ~isfield(opt,'SavFileName'),          opt.SavFileName              = [sessions.list(ss).name];              end
+if ~isfield(opt,'PathRaw'),              opt.PathRaw              = pwd;                               end
+if ~isfield(opt,'FolderSingleChannels'), opt.FolderSingleChannels = fullfile(pwd,'oneFilePerChannel'); end
+if ~isfield(opt,'FolderProcDataMat'),    opt.FolderProcDataMat    = fullfile(pwd,'processed');         end
+if ~isfield(opt,'SavFileName'),          opt.SavFileName          = [sessions.list(ss).name];          end
 
 % Create folders in case they don't exist.
 mkdir(opt.FolderSingleChannels);	    % create folder for single channel files

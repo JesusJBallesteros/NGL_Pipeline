@@ -13,7 +13,7 @@ function set_default(input)
 
 %% Check necessary inputs
 % Toolbox Main folder
-if ~isfield(input,'mainfolder')
+if ~isfield(input,'mainfolder') || isempty(input.mainfolder)
     input.mainfolder = inputdlg('Toolbox absolute folder:',...
                         'Toolbox foldder', [1 50], {'C:\Code\Scripts\ephys-data-pipeline'});
     
@@ -28,7 +28,7 @@ elseif ~ischar(input.mainfolder)
 end
     
 % Data Main folder
-if ~isfield(input,'datafolder')
+if ~isfield(input,'datafolder') || isempty(input.datafolder)
     input.datafolder = inputdlg('Data absolute folder:',...
                         'Data folder', [1 50], {'D:\Experiments\'});
         
@@ -43,9 +43,9 @@ elseif ~isstring(input.datafolder)
 end
     
 % Animal code
-if ~isfield(input,'animal')
+if ~isfield(input,'animal') || isempty(input.animal)
     input.animal = inputdlg('Code:',...
-                    'Animal code', [1 50], {'478'});
+                    'Animal code', [1 50], {'DOE'});
         
     if isempty(input.datafolder)
         error('input.animal is empty. Please provide a valid one and try again.')
@@ -59,14 +59,17 @@ end
     
 %% Optional Inputs
 % Dates
-if ~isfield(input,'dates'),         input.dates = 'all';
-elseif ~iscell(input.dates),        input.dates = 'all';                end
+if ~isfield(input,'dates') || isempty(input.dates) || ~iscell(input.dates)
+    input.dates  = 'all';
+end
 
-% if ~isfield(input,'bandpass'),      input.bandpass = {'low' 'amp' ''};  end
-if ~isfield(input,'useNWB'),        input.useNWB   = true;              end
-if ~isfield(input,'ToKilosort'),    input.ToKilosort = true;            end
-if ~isfield(input,'plots'),         input.plots    = [];                end
-if ~isfield(input,'test_ch'),       input.test_ch  = [];                end
+% Pipelines
+if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB      = true; end
+if ~isfield(input,'ExtractData') || isempty(input.ExtractData), input.ExtractData = true; end
+
+% Plots
+if ~isfield(input,'plots'),   input.plots     = []; end
+if ~isfield(input,'test_ch'), input.test_ch   = []; end
 
 %% Set Dependencies
 cd(input.mainfolder)

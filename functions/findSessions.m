@@ -16,12 +16,11 @@ if iscell(input.dates) % input is cell array of dates
     clear s
 
 elseif strcmp(input.dates, 'all') % input is 'all'
-    sessions.folder = input.datafolder + input.animal;
-    sessions.list   = dir(sessions.folder + '\' + input.animal + '*');
+    sessions.folder     = fullfile(input.datafolder, input.animal);
+    sessions.list       = dir(sessions.folder + '\' + input.animal + '*');
+    sessions.nSessions  = length(sessions.list);
     
-    % Get and Count sessions
     cd(sessions.folder)
-    sessions.nSessions = length(sessions.list);
 end
 
 end

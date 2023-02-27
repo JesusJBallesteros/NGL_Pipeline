@@ -1,6 +1,6 @@
-function [info] = chckV(input)
+function [info] = chckV()
 % Onc in the session folder, checks for existence of any of the following
-% files:
+% characteristic files, determinant of the recording format:
 %   'EVENTLOG.NLE': characteristic of Deuteron flat format
 %   'EVENT000.DF1': characteristic of Deuteron block format
 %   'info.rhd': characteristic of INTAN file-per-channel or file-per-type
@@ -12,7 +12,7 @@ function [info] = chckV(input)
 %
 % Calls to: 'Deuteron_GetMetaData'
 %
-% 06.01.2023. Jesus
+% 27.01.2023. Jesus
 
     if isfile('EVENTLOG.NLE') 
         % For this format, we list the files with neural data and extract some
@@ -39,77 +39,63 @@ function [info] = chckV(input)
             info.voltageRes         = metaData.voltageRes;
             info.sampleRate         = metaData.fSample;
             info.HDF5chunkSize      = 300*info.sampleRate;
-% info.bandpass           = input.bandpass{3}; % It uses highpass % deprecating  
     
         else % Still empty for some reason
             warning('Something went wrong with this Deuteron flat format session.')
-            info.fileformat     = 'NAN'; % Flag for error with the file format
-            info.numChannels    = [];
-            info.numOfADCBits    = [];
-            info.voltageRes  = [];
-            info.sampleRate     = [];
-            info.HDF5chunkSize  = [];
-%             info.bandpass       = [];
+            info.fileformat    = 'NAN'; % Flag for error with the file format
+            info.numChannels   = [];
+            info.numOfADCBits  = [];
+            info.voltageRes    = [];
+            info.sampleRate    = [];
+            info.HDF5chunkSize = [];
             return
         end
     
     elseif isfile('EVENT000.DF1') 
         % For this format, we list the files with neural data and extract some
-        % metadata with the function '?'. No further check needd
+        % metadata with the function 'Deuteron_GetMetaData'. No further check needed.
         info.fileformat = 'DF1';
         info.files = dir(['*.' info.fileformat]);
         if ~isempty(info.files)
             % Extract metadata
-            metaData                = Deuteron_GetMetaData(info);
-            info.numChannels        = metaData.numChannels;
-            info.numADCBits         = metaData.numADCBits;
-            info.voltageRes         = metaData.voltageRes;
-            info.sampleRate         = metaData.fSample;
-            info.HDF5chunkSize      = 300*info.sampleRate;
-%             info.bandpass           = input.bandpass{4}; % It uses highpass data
+            metaData           = Deuteron_GetMetaData(info);
+            info.numChannels   = metaData.numChannels;
+            info.numADCBits    = metaData.numADCBits;
+            info.voltageRes    = metaData.voltageRes;
+            info.sampleRate    = metaData.fSample;
+            info.HDF5chunkSize = 300*info.sampleRate;
     
         else
             warning('Something went wrong with this Deuteron block format session.')
-            info.fileformat     = 'NAN'; % Flag for error with the file format
-            info.numChannels    = [];
+            info.fileformat    = 'NAN'; % Flag for error with the file format
+            info.numChannels   = [];
             info.numADCBits    = [];
-            info.voltageRes  = [];
-            info.sampleRate     = [];
-            info.HDF5chunkSize  = [];
-%             info.bandpass       = [];
+            info.voltageRes    = [];
+            info.sampleRate    = [];
+            info.HDF5chunkSize = [];
             return
         end
     
     elseif isfile('info.rhd') 
-       % Here we look for files of each of the bandpass selected as input. 
+       % Here we look for files of each of the bandpass to use as source. 
        %  'amp' should always exist. Would be used as ultimate source of
-       %  data if 'low' do not. If 'low' is requested AND exist, the 
-       %  loop breaks and takes the indexed file list with such extension.
+       %  data if 'low' does not. If 'low' exist, the loop breaks and takes
+       %  the indexed file list with such extension.
        for i=1:2
            info.files = dir('low*.dat');
+           info.nfiles = length(info.files);
            if ~isempty(info.files)
               break
            else
               info.files = dir('amp*.dat');
            end
        end
-    
-       % The final bandpass to use.
-%        info.bandpass = input.bandpass{i};
-    
+        
        % How many files exist for this sessions. If we have several types 
        % with file per channel format, 'fileperch' applies anyways.
-       if length(info.files)>1
-            % If there are many files, is 'fileperch'
-            info.fileformat = 'fileperch';
-            % Some metadata will be extracted later on.
-
-       else
-            % If there is only one, is 'filepertype'
-            info.fileformat = 'filepertype';
-            % Some metadata will be extracted later on.
-
-       end
+       % If there are many files, is 'fileperch', if there is only one, is 'filepertype'
+       if info.nfiles > 1, info.fileformat = 'fileperch';
+       else,               info.fileformat = 'filepertype';  end
     
     else
         info.files = dir('*xdat.json'); % list files matching Allego's
@@ -120,14 +106,12 @@ function [info] = chckV(input)
 
         else
             warning('The format of the sessions could not be determined.')
-            info.fileformat     = 'NAN'; % Flag for error with the file format
-            info.numChannels    = [];
+            info.fileformat    = 'NAN'; % Flag for error with the file format
+            info.numChannels   = [];
             info.numADCBits    = [];
-            info.voltageRes  = [];
-            info.sampleRate     = [];
-            info.HDF5chunkSize  = [];
-            info.bandpass       = [];
-
+            info.voltageRes    = [];
+            info.sampleRate    = [];
+            info.HDF5chunkSize = [];
         end
     end
 end
