@@ -13,10 +13,6 @@ function out = Deuteron2Kilosort(opt, sessions, ss)
 %                 order, with corresponding time points (as minutes from midnight),
 %                 sample number, and pins with detected rising edge
 %
-%  highPassFilter: These functions filter the data of each channel. The filtered 
-%                   channels are also saved, without deleting the original ones.
-%                   If filtered channels exist, the final matrix is compiled with them. 
-%
 % VERSION HISTORY:
 % Author:         Aylin, Lukas & Sara
 % Version:        1
@@ -34,8 +30,8 @@ param.offset            = 2^(numberOfAdcBits-1);
 param.voltageResolution = 1.95e-7;
 
 %% Create folders in case they don't exist.
-mkdir(opt.FolderSingleChannels);	    % create folder for single channel files
-mkdir(opt.FolderProcDataMat);        % create folder for data matrix
+mkdir(opt.FolderSingleChannels); % create folder for single channel files
+mkdir(opt.FolderProcDataMat);    % create folder for data matrix
 
 %% Total session Data, divided per channels
 % Create an empty file per channel:
@@ -155,13 +151,8 @@ else % ext = DF1
     %     end
 
     %% Files for matrix compilation
-    if opt.ApplyHighPassFilter == true 
-    %    out.myFiles       = ls(fullfile(filePathProssFilt,'*.h5')); % files that will be used to compile the final matrix
-        out.dataDirectory = fullfile(filePathProssFilt);
-    else
-        out.myFiles       = ls(fullfile(opt.FolderSingleChannels,'*.h5'));
-        out.dataDirectory = fullfile(opt.FolderSingleChannels);
-    end
+    out.myFiles       = ls(fullfile(opt.FolderSingleChannels,'*.h5'));
+    out.dataDirectory = fullfile(opt.FolderSingleChannels);
         
     %% If events are used to crop the matrix  
     %     if in.retrieveEvents == true

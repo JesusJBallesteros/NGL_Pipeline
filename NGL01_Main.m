@@ -1,7 +1,7 @@
 %% Jesus' Pipeline to read INTAN continous data
 % Will read and process INTAN, DEUTERON or ALLEGO data, from selected sessions for a given animal.
 %
-% The path to data will be: '...\datafolder\animal\dates'.
+% The path to data will be: '...\datafolder\animal\dates'. This is 'rawfolder'
 %     'datafolder', is any folder specified by user. 
 %                   Different ones can be used for different projects.
 %     'animal', is a folder with all sessions for an unique animal, 
@@ -19,6 +19,8 @@
 %                                   To include all dependencies.
 %       datafolder:     string.     Full path to data folder, as "D:\...".
 %                                   Where raw data is got from.
+%       processed:      string.     A folder where newly created files will be saved.
+%                                   Default is '\processed'
 %       animal:         chr array.  A 3 character code as 'FAT', '427' ..., agreed upon.
 %       dates:          cell of chr array. Specfic dates as {'yyyymmdd' 'yyyymmdd' ...} 
 %                       or chr array. 'all'
@@ -46,8 +48,7 @@
 %       EventRecord.mat file, from Deuteron session.
 %       MotionData.mat file, From Deuteron sensors.
 %       Plots snippets of time- and frequency-domain data.
-%   .mat files will be saved under ../rawfolder
-%   .h5 and .bin files will be saved under ../rawfolder/processed
+%   .mat, .h5 and .bin files will be saved under ../rawfolder/processed
 %       
 % Last modified 27.02.2023 (Jesus)
 
@@ -60,30 +61,34 @@
 %       Figure out how to work with Allego files (most likely, after Allego's self preprocessing tool?)
 %       Save the 'sessions' variable by default, at the end, with a date timestamp perhaps?
 %       Continue with 'Deuteron_GetDigInEvents' when I get a recording with EVENTS
+%       Create a 'trial-parsed' stream in MAT2FieldTrip.
 %
 
-%% Necessary inputs. 
+%% Inputs. 
 % If not provided, a promp will ask for them or 'set_default' will use the 
 % defaults. It will also put them in the correct format if an incorrect one 
 % was given.
-input.mainfolder = []; %'C:\Code\Scripts\ephys-data-pipeline';
-input.datafolder = []; %'D:\Experiments\';
-input.animal     = []; %'420';
+input.mainfolder = []; % 'C:\Code\Scripts\ephys-data-pipeline';
+input.datafolder = []; % 'D:\Experiments\';
+input.animal     = []; % '420';
+input.processed  = []; % ie: 'processed' (default). A subfolder will be created inside the session folder
 
-%  Will be set to default if missing here. % while testing, 'yyyymmdd_system' or other variations may exists
-input.dates       = []; % If empty will use 'all'.
-                        % example:  {'20230217_01' '20230217_02'...
-                        % '20230220_Deut' '20230221_Deut'...
-                        % '20230222_Deut' '20230220_Int'...
-                        % '20230221_Int' '20230222_Int'}; 
+% Dates will be set to 'all' if missing here. 
+% while testing, 'yyyymmdd_system' or other variations may exists
+input.dates       = [{'20230222_Int' '20230222_Deut'}]; % can be left empty, 'all', or a list like:
+                                    % {'20230217_01' '20230217_02'...
+                                    % '20230220_Deut' '20230221_Deut'...
+                                    % '20230222_Deut' '20230220_Int'...
+                                    % '20230221_Int' '20230222_Int'}; 
 
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
 % are requested, the NWB will perform well but the data extraction will not. 
 % It will crash for not completely known reason. It needs a Matlab restart between runs.
 input.ExtractData = true;  
 input.useNWB      = false; 
+    input.pyfolder = []; % Only needed if useNWB = true. Recommended 'C:\Code\Python39\IntanToNWB'
 
-% These following apply to FieldTrip ready mat-files, only.
+% These apply to FieldTrip-ready .mat files, only.
 input.plots      = []; % An logic array of 0/1s, to ask for specific plots. See details.
 input.test_ch    = []; % An array of numerals for channels to plot.
 
@@ -100,16 +105,22 @@ sessions = findSessions(input);
 %% 02. Loop sessions to process
 for ss = 1:sessions.nSessions
     % Progress report
-    txt = sprintf('Session %d out of %d.', ss, sessions.nSessions);
-    disp(txt, ' ', sessions.list(ss).name);
+    txt = sprintf('\n --> Session %d out of %d. Session name: %s \n', ss, sessions.nSessions, sessions.list(ss).name);
+    fprintf(txt);
 
     %% 03. Check file type and versions
-    % Find session folder and work there.
-    cd(strcat(sessions.folder,'\',sessions.list(ss).name));
+    % Navigate to session raw dat folder.
+    cd(fullfile(sessions.folder,sessions.list(ss).name));
     
     % Check System and version, based on existing files. Get info. 
     sessions.info{ss} = chckV();
     disp(sessions.info{ss});
+
+    % Determine where processed data will be saved
+    sessions.info{ss}.savefolder = fullfile(pwd, input.processed);
+    txt = strcat('Process data will be saved to: >', sessions.info{ss}.savefolder);
+    disp(txt);
+    clear txt
 
     %% 04. Determine pipeline based on type of data
     switch sessions.info{ss}.fileformat
@@ -126,10 +137,10 @@ for ss = 1:sessions.nSessions
             if input.ExtractData
                opt = struct();
                % To modify optional inputs:
-                opt.h5               = false;
-                opt.bin              = true;
-                opt.RetrieveEvents   = false;
-                opt.GetMotionSensors = false;
+                opt.h5                = false;
+                opt.bin               = true;
+                opt.RetrieveEvents    = false;
+                opt.GetMotionSensors  = false;
 
                % TODO: implement the new format conversion
                Deuteron_PipelineWrapper(sessions, ss, opt);
@@ -161,60 +172,32 @@ for ss = 1:sessions.nSessions
                 %  64 bits version:
                 % (https://de.mathworks.com/help/matlab/matlab_external/install-supported-python-implementation.html)
                 %  To check access to Python Modules from MATLAB, look that 'pe' is correctly populated when running the script.
-              intan2NWB_wrapper(sessions,ss)
+              intan2NWB_wrapper(input, sessions, ss)
           end 
 
           % 03. Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
-          if input.ExtractData & ~isfile([sessions.list(ss).name '.h5'])
+          if input.ExtractData
               % Based on Sara, Aylin and Lukas' scripts.
-              
               % To modify optional inputs, can be done here:
               opt = struct();
-                opt.h5               = false;
-                opt.bin              = true;
+                opt.h5                = true;
+                opt.bin               = true;
 
-              Intan2Kilosort_wrapper(sessions, ss, opt); % add 'opt' if desired
+%               Intan2Kilosort_wrapper(sessions, ss, opt);
+              Intan2Kilosort_wrapperV2(sessions, ss, opt);
           end
 
           % 04. Run wrapper for the INTAN to MATLAB.
-          % Includes a mix of INTAN funtions.
-          [data, sessions] = intan2MAT_wrapper(sessions, ss);
+          % Includes a mix of INTAN funtions. Outputs 'data' with plain
+          % format. Can be feeded into next step for FT transformation.
+          [data, sessions] = intan2MAT_wrapper(input, sessions, ss);
 
-          % 05. CREATE and GIVE proper FieldTrip format.
-          % If the file comes from a loaded file, will be named 'FT_data'
-          % And it should be on real FT format already. Otherwise:
-          if isvarname('FT_data')
-                if isempty(data) 
-                   % If true, there was an existing FT file, and the step was skipped. Load the pre-existing one.
-                   disp('Loading...');
-                   datafile = dir('*_FT.mat');
-                   load(datafile.name, 'FT_data');
-                   clear datafile data
-                    
-                   % A couple details could have been lost if not processing
-                   sessions.info{ss}.nSamples       = FT_data.sampleinfo(2);
-                   sessions.info{ss}.recording_time = sessions.info{ss}.nSamples / (sessions.info{ss}.amplifier_sample_rate/32);
-                end
-                
-                % If the file is being created now, look for 'data'
-                if exist('data','var')
-                   % Check that Fieldtrip likes what we have (it should).
-                   FT_data = ft_checkdata(data, 'feedback' ,'yes');
-                   clear data
-                
-                   % Then give the FT_data a proper 'continous' state.
-                   cfg = [];
-                    cfg.continuous = 'yes';
-                
-                   FT_data = ft_redefinetrial(cfg, FT_data);
-                   clear cfg
-                
-                   % Save this session data. Generates a file with continous data for a
-                   %   SINGLE session only into the session folder.
-                   save(strcat(sessions.folder,'\',sessions.list(ss).name,'\',sessions.list(ss).name,'_continous_FT.mat'), ...
-                        'sessions', 'input', 'FT_data', '-v7.3')
-                end
-          end
+          % 05. CREATE and GIVE proper FieldTrip format. Give 'EventRecord'
+          % variable as last input, if wanted to be trial-parsed. 
+          % If the file comes from a loaded file, it will be named 'FT_data'
+          % And it should be on real FT format already. otherwise, it
+          % creates it.
+          MAT2FieldTrip(input, data, sessions, ss, []);
 
         case 'Allego'
           %% 04.3 Allego Pipeline

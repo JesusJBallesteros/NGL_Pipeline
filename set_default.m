@@ -42,6 +42,20 @@ elseif ~isstring(input.datafolder)
     input.datafolder = string(input.datafolder);
 end
     
+% Processed data
+if ~isfield(input,'processed') || isempty(input.processed)
+    input.processed = inputdlg('Processed Data:',...
+                        'Processed Data', [1 50], {'processed'});
+
+    if isempty(input.processed)
+        warning('input.datafolder was left empty. Default applies.')
+        input.processed = 'processed';
+    else
+        input.processed = string(input.processed);
+    end
+
+end
+
 % Animal code
 if ~isfield(input,'animal') || isempty(input.animal)
     input.animal = inputdlg('Code:',...
@@ -64,8 +78,16 @@ if ~isfield(input,'dates') || isempty(input.dates) || ~iscell(input.dates)
 end
 
 % Pipelines
-if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB      = true; end
 if ~isfield(input,'ExtractData') || isempty(input.ExtractData), input.ExtractData = true; end
+if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB      = true; end
+    
+% If NWB requested, Python needed.
+if input.useNWB 
+    if ~isfield(input,'pyfolder') || isempty(input.pyfolder)
+        input.pyfolder = inputdlg('Python folder:',...
+                    'Python folder', [1 50], {'C:\Code\Python39\IntanToNWB'});
+    end
+end
 
 % Plots
 if ~isfield(input,'plots'),   input.plots     = []; end

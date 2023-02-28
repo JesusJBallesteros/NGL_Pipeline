@@ -15,12 +15,9 @@ function Deuteron_PipelineWrapper(sessions, ss, varargin)
 %    sessions: struct. Variable containing info about sessions in process
 %    ss:       int. Current session ordinal in the pipeline
 %    in:        struct. optional inputs to override the defaults:
-%                   createAvrgDatMat: logic. if true, another matrix (and respective binary file) are created 
-%                                     with the average of all channels subtracted from every channel 
 %                   RetrieveEvents: logic. possibility to load event codes to build a restriced matrix
 %                                   (e.g., the matrix starts at the first 'itiON' and ends at 'end'
 %                                    experiment, removing paradigm irrelevant periods) 
-%                   ApplyHighPassFilter: logic. Use High-pass filter
 %                   StpSz: int. relative to HDF5file: chunks in which ...  
 %
 % GENERATES:
@@ -41,21 +38,20 @@ elseif nargin == 3, opt = varargin{1};
 end
 
 %% Defaults
-if ~isfield(opt,'RetrieveEvents'),       opt.RetrieveEvents       = true;     end
-if ~isfield(opt,'h5'),                   opt.h5                   = true;     end
-if ~isfield(opt,'bin'),                  opt.bin                  = true;     end
-if ~isfield(opt,'GetMotionSensors'),     opt.GetMotionSensors     = true;     end
-
-if ~isfield(opt,'ApplyHighPassFilter'),  opt.ApplyHighPassFilter  = false;    end
-if ~isfield(opt,'StpSz'),                opt.StpSz                = 1000000;  end
+if ~isfield(opt,'RetrieveEvents'),       opt.RetrieveEvents       = true;    end
+if ~isfield(opt,'h5'),                   opt.h5                   = true;    end
+if ~isfield(opt,'bin'),                  opt.bin                  = true;    end
+if ~isfield(opt,'GetMotionSensors'),     opt.GetMotionSensors     = true;    end
+if ~isfield(opt,'StpSz'),                opt.StpSz                = 1000000; end
 
 % Paths and naming
-if ~isfield(opt,'PathRaw'),              opt.PathRaw                  = pwd;                                                  end
-if ~isfield(opt,'FolderSingleChannels'), opt.FolderSingleChannels     = fullfile(pwd,'oneFilePerChannel');                    end
-if ~isfield(opt,'FolderProcDataMat'),    opt.FolderProcDataMat        = fullfile(pwd,'processed');                                          end
-if ~isfield(opt,'DllFolder'),            opt.DllFolder                = 'C:\Code\Scripts\ephys-data-pipeline\functions\dlls'; end
-if ~isfield(opt,'ReaderDll'),            opt.ReaderDll                = fullfile(opt.DllFolder, 'Event_File_Reader_8_3.dll'); end
-if ~isfield(opt,'SavFileName'),          opt.SavFileName              = sessions.list(ss).name;                               end
+if ~isfield(opt,'PathRaw'),              opt.PathRaw              = pwd;                                                  end
+if ~isfield(opt,'FolderSingleChannels'), opt.FolderSingleChannels = fullfile(pwd,'oneFilePerChannel');                    end
+if ~isfield(opt,'FolderProcDataMat'),    opt.FolderProcDataMat    = sessions.savefolder;                                  end
+if ~isfield(opt,'SavFileName'),          opt.SavFileName          = sessions.list(ss).name;                               end
+
+if ~isfield(opt,'DllFolder'),            opt.DllFolder            = 'C:\Code\Scripts\ephys-data-pipeline\functions\dlls'; end
+if ~isfield(opt,'ReaderDll'),            opt.ReaderDll            = fullfile(opt.DllFolder, 'Event_File_Reader_8_3.dll'); end
 
 %% Event data, using dll
 if ~isfile('COMP_EVENTS.DF1')

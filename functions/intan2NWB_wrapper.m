@@ -1,18 +1,22 @@
-function intan2NWB_wrapper(sessions,ss)
-% Makes sure there is no '.nwb' files in directory. Then, run the wrapper
+function intan2NWB_wrapper(input,sessions,ss)
+% Makes sure there is no '.nwb' files in directory. Then, runs the wrapper
 % for the INTANtoNWB tool.
-% INPUT:    sessions = struct with folder, name and number of sessions
+% INPUT:    
+%   input    struct, general inputs to script. Needs the path to python folder.
+%   sessions struct, info for sessions: folder, name and number of sessions.
+%   ss       int, numeral of processing session
 % OUTPUT:   none explicit.
-%           It generates a new file with extension .nwb in the folder of origin
+%           It generates a new file with extension .nwb in the /processed folder
 % By Jesus J. Ballesteros 10.2022
 
-%% 00. Tell where the python folder with 'IntanToNWB' scripts is
-IntanToNWB_folder = 'C:\Code\Python39\IntanToNWB';
+% 00. Tell where the python folder with 'IntanToNWB' scripts is
+% Added to 'set_default' now. If not found, check that it is working.
+IntanToNWB_folder = input.pyfolder; % = 'C:\Code\Python39\IntanToNWB';
 
-%% 01. Check for files ending in .nwb in directory
+% Check for .nwb files in directory
 files = dir('*.nwb'); 
 
-    %% If there is none, proceed
+    %% 01. If there is none, proceed
     if isempty(files)
         % Warn about file being process.
         disp('- Will convert session to NWB format. This may take a moment.');
@@ -21,7 +25,7 @@ files = dir('*.nwb');
         files = dir('*.*'); 
         files(1:2) = []; % Remove '.' and '..' outputs
 
-        % Copy one by one.
+        % Copy one by one to Python folder.
         for i=1:length(files)
             fprintf('- Copying file %d of %d.\n', i , length(files));
             [copy.status, copy.msg] = copyfile(files(i).name, IntanToNWB_folder);
@@ -105,11 +109,11 @@ files = dir('*.nwb');
         disp('- Conversion in progress...');
         pyrunfile("my_IntanToNWB.py");
 
-        %% Find and move the new .nwb file to original data folder
+        %% Find and move the new .nwb file to processed data folder
         nwbfile = dir('*.nwb'); 
         if ~isempty(nwbfile)
             disp('- Done! Moving NWB file back to original folder...');
-            movefile(nwbfile.name, strcat(sessions.folder,'\',sessions.list(ss).name));
+            movefile(nwbfile.name, sessions.savefolder);
         else
             disp('- Something went wrong. Cannot find NWB files.');
             return
@@ -118,8 +122,8 @@ files = dir('*.nwb');
         % Delete data files not necessary anymore
         delete(files(:).name);
         
-        % Navigate back to original data folder
-        cd(strcat(sessions.folder, '\', sessions.list(ss).name));
+        % Navigate to saving folder
+        cd(sessions.savefolder);
         % Edif file name.
         movefile(nwbfile.name,strcat([sessions.list(ss).name, '.nwb']))
 
