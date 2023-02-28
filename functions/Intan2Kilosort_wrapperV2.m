@@ -43,6 +43,7 @@ if ~isfield(opt,'bin'),            opt.bin            = true;     end
 if ~isfield(opt,'RetrieveEvents'), opt.RetrieveEvents = false;    end
 
 % Paths and naming
+if ~isfield(opt,'PathRaw'),           opt.PathRaw           = pwd;                                 end
 if ~isfield(opt,'FolderProcDataMat'), opt.FolderProcDataMat = sessions.info{ss}.savefolder;        end
 if ~isfield(opt,'SavFileName'),       opt.SavFileName       = sessions.list(ss).name;              end
 
