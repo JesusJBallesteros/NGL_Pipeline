@@ -1,17 +1,23 @@
-function [data, sessions] = intan2MAT_wrapper(input, sessions, ss)
+function [data, sessions] = intan2MAT_wrapper(sessions, ss, opt)
 %% If not using NWB we need a mix of INTAN file reading tools 
 % to bring data into MATLAB. Detailed description here.
 % It def needs to know if we have one file per channel or
 % one file per type.
 
+if ~isfield(opt,'PathRaw'),           opt.PathRaw           = pwd;                                 end
+if ~isfield(opt,'FolderProcDataMat'), opt.FolderProcDataMat = sessions.info{ss}.savefolder;        end
+if ~isfield(opt,'SavFileName'),       opt.SavFileName       = sessions.list(ss).name;              end
+
 % Check for existing 'continous_FT.mat' files
-saveFolder = fullfile(pwd,input.processed);
+saveFolder = opt.FolderProcDataMat;
+cd(saveFolder);
 files = dir([saveFolder + '\*continous_FT.mat']); 
 
 % If there is none, proceed
 if isempty(files)
     % Warn about file being process.
     disp('- Will convert session to pseudo-FT format.');
+    cd(fullfile(sessions.folder,sessions.list(ss).name));
     nfiles = length(sessions.info{ss}.files);
 
     % Set default parameters for lowpass filter. Decide to leave here or input

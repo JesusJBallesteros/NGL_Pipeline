@@ -73,7 +73,6 @@ opt.HDF5chunkSize = 300*opt.sampleRate;
 opt.channelOrder      = 1:1:opt.numChannels; 
 
 %% Main call
-disp('Generating single channel .h5 files from INTAN...')
 if strcmp(sessions.info{ss}.fileformat,'filepertype')
 
     % To get the number of samples, divide the file size by number of 

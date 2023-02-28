@@ -1,16 +1,21 @@
-function MAT2FieldTrip(input, data, sessions, ss, varargin)
+function MAT2FieldTrip(input, data, sessions, ss, opt, varargin)
 % Wraps the process to transform a simple .mat file into one with
 % appropiate format for further processing with FieldTrip toolbox.
 % Options are, to create a 'continuous' FT file, (one, large trial) or to
 % create a trial-parsed FT file, for which we need the eventcodes.
 
-if nargin < 4,  stream = 'cont'; 
+if nargin < 5,  stream = 'cont'; 
 else,           stream = 'parsed';
                 EventRecord = varargin{1};
 end
 
+
+if ~isfield(opt,'PathRaw'),           opt.PathRaw           = pwd;                                 end
+if ~isfield(opt,'FolderProcDataMat'), opt.FolderProcDataMat = sessions.info{ss}.savefolder;        end
+if ~isfield(opt,'SavFileName'),       opt.SavFileName       = sessions.list(ss).name;              end
+
 % Navigate to the processed folder
-saveFolder = fullfile(pwd,input.processed);
+saveFolder = opt.FolderProcDataMat;
 cd(saveFolder);
 
 switch stream

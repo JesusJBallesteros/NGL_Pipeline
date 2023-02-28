@@ -190,14 +190,14 @@ for ss = 1:sessions.nSessions
           % 04. Run wrapper for the INTAN to MATLAB.
           % Includes a mix of INTAN funtions. Outputs 'data' with plain
           % format. Can be feeded into next step for FT transformation.
-          [data, sessions] = intan2MAT_wrapper(input, sessions, ss);
+          [data, sessions] = intan2MAT_wrapper(sessions, ss, opt);
 
           % 05. CREATE and GIVE proper FieldTrip format. Give 'EventRecord'
           % variable as last input, if wanted to be trial-parsed. 
           % If the file comes from a loaded file, it will be named 'FT_data'
           % And it should be on real FT format already. otherwise, it
           % creates it.
-          MAT2FieldTrip(input, data, sessions, ss, []);
+          MAT2FieldTrip(input, data, sessions, ss, opt);
 
         case 'Allego'
           %% 04.3 Allego Pipeline
