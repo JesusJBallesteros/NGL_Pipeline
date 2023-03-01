@@ -1,4 +1,4 @@
-function out = Intan2Kilosort_filepertypeV2(opt)
+function Intan2Kilosort_filepertypeV2(opt)
 % This function is a dependency of the script Intan2Kilosort_wrapper,
 % only necessary if the recording system in use is Intan.
 % Optimized to use only the necessary number of samples (instead of Inf).
@@ -8,6 +8,8 @@ function out = Intan2Kilosort_filepertypeV2(opt)
 % Author:         Aylin, Lukas & Sara
 % Version:        1
 % Last Change:    28th Feb 2023 (Jesus)
+%
+% Version 01.03.2023 Jesus
  
 %% Pre-define .h5 and .bin files
 % Create complete HDF5 file matching the size needs.

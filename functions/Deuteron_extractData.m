@@ -1,19 +1,21 @@
-function extrdata = Deuteron_extractData(stream, fid, param)
+function data = Deuteron_extractData(stream, fid, opt)
 % This is an example demonstrating how to correctly extract data from block
 % file format files.
+%
+% Version 01.03.2023 Jesus 
 
 %% Parse file
 rawData = uint8(fread(fid, Inf, 'uint8'));
 
 %% Extract metadata from block header 
-constId = (hex2num(HeaderConstants.HexConstId));
-constIdBytes = typecast(constId, 'uint8');
-blockStartIndices = FindDataBlockStart(rawData, constIdBytes);
-numberOfBlocks = length(blockStartIndices);
-startOfFirstHeader = blockStartIndices(1);
-endOfFirstHeader = startOfFirstHeader + HeaderConstants.HeaderTotalBytes;
-firstHeader = rawData(startOfFirstHeader:endOfFirstHeader);
-HeaderStruct = ExtractHeaderData(firstHeader);
+constId             = (hex2num(HeaderConstants.HexConstId));
+constIdBytes        = typecast(constId, 'uint8');
+blockStartIndices   = FindDataBlockStart(rawData, constIdBytes);
+numberOfBlocks      = length(blockStartIndices);
+startOfFirstHeader  = blockStartIndices(1);
+endOfFirstHeader    = startOfFirstHeader + HeaderConstants.HeaderTotalBytes;
+firstHeader         = rawData(startOfFirstHeader:endOfFirstHeader);
+HeaderStruct        = ExtractHeaderData(firstHeader);
 
 switch stream
     case 1
@@ -24,19 +26,9 @@ switch stream
         if isNeuralPresent
             neuralDataAsBytes = ExtractDataByType(rawData, HeaderStruct, neuralIndex, blockStartIndices, numberOfBlocks);
             
-            % Convert neural data to physical units (V).
-            % Get metadata from file start event using event file reader.
-            offset = param.offset;
-            voltageResolution = param.voltageResolution;
-    
             % Cast bytes to unsigned 16 bit integers and store as float
-            neuralData= single(typecast(neuralDataAsBytes, 'uint16'));
-        
-            % Convert uint16 values to voltage values.
-            for dataPointIndex = 1:length(neuralData)
-                extrdata.neuralData(dataPointIndex) = voltageResolution * (neuralData(dataPointIndex) - offset); 
-            end
-        
+            data = single(typecast(neuralDataAsBytes, 'uint16'));
+
             % get timestamps of neural data
             %    out.timestampsNeural = GetTimestamps(HeaderStruct.Timestamp, frequency, size(neuralData, 2));
         end
@@ -56,18 +48,18 @@ switch stream
             gyroscopeDataTemp   = ExtractMotionSensorDataByType(motionSensorData, blockStartIndicesMs, MotionSensorEnum.Gyroscope);
             magnetometerDataTemp = ExtractMotionSensorDataByType(motionSensorData, blockStartIndicesMs, MotionSensorEnum.Magnetometer);
             
-            scaledAccelerometer = ScaleMotionSensorData(accelerometerDataTemp, MotionSensorConstants.AccelerometerNumberOfBits, param.acclMax);
-            scaledGyroscope     = ScaleMotionSensorData(gyroscopeDataTemp, MotionSensorConstants.GyroscopeNumberOfBits, param.gyroMax);
-            scaledMagnetometer  = ScaleMotionSensorData(magnetometerDataTemp, MotionSensorConstants.Magnetometer9250NumberOfBits, param.magMax);
+            scaledAccelerometer = ScaleMotionSensorData(accelerometerDataTemp, MotionSensorConstants.AccelerometerNumberOfBits, opt.acclMax);
+            scaledGyroscope     = ScaleMotionSensorData(gyroscopeDataTemp, MotionSensorConstants.GyroscopeNumberOfBits, opt.gyroMax);
+            scaledMagnetometer  = ScaleMotionSensorData(magnetometerDataTemp, MotionSensorConstants.Magnetometer9250NumberOfBits, opt.magMax);
         
-            extrdata.Accelerometer.Data  = SortDataByAxis(scaledAccelerometer);
-            extrdata.Gyroscope.Data      = SortDataByAxis(scaledGyroscope);
-            extrdata.Magnetometer.Data   = SortDataByAxis(scaledMagnetometer);
+            data.Accelerometer.Data  = SortDataByAxis(scaledAccelerometer);
+            data.Gyroscope.Data      = SortDataByAxis(scaledGyroscope);
+            data.Magnetometer.Data   = SortDataByAxis(scaledMagnetometer);
             
             % get timestamp of a particular point
-            extrdata.Accelerometer.timestamps   = GetMotionSensorTimestamp(motionSensorData, blockStartIndicesMs, MotionSensorEnum.Accelerometer, MotionSensorConstants.AccelerometerFrequency);
-            extrdata.Gyroscope.timestamps       = GetMotionSensorTimestamp(motionSensorData, blockStartIndicesMs, MotionSensorEnum.Gyroscope, MotionSensorConstants.GyroscopeFrequency);
-            extrdata.Magnetometer.timestamps    = GetMotionSensorTimestamp(motionSensorData, blockStartIndicesMs, MotionSensorEnum.Magnetometer, MotionSensorConstants.MagnetometerFrequency);
+            data.Accelerometer.timestamps   = GetMotionSensorTimestamp(motionSensorData, blockStartIndicesMs, MotionSensorEnum.Accelerometer, MotionSensorConstants.AccelerometerFrequency);
+            data.Gyroscope.timestamps       = GetMotionSensorTimestamp(motionSensorData, blockStartIndicesMs, MotionSensorEnum.Gyroscope, MotionSensorConstants.GyroscopeFrequency);
+            data.Magnetometer.timestamps    = GetMotionSensorTimestamp(motionSensorData, blockStartIndicesMs, MotionSensorEnum.Magnetometer, MotionSensorConstants.MagnetometerFrequency);
         end
 
     case 3 
@@ -84,10 +76,10 @@ switch stream
             frequency = 200000;
             isAudioSigned = true;
         
-            extrdata.audioData = ScaleAudioData(isAudioSigned, audioDataAsBytes, numberOfAudioBits); 
+            data.audioData = ScaleAudioData(isAudioSigned, audioDataAsBytes, numberOfAudioBits); 
             
             % get timestamps of audio data
-            extrdata.timestampsAudio = GetTimestamps(HeaderStruct.Timestamp, frequency, length(audioData));
+            data.timestampsAudio = GetTimestamps(HeaderStruct.Timestamp, frequency, length(audioData));
 
             % save audio data as wav file bring out
 %             audiowrite('C:\Users\myPath\example200kHz.wav', audioData, frequency, 'BitsPerSample', 16);

@@ -96,8 +96,9 @@ if ~isfield(input,'test_ch'), input.test_ch   = []; end
 %% Set Dependencies
 cd(input.mainfolder)
 addpath functions\
-addpath toolboxes\fieldtrip_light
 addpath toolboxes\Deuteron
+addpath toolboxes\Intan
+addpath toolboxes\fieldtrip_light
 addpath toolboxes\Viewer
 addpath(genpath('toolboxes\multitaper_prerau'))
 ft_defaults

@@ -3,6 +3,8 @@ function [data, sessions] = intan2MAT_wrapper(sessions, ss, opt)
 % to bring data into MATLAB. Detailed description here.
 % It def needs to know if we have one file per channel or
 % one file per type.
+%
+% Version 01.03.2023 Jesus
 
 if ~isfield(opt,'PathRaw'),           opt.PathRaw           = pwd;                                 end
 if ~isfield(opt,'FolderProcDataMat'), opt.FolderProcDataMat = sessions.info{ss}.savefolder;        end

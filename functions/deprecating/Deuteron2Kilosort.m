@@ -16,7 +16,7 @@ function out = Deuteron2Kilosort(opt, sessions, ss)
 % VERSION HISTORY:
 % Author:         Aylin, Lukas & Sara
 % Version:        1
-% Last Change:    24.02.2023 (Jesus)
+% Last Change:    01.03.2023 (Jesus)
  
 %% Get already existing Parameters
 Files           = sessions.info{ss}.files;
@@ -30,7 +30,6 @@ param.offset            = 2^(numberOfAdcBits-1);
 param.voltageResolution = 1.95e-7;
 
 %% Create folders in case they don't exist.
-mkdir(opt.FolderSingleChannels); % create folder for single channel files
 mkdir(opt.FolderProcDataMat);    % create folder for data matrix
 
 %% Total session Data, divided per channels

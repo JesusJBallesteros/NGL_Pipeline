@@ -5,7 +5,7 @@
 %     'datafolder', is any folder specified by user. 
 %                   Different ones can be used for different projects.
 %     'animal', is a folder with all sessions for an unique animal, 
-%               identified with a 3 character code, i.e. 'DOE'.
+%               identified with a 3 character code, i.e. '420' or 'FAT'.
 %     'dates' are folders for single recordings named 'DOE_YYYYMMMDD'. 
 %             Could have appends like '_01', '_Deut'... that need to be explicited.
 % This pattern is constructed from the given inputs.
@@ -55,11 +55,8 @@
 % TODO LIST 
 %       There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %       Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
-%       'high' bandpass not yet available
-%       create the wrapper for an INTAN fileperchannel format to Kilosort
-%       Create Fieldtrip files from Deuteron data
+%       Create Fieldtrip files from Deuteron data. Needs low-pass data to make sense
 %       Figure out how to work with Allego files (most likely, after Allego's self preprocessing tool?)
-%       Save the 'sessions' variable by default, at the end, with a date timestamp perhaps?
 %       Continue with 'Deuteron_GetDigInEvents' when I get a recording with EVENTS
 %       Create a 'trial-parsed' stream in MAT2FieldTrip.
 %
@@ -68,29 +65,38 @@
 % If not provided, a promp will ask for them or 'set_default' will use the 
 % defaults. It will also put them in the correct format if an incorrect one 
 % was given.
-input.mainfolder = []; % 'C:\Code\Scripts\ephys-data-pipeline';
-input.datafolder = []; % 'D:\Experiments\';
-input.animal     = []; % '420';
-input.processed  = []; % ie: 'processed' (default). A subfolder will be created inside the session folder
+input.mainfolder = []; % Default: 'C:\Code\Scripts\ephys-data-pipeline';
+input.datafolder = []; % Default: 'D:\Experiments\';
+input.animal     = []; % i.e '420' or FAT; % NEEDS to be explicited.
+input.processed  = []; % Default: 'processed'. A subfolder will be created inside the session folder
 
 % Dates will be set to 'all' if missing here. 
 % while testing, 'yyyymmdd_system' or other variations may exists
-input.dates       = [{'20230217_01' '20230217_02' '20230220_Int' '20230221_Int' '20230222_Int'}]; % can be left empty, 'all', or a list like:
-                                    % {'20230217_01' '20230217_02'...
-                                    % '20230220_Deut' '20230221_Deut'...
-                                    % '20230222_Deut' '20230220_Int'...
-                                    % '20230221_Int' '20230222_Int'}; 
+input.dates       = {'20230220_Deut' '20230221_Deut' '20230222_Deut'}; % can be left empty, 'all', or a list like:
+                            % {'20230217_01'  '20230217_02'...
+                            % '20230220_Deut' '20230221_Deut'...
+                            % '20230222_Deut' '20230220_Int'...
+                            % '20230221_Int'  '20230222_Int'}; 
 
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
 % are requested, the NWB will perform well but the data extraction will not. 
 % It will crash for not completely known reason. It needs a Matlab restart between runs.
 input.ExtractData = true;  
 input.useNWB      = false; 
-    input.pyfolder = []; % Only needed if useNWB = true. Recommended 'C:\Code\Python39\IntanToNWB'
+    % if useNWB = true. Recommended 'C:\Code\Python39\IntanToNWB'
+    input.pyfolder = 'C:\Code\Python39\IntanToNWB'; 
 
 % These apply to FieldTrip-ready .mat files, only.
 input.plots      = []; % An logic array of 0/1s, to ask for specific plots. See details.
 input.test_ch    = []; % An array of numerals for channels to plot.
+
+%% Options for the different wrappers
+opt = struct();
+    opt.h5                = false;
+    opt.bin               = true;
+    opt.RetrieveEvents    = false;
+    opt.GetMotionSensors  = false;
+    opt.FTfile            = true;
 
 %% 00. Check inputs, set defaults and dependencies.
 set_default(input);
@@ -135,13 +141,6 @@ for ss = 1:sessions.nSessions
 
             % 02 Create .bin (and .h5) files with spiking data from highpass data
             if input.ExtractData
-               opt = struct();
-               % To modify optional inputs:
-                opt.h5                = false;
-                opt.bin               = true;
-                opt.RetrieveEvents    = false;
-                opt.GetMotionSensors  = false;
-
                % TODO: implement the new format conversion
                Deuteron_PipelineWrapper(sessions, ss, opt);
             end
@@ -152,10 +151,11 @@ for ss = 1:sessions.nSessions
           %  Uses a modified Intan function, to make the basic information
           %  available at 'sessions.info{ss}' and a more detailed info at
           %  the '.INTAN_hdr' sub-structure.
-          sessions = findIntanSetting(sessions, ss);
+          sessions = findSetting(sessions, ss);
 
           % 02. Create NWB file
           if input.useNWB % We want a .NWB file.
+
               % Run wrapper for the INTAN to NWB functionality:               
                 % This NEEDS A PYTHON installation and the tooldbox inside!
                 % Detailed explanation:
@@ -176,28 +176,27 @@ for ss = 1:sessions.nSessions
           end 
 
           % 03. Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
-          if input.ExtractData
+          if input.ExtractData 
+              if opt.h5 || opt.bin
+
               % Based on Sara, Aylin and Lukas' scripts.
-              % To modify optional inputs, can be done here:
-              opt = struct();
-                opt.h5                = true;
-                opt.bin               = true;
-
-%               Intan2Kilosort_wrapper(sessions, ss, opt);
               Intan2Kilosort_wrapperV2(sessions, ss, opt);
+              end
           end
-
-          % 04. Run wrapper for the INTAN to MATLAB.
-          % Includes a mix of INTAN funtions. Outputs 'data' with plain
-          % format. Can be feeded into next step for FT transformation.
-          [data, sessions] = intan2MAT_wrapper(sessions, ss, opt);
-
-          % 05. CREATE and GIVE proper FieldTrip format. Give 'EventRecord'
-          % variable as last input, if wanted to be trial-parsed. 
-          % If the file comes from a loaded file, it will be named 'FT_data'
-          % And it should be on real FT format already. otherwise, it
-          % creates it.
-          MAT2FieldTrip(input, data, sessions, ss, opt);
+          
+          if opt.FTfile
+              % 04. Run wrapper for the INTAN to MATLAB.
+              % Includes a mix of INTAN funtions. Outputs 'data' with plain
+              % format. Can be feeded into next step for FT transformation.
+              [data, sessions] = intan2MAT_wrapper(sessions, ss, opt);
+    
+              % 05. CREATE and GIVE proper FieldTrip format. Give 'EventRecord'
+              % variable as last input, if wanted to be trial-parsed. 
+              % If the file comes from a loaded file, it will be named 'FT_data'
+              % And it should be on real FT format already. otherwise, it
+              % creates it.
+              MAT2FieldTrip(input, data, sessions, ss, opt);
+          end
 
         case 'Allego'
           %% 04.3 Allego Pipeline
@@ -225,6 +224,6 @@ for ss = 1:sessions.nSessions
     end
     
     %% 06 Clean up to move on to next session
-    clear data2save cfg FT_data
+    clear FT_data
 
 end 

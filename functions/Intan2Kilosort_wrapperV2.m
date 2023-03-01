@@ -29,18 +29,18 @@ function Intan2Kilosort_wrapperV2(sessions, ss, varargin)
 % 
 % VERSION HISTORY:
 % Author:         Aylin, Lukas & Sara
-% Version:        1
-% Last Change:    28.02.2023 (Jesus)
+%
+% Version 01.03.2023 Jesus
 
 if nargin < 3, opt = struct();
 elseif nargin == 3, opt = varargin{1};
 end
 
 %% Defaults
+if ~isfield(opt,'RetrieveEvents'), opt.RetrieveEvents = false;    end
 if ~isfield(opt,'StpSz'),          opt.StpSz          = 1000000;  end
 if ~isfield(opt,'h5'),             opt.h5             = true;     end
 if ~isfield(opt,'bin'),            opt.bin            = true;     end
-if ~isfield(opt,'RetrieveEvents'), opt.RetrieveEvents = false;    end
 
 % Paths and naming
 if ~isfield(opt,'PathRaw'),           opt.PathRaw           = pwd;                                 end
@@ -79,7 +79,7 @@ if strcmp(sessions.info{ss}.fileformat,'filepertype')
     % channels, times bytes that each int16 word takes (int16 = 2 bytes).
     opt.num_samples = fileinfo.bytes/(opt.numChannels * 2); 
 
-    Intan2Kilosort_filepertype(opt);
+    Intan2Kilosort_filepertypeV2(opt);
 
 elseif strcmp(sessions.info{ss}.fileformat,'fileperch')
 

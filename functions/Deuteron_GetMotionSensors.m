@@ -1,22 +1,21 @@
-function [Accelerometer, Gyroscope, Magnetometer] = Deuteron_GetMotionSensors(opt, sessions, ss)
+function [Accelerometer, Gyroscope, Magnetometer] = Deuteron_GetMotionSensors(opt)
 %
 %
 %
 %
-%
+% Version 01.03.2023 Jesus
 
 %% Get already existing Parameters
-Files           = sessions.info{ss}.files;
-numFiles        = length(sessions.info{ss}.files);
+numFiles        = length(opt.myFiles);
 stream          = 2;
     
 % Sort motion sensor data by data type.
 % The values for acclMax and gyroMax are chosen by the user. They can be found using the Event
 % File Viewer in the file started event. If not activelly changed, they
 % should stay as follows:
-param.acclMax = 2*MotionSensorConstants.G; % m/s^2, max value of selected range
-param.gyroMax = 250;                       % degrees/s, max value of selected range
-param.magMax  = MotionSensorConstants.Magnetometer9250Range; % Teslas, max value of selected range
+opt.acclMax = 2*MotionSensorConstants.G; % m/s^2, max value of selected range
+opt.gyroMax = 250;                       % degrees/s, max value of selected range
+opt.magMax  = MotionSensorConstants.Magnetometer9250Range; % Teslas, max value of selected range
 
 % Create structs
 Accelerometer   = struct('X',[],'Y',[],'Z',[],'t',[],'max',[]);
@@ -43,31 +42,31 @@ Magnetometer    = struct('X',[],'Y',[],'Z',[],'t',[],'max',[]);
 % Being X gravity, we need Y and Z from Magnetometer.
 
 for i = 1:numFiles         
-    if ~strcmp(Files(i).name(1:4),'NEUR')
-        % Skips Event files (do not contain data)
+    if ~strcmp(opt.myFiles(i).name(1:4),'NEUR')
+        % Skips Event opt.myFiles (do not contain data)
         continue
     else
-        fid = fopen(fullfile(opt.PathRaw, Files(i).name), 'r');
-        data = Deuteron_extractData(stream, fid, param);
+        fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name), 'r');
+        data = Deuteron_extractData(stream, fid, opt);
         fclose(fid);
 
         Accelerometer.X   = [Accelerometer.X data.Accelerometer.Data.X'];
         Accelerometer.Y   = [Accelerometer.Y data.Accelerometer.Data.Y'];
         Accelerometer.Z   = [Accelerometer.Z data.Accelerometer.Data.Z'];
         Accelerometer.t   = [Accelerometer.t data.Accelerometer.timestamps];
-        Accelerometer.max = param.acclMax;
+        Accelerometer.max = opt.acclMax;
 
         Gyroscope.X       = [Gyroscope.X data.Gyroscope.Data.X'];
         Gyroscope.Y       = [Gyroscope.Y data.Gyroscope.Data.Y'];
         Gyroscope.Z       = [Gyroscope.Z data.Gyroscope.Data.Z'];
         Gyroscope.t       = [Gyroscope.t data.Gyroscope.timestamps]; 
-        Gyroscope.max     = param.gyroMax;
+        Gyroscope.max     = opt.gyroMax;
 
         Magnetometer.X    = [Magnetometer.X data.Magnetometer.Data.X'];
         Magnetometer.Y    = [Magnetometer.Y data.Magnetometer.Data.Y'];
         Magnetometer.Z    = [Magnetometer.Z data.Magnetometer.Data.Z'];
         Magnetometer.t    = [Magnetometer.t data.Magnetometer.timestamps];
-        Magnetometer.max  = param.magMax;
+        Magnetometer.max  = opt.magMax;
     end
 end
 

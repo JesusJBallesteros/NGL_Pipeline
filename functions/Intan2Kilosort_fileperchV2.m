@@ -6,7 +6,8 @@ function Intan2Kilosort_fileperchV2(opt)
 % VERSION HISTORY:
 % Author:         Aylin, Lukas & Sara
 % Version:        1
-% Last Change:    28th Feb 2023 (Jesus)
+%
+% Version 01.03.2023 Jesus
  
 %% Pre-define .h5 and .bin files
 % Create complete HDF5 file matching the size needs.

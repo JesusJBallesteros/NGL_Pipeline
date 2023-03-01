@@ -29,9 +29,8 @@ function Deuteron_PipelineWrapper(sessions, ss, varargin)
 %       containing timeseries for each sensor readings, in physical units. Plus
 %       a 'rotators' variable, containing the quaternions to create the
 %       rotation matrices and other transformations.
-%    Also, a file named 'D2K.mat' containing used inputs and outputs.
-% 
-% 24.02.2023 (Jesus)
+%
+% Version 01.03.2023 Jesus
 
 if nargin < 3, opt = struct();
 elseif nargin == 3, opt = varargin{1};
@@ -39,74 +38,68 @@ end
 
 %% Defaults
 if ~isfield(opt,'RetrieveEvents'),       opt.RetrieveEvents       = true;    end
+if ~isfield(opt,'StpSz'),                opt.StpSz                = 1000000; end
 if ~isfield(opt,'h5'),                   opt.h5                   = true;    end
 if ~isfield(opt,'bin'),                  opt.bin                  = true;    end
 if ~isfield(opt,'GetMotionSensors'),     opt.GetMotionSensors     = true;    end
-if ~isfield(opt,'StpSz'),                opt.StpSz                = 1000000; end
 
 % Paths and naming
-if ~isfield(opt,'PathRaw'),              opt.PathRaw              = pwd;                                                  end
-if ~isfield(opt,'FolderSingleChannels'), opt.FolderSingleChannels = fullfile(pwd,'oneFilePerChannel');                    end
-if ~isfield(opt,'FolderProcDataMat'),    opt.FolderProcDataMat    = sessions.savefolder;                                  end
-if ~isfield(opt,'SavFileName'),          opt.SavFileName          = sessions.list(ss).name;                               end
+if ~isfield(opt,'PathRaw'),              opt.PathRaw              = pwd;                          end
+if ~isfield(opt,'FolderProcDataMat'),    opt.FolderProcDataMat    = sessions.info{ss}.savefolder; end
+if ~isfield(opt,'SavFileName'),          opt.SavFileName          = sessions.list(ss).name;       end
 
 if ~isfield(opt,'DllFolder'),            opt.DllFolder            = 'C:\Code\Scripts\ephys-data-pipeline\functions\dlls'; end
 if ~isfield(opt,'ReaderDll'),            opt.ReaderDll            = fullfile(opt.DllFolder, 'Event_File_Reader_8_3.dll'); end
 
+%% Create folders in case they don't exist.
+mkdir(opt.FolderProcDataMat);    % create folder for data matrix
+
 %% Event data, using dll
-if ~isfile('COMP_EVENTS.DF1')
-    if opt.RetrieveEvents
-        % Proceed to extract all events during session. Give some feedback.
-        disp('Retrieving Events from Deuteron...')
-        [EventRecord, sessions.info{ss}.numChannels] = ...
-            Deuteron_EventFileReaderDll(opt, sessions, ss);
-        disp(EventRecord);
-        disp(['Found ', int2str(sessions.info{ss}.numChannels), ' channels']);
-
-    else
-       disp('Event extraction not requested, skipping...')
-    end
-
-else % Probably only useful while testing.
-    disp('Found collected Events from Deuteron, skipping...')
-    load("EventRecord.mat", "EventRecord");
-
-    % Use event log to determine number of channels.
-    modechange = find(strcmp({EventRecord.EventType}, 'Mode change')==1);
-    geninfo = split(EventRecord(modechange(1)+1).Details, ";");
-    geninfo = regexp(geninfo,'\d*','Match');
-    sessions.info{ss}.numChannels = str2double(geninfo{3});
-    clear geninfo modechange
-end
-
-%% Neural Data To .bin and .h5.
-if ~isfile([sessions.list(ss).name '.h5'])
-    if opt.h5 || opt.bin
-        % Converts Deuteron DT2 and DF1 files into the 'oneFilePerChannel' format.
-        % Creates full single files (.bin and .h5) to further use (i.e. with Kilosort)
-        % Creates and saves D2K.mat file with few details (TODO, necessary?)
-        disp('Generating single channel files from Deuteron...')
-        Deuteron2Kilosort(opt, sessions, ss);
-    else
-        disp('No Neural data found in folder, but also not requested. Skipping...')
-    end
-
+if opt.RetrieveEvents
+    % Proceed to extract all events during session. Give some feedback.
+    disp('Retrieving Events from Deuteron...')
+    [EventRecord, sessions.info{ss}.numChannels] = ...
+        Deuteron_EventFileReaderDll(opt, sessions, ss);
+    disp(EventRecord);
+    disp(['Found ', int2str(sessions.info{ss}.numChannels), ' channels']);
 else
-    disp('Found .h5 file, skipping and recovering Header...')
-    % TOD, case where data was already extracted. prob only useful while
-    % testing.
+   disp('Event extraction not requested, skipping...')
 end
+
+%% Neural Data to .bin and .h5.
+% Collect parameters to proceed with file creation
+% List all files (multiple or single depending on type)
+opt.myFiles = sessions.info{ss}.files;
+opt.ext     = sessions.info{ss}.fileformat;
+
+% Sample rate
+opt.sampleRate  = sessions.info{ss}.sampleRate;
+
+% ChunkSize of HDF5 file (e.g., 5 minutes is, 300s at 30000Hz = 9600000 samples)
+%  this chunk size works well. optimal? Once it is, this variable no longer requires user input.
+opt.HDF5chunkSize = 300*opt.sampleRate; 
+
+% Kilosort rearranges the rows of the input matrix according to the a channel map (which is developed in another file).
+% Therefore, the matrix should be compiled with the channels in an increasing order.
+opt.numChannels     = sessions.info{ss}.numChannels;
+opt.channelOrder    = 1:1:opt.numChannels; 
+
+% We need this parameters, obtained from Deuteron log and from the
+% documentation, to convert to physical units. (At least for .DT2)
+opt.numberOfAdcBits   = sessions.info{ss}.numADCBits;
+opt.voltageResolution = 1.95e-7;
+opt.offset            = 2^(opt.numberOfAdcBits-1);
+
+% Converts Deuteron DT2 and DF1 files into the 'oneFilePerChannel' format.
+% Creates full single files (.bin and .h5) to further use (i.e. with Kilosort)
+disp('Generating single channel files from Deuteron...')
+Deuteron2KilosortV2(opt);
 
 %% Motion Data to Matlab
 if opt.GetMotionSensors
-    if ~isfile('MotionData.mat')
-        disp('Extracting Motion Sensor data from Deuteron...')
-        [Accelerometer, Gyroscope, Magnetometer] = ...
-            Deuteron_GetMotionSensors(opt, sessions, ss);
-    else
-        disp('Motion Sensor data file found. Loading...')
-        load("MotionData.mat","Accelerometer","Gyroscope","Magnetometer");
-    end
+    disp('Extracting Motion Sensor data from Deuteron...')
+    [Accelerometer, Gyroscope, Magnetometer] = ...
+        Deuteron_GetMotionSensors(opt);
     
     disp('Processing and Plotting Motion Sensor data.')
     % Add (..., 1, 1) to input, if visualization and video recording are wanted.

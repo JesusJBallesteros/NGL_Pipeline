@@ -2,6 +2,9 @@ function metaData = Deuteron_GetMetaData(info)
 % GetMetaData Checks for what type of file this is.
 %   Builds a struct with essential information for data processing
 %   This information is found in the instruction manual of each type of logger.
+%
+% Version 01.03.2023 Jesus
+
     switch (info.fileformat)
         case 'DT2'
             numberOfChannels = [];

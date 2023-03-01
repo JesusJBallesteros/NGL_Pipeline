@@ -1,6 +1,7 @@
 function sessions = findSessions(input)
-% UNTITLED2 Summary of this function goes here
-%   Detailed explanation goes here
+% Finds and list all sessions requested, no matter the input format.
+%
+% Version 01.03.2023 Jesus
 
 if iscell(input.dates) % input is cell array of dates
     input.dates = input.datafolder + input.animal + "\" + input.animal + "_" + input.dates(:) + '*';
