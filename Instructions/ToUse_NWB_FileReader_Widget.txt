@@ -1,0 +1,20 @@
+In PowerShell or Windows PowerShell:
+
+ try command 'pip'. 
+   If Error, make sure you have python properly Installed and in the path.
+ If correct output, use 'pip install nwbwidgets'
+ Go to your python library folder (i.e where you want your Jupyter or scripts to live)
+ open a notebook with 'jupyter notebook', import NWBHDF5IO and nwb2widget.
+ Then give the path to the file you want to open and read it.
+ In other words, copy the code below:
+
+ # Copy from line below
+ 	from pynwb import NWBHDF5IO
+ 	from nwbwidgets import nwb2widget
+
+	io = NWBHDF5IO('D:/Experiments/478/478_20221219_post2/478_20221219_post2.nwb', mode='r')
+ 	nwb = io.read()
+
+ 	nwb2widget(nwb)
+ # Copy Until line above
+ * Note the right dash '/' instead of left dash '\'

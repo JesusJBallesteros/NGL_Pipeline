@@ -1,4 +1,4 @@
-function intan2NWB_wrapper(input,sessions,ss)
+function intan2NWB_wrapper(input, sessions, ss, varargin)
 % Makes sure there is no '.nwb' files in directory. Then, runs the wrapper
 % for the INTANtoNWB tool.
 % INPUT:    
@@ -7,11 +7,18 @@ function intan2NWB_wrapper(input,sessions,ss)
 %   ss       int, numeral of processing session
 % OUTPUT:   none explicit.
 %           It generates a new file with extension .nwb in the /processed folder
-% By Jesus J. Ballesteros 10.2022
+% By Jesus J. Ballesteros 03.2023
+
+if nargin < 4, opt = struct();
+elseif nargin == 4, opt = varargin{1};
+end
+
+if ~isfield(opt,'FolderProcDataMat'),    opt.FolderProcDataMat    = sessions.info{ss}.savefolder; end
+if ~isfield(opt,'SavFileName'),          opt.SavFileName          = sessions.list(ss).name;       end
 
 % 00. Tell where the python folder with 'IntanToNWB' scripts is
 % Added to 'set_default' now. If not found, check that it is working.
-IntanToNWB_folder = input.pyfolder; % = 'C:\Code\Python39\IntanToNWB';
+IntanToNWB_folder = input.pyfolder;
 
 % Check for .nwb files in directory
 files = dir('*.nwb'); 
@@ -22,8 +29,8 @@ files = dir('*.nwb');
         disp('- Will convert session to NWB format. This may take a moment.');
 
         % List all files in origin.
-        files = dir('*.*'); 
-        files(1:2) = []; % Remove '.' and '..' outputs
+        files = dir('*.dat'); 
+        files = [files; dir('*.rhd')];
 
         % Copy one by one to Python folder.
         for i=1:length(files)
@@ -103,17 +110,17 @@ files = dir('*.nwb');
         % By Jesus J. Ballesteros 09.2022
         disp('- Checking for Python enviroment...');
         % Verify Python Configuration
-        pe = pyenv
+        pe = pyenv; disp(pe);
         
         % Run the routine
         disp('- Conversion in progress...');
-        pyrunfile("my_IntanToNWB.py");
+        pyrunfile("NGL_IntanToNWB.py");
 
         %% Find and move the new .nwb file to processed data folder
         nwbfile = dir('*.nwb'); 
         if ~isempty(nwbfile)
             disp('- Done! Moving NWB file back to original folder...');
-            movefile(nwbfile.name, sessions.savefolder);
+            movefile(nwbfile.name, opt.FolderProcDataMat);
         else
             disp('- Something went wrong. Cannot find NWB files.');
             return
@@ -123,9 +130,9 @@ files = dir('*.nwb');
         delete(files(:).name);
         
         % Navigate to saving folder
-        cd(sessions.savefolder);
+        cd(opt.FolderProcDataMat);
         % Edif file name.
-        movefile(nwbfile.name,strcat([sessions.list(ss).name, '.nwb']))
+        movefile(nwbfile.name,strcat([opt.SavFileName, '.nwb']))
 
     else
     %% If there is any, exit the function and continue

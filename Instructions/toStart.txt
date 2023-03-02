@@ -1,0 +1,8 @@
+Open the NGL01_Main script and set its folder as working folder.
+Adding only the main folder to Matlab's path should be necessary, 
+  the rest will be temporarily added during the run.
+A working Python installation is necessary somewhere in your PC. 
+  Reccomended v3.9.
+Fill out the Inputs and Options at wish. Necessary things left 
+  blank will be asked for in dialogs, where the default or a custom
+  input can be given.

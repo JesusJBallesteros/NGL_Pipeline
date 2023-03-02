@@ -81,11 +81,10 @@ end
 if ~isfield(input,'ExtractData') || isempty(input.ExtractData), input.ExtractData = true; end
 if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB      = true; end
     
-% If NWB requested, Python needed.
+% If NWB requested, Python-based toolbox needed.
 if input.useNWB 
     if ~isfield(input,'pyfolder') || isempty(input.pyfolder)
-        input.pyfolder = inputdlg('Python folder:',...
-                    'Python folder', [1 50], {'C:\Code\Python39\IntanToNWB'});
+        input.pyfolder = 'C:\Code\Scripts\ephys-data-pipeline\toolboxes\IntanToNWB';
     end
 end
 

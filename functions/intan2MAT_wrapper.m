@@ -1,4 +1,4 @@
-function [data, sessions] = intan2MAT_wrapper(sessions, ss, opt)
+function [data, sessions] = intan2mat_wrapper(sessions, ss, opt)
 %% If not using NWB we need a mix of INTAN file reading tools 
 % to bring data into MATLAB. Detailed description here.
 % It def needs to know if we have one file per channel or

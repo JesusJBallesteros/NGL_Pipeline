@@ -28,6 +28,9 @@
 %                                   Default: 'all'
 %       useNWB:         true/false  To create/skip NWB file.
 %                                   Default: true.
+%       pyfolder:       string.     Path to the Intan to NWB toolbox, based on python. 
+%                                   Existing within this toolbox. 
+%                                                                                   NOT the path to the Python installation.  
 %       ExtractData:    true/false  To create/skip binary and h5 files. Also extract motion sensor 
 %                                   data if it comes from Deuteron.
 %                                   Default: true.
@@ -72,7 +75,7 @@ input.processed  = []; % Default: 'processed'. A subfolder will be created insid
 
 % Dates will be set to 'all' if missing here. 
 % while testing, 'yyyymmdd_system' or other variations may exists
-input.dates       = {'20230220_Deut' '20230221_Deut' '20230222_Deut'}; % can be left empty, 'all', or a list like:
+input.dates       = []; % can be left empty, 'all', or a list like:
                             % {'20230217_01'  '20230217_02'...
                             % '20230220_Deut' '20230221_Deut'...
                             % '20230222_Deut' '20230220_Int'...
@@ -81,10 +84,8 @@ input.dates       = {'20230220_Deut' '20230221_Deut' '20230222_Deut'}; % can be 
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
 % are requested, the NWB will perform well but the data extraction will not. 
 % It will crash for not completely known reason. It needs a Matlab restart between runs.
-input.ExtractData = true;  
-input.useNWB      = false; 
-    % if useNWB = true. Recommended 'C:\Code\Python39\IntanToNWB'
-    input.pyfolder = 'C:\Code\Python39\IntanToNWB'; 
+input.ExtractData = true;
+input.useNWB      = false;
 
 % These apply to FieldTrip-ready .mat files, only.
 input.plots      = []; % An logic array of 0/1s, to ask for specific plots. See details.
@@ -188,14 +189,14 @@ for ss = 1:sessions.nSessions
               % 04. Run wrapper for the INTAN to MATLAB.
               % Includes a mix of INTAN funtions. Outputs 'data' with plain
               % format. Can be feeded into next step for FT transformation.
-              [data, sessions] = intan2MAT_wrapper(sessions, ss, opt);
+              [data, sessions] = intan2mat_wrapper(sessions, ss, opt);
     
               % 05. CREATE and GIVE proper FieldTrip format. Give 'EventRecord'
               % variable as last input, if wanted to be trial-parsed. 
               % If the file comes from a loaded file, it will be named 'FT_data'
               % And it should be on real FT format already. otherwise, it
               % creates it.
-              MAT2FieldTrip(input, data, sessions, ss, opt);
+              mat2FieldTrip(input, data, sessions, ss, opt);
           end
 
         case 'Allego'

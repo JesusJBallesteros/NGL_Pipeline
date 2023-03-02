@@ -1,0 +1,3 @@
+in Powershell or Windows PowerShell,
+at data directory (i.e.  cd ...\animalX\sessionN\sorted\dataMatrix)
+run 'phy template-gui params.py'
