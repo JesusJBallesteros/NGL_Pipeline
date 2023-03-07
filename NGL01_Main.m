@@ -53,51 +53,59 @@
 %       Plots snippets of time- and frequency-domain data.
 %   .mat, .h5 and .bin files will be saved under ../rawfolder/processed
 %       
-% Last modified 27.02.2023 (Jesus)
+% Last modified 07.03.2023 (Jesus)
 
 % TODO LIST 
 %       There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %       Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
-%       Create Fieldtrip files from Deuteron data. Needs low-pass data to make sense
+%       In Progress. Create Fieldtrip files from Deuteron data. Needs low-pass data to make sense
+%       In progress. Include the high-pass filter in Deuteron2Kilosort pipeline, anticipating its need once we record wide band
 %       Figure out how to work with Allego files (most likely, after Allego's self preprocessing tool?)
 %       Continue with 'Deuteron_GetDigInEvents' when I get a recording with EVENTS
-%       Create a 'trial-parsed' stream in MAT2FieldTrip.
+%       Create a 'trial-parsed' stream in 'mat2FieldTrip'.
+%       Prepare to downsample highpass data to a half. Data size reduction.
 %
 
 %% Inputs. 
 % If not provided, a promp will ask for them or 'set_default' will use the 
 % defaults. It will also put them in the correct format if an incorrect one 
 % was given.
-input.mainfolder = []; % Default: 'C:\Code\Scripts\ephys-data-pipeline';
-input.datafolder = []; % Default: 'D:\Experiments\';
-input.animal     = []; % i.e '420' or FAT; % NEEDS to be explicited.
-input.processed  = []; % Default: 'processed'. A subfolder will be created inside the session folder
+input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline'; % Default: 'C:\Code\Scripts\ephys-data-pipeline';
+input.datafolder = 'D:\Experiments\'; % Default: 'D:\Experiments\';
+input.animal     = '420'; % i.e '420' or FAT; % NEEDS to be explicited.
+input.processed  = 'processed'; % Default: 'processed'. A subfolder will be created inside the session folder
 
-% Dates will be set to 'all' if missing here. 
-% while testing, 'yyyymmdd_system' or other variations may exists
-input.dates       = []; % can be left empty, 'all', or a list like:
-                            % {'20230217_01'  '20230217_02'...
-                            % '20230220_Deut' '20230221_Deut'...
-                            % '20230222_Deut' '20230220_Int'...
-                            % '20230221_Int'  '20230222_Int'}; 
+% Dates will be set to 'all' if missing here. Make sure of your own file
+% denominations. Can be left empty, can be 'all', or can be a cell array:
+    % {'20230217_01' '20230217_02' '20230220_Deut' '20230221_Deut'...
+    % '20230222_Deut' '20230220_Int' '20230221_Int' '20230222_Int'}; 
+input.dates       = {'20230217_01'  '20230217_02' '20230220_Int' '20230221_Int' '20230222_Int'};
+% While testing, 'yyyymmdd_system', 'yyyymmdd_XX' or other variations may
+% exists, like in this example.
 
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
 % are requested, the NWB will perform well but the data extraction will not. 
 % It will crash for not completely known reason. It needs a Matlab restart between runs.
 input.ExtractData = true;
-input.useNWB      = false;
-
-% These apply to FieldTrip-ready .mat files, only.
-input.plots      = []; % An logic array of 0/1s, to ask for specific plots. See details.
-input.test_ch    = []; % An array of numerals for channels to plot.
+input.useNWB      = false; % Meaning, don't run both 'true', for now. 
 
 %% Options for the different wrappers
 opt = struct();
-    opt.h5                = false;
-    opt.bin               = true;
-    opt.RetrieveEvents    = false;
-    opt.GetMotionSensors  = false;
-    opt.FTfile            = true;
+    opt.h5                = true; % Creation of .h5 file (not really necessary).
+    opt.bin               = true; % Creation of .bin file.
+    opt.FTfile            = true;  % Create a FieldTrip formatted .mat file.
+
+    opt.RetrieveEvents    = false; % Retrieve event log from Deuteron system.
+    opt.GetMotionSensors  = false; % Retrieve data from motion sensors in Deuteron.
+
+    opt.lowpass           = [  0  300]; % Lowpass band applied when creating the FieldTrip file.
+    opt.highpass          = [300 7500]; % Highpass band applied when creating Kilosort files.
+    
+    % This applies only to FieldTrip .mat files. Not really useful here other 
+    % than for testing, or for checking that everything is running in a new 
+    % dataset, to check for empty channels or other weird stuff. 
+    % Can be used to plot snippets as example as well.
+    opt.test_ch    = []; % An array of numerals for channels to plot.
 
 %% 00. Check inputs, set defaults and dependencies.
 set_default(input);
@@ -111,38 +119,37 @@ sessions = findSessions(input);
 
 %% 02. Loop sessions to process
 for ss = 1:sessions.nSessions
+    % Navigate to session raw data folder.
+    cd(fullfile(sessions.folder,sessions.list(ss).name));
+    
     % Progress report
     txt = sprintf('\n --> Session %d out of %d. Session name: %s \n', ss, sessions.nSessions, sessions.list(ss).name);
     fprintf(txt);
 
-    %% 03. Check file type and versions
-    % Navigate to session raw dat folder.
-    cd(fullfile(sessions.folder,sessions.list(ss).name));
-    
+    %% 03. Check file type, version and folders
     % Check System and version, based on existing files. Get info. 
     sessions.info{ss} = chckV();
-    disp(sessions.info{ss});
+%     disp(sessions.info{ss}); % Displays the info
 
-    % Determine where processed data will be saved
-    sessions.info{ss}.savefolder = fullfile(pwd, input.processed);
-    txt = strcat('Process data will be saved to: >', sessions.info{ss}.savefolder);
-    disp(txt);
-    clear txt
+    % Determine where processed data will be saved for every session.
+    opt.PathRaw           = pwd;
+    opt.FolderProcDataMat = fullfile(pwd, input.processed);
+    opt.SavFileName       = sessions.list(ss).name; 
+    
+    % Report it
+    disp(strcat('Process data will be saved to: >', opt.FolderProcDataMat));
+    
+    % Create 'processed' folder.
+    mkdir(opt.FolderProcDataMat);
 
     %% 04. Determine pipeline based on type of data
     switch sessions.info{ss}.fileformat
         case {'DT2', 'DT4', 'DT8', 'DAT', 'DF1'}
             %% 04.1 Deuteron Pipeline. Neural Data
-               
-            % 01 TODO Create Fieldtrip files from Deuteron data
-            % So far, Deuteron does not seem ideal for LFP, but it should be possible at some point.
-             %%%
-             % Then, here will go the LFP extraction and conversion to NWB? and FT.
-             %%%   
-
-            % 02 Create .bin (and .h5) files with spiking data from highpass data
             if input.ExtractData
-               % TODO: implement the new format conversion
+               % So far, we are NOT applying the any filters, bc we are only
+               % recording high pass data.
+               disp('Deuteron data is NOT being filter, by default');
                Deuteron_PipelineWrapper(sessions, ss, opt);
             end
 
@@ -173,7 +180,7 @@ for ss = 1:sessions.nSessions
                 %  64 bits version:
                 % (https://de.mathworks.com/help/matlab/matlab_external/install-supported-python-implementation.html)
                 %  To check access to Python Modules from MATLAB, look that 'pe' is correctly populated when running the script.
-              intan2NWB_wrapper(input, sessions, ss)
+              intan2NWB_wrapper(input, opt);
           end 
 
           % 03. Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
@@ -189,14 +196,14 @@ for ss = 1:sessions.nSessions
               % 04. Run wrapper for the INTAN to MATLAB.
               % Includes a mix of INTAN funtions. Outputs 'data' with plain
               % format. Can be feeded into next step for FT transformation.
-              [data, sessions] = intan2mat_wrapper(sessions, ss, opt);
+              INTANdata = intan2mat_wrapper(sessions, ss, opt);
     
               % 05. CREATE and GIVE proper FieldTrip format. Give 'EventRecord'
               % variable as last input, if wanted to be trial-parsed. 
               % If the file comes from a loaded file, it will be named 'FT_data'
               % And it should be on real FT format already. otherwise, it
               % creates it.
-              mat2FieldTrip(input, data, sessions, ss, opt);
+              mat2FieldTrip(INTANdata, opt);
           end
 
         case 'Allego'
@@ -220,11 +227,11 @@ for ss = 1:sessions.nSessions
     % single-tappered Spectrograms on a subset of channels for a small chunck
     % of time. Just to have a preview of how the signal looks like in
     % the LFP range.
-    if ~isempty(input.test_ch) & any(input.plots)
-        plot_testsignal(FT_data,input.test_ch)
+    if ~isempty(input.test_ch)
+        plot_testsignal(FT_data, input.test_ch, opt)
     end
     
     %% 06 Clean up to move on to next session
-    clear FT_data
+    clear FT_data INTANdata txt
 
 end 

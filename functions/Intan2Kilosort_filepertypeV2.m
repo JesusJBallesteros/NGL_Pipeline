@@ -12,11 +12,13 @@ function Intan2Kilosort_filepertypeV2(opt)
 % Version 01.03.2023 Jesus
  
 %% Pre-define .h5 and .bin files
-% Create complete HDF5 file matching the size needs.
-h5create(fullfile(opt.FolderProcDataMat, [opt.SavFileName '.h5']), ...
-        '/allChnMat', [opt.numChannels opt.num_samples], ...
-        'ChunkSize', [1 opt.HDF5chunkSize], ...
-        'Datatype', 'int16')
+if opt.h5
+    % Create complete HDF5 file matching the size needs.
+    h5create(fullfile(opt.FolderProcDataMat, [opt.SavFileName '.h5']), ...
+            '/allChnMat', [opt.numChannels opt.num_samples], ...
+            'ChunkSize', [1 opt.HDF5chunkSize], ...
+            'Datatype', 'int16')
+end
 
 % Also create a bin file.
 fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']), 'a'); 
@@ -25,7 +27,7 @@ fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']), 'a'
 % writes one file per channel in .h5 format.
 % Each data point of neural data is a 16 bit word
 fid = fopen(fullfile(opt.PathRaw, opt.myFiles.name));
-data = fread(fid, [opt.numChannels opt.num_samples], 'int16=>int16'); 
+    data = fread(fid, [opt.numChannels opt.num_samples], 'int16=>int16'); 
 fclose(fid);
 
 % Data already comes as channels x samples from INTAN. Convert to microvolts.

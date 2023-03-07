@@ -1,4 +1,4 @@
-function [info] = chckV()
+function [info] = chckV(varargin)
 % Onc in the session folder, checks for existence of any of the following
 % characteristic files, determinant of the recording format:
 %   'EVENTLOG.NLE': characteristic of Deuteron flat format
@@ -81,9 +81,8 @@ elseif isfile('info.rhd')
    %  'amp' should always exist. Would be used as ultimate source of
    %  data if 'low' does not. If 'low' exist, the loop breaks and takes
    %  the indexed file list with such extension.
-   for i=1:2
+   for i = 1:2
        info.files = dir('low*.dat');
-       info.nfiles = length(info.files);
        if ~isempty(info.files)
           info.bandpass = 'low';
           break
@@ -92,6 +91,7 @@ elseif isfile('info.rhd')
           info.bandpass = 'amp';
        end
    end
+   info.nfiles = length(info.files);
     
    % How many files exist for this sessions. If we have several types 
    % with file per channel format, 'fileperch' applies anyways.

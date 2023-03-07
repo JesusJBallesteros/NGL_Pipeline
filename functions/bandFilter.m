@@ -77,8 +77,8 @@ function [spec,b,a] = bandFilter(data,dim,freqBands,smpRate,varargin)
 %             (eg, data [nSamples x nTrials], returns spec [nFreqBands x nSamples x nTrials]).
 % 
 % b,a       {1 x nFreqBands cell}. Filter coefficients for one or more frequency bands.
-
-% TODO Generalize to other filter descriptors other than a,b (zpk,sos/g,etc.)...maybe switch to Matlab digitalFilter object?
+%
+% From ETALO toolbox. Modified by Jesus.
 
   %% Process arguments
   if (nargin < 2) || isempty(dim),        dim       = firstNonSingletonDim(data); end  % Default is 1st non-singleton dimension 
@@ -91,6 +91,7 @@ function [spec,b,a] = bandFilter(data,dim,freqBands,smpRate,varargin)
                 'removeDC',   true, ...
                 'direction',  'both', ...
                 'signalType', 'real' };
+  
   [a,b,nPad,removeDC,direction,signalType,passThruArgs] = ...
     processArgs(defaults(1:2:end), defaults(2:2:end), varargin, false);
   direction = lower(direction);
@@ -106,23 +107,22 @@ function [spec,b,a] = bandFilter(data,dim,freqBands,smpRate,varargin)
           [sprintf('bandFilter: Unknown signal type ''%s''. Supported types:\n ',signalType), ...
            sprintf(' ''%s'' ', signalTypeSupported{:})]);
          
-
   %% Set filter coefficients if not passed in as arg's
   if isempty(a) || isempty(b)
     assert(~isempty(freqBands), 'bandFilter: must input either filter coeff''s a,b or freqBands');
     assert(~isempty(smpRate), 'bandFilter: must set sampling rate to compute coefficients');
 
     [b,a]   = setFilterParams(freqBands,smpRate,passThruArgs{:});
+
   end
+  
   if ~iscell(b), b = {b}; end
   if ~iscell(a), a = {a}; end  
 
-  
   nSmp      = size(data,dim);               % Length (#samples) of unpadded time series
   n         = nSmp + nPad;                  % Total length of time series, including padding  
   nF        = length(b);                    % Number of frequency bands to use
 
-  
   %% Data preprocessing
   % Rearrange data array data -> [nSamples x nDataSeries] matrix, s.t. each time series 
   %  (trial,channel,etc.) to transform is arranged as a column, and each column is a separate time series
@@ -140,14 +140,13 @@ function [spec,b,a] = bandFilter(data,dim,freqBands,smpRate,varargin)
 
   % Remove DC (mean across timepts for each data series, eg trial)
   if removeDC
-    data    = bsxfun(@minus, data, mean(data,1)); % Note: equiv. to data = data - mean(data)
+    data    = bsxfun(@minus, double(data), mean(data,1)); % Note: equiv. to data = data - mean(data)
   end
   % Zero-pad each time series w/ nPad values
   if nPad ~= 0
     data    = [data; zeros(nPad,nSeries)];     
   end
-  
-  
+   
   %% Do band filtering & optional signal tranformation (Hilbert transform, etc.) for each frequency band  
   if strcmpi(direction,'both'), filtFunc = @filtfilt;
   else,                         filtFunc = @filter;
@@ -181,8 +180,7 @@ function [spec,b,a] = bandFilter(data,dim,freqBands,smpRate,varargin)
       case 'fullwave';  spec(:,:,iF) = abs(spec(:,:,iF));                      
     end    
   end
-
-  
+ 
   %% Data postprocessing  
   if nPad ~= 0 
     spec  = spec(1:nSmp,:,:);             % Remove padding
@@ -206,5 +204,6 @@ function [spec,b,a] = bandFilter(data,dim,freqBands,smpRate,varargin)
     else,       dimPerm = [1+(1:(dim-1)) 1 (dim+1):nDims];
     end
     spec = permute(spec, dimPerm);
-  end    
+  end  
+  
 end

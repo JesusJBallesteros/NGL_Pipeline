@@ -1,23 +1,23 @@
 function sdf(varargin)
-% SDF Set the line width and fonts of a figure
+% SDF Set the line width, fonts and others of a figure.
 % 
-% sdf(fig)
-% 
-% where fig is the figure number. If the figure number is omitted, the 
-% currently active figure is updated. Edit the file to set you own style 
-% settings.
+% sdf(fig):  
+%  where fig is the figure number. If the figure number is omitted, the 
+%  currently active figure is updated. Edit the file to set you own style 
+%  settings.
 %
-% sdf(fig, 'stylename')
-% applies a pre-configured style from the File-->Export Setup menu of the
-% figure's window. The stylename should be one of the 'Export Styles'
-% section of the dialog.
+% sdf(fig, 'stylename'):
+%  applies a pre-configured style from the File-->Export Setup menu of the
+%  figure's window. The stylename should be one of the 'Export Styles'
+%  section of the dialog.
 %
 % The function allows applying the same settings as through the 
-% File-->Export Setup-->Apply menu of the figure, but much faster and 
-% without the annoying clicking. 
+%  File -> Export Setup -> Apply menu of the figure, without the GUI. 
 %
 % Example
-%   figure(1);      t=0:0.1:10;   plot(t, sin(t));
+%   figure(1);      
+%   t=0:0.1:10;   
+%   plot(t, sin(t));
 %   sdf(1)
 %   pause
 %   sdf(1,'PowerPoint')

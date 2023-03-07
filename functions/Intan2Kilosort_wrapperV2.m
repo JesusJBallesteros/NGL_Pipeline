@@ -6,7 +6,7 @@ function Intan2Kilosort_wrapperV2(sessions, ss, varargin)
 % step values to microvolts by multiplying by 0.195. The data comes out as 
 % ch x samples in int16 format, ready for Kilosort. 
 % This data is saved channel by channel and in chunks to a .h5 file. 
-% This data is save as a whole into a .bin file. 
+% This data is saved as a whole into a .bin file. 
 %
 % DEPENDENCIES: 
 %   Intan2Kilosort_filepertypeV2
@@ -20,8 +20,7 @@ function Intan2Kilosort_wrapperV2(sessions, ss, varargin)
 %               opt.h5             = true;     Logic that determines if we want to create the .h5 file.
 %               opt.bin            = true;     Logic that determines if we want to create the .bin file.
 %               opt.RetrieveEvents = false;    Logic that determines if we want to retrieve events.
-%               opt.FolderProcDataMat = sessions.info{ss}.savefolder; % Path to processed folder
-%               opt.SavFileName       = sessions.list(ss).name; % File name
+%               opt.highpass       = [300 7500]; Array of [lowest highest] ends for the band-pass filter, in Hz 
 %
 % OUTPUT:
 %    Binary file, channels(rows) per sample (columns), with channels
@@ -30,55 +29,56 @@ function Intan2Kilosort_wrapperV2(sessions, ss, varargin)
 % VERSION HISTORY:
 % Author:         Aylin, Lukas & Sara
 %
-% Version 01.03.2023 Jesus
+% Version 07.03.2023 Jesus
 
 if nargin < 3, opt = struct();
 elseif nargin == 3, opt = varargin{1};
 end
 
 %% Defaults
-if ~isfield(opt,'RetrieveEvents'), opt.RetrieveEvents = false;    end
-if ~isfield(opt,'StpSz'),          opt.StpSz          = 1000000;  end
-if ~isfield(opt,'h5'),             opt.h5             = true;     end
-if ~isfield(opt,'bin'),            opt.bin            = true;     end
+if ~isfield(opt,'StpSz'),          opt.StpSz          = 1000000;    end
+if ~isfield(opt,'h5'),             opt.h5             = true;       end
+if ~isfield(opt,'bin'),            opt.bin            = true;       end
+if ~isfield(opt,'RetrieveEvents'), opt.RetrieveEvents = false;      end
+if ~isfield(opt,'highpass'),       opt.highpass       = [300 7500]; end
 
-% Paths and naming
-if ~isfield(opt,'PathRaw'),           opt.PathRaw           = pwd;                                 end
-if ~isfield(opt,'FolderProcDataMat'), opt.FolderProcDataMat = sessions.info{ss}.savefolder;        end
-if ~isfield(opt,'SavFileName'),       opt.SavFileName       = sessions.list(ss).name;              end
-
-% Create proicessed folder.
-mkdir(opt.FolderProcDataMat);
-
-%% Collect parameters to proceed with file creation
-% List all files (multiple or single depending on type)
+%% Collect parameters that not need to necessarily defaulted to a given value. 
+% To proceed, list all files (multiple or single, depending on filetype).
+% For highpass files, no further filtering is necessary (In priciple! make
+% sure you are recording a proper, useful, highpass within INTAN).
 opt.myFiles = dir('high*.dat');
+opt.set_filter = 0;
+
+% If no highpass files are found, it will use the raw 'amp' data and filtering will be applied.
+if isempty(opt.myFiles)
+    opt.myFiles = dir('amp*.dat');
+    opt.set_filter = 1;
+end
+
+% How many channels, from Intan_hdr.
+opt.numChannels = sessions.info{ss}.nchannels; 
+
+% Sample rate, from Intan_hdr.
+opt.sampleRate  = sessions.info{ss}.amplifier_sample_rate;
+
+% ChunkSize of HDF5 file (e.g. 5 minutes = 300 s @30000 Hz = 9600000 samples).
+opt.HDF5chunkSize = 300*opt.sampleRate;
+
+% Kilosort rearranges the rows of the input matrix according to the a channel map (which is developed in another file).
+% Therefore, the matrix should be compiled with the channels in an increasing order.
+% opt.channelOrder = 1:1:opt.numChannels; % Deprecating
 
 % To obtain the number of samples per file, first read file info. Can be a 
 % file per channel or only one for all, it does not matter. Read the first.
 fileinfo = dir(opt.myFiles(1).name);
 
-% How many channels
-opt.numChannels = sessions.info{ss}.nchannels; 
-
-% Sample rate
-opt.sampleRate  = sessions.info{ss}.amplifier_sample_rate;
-
-% ChunkSize of HDF5 file (e.g., 5 minutes is, 300s at 30000Hz = 9600000 samples)
-%  this chunk size works well. optimal? Once it is, this variable no longer requires user input.
-opt.HDF5chunkSize = 300*opt.sampleRate; 
-
-% Kilosort rearranges the rows of the input matrix according to the a channel map (which is developed in another file).
-% Therefore, the matrix should be compiled with the channels in an increasing order.
-opt.channelOrder      = 1:1:opt.numChannels; 
-
 %% Main call
 if strcmp(sessions.info{ss}.fileformat,'filepertype')
-
+    
     % To get the number of samples, divide the file size by number of 
     % channels, times bytes that each int16 word takes (int16 = 2 bytes).
     opt.num_samples = fileinfo.bytes/(opt.numChannels * 2); 
-
+    
     Intan2Kilosort_filepertypeV2(opt);
 
 elseif strcmp(sessions.info{ss}.fileformat,'fileperch')
@@ -88,6 +88,7 @@ elseif strcmp(sessions.info{ss}.fileformat,'fileperch')
     opt.num_samples = fileinfo.bytes/2;
 
     Intan2Kilosort_fileperchV2(opt);
+    
 end
 
 end

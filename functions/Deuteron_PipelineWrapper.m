@@ -30,49 +30,32 @@ function Deuteron_PipelineWrapper(sessions, ss, varargin)
 %       a 'rotators' variable, containing the quaternions to create the
 %       rotation matrices and other transformations.
 %
-% Version 01.03.2023 Jesus
+% Version 06.03.2023 Jesus
 
 if nargin < 3, opt = struct();
 elseif nargin == 3, opt = varargin{1};
 end
 
-%% Defaults
-if ~isfield(opt,'RetrieveEvents'),       opt.RetrieveEvents       = true;    end
-if ~isfield(opt,'StpSz'),                opt.StpSz                = 1000000; end
-if ~isfield(opt,'h5'),                   opt.h5                   = true;    end
-if ~isfield(opt,'bin'),                  opt.bin                  = true;    end
-if ~isfield(opt,'GetMotionSensors'),     opt.GetMotionSensors     = true;    end
+%% Options 
+if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
+if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
+if ~isfield(opt,'h5'),              opt.h5                  = true;         end
+if ~isfield(opt,'bin'),             opt.bin                 = true;         end
+if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = true;         end
+if ~isfield(opt,'FTfile'),          opt.FTfile              = true;         end
+if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  300];   end
+if ~isfield(opt,'highpass'),        opt.highpass            = [300 7500];   end
+if ~isfield(opt,'DllFolder'),       opt.DllFolder           = 'C:\Code\Scripts\ephys-data-pipeline\functions\dlls'; end
+if ~isfield(opt,'ReaderDll'),       opt.ReaderDll           = fullfile(opt.DllFolder, 'Event_File_Reader_8_3.dll'); end
 
-% Paths and naming
-if ~isfield(opt,'PathRaw'),              opt.PathRaw              = pwd;                          end
-if ~isfield(opt,'FolderProcDataMat'),    opt.FolderProcDataMat    = sessions.info{ss}.savefolder; end
-if ~isfield(opt,'SavFileName'),          opt.SavFileName          = sessions.list(ss).name;       end
+if ~isfield(opt,'set_filter'),      opt.set_filter          = 0;            end
 
-if ~isfield(opt,'DllFolder'),            opt.DllFolder            = 'C:\Code\Scripts\ephys-data-pipeline\functions\dlls'; end
-if ~isfield(opt,'ReaderDll'),            opt.ReaderDll            = fullfile(opt.DllFolder, 'Event_File_Reader_8_3.dll'); end
-
-%% Create folders in case they don't exist.
-mkdir(opt.FolderProcDataMat);    % create folder for data matrix
-
-%% Event data, using dll
-if opt.RetrieveEvents
-    % Proceed to extract all events during session. Give some feedback.
-    disp('Retrieving Events from Deuteron...')
-    [EventRecord, sessions.info{ss}.numChannels] = ...
-        Deuteron_EventFileReaderDll(opt, sessions, ss);
-    disp(EventRecord);
-    disp(['Found ', int2str(sessions.info{ss}.numChannels), ' channels']);
-else
-   disp('Event extraction not requested, skipping...')
-end
-
-%% Neural Data to .bin and .h5.
-% Collect parameters to proceed with file creation
-% List all files (multiple or single depending on type)
+%% Parameters
+% Collect parameters to proceed with file creation. List all files.
 opt.myFiles = sessions.info{ss}.files;
 opt.ext     = sessions.info{ss}.fileformat;
 
-% Sample rate
+% Sample rate.
 opt.sampleRate  = sessions.info{ss}.sampleRate;
 
 % ChunkSize of HDF5 file (e.g., 5 minutes is, 300s at 30000Hz = 9600000 samples)
@@ -90,10 +73,36 @@ opt.numberOfAdcBits   = sessions.info{ss}.numADCBits;
 opt.voltageResolution = 1.95e-7;
 opt.offset            = 2^(opt.numberOfAdcBits-1);
 
-% Converts Deuteron DT2 and DF1 files into the 'oneFilePerChannel' format.
-% Creates full single files (.bin and .h5) to further use (i.e. with Kilosort)
-disp('Generating single channel files from Deuteron...')
-Deuteron2KilosortV2(opt);
+%% Event data, using dll
+if opt.RetrieveEvents
+    % Proceed to extract all events during session. Give some feedback.
+    disp('Retrieving Events from Deuteron...')
+    [EventRecord, sessions.info{ss}.numChannels] = ...
+        Deuteron_EventFileReaderDll(opt, sessions, ss);
+    disp(EventRecord);
+    disp(['Found ', int2str(sessions.info{ss}.numChannels), ' channels']);
+else
+   disp('Event extraction not requested, skipping...')
+end
+
+%% Neural Data Conversion.
+if opt.h5 || opt.bin
+    % Converts Deuteron DT2 and DF1 files into single files (.bin and .h5) 
+    % to further use (i.e. with Kilosort)
+    disp('Converting Deuteron files into .h5 and .bin...');
+    Deuteron2KilosortV2(opt);
+end
+
+if opt.FTfile
+    % Convert Deuteron files into a FieldTrip formatted .mat file
+    disp('Converting Deuteron files into a pseudo-FT file.');
+    [DEUTdata] = Deuteron2mat(opt);
+
+    %% Conversion to Fieldtrip formatted data
+    disp('Giving proper FieldTrip format.');
+    mat2FieldTrip(DEUTdata, opt);
+
+end
 
 %% Motion Data to Matlab
 if opt.GetMotionSensors

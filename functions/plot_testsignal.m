@@ -4,7 +4,7 @@ function plot_testsignal(FT_data,ch)
     end
     addpath(genpath('toolboxes\multitaper_prerau'))
     
-    % Parameters for MT
+    % Parameters for MultiTapered FFT
     Fs              = FT_data.fsample; % double - sampling frequency (Hz)
     frequency_range = [0 100]; % [<min frequency>, <max frequency>]
     taper_params    = [2 3];   % [<TW>, <N>]
@@ -16,8 +16,12 @@ function plot_testsignal(FT_data,ch)
                                %  padding for interpolation (closest 2^x)
     detrend_opt     = 'linear';% string - detrend data window ('linear' (def.), 'constant', 'off')
     weighting       = 'unity'; % string - weighting of tapers ('unity' (def.), 'eigen', 'adapt')
+
     plot_on         = false;   % boolean - plot results
     verbose         = false;   % boolean - display spectrogram properties
+
+%     printsettings   = '800x300_hdpi_spectrum'; % string, name of required 'style'
+                               %  to apply to the plots. See 'sdf' function for more.
     
     % Check if channel requirements are possible
     if ch(end) > size(FT_data.trial{1,1},1)
@@ -52,9 +56,11 @@ function plot_testsignal(FT_data,ch)
             ylabel('Frequency (Hz) and Voltage (uV/50)', 'fontsize', 12); % graph label
             xlabel('sec', 'fontsize', 12); % graph label
             xlim([15 45]); ylim([0 50]);   % graph limits
+
         title(sprintf('Spectrogram for Ch: %s',FT_data.label{i,1}));
-    %     sdf(1,'800x300_hdpi_spectrum'), box('off');
-        saveas(gca,sprintf('testsignal_ch%s',FT_data.label{i,1}),'png')
+%         sdf(1, printsettings);
+        box('off'); 
+        saveas(gca, sprintf('testsignal_ch%s',FT_data.label{i,1}), 'png')
         close all
     end
 end

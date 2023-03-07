@@ -1,4 +1,4 @@
-function mat2FieldTrip(input, data, sessions, ss, opt, varargin)
+function mat2FieldTrip(data, opt, varargin)
 % Wraps the process to transform a simple .mat file into one with
 % appropiate format for further processing with FieldTrip toolbox.
 % Options are, to create a 'continuous' FT file, (one, large trial) or to
@@ -6,20 +6,15 @@ function mat2FieldTrip(input, data, sessions, ss, opt, varargin)
 %
 % Version 01.03.2023 Jesus
 
-if nargin < 6,  stream = 1; 
+if nargin < 3,  stream = 1; 
 else,           stream = 2;
                 EventRecord = varargin{1};
 end
-
-if ~isfield(opt,'PathRaw'),           opt.PathRaw           = pwd;                                 end
-if ~isfield(opt,'FolderProcDataMat'), opt.FolderProcDataMat = sessions.info{ss}.savefolder;        end
-if ~isfield(opt,'SavFileName'),       opt.SavFileName       = sessions.list(ss).name;              end
 
 switch stream
     case 1
         % Check that Fieldtrip likes what we have (it should).
         FT_data = ft_checkdata(data, 'feedback' ,'yes');
-        clear data
         
         % Then give the FT_data a proper 'continous' state.
         cfg = [];
@@ -30,8 +25,7 @@ switch stream
         
         % Save this session data. Generates a file with continous data for a
         %   SINGLE session only into the session folder.
-        save(fullfile(opt.FolderProcDataMat, strcat(sessions.list(ss).name,'_continous_FT.mat')), ...
-            'sessions', 'input', 'FT_data', '-v7.3')
+        save(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_continous_FT.mat')), 'FT_data', '-v7.3')
 
     case 2
 

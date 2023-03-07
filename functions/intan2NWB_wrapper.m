@@ -1,4 +1,4 @@
-function intan2NWB_wrapper(input, sessions, ss, varargin)
+function intan2NWB_wrapper(input, opt)
 % Makes sure there is no '.nwb' files in directory. Then, runs the wrapper
 % for the INTANtoNWB tool.
 % INPUT:    
@@ -7,14 +7,8 @@ function intan2NWB_wrapper(input, sessions, ss, varargin)
 %   ss       int, numeral of processing session
 % OUTPUT:   none explicit.
 %           It generates a new file with extension .nwb in the /processed folder
-% By Jesus J. Ballesteros 03.2023
-
-if nargin < 4, opt = struct();
-elseif nargin == 4, opt = varargin{1};
-end
-
-if ~isfield(opt,'FolderProcDataMat'),    opt.FolderProcDataMat    = sessions.info{ss}.savefolder; end
-if ~isfield(opt,'SavFileName'),          opt.SavFileName          = sessions.list(ss).name;       end
+%
+% Version 07.03.2023 Jesus
 
 % 00. Tell where the python folder with 'IntanToNWB' scripts is
 % Added to 'set_default' now. If not found, check that it is working.

@@ -1,178 +1,143 @@
-function [data, sessions] = intan2mat_wrapper(sessions, ss, opt)
-%% If not using NWB we need a mix of INTAN file reading tools 
-% to bring data into MATLAB. Detailed description here.
-% It def needs to know if we have one file per channel or
-% one file per type.
+function [data] = intan2mat_wrapper(sessions, ss, varargin)
+% We need a mix of INTAN file reading tools to bring data into MATLAB.
+% It def needs to know if we have one file per channel or one file per type.
+% To complete description ...
 %
-% Version 01.03.2023 Jesus
+% Dependencies: 'bandFilter'
+%               'downsampleVolt'
+%
+% Version 07.03.2023 Jesus
 
-if ~isfield(opt,'PathRaw'),           opt.PathRaw           = pwd;                                 end
-if ~isfield(opt,'FolderProcDataMat'), opt.FolderProcDataMat = sessions.info{ss}.savefolder;        end
-if ~isfield(opt,'SavFileName'),       opt.SavFileName       = sessions.list(ss).name;              end
+if nargin < 3, opt = struct();
+elseif nargin == 3, opt = varargin{1};
+end
 
-% Check for existing 'continous_FT.mat' files
-saveFolder = opt.FolderProcDataMat;
-cd(saveFolder);
-files = dir([saveFolder + '\*continous_FT.mat']); 
+% Default options if not specified
+if ~isfield(opt,'lowpass'), opt.lowpass = [  0  300];  end
 
-% If there is none, proceed
-if isempty(files)
-    % Warn about file being process.
-    disp('- Will convert session to pseudo-FT format.');
-    cd(fullfile(sessions.folder,sessions.list(ss).name));
-    nfiles = length(sessions.info{ss}.files);
+%% Collect parameters to proceed with file creation
+% List all files (multiple or single depending on type). If No lowpass
+% files found, we will use the raw data, and filtering will be applied.
+disp('Will convert session to pseudo-FT format.');
+opt.myFiles = dir('low*.dat');
 
-    % Set default parameters for lowpass filter. Decide to leave here or input
-    % it from main script? 0-250 should be good ennough.
-    filt.freqBands = [0 250];
-    Orig_sR   = sessions.info{ss}.amplifier_sample_rate;
-    New_sR    = Orig_sR / 32;
+if isempty(opt.myFiles)
+    opt.myFiles = dir('amp*.dat');
+    opt.set_filter = 1;
+
+    % Gather info to create and apply the lowpass filter
+    opt.sampleRate  = sessions.info{ss}.amplifier_sample_rate;
+    opt.dwnsmplRate = 937.5; % Matches INTAN's 32x downsample factor
+else
+    opt.set_filter = 0;
+    opt.dwnsmplRate = sessions.info{ss}.amplifier_sample_rate / sessions.info{ss}.lowpass_downsample;
+end
+
+nfiles = length(opt.myFiles);
+
+%% Only one file. The raw will be big. Will proceed by filtering and 
+% downsampling one channel at a time.
+if nfiles == 1
+    disp('All channels are being readed from single file.')
     
-    %% Only one file. The raw will be big. Will proceed by filtering and 
-    % downsampling one channel at a time. Will remove the just processed channels 
-    % as it progresses, to reduce memory usage.
-    if nfiles == 1
-        % Open file
-        disp('- One file is being opened.')
-        fid = fopen(sessions.info{ss}.files.name, 'r');
-        
-        % read voltage data according to INTAN
-        disp('- All channels are being readed from single file.')
-        tmp.volt = fread(fid, [sessions.info{ss}.nchannels inf], 'int16');
+    % Read voltage data according to INTAN
+    % Open file, read as 'int16' but store as double.
+    fid = fopen(sessions.info{ss}.files.name, 'r');
+        tmp = fread(fid, [sessions.info{ss}.nchannels inf], 'int16');
+    fclose(fid);
+
+    % Convert to microvolts
+    tmp = tmp * 0.195;
+    
+    % If filtering is required (meaning, we are dealing with 'amp' files)
+    if opt.set_filter
+        % Go channel by channel.
+        for b = 1:sessions.info{ss}.nchannels
+            fprintf('- Filtering channel %d of %d.\n', b, opt.numChannels);
+            
+            % Proceed with filter. 'bandFilter' likes double precision.
+            % Check function for more options, arguments and doings.
+            [tmp(b,:), ~, ~] = bandFilter(tmp(b,:), [], opt.lowpass, opt.sampleRate);
+
+            % Proceed with downsampling. Down to a fix 937.5 Hz, matching
+            % the possible 'low' files from INTAN, if downsampling at that
+            % time selected.
+            [volt(b,:), ~, ~] = downsampleVolt(tmp(b,:), opt.sampleRate, opt.dwnsmplRate);
+            
+        end
+
+    % If filtering is not required, just pass the data through.
+    else
+        volt = tmp;
+    end
+
+elseif nfiles > 1
+    %% Many files 
+    disp('Multiple files will be opened and readed, one by one.')
+    % Open file by file
+    for b = 1:nfiles
+        % Read voltage as 'int16', store as double.
+        fid = fopen(sessions.info{ss}.files(b).name, 'r');
+            tmp = fread(fid, [1 inf], 'int16');
         fclose(fid);
         
-        % 30KHz nSamples
-        sessions.info{ss}.nSamples = length(tmp.volt);
+        % Convert to microvolts
+        tmp = tmp * 0.195;
 
-        % If it is 'amp', needs filter and downsampling
-        if strcmp(sessions.info{ss}.bandpass, 'amp')
-            for ff = 1:sessions.info{ss}.nchannels
-                fprintf('- Processing channel %d of %d.\n', ff, sessions.info{ss}.nchannels);
-                
-                % Proceed with filter
-                [tmp.volt(1,:),filt.a,filt.b] = bandFilter(tmp.volt(1,:),[],filt.freqBands,Orig_sR);
+        % If filtering is required.
+        if opt.set_filter
+            fprintf('Processing file %d of %d.\n', b, nfiles);
+            % Proceed with filter. Likes double precision, check function
+            % for more about it.
+            [tmp, ~, ~] = bandFilter(tmp, [], opt.lowpass, opt.sampleRate);
 
-                % Proceed with downsampling
-                [tmp.v(ff,:),~,downsmpFactor] = downsampleVolt(tmp.volt(1,:),Orig_sR,New_sR);
-                tmp.volt(1,:) = [];
-            end
+            % Proceed with downsampling
+            [volt(b,:), ~, ~] = downsampleVolt(tmp, opt.sampleRate, opt.dwnsmplRate);
 
-            % Keep record of used parameters in filtering and downsampling if any
-            sessions.info{ss}.lowpass_filt = filt;
-            sessions.info{ss}.lowpass_downsample = downsmpFactor;
-            sessions.info{ss}.lowpass_sample_rate = New_sR;
-
-        % If it is 'low', data is simply passed on
-        elseif strcmp(sessions.info{ss}.bandpass, 'low')
-            tmp.v = tmp.volt;
-            tmp.volt = [];
-        end
-
-    elseif nfiles > 1
-    %% Many files 
-        disp('- Multiple files will be opened and readed, one by one.')
-        for ff = 1:nfiles
-            % Open file by file
-            fid = fopen(sessions.info{ss}.files(ff).name, 'r');
-    
-            % Read voltage data according to INTAN and attach
-            tmp.volt = fread(fid, [1 inf], 'int16');
-            fclose(fid);
-            
-            % From wide data, we need to filter/downsample the data
-            if strcmp(sessions.info{ss}.files(1).name(1:3), 'amp')
-                fprintf('- Processing file %d of %d.\n', ff, nfiles);
-                % Use filter and downsampling functions (designed for ETALO).
-                % DETAILED explanation inside functions.
-    
-                % nSamples of 30KHz data, just once
-                if ff==1
-                    sessions.info{ss}.nSamples = length(tmp.volt);
-                end
-
-                % Proceed with filter
-                [tmp.volt,filt.a,filt.b] = bandFilter(tmp.volt,[],filt.freqBands,Orig_sR);
-    
-                % Proceed with downsampling
-                [tmp.v(ff,:),~,downsmpFactor] = downsampleVolt(tmp.volt,Orig_sR,New_sR);
-    
-                % Keep record of used parameters in filtering and
-                % downsampling, just once
-                if ff==1
-                    sessions.info{ss}.lowpass_filt = filt;
-                    sessions.info{ss}.lowpass_downsample = downsmpFactor;
-                    sessions.info{ss}.lowpass_sample_rate = New_sR;
-                end
-
-            elseif strcmp(sessions.info{ss}.files(1).name(1:3), 'low')
-                % If band is 'lowpass' already, directly pass it on
-                tmp.v(ff,:) = tmp.volt;
-            end
-
-            % Clear original raw voltage data
-            tmp.volt = [];
+        else
+            % Filtering is not required
+            volt(b,:) = tmp;
         end
     end
-    
-    % Convert to microvolts
-    volt = tmp.v * 0.195;
+end
 
-    % clean up
-    clear fid tmp
-    
-    %% Get time series
-    % There is only one file for the time series: 'time.dat' at 30KHz. We don't want it.
-    % For LFP, having the voltage series already, we are going to use the number
-    % of samples there to create our own time-series. 
-    
-    % Number of samples of resulting downsampled data
-    sessions.info{ss}.lowpass_nSamples = length(volt);
+clear fid tmp tmp_filt
 
-    % We create a time-vector in samples and divide it by the sampling rate.
-    time = (1:sessions.info{ss}.lowpass_nSamples) / sessions.info{ss}.lowpass_sample_rate;
-            
-    % Easy access to total recording time.
-    sessions.info{ss}.recording_time = sessions.info{ss}.lowpass_nSamples / sessions.info{ss}.lowpass_sample_rate;
-    
-    %% Convert to pseudo-FieldTrip
-    % It's only pseudo until we run the proper FT tool to check for format and
-    % header info. Because we have not given any trial info so far, the data
-    % comes as a continous single trial. 
-    % data.label      % cell-array containing strings, Nchan*1
-    % data.trial      % cell-array containing a data matrix for each
-    %                 % trial (1*Ntrial), each data matrix is a Nchan*Nsamples matrix
-    % data.time       % cell-array containing a time axis for each
-    %                 % trial (1*Ntrial), each time axis is a 1*Nsamples vector
-    % data.sampleinfo % optional array (Ntrial*2) containing the start and end
-    %                 % sample of each trial
-    
-    disp('- Creating pseudo-FieldTrip structure...')
-    
-    % Starting with labels as they have been extracted from the INTAN header
-    for i=1:sessions.info{ss}.nchannels
-        data.label{i,1} = convertStringsToChars(sessions.info{ss}.INTAN_hdr.amplifier_channels(i).native_channel_name);
-    end
-    
-    % The only trial contains all channels*time info                
-    data.trial{1}        = volt;
-    
-    % The only trial is the whole time-series
-    data.time{1}         = time;
-    
-    % The trial starts at 0 and ends at last sample
-    data.sampleinfo(1,:) = [1 sessions.info{ss}.lowpass_nSamples];
-    
-    disp('- Done.')
+%% Get time series
+% There is only one file for the time series: 'time.dat' at 30KHz. We don't want it.
+% For LFP, having the voltage series already, we are going to use the number
+% of samples there to create our own time-series. 
 
-else
+% We create a time-vector in samples and divide it by the sampling rate.
+time = (1:length(volt)) / opt.dwnsmplRate; % in Seconds
+        
+%% Convert to pseudo-FieldTrip
+% It's only pseudo until we run the proper FT tool to check for format and
+% header info. Because we have not given any trial info so far, the data
+% comes as a continous single trial. 
+% data.label      % cell-array containing strings, Nchan*1
+% data.trial      % cell-array containing a data matrix for each
+%                 % trial (1*Ntrial), each data matrix is a Nchan*Nsamples matrix
+% data.time       % cell-array containing a time axis for each
+%                 % trial (1*Ntrial), each time axis is a 1*Nsamples vector
+% data.sampleinfo % optional array (Ntrial*2) containing the start and end
+%                 % sample of each trial
 
-    % If there is any, exit the function and continue
-    % Warn about existing pseudo-FT files
-    disp('- A file in the FT format has been found for this session!');
-    
-    % Data output is empty
-    data = [];
-end   
+disp('Creating pseudo-FieldTrip structure...');
+% Starting with labels as they have been extracted from the INTAN header
+for i = 1:sessions.info{ss}.nchannels
+    data.label{i,1} = convertStringsToChars(sessions.info{ss}.INTAN_hdr.amplifier_channels(i).native_channel_name);
+end
 
+% The only trial contains all channels*time info                
+data.trial{1}        = volt;
+
+% The only trial is the whole time-series
+data.time{1}         = time;
+
+% The trial starts at 0 and ends at last sample
+data.sampleinfo(1,:) = [1 length(volt)];
+
+disp('Done.')
 
 end
