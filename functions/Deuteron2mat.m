@@ -9,9 +9,9 @@ function [data] = Deuteron2mat(opt)
 
 %% Filter preparations
 % Gather info to create and apply the lowpass filter
-opt.dwnsmplRate = 937.5; % Matches INTAN's 32x downsample factor.
+opt.dwnsmplRate = opt.sampleRate/32; % Matches INTAN's 32x downsample factor.
 
-if ~strcmp(opt.ext, 'DF1')
+if strcmp(opt.ext, 'DT2')
     disp('Format is FLAT. Deprecating.')
     
     % Initiate matrix and sample index.
@@ -48,7 +48,7 @@ if ~strcmp(opt.ext, 'DF1')
         indexPos = indexPos+nSamples;
     end
 
-else % opt.ext = DF1
+elseif strcmp(opt.ext, 'DF1') % opt.ext = DF1
     disp('Format is BLOCK. NEW')
 
     stream   = 1;

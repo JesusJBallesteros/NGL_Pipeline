@@ -1,5 +1,9 @@
-%% Jesus' Pipeline to read INTAN continous data
-% Will read and process INTAN, DEUTERON or ALLEGO data, from selected sessions for a given animal.
+%% Pipeline to start processing INTAN and Deuteron continous data.
+% Will read and process INTAN, DEUTERON (or ALLEGO) data, from selected sessions for a given animal.
+% Then, in general, will create single files in different formats for
+% further processing. This includes merging many-files data into a
+% single-continuous file, with filtering and downsampling as needed.
+% Eventually will allow for creation of trial-parsed datafiles as well.
 %
 % The path to data will be: '...\datafolder\animal\dates'. This is 'rawfolder'
 %     'datafolder', is any folder specified by user. 
@@ -12,94 +16,89 @@
 %
 % DEPENDENCIES:
 % Requires that all pipeline dependencies are properly set as matlab path. 
-% 'set_default' will take care of this when a proper 'mainfolder' is provided.
+% I suggest to include the 'mainfolder' in Matlab's permanent path system.
+% The function 'set_default' will take care of the rest of folders on each run.
 %
 % INPUTS:
-%       mainfoldder:    chr array.  Full path to pipeline Code folder, as 'C:\...'. 
-%                                   To include all dependencies.
+%       mainfoldder:    chr array.  Full path to the code folder, as 'C:\...'. 
+%                                   Where the toolbox lives.
 %       datafolder:     string.     Full path to data folder, as "D:\...".
-%                                   Where raw data is got from.
+%                                   Where raw data will be searched for.
 %       processed:      string.     A folder where newly created files will be saved.
-%                                   Default is '\processed'
+%                                   Default would be '...\rawfolder\processed'
 %       animal:         chr array.  A 3 character code as 'FAT', '427' ..., agreed upon.
 %       dates:          cell of chr array. Specfic dates as {'yyyymmdd' 'yyyymmdd' ...} 
 %                       or chr array. 'all'
-%                                   At testing stages, 'yyyymmdd_system' or variations may exists
+%                                   'yyyymmdd_system' or other variations may exists.
 %                                   Default: 'all'
-%       useNWB:         true/false  To create/skip NWB file.
-%                                   Default: true.
-%       pyfolder:       string.     Path to the Intan to NWB toolbox, based on python. 
-%                                   Existing within this toolbox. 
-%                                                                                   NOT the path to the Python installation.  
 %       ExtractData:    true/false  To create/skip binary and h5 files. Also extract motion sensor 
 %                                   data if it comes from Deuteron.
 %                                   Default: true.
-%       plots:          int array.  If not empty, to draw plots, as [1 0 0]
-%                                   for [spectrograms , raster, raster&traces].
-%                                   Default: empty [].
-%       test_ch:        int array.  If not empty, to plot snippet of requested channels.
-%                                   As i.e. [1, 2, 5:15, 32].
-%                                   Default: empty [].
-% OUTPUTS
+%       useNWB:         true/false  To create/skip NWB file. Default: true.
+%
+% OUTPUTS:
 % For one single session or for a batch of sessions, from one single animal:
-%       A set of default inputs and paths.
-%       A list of sessions, with their associated info.
-%       Fieldtrip (.mat), binary (.bin), HDF5 (.h5) and .nwb files from
+%       Variables with inputs and paths.
+%       Variable with a list of sessions and their associated info.
+%       Fieldtrip (.mat), binary (.bin), HDF5 (.h5) and/or .nwb files from
 %           1. Deuteron .DT2 or .DF1 data.
 %           2. INTAN file-per-type and file-per-channel format data.
 %           3. (ALLEGO data?)
 %       EventRecord.mat file, from Deuteron session.
 %       MotionData.mat file, From Deuteron sensors.
-%       Plots snippets of time- and frequency-domain data.
+%       Plots snippets of time- and frequency-domain data, from FieldTrip
 %   .mat, .h5 and .bin files will be saved under ../rawfolder/processed
 %       
-% Last modified 07.03.2023 (Jesus)
+% Last modified 08.03.2023 (Jesus)
 
 % TODO LIST 
-%       There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
-%       Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
-%       In Progress. Create Fieldtrip files from Deuteron data. Needs low-pass data to make sense
-%       In progress. Include the high-pass filter in Deuteron2Kilosort pipeline, anticipating its need once we record wide band
-%       Figure out how to work with Allego files (most likely, after Allego's self preprocessing tool?)
-%       Continue with 'Deuteron_GetDigInEvents' when I get a recording with EVENTS
-%       Create a 'trial-parsed' stream in 'mat2FieldTrip'.
-%       Prepare to downsample highpass data to a half. Data size reduction.
+%    There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
+%    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
+%    Prepare to downsample highpass data to a half? For Data size reduction.
+%    Continue with 'Deuteron_GetDigInEvents' when I get a recording with EVENTS
+%    Create a 'trial-parsed' stream in 'mat2FieldTrip'.
+%    Consider allowing for more than one animal to be processed.
+%    Figure out how to work with Allego files (most likely, after Allego's self preprocessing tool?)
 %
 
 %% Inputs. 
-% If not provided, a promp will ask for them or 'set_default' will use the 
-% defaults. It will also put them in the correct format if an incorrect one 
-% was given.
-input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline'; % Default: 'C:\Code\Scripts\ephys-data-pipeline';
-input.datafolder = 'D:\Experiments\'; % Default: 'D:\Experiments\';
-input.animal     = '420'; % i.e '420' or FAT; % NEEDS to be explicited.
-input.processed  = 'processed'; % Default: 'processed'. A subfolder will be created inside the session folder
+% The only input that cannot be defaulted is the ANIMAL to be used, for now:
+input.animal     = '451'; % i.e '420' or FAT; 
 
-% Dates will be set to 'all' if missing here. Make sure of your own file
-% denominations. Can be left empty, can be 'all', or can be a cell array:
+% For the following, for any not provided a promp will pop-up. 
+% If still empty, 'set_default' will use the defaults.
+input.mainfolder = 'C:\Code\Scripts\ephys-data-pipeline'; % Default: 'C:\Code\Scripts\ephys-data-pipeline'
+input.datafolder = 'D:\Experiments\';                     % Default: 'D:\Experiments\'
+input.processed  = 'processed';                           % Default: 'processed'
+
+% Make sure of your own file denominations. 
+% Can be left empty, can be 'all', or can be a cell array like:
     % {'20230217_01' '20230217_02' '20230220_Deut' '20230221_Deut'...
     % '20230222_Deut' '20230220_Int' '20230221_Int' '20230222_Int'}; 
-input.dates       = {'20230217_01'  '20230217_02' '20230220_Int' '20230221_Int' '20230222_Int'};
-% While testing, 'yyyymmdd_system', 'yyyymmdd_XX' or other variations may
-% exists, like in this example.
+input.dates      = {'20230308_Int' '20230308_Deut'};   % Default: 'all'
 
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
 % are requested, the NWB will perform well but the data extraction will not. 
 % It will crash for not completely known reason. It needs a Matlab restart between runs.
 input.ExtractData = true;
-input.useNWB      = false; % Meaning, don't run both 'true', for now. 
+input.useNWB      = false; % Meaning, do not run both 'true' (for now). 
 
-%% Options for the different wrappers
+%% Options.
+% Here can go those used for all sessions. Variable ones (each session's path, or other) 
+% can be set later on, normally automatized.
 opt = struct();
-    opt.h5                = true; % Creation of .h5 file (not really necessary).
-    opt.bin               = true; % Creation of .bin file.
-    opt.FTfile            = true;  % Create a FieldTrip formatted .mat file.
+    opt.h5                = false; % Creation of .h5 file (not really used, so far).
+    opt.bin               = true;  % Creation of .bin file.
+    opt.FTfile            = true;  % Create a FieldTrip-formatted .mat file.
 
     opt.RetrieveEvents    = false; % Retrieve event log from Deuteron system.
     opt.GetMotionSensors  = false; % Retrieve data from motion sensors in Deuteron.
 
-    opt.lowpass           = [  0  300]; % Lowpass band applied when creating the FieldTrip file.
-    opt.highpass          = [300 7500]; % Highpass band applied when creating Kilosort files.
+%     opt.set_filter        = 0;     % Set to 1 when data is known to come as wideband 
+                                   % i.e from a Deuteron recording with an open wideband.
+                                   % In INTAN, this will be evaluated automatically, but with Deuteron is not, yet.
+    opt.lowpass           = [  0  300]; % Lowpass band applied for FieldTrip pipeline.
+    opt.highpass          = [300 7500]; % Highpass band applied for Kilosort pipeline.
     
     % This applies only to FieldTrip .mat files. Not really useful here other 
     % than for testing, or for checking that everything is running in a new 
@@ -117,37 +116,34 @@ set_default(input);
 % automatically. % smt TODO?
 sessions = findSessions(input);
 
-%% 02. Loop sessions to process
+%% 02. Loop sessions to process.
 for ss = 1:sessions.nSessions
     % Navigate to session raw data folder.
     cd(fullfile(sessions.folder,sessions.list(ss).name));
     
-    % Progress report
-    txt = sprintf('\n --> Session %d out of %d. Session name: %s \n', ss, sessions.nSessions, sessions.list(ss).name);
+    % Progress report.
+    txt = sprintf('\n --> Session %d out of %d: %s \n', ss, sessions.nSessions, sessions.list(ss).name);
     fprintf(txt);
 
-    %% 03. Check file type, version and folders
+    %% 03. Check file type, version and folders.
     % Check System and version, based on existing files. Get info. 
     sessions.info{ss} = chckV();
-%     disp(sessions.info{ss}); % Displays the info
 
-    % Determine where processed data will be saved for every session.
+    % Determine where processed data will be saved, done for every session.
     opt.PathRaw           = pwd;
     opt.FolderProcDataMat = fullfile(pwd, input.processed);
     opt.SavFileName       = sessions.list(ss).name; 
     
-    % Report it
-    disp(strcat('Process data will be saved to: >', opt.FolderProcDataMat));
-    
-    % Create 'processed' folder.
+    % Report and create folder.
+    disp(strcat('Processed data will be saved to: >', opt.FolderProcDataMat));
     mkdir(opt.FolderProcDataMat);
 
-    %% 04. Determine pipeline based on type of data
+    %% 04. Determine pipeline based on type of data.
     switch sessions.info{ss}.fileformat
-        case {'DT2', 'DT4', 'DT8', 'DAT', 'DF1'}
+        case {'DT2', 'DF1'} % 'DT4', 'DT8', 'DAT', never seen.
             %% 04.1 Deuteron Pipeline. Neural Data
             if input.ExtractData
-               % So far, we are NOT applying the any filters, bc we are only
+               % So far, we are NOT applying any filters, bc we are only
                % recording high pass data.
                disp('Deuteron data is NOT being filter, by default');
                Deuteron_PipelineWrapper(sessions, ss, opt);

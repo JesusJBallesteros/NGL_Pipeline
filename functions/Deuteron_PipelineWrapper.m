@@ -14,13 +14,19 @@ function Deuteron_PipelineWrapper(sessions, ss, varargin)
 % INPUTS:
 %    sessions: struct. Variable containing info about sessions in process
 %    ss:       int. Current session ordinal in the pipeline
-%    in:        struct. optional inputs to override the defaults:
-%                   RetrieveEvents: logic. possibility to load event codes to build a restriced matrix
-%                                   (e.g., the matrix starts at the first 'itiON' and ends at 'end'
-%                                    experiment, removing paradigm irrelevant periods) 
-%                   StpSz: int. relative to HDF5file: chunks in which ...  
+%    opt:      struct. optional inputs to override the defaults:
+%                   h5:     logic. Creation of .h5 file. Normally 'false'
+%                   bin:    logic. Creation of .bin file. Normally 'true'
+%                   FTfile: logic. Creation of Fieltrip-formatted .mat file.
+%                   RetrieveEvents:   logic. Retrieve eventlog from Deuteron (and extract eventcodes and timestamps from it).
+%                   GetMotionSensors: logic. Extraction and processing of motion sensor data.
+%                   lowpass:    int array. lower and upper boundaries for lowpass filter. [  0  300]
+%                   highpass:   int array. lower and upper boundaries for highpass filter. [300 7500]
+%                   DllFolder:  string. Location of the .dll file to process events in Deuteron.
+%                   set_filter: logic. Filtering (and downsampling) request.
+%                   StpSz:      int. Number of samples to be written per chunck.
 %
-% GENERATES:
+% OUTPUS:
 %    EventRecord.mat file and compressed events file.
 %    .bin file, as channels x samples. If requested.
 %    .h5 file, as channels x sample. If requested.
@@ -37,18 +43,18 @@ elseif nargin == 3, opt = varargin{1};
 end
 
 %% Options 
-if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
-if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
-if ~isfield(opt,'h5'),              opt.h5                  = true;         end
+if ~isfield(opt,'h5'),              opt.h5                  = false;        end
 if ~isfield(opt,'bin'),             opt.bin                 = true;         end
-if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = true;         end
 if ~isfield(opt,'FTfile'),          opt.FTfile              = true;         end
+if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = false;        end
+if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
 if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  300];   end
 if ~isfield(opt,'highpass'),        opt.highpass            = [300 7500];   end
-if ~isfield(opt,'DllFolder'),       opt.DllFolder           = 'C:\Code\Scripts\ephys-data-pipeline\functions\dlls'; end
-if ~isfield(opt,'ReaderDll'),       opt.ReaderDll           = fullfile(opt.DllFolder, 'Event_File_Reader_8_3.dll'); end
-
 if ~isfield(opt,'set_filter'),      opt.set_filter          = 0;            end
+if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
+
+% Hardcode the .dll file from Deuteron. Not really an option
+opt.ReaderDll = 'C:\Code\Scripts\ephys-data-pipeline\functions\dlls\Event_File_Reader_8_3.dll';
 
 %% Parameters
 % Collect parameters to proceed with file creation. List all files.
@@ -62,38 +68,43 @@ opt.sampleRate  = sessions.info{ss}.sampleRate;
 %  this chunk size works well. optimal? Once it is, this variable no longer requires user input.
 opt.HDF5chunkSize = 300*opt.sampleRate; 
 
-% Kilosort rearranges the rows of the input matrix according to the a channel map (which is developed in another file).
-% Therefore, the matrix should be compiled with the channels in an increasing order.
+% Get number of channels.
 opt.numChannels     = sessions.info{ss}.numChannels;
 opt.channelOrder    = 1:1:opt.numChannels; 
 
-% We need this parameters, obtained from Deuteron log and from the
-% documentation, to convert to physical units. (At least for .DT2)
+% We need this parameters from Deuteron's log and documentation, to convert 
+% to physical units. (At least for .DT2)
 opt.numberOfAdcBits   = sessions.info{ss}.numADCBits;
 opt.voltageResolution = 1.95e-7;
 opt.offset            = 2^(opt.numberOfAdcBits-1);
 
 %% Event data, using dll
 if opt.RetrieveEvents
-    % Proceed to extract all events during session. Give some feedback.
-    disp('Retrieving Events from Deuteron...')
+    disp('Retrieving Events from Deuteron.')
+   
+    % Proceed to extract all events during session.
     [EventRecord, sessions.info{ss}.numChannels] = ...
         Deuteron_EventFileReaderDll(opt, sessions, ss);
+    
+    % Report.
     disp(EventRecord);
-    disp(['Found ', int2str(sessions.info{ss}.numChannels), ' channels']);
+
 else
-   disp('Event extraction not requested, skipping...')
+   disp('Event extraction not requested. Skipping...')
 end
 
 %% Neural Data Conversion.
 if opt.h5 || opt.bin
+    disp('Converting Deuteron files into .h5 and .bin...');
+
     % Converts Deuteron DT2 and DF1 files into single files (.bin and .h5) 
     % to further use (i.e. with Kilosort)
-    disp('Converting Deuteron files into .h5 and .bin...');
     Deuteron2KilosortV2(opt);
+
 end
 
 if opt.FTfile
+    
     % Convert Deuteron files into a FieldTrip formatted .mat file
     disp('Converting Deuteron files into a pseudo-FT file.');
     [DEUTdata] = Deuteron2mat(opt);
