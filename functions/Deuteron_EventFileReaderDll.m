@@ -100,6 +100,6 @@ nchan = str2double(geninfo{3});
 %     Events = Deuteron_GetDigInEvents(EventRecord);
 
 %% TODO save event record and DigIn events at session folder
-save("EventRecord.mat","EventRecord","-mat");
+save((opt.FolderProcDataMat + "\EventRecord.mat"),"EventRecord","-mat");
 
 end

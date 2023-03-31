@@ -35,7 +35,7 @@ if opt.h5
 end
 
 % Create an empty .bin file.
-fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']), 'a'); 
+fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName + '.bin']), 'a'); 
 
 %% Open each neural data file, convert data units
 % Differentiate between old and new Deuteron Formats

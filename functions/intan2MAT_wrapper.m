@@ -13,7 +13,7 @@ elseif nargin == 3, opt = varargin{1};
 end
 
 % Default options if not specified
-if ~isfield(opt,'lowpass'), opt.lowpass = [  0  300];  end
+if ~isfield(opt,'lowpass'), opt.lowpass = [  0  400];  end
 
 %% Collect parameters to proceed with file creation
 % List all files (multiple or single depending on type). If No lowpass

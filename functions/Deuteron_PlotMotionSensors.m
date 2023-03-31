@@ -1,15 +1,11 @@
-function [rotators] = Deuteron_PlotMotionSensors(Accelerometer, Gyroscope, Magnetometer, varargin)
-% An attitude and heading reference system (AHRS) consist of a 9-axis system 
-% that uses an accelerometer, gyroscope, and magnetometer to compute orientation 
-% of the device. The 'ahrsfilter' produces a smoothly changing estimate of 
-% orientation of the device, while correctly estimating the north direction. 
-% The 'ahrsfilter' has the ability to remove gyroscope bias and can also detect 
-% and reject mild magnetic jamming.
-% The following code snippets use 'ahrsfilter' system object to determine 
-% orientation of the sensor and creates a figure which gets updated as you 
-% move the sensor. The sensor has to be stationary, before the start of this example.
+function Deuteron_PlotMotionSensors(data, timestamps, stream, varargin)
+%
+%
+%
+%
+%
 
-% Check input variables
+%% Check input variables
 if nargin < 4
     visual = 0; % Plot dynamic figure to visualize the rotation.
     record = 0; % If plotting the figure, create a video from it. If 'visual' = 0, this has no effect.
@@ -18,159 +14,182 @@ elseif nargin == 4
     record = 0; 
 elseif nargin == 5
     visual = varargin{1};
-    record = varargin{2};
+    record = varargin{2}; 
 end
 
-% sample rate for motion sensors is 1000Hz. GyroscopeNoise and AccelerometerNoise
-% are determined from the hardware specifications .
-%  TODO, find out the real noise of our sensors, if different model.
-fs          = 1000;         % Sample Rate of the feeded data (Hz)
-Gyro_Noise  = 3.0462e-06;   % Gyroscope Noise (variance value) in units of rad/s. (MPU-9250)
-Accel_Noise = 0.0061;       % Accelerometer Noise(variance value)in units of m/s^2. (MPU-9250)
-
-% Let's get the readings as the scripts like them to be (t x axis matrices).
-% Note the axes swapping in Accelerometer and Gyroscope, to match NED magnetometer 
-% coordinates system.
-Mag = [ Magnetometer.X;   Magnetometer.Y;   Magnetometer.Z]';
-Acc = [-Accelerometer.X; -Accelerometer.Z;  Accelerometer.Y]'; % Z/Y swapped
-Gyr = [ Gyroscope.X;      Gyroscope.Z;     -Gyroscope.Y]';     % Z/Y swapped
-
-% Use the magcal function to obtain the correction coefficients for the
-% magnetometer. This helps with the typical soft/hard iron effect on the
-% magnetic field (distortion of the magnetic sphere).
-% First we feed the Magnetometer matrix as raw, to obtain the coefficients.
-[A, b, Mfield] = magcal(Mag);  % A = 3x3 matrix for soft iron correction 
-                               % b = 3x1 vector for hard iron correction
-
-% Bochum Magnetic Field Horizontal Intensity. According to 
-% https://www.ngdc.noaa.gov/geomag/calculators/magcalc.shtml#igrfwmm
-MField_Bochum = 19.7; % uTesla.
-
-% Display measured and expected Magnetic field in uTesla. Only informative
-% of not big difference to what it would be expected.
-disp(['The magnetic field for Bochum is ~', int2str(MField_Bochum), ...
-    ' uTesla. The measured field seems to be ~', int2str(Mfield*1000000), ' uTesla.']);
-
-% Then we apply the corrections and create the Magnetometer matrix again.
-Mag = [Magnetometer.X-b(1);  Magnetometer.Y-b(2);  Magnetometer.Z-b(3)]' * A;
-
-% Create AHRS filter using matlab tools. Needs the sample rate and the
-% sensor noise levels. The output once the FUSE object is applied will be
-% in 'quaternions' a complex expression of 3D rotations. Not sure if the
-% most useful, but let's see. Could be substituted by 'Rotation matrices'
-% which I think is the translation of the quaternions as point rotations in 
-% a 3D coordinate system.
-FUSE = ahrsfilter('SampleRate',fs, 'GyroscopeNoise',Gyro_Noise,'AccelerometerNoise',Accel_Noise);
-
-% Initialize objects and set timer.
-if visual
-    stopTimer = (Accelerometer.t(end)-Accelerometer.t(1))/1000; % seconds to run simulation
-    framerate = 1/50; % As 1/Hz of pause for next measurement. Default to 50Hz
-    % Creates a very specific figure object provided by Matlab (needs folder
-    %  to be added, normally under'ephys-data-pipeline\toolboxes\Viewer'.
-    viewer = HelperOrientationViewer('Title',{'AHRS Filter'});
-    if record
-        % initialize the VideoWriter object.
-        writerObj = VideoWriter('Magnetometer_rotations.avi','Motion JPEG AVI'); 
-        open(writerObj); % Opens the file.
-    end
-end
-
-if visual
-    % Prepare for non visualization purpouses TODO 
-    ts = tic; % start timer
-    pause(0.001) % Let clock tic to a first milisecond
+%% Sensor readings
+if stream == 1
+    figure,
+    for i=1:3
+        if      i==1, MSData = data.acc; tit = 'Accelerometer'; units = 'm/s^2';
+        elseif  i==2, MSData = data.gyr; tit = 'Gyroscope';     units = 'deg/s';
+        elseif  i==3, MSData = data.mag; tit = 'Magnetometer';  units = 'Tesla';
+        end
     
-    % run until elapsed time reaches set 'stopTimer' minus 1 msec to avoid breaking it
-    while(toc(ts) < stopTimer-0.001) 
-        t = round(toc(ts)*1000); % takes the approximated milisecond of the run.
-        
-        % Feed the sample at timepoint t from our data, to create a rotation
-        % quaternion. Add it to the quaternion array for later use.
-        rotators(t) = FUSE(Acc(t,:),Gyr(t,:),Mag(t,:)); 
+        if ~isempty(MSData)
+            subplot(3,1,i)
+            % General plot
+            plot(timestamps, MSData.X); hold on
+            plot(timestamps, MSData.Y); hold on
+            plot(timestamps, MSData.Z);
+            xlim([timestamps(1) timestamps(end)]);
+            ylabel(units);
+            if i<3, ylim([-MSData.max MSData.max]);  
+            else,   ylim([-1e-4 1e-4]); xlabel('ms');
+                    legend({'X' 'Y' 'Z'}, 'Box', 'off');
+            end
+            title(tit);
+        end
+    end
 
-        % Plot it in the dynamic figure
-        viewer(rotators(t));
+elseif stream == 2
+    %% Plot the orientation in Euler angles in degrees over time.
+    time = timestamps-(timestamps(1));
+    orientation_deg = eulerd(data, 'ZYX', 'frame');
 
-        % If desired, get the frame and write it to video.
+    plot(time/1000,orientation_deg);
+    title('Orientation Estimate');
+    xlim([time(1)/1000 time(end)/1000]);
+    xlabel('Time (sec)');
+    ylabel('Rot. around axis (deg)');
+    legend({'Z (Pitch)', 'Y (Yaw)', 'X (Roll'}, 'Box','off');
+    
+    %% Plot the helper viewer example from MATLAB
+    % Initialize objects and set timer.
+    if visual
+        stopTimer = (timestamps(end)-timestamps(1))/1000; % seconds to run simulation
+        framerate = 1/50; % As 1/Hz of pause for next frame. Default to 50Hz.
+    
+        % Creates a very specific figure object provided by Matlab (needs folder
+        %  to be added, normally under'ephys-data-pipeline\toolboxes\Viewer'.
+        viewer = HelperOrientationViewer('Title',{'AHRS Filter'});
+    
         if record
-            F = getframe;           % Capture the frame
-            writeVideo(writerObj,F) % add the frame to the movie
+            % initialize the VideoWriter object.
+            writerObj = VideoWriter('Magnetometer_rotations.avi','Motion JPEG AVI'); 
+            open(writerObj); % Opens the file.
         end
+    
+        % Timer
+        ts = tic; % start timer
+        pause(0.0009) % Let clock tic to a first milisecond
+        
+        % Run until elapsed time reaches set 'stopTimer' (-1 msec to avoid breaks)
+        while(toc(ts) < stopTimer-0.001) 
+            t = round(toc(ts)*1000); % takes the approximated msec of the run.
 
-        pause(framerate) % pause the run for 1/Hz msec, to an approx framerate.
+            % Plot it in the dynamic figure
+            viewer(data(t));
+    
+            % If desired, get the frame and write it to video.
+            if record
+                F = getframe;           % Capture the frame
+                writeVideo(writerObj, F) % add the frame to the movie
+            end
+    
+            pause(framerate) % pause the run for 1/Hz msec, to an approx framerate.
+        end
+    
+        if record
+            % Close video file.
+            close(writerObj);
+        end
     end
+        
+    %% Plot Dynamic figure where the heading vector moves as the rotation happens
+    % Assuming you have an array of quaternions "rotators" with dimensions (n, 4)
+    % where n is the number of time points. Convert the quaternions to rotation matrices
+%     rotMat = quat2rotm(data);
+    
+    % Define an initial vector.
+%     curr_pos = [1; 1; 0]; % do not use [0; 0; 0]
+    curr_pos = [1, 1, 0]; % do not use [0, 0, 0]
 
-    if record
-        % Close video file.
-        close(writerObj);
+    
+    if visual
+        stopTimer = (timestamps(end)-timestamps(1))/1000; % seconds to run simulation
+        framerate = 1/50; % As 1/Hz of pause for next measurement. Default to 50Hz
+    
+        if record
+            % Initialize the VideoWriter object.
+            writerObj = VideoWriter('Agent_estim_heading.avi','Motion JPEG AVI'); 
+            open(writerObj); % Opens the file.
+        end
+    
+        % Create a figure with initial, non-visible vector.
+        c = quiver3(0,0,0,0,0,0,'off');
+            c.Color = 'r'; % Arrow color
+            c.MaxHeadSize = 2; % Arroy head size
+            c.LineWidth = 2; % Arroy line width
+            xlabel('X');  ylabel('Y');  zlabel('Z'); % Label axes
+            xlim([-2,2]); ylim([-2,2]); zlim([-2,2]); % Fix axes scale
+            daspect([1 1 1]); % Set the aspect ratio to be equal.
+            title('Estimated Heading');
+        
+        % Timer
+        ts = tic; % start timer
+        pause(0.0009) % Let clock tic to a first milisecond
+        
+        % Run until elapsed time reaches set 'stopTimer' (-5 msec to avoid breaks)
+        while(toc(ts) < stopTimer-0.005) 
+            t = round(toc(ts)*1000); % takes the approximated msec of the run.
+
+            % Get the rotation matrix at the current time point and
+            % rotate the previous position by the rotation matrix.
+            txt = ['Time: ', num2str(t/1000), ' sec'];
+%             curr_pos = rotMat(:,:,t) * curr_pos; % Get current position and rotate according to 'rotMat' step
+            curr_pos = rotatepoint(data(t), curr_pos); % Get current position and rotate according to 'quaternion' step
+            
+            % Collect new datapoints 
+            c.UData = curr_pos(1);
+            c.VData = curr_pos(2);
+            c.WData = curr_pos(3);
+            
+            % Update figure.
+            drawnow;
+            title(txt);
+    
+            % Get the frame and write it to video.
+            if record
+                F = getframe;           % Capture the frame
+                writeVideo(writerObj,F) % add the frame to the movie
+            end
+    
+            pause(framerate) % pause the run to an approx. framerate.
+        end
+    
+        if record
+            % Close video file.
+            close(writerObj);
+        end
     end
-
-else
-    % Run the thing for every single timepoint
-    rotators = FUSE(Acc,Gyr,Mag);
 end
 
-% Toughts
-
-% To plot the resulting rotations in a 2D plane, around X axis (vertical 
-% in our case, so we can just see the heading from 'above'). Quaternions are the
-% rotations that a initial point does, in a 3D space. Applying
-% 'rotatepoint' gives the resulting points after each rotation.
-% Define initial point [X,Y,Z], i.e [1, 0, 0] as a pointing forward point.
-% Applying the sequence of quaternions obtained above, should give the
-% resulting points for each individual rotation, generating the sequence
-% of pointing directions.
-pt0 = [1, 0, 0];
-ptrot = rotatepoint(rotators, pt0);
-
-% We probably want a timeseries of ANGLES from the initial heading 
-% The ANGLES from initial 0 will always be relative to that initial point:
-% (what will we consider 0 angle? facing a specific arm?)
-% (will we try to fix it by making the animal face a specific direction?)
-% (will we need the starting video frame, to use the 'visual' heading as ground
-% truth for the following ones?) In case animals don't cooperate??
-%
-% Obtaining a rotation matrix in degrees is trivial. 
-rot_matrix = rotvecd(rotators); % is a [x y z] rotation matrix in degrees. 
-
-% We only need the rotation around X (our vertical axis) does that mean we
-% only need the first column? or the other two?
-
-rot_plane = rot_matrix.*[0 1 1]; % Zeroing the x axis, we generate a rotation plane?
-rot_plane = rot_plane(:,2:3);
-
-% TODO
-% plot(rotators);
-
-% Create color scale for time dimension.
-% t_col = (Magnetometer.t - min(Magnetometer.t)) / ( max(Magnetometer.t) - min(Magnetometer.t) );
-
-% Plots
-figure,
-for i=1:3
-    if      i==1, MSData = Accelerometer; tit = 'Accelerometer'; units = 'm/s^2';
-    elseif  i==2, MSData = Gyroscope;     tit = 'Gyroscope';     units = 'deg/s';
-    elseif  i==3, MSData = Magnetometer;  tit = 'Magnetometer';  units = 'Tesla';
-    end
-
-    if ~isempty(MSData)
-        subplot(3,1,i)
-        title(tit);
-        % General plot
-        plot(MSData.t, MSData.X); hold on
-        plot(MSData.t, MSData.Y); hold on
-        plot(MSData.t, MSData.Z);
-        xlim([MSData.t(1) MSData.t(end)]);
-        if i<3, ylim([-MSData.max MSData.max]); ylabel(units); 
-        else,   ylim([-1e-4 1e-4]); xlabel('ms');
-        end
-        legend({'X' 'Y' 'Z'}, 'Box','off');
-        box("off")
-    end
-end
-
-%% Save data to matfile
-save("MotionData.mat", "rotators", '-append');
-
+% %% Toughts
+% % We probably want a timeseries of ANGLES from the initial heading 
+% % The ANGLES from initial 0 will always be relative to that initial point:
+% % (what will we consider 0 angle? facing a specific arm?)
+% % (will we try to fix it by making the animal face a specific direction?)
+% % (will we need the starting video frame, to use the 'visual' heading as ground
+% % truth for the following ones?) In case animals don't cooperate??
+% %
+% % Obtaining a rotation matrix in degrees is trivial. 
+% rot_matrix = rotvecd(orientation); % is a [x y z] rotation matrix in degrees. 
+% 
+% % We only need the rotation around X (our vertical axis) does that mean we
+% % only need the first column? or the other two?
+% 
+% rot_plane = rot_matrix.*[0 1 1]; % Zeroing the x axis, we generate a rotation plane?
+% rot_plane = rot_plane(:,2:3);
+% 
+% % TODO
+% % plot(rotators);
+% 
+% % Create color scale for time dimension.
+% % t_col = (Magnetometer.t - min(Magnetometer.t)) / ( max(Magnetometer.t) - min(Magnetometer.t) );
+% 
+% 
+% %% Save data to matfile
+% save("MotionData.mat", "orientation", '-append');
+% 
 end

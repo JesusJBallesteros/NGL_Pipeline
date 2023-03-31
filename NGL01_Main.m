@@ -75,30 +75,32 @@ input.processed  = 'processed';                           % Default: 'processed'
 % Can be left empty, can be 'all', or can be a cell array like:
     % {'20230217_01' '20230217_02' '20230220_Deut' '20230221_Deut'...
     % '20230222_Deut' '20230220_Int' '20230221_Int' '20230222_Int'}; 
-input.dates      = {'20230308_Int' '20230308_Deut'};   % Default: 'all'
+input.dates      = {'20230308_Int'}; % '20230323_NS' '20230323_S' '20230323_SN'};   % Default: 'all'
 
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
 % are requested, the NWB will perform well but the data extraction will not. 
 % It will crash for not completely known reason. It needs a Matlab restart between runs.
-input.ExtractData = true;
+input.ExtractData = false;
 input.useNWB      = false; % Meaning, do not run both 'true' (for now). 
 
 %% Options.
-% Here can go those used for all sessions. Variable ones (each session's path, or other) 
-% can be set later on, normally automatized.
+% Here can go those used for all sessions. 
+% Specific ones can be set later on, normally automatized.
+
 opt = struct();
     opt.h5                = false; % Creation of .h5 file (not really used, so far).
-    opt.bin               = true;  % Creation of .bin file.
-    opt.FTfile            = true;  % Create a FieldTrip-formatted .mat file.
+    opt.bin               = false;  % Creation of .bin file.
+    opt.FTfile            = false;  % Create a FieldTrip-formatted .mat file.
 
     opt.RetrieveEvents    = false; % Retrieve event log from Deuteron system.
     opt.GetMotionSensors  = false; % Retrieve data from motion sensors in Deuteron.
+    opt.kilosort          = true;  % Call to kilosort processing and retrieve its results.
 
 %     opt.set_filter        = 0;     % Set to 1 when data is known to come as wideband 
                                    % i.e from a Deuteron recording with an open wideband.
                                    % In INTAN, this will be evaluated automatically, but with Deuteron is not, yet.
-    opt.lowpass           = [  0  300]; % Lowpass band applied for FieldTrip pipeline.
-    opt.highpass          = [300 7500]; % Highpass band applied for Kilosort pipeline.
+    opt.lowpass           = [  0  400]; % Lowpass band applied for FieldTrip pipeline.
+    opt.highpass          = [500 7500]; % Highpass band applied for Kilosort pipeline.
     
     % This applies only to FieldTrip .mat files. Not really useful here other 
     % than for testing, or for checking that everything is running in a new 
@@ -119,10 +121,10 @@ sessions = findSessions(input);
 %% 02. Loop sessions to process.
 for ss = 1:sessions.nSessions
     % Navigate to session raw data folder.
-    cd(fullfile(sessions.folder,sessions.list(ss).name));
+    cd(fullfile(sessions.folder,sessions.list(ss)));
     
     % Progress report.
-    txt = sprintf('\n --> Session %d out of %d: %s \n', ss, sessions.nSessions, sessions.list(ss).name);
+    txt = sprintf('\n --> Session %d out of %d: %s \n', ss, sessions.nSessions, sessions.list(ss));
     fprintf(txt);
 
     %% 03. Check file type, version and folders.
@@ -132,7 +134,7 @@ for ss = 1:sessions.nSessions
     % Determine where processed data will be saved, done for every session.
     opt.PathRaw           = pwd;
     opt.FolderProcDataMat = fullfile(pwd, input.processed);
-    opt.SavFileName       = sessions.list(ss).name; 
+    opt.SavFileName       = sessions.list(ss); 
     
     % Report and create folder.
     disp(strcat('Processed data will be saved to: >', opt.FolderProcDataMat));
@@ -227,6 +229,33 @@ for ss = 1:sessions.nSessions
         plot_testsignal(FT_data, input.test_ch, opt)
     end
     
+    %% 06 Go Kilosorting, do the thing
+    if opt.kilosort
+        % Add here a call to kilosort GUI.
+        % It could wait until a given variable changes, at the end of the proccessing pipeline
+        % or wait for user input to continue reading the results.
+        
+        % Or both, above and below steps, could be taken to a new Script
+        % NGL02_kilosort, so it could be ran only after all sessions are
+        % preprocessed.
+
+        % For now, I'll make a uiwait warning the user and let know about.
+        fig = uifigure;
+        fig.Position = [500 500 500 350]; 
+        uialert(fig, 'Proceed to kilosort pipeline, process the current session and close this figure once it is finish.', ...
+                     'Execution paused','Icon','info','CloseFcn','uiresume(fig)')
+        
+        uiwait(fig)
+    
+        %% 07 NGLXX_postKS
+            opt.UseEvents      = false;
+            opt.drift          = true; %
+            opt.amplitude      = true; %
+            opt.psth           = false; % Needs Events
+        
+            spike = read_KSresults(opt);
+    end
+
     %% 06 Clean up to move on to next session
     clear FT_data INTANdata txt
 

@@ -86,9 +86,6 @@ if opt.RetrieveEvents
     [EventRecord, sessions.info{ss}.numChannels] = ...
         Deuteron_EventFileReaderDll(opt, sessions, ss);
     
-    % Report.
-    disp(EventRecord);
-
 else
    disp('Event extraction not requested. Skipping...')
 end
@@ -118,12 +115,8 @@ end
 %% Motion Data to Matlab
 if opt.GetMotionSensors
     disp('Extracting Motion Sensor data from Deuteron...')
-    [Accelerometer, Gyroscope, Magnetometer] = ...
-        Deuteron_GetMotionSensors(opt);
+    Deuteron_GetMotionSensors(opt);
     
-    disp('Processing and Plotting Motion Sensor data.')
-    % Add (..., 1, 1) to input, if visualization and video recording are wanted.
-    Deuteron_PlotMotionSensors(Accelerometer, Gyroscope, Magnetometer, [], [])
 end
 
 end

@@ -11,7 +11,7 @@ function plot_testsignal(FT_data,ch)
                                % Time-half bandwidth product (TW) is N*BW/2 where
                                %  N is window length (s), BW is main lobe bandwidth
                                % optimal number of tapers (N) is 2*TW-1
-    window_params   = [2 .4];  % [window length, step size] (s)
+    window_params   = [0.5 .1];  % [window length, step size] (s)
     min_NFFT        = 0;       % double - minimum allowable NFFT size, adds zero 
                                %  padding for interpolation (closest 2^x)
     detrend_opt     = 'linear';% string - detrend data window ('linear' (def.), 'constant', 'off')

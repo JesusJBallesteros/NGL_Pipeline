@@ -15,7 +15,7 @@ function Intan2Kilosort_fileperchV2(opt)
 % TODO 
 % Downsampling highpass data to perhaps 15kHz?
 % Name dataset to an useful denomination?
-opt.filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName '.h5']); 
+opt.filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName + '.h5']); 
 opt.dataset = '/allChnMat'; % for now, as before.
 
 %% Pre-define .h5 and .bin files
@@ -29,7 +29,7 @@ if opt.h5
 end
 
 % Also create a bin file. 
-fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']), 'a'); 
+fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName + '.bin']), 'a'); 
 
 %% Get data from INTAN data files, as single channels.
 % Opens neural data file and coverts the ADC steps to microvolts, then

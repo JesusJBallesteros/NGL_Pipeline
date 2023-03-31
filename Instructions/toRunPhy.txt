@@ -1,3 +1,3 @@
 in Powershell or Windows PowerShell,
-at data directory (i.e.  cd ...\animalX\sessionN\sorted\dataMatrix)
+go to sorted directory (example.  cd ...project\animal\session\processed\sorted\)
 run 'phy template-gui params.py'

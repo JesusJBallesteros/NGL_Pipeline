@@ -99,6 +99,9 @@ addpath toolboxes\Deuteron
 addpath toolboxes\Intan
 addpath toolboxes\fieldtrip_light
 addpath toolboxes\Viewer
+
+addpath(genpath('toolboxes\spikes'))
+addpath(genpath('toolboxes\npy-matlab'))
 addpath(genpath('toolboxes\multitaper_prerau'))
 ft_defaults
 

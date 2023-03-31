@@ -61,7 +61,7 @@ classdef HelperOrientationViewer < matlab.System
 
     methods (Access = protected)
         function setupImpl(obj, varargin)
-            %Clear out any existing visualization objects
+            % Clear out any existing visualization objects
             for ii=1:numel(obj.pVisualizationObjects)
                 deleteAxes(obj.pVisualizationObjects);
             end

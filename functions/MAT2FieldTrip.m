@@ -14,7 +14,8 @@ end
 switch stream
     case 1
         % Check that Fieldtrip likes what we have (it should).
-        FT_data = ft_checkdata(data, 'feedback' ,'yes');
+        FT_data = ft_checkdata(data);
+        clear data
         
         % Then give the FT_data a proper 'continous' state.
         cfg = [];
