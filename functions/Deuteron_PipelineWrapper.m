@@ -43,38 +43,40 @@ elseif nargin == 3, opt = varargin{1};
 end
 
 %% Options 
-if ~isfield(opt,'h5'),              opt.h5                  = false;        end
 if ~isfield(opt,'bin'),             opt.bin                 = true;         end
 if ~isfield(opt,'FTfile'),          opt.FTfile              = true;         end
 if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = false;        end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
-if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  300];   end
-if ~isfield(opt,'highpass'),        opt.highpass            = [300 7500];   end
-if ~isfield(opt,'set_filter'),      opt.set_filter          = 0;            end
+
+if ~isfield(opt,'set_filter'),      opt.set_filter          = 1;            end
+if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  400];   end
+if ~isfield(opt,'highpass'),        opt.highpass            = [500 7500];   end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
 
-% Hardcode the .dll file from Deuteron. Not really an option
+if ~isfield(opt,'h5'),              opt.h5                  = false;        end
+
+% Hardcode the .dll file from Deuteron. Not really an option.
 opt.ReaderDll = 'C:\Code\Scripts\ephys-data-pipeline\functions\dlls\Event_File_Reader_8_3.dll';
 
 %% Parameters
 % Collect parameters to proceed with file creation. List all files.
-opt.myFiles = sessions.info{ss}.files;
-opt.ext     = sessions.info{ss}.fileformat;
+opt.myFiles = sessions.info(ss).files;
+opt.ext     = sessions.info(ss).fileformat;
 
 % Sample rate.
-opt.sampleRate  = sessions.info{ss}.sampleRate;
+opt.sampleRate  = sessions.info(ss).sampleRate;
 
 % ChunkSize of HDF5 file (e.g., 5 minutes is, 300s at 30000Hz = 9600000 samples)
 %  this chunk size works well. optimal? Once it is, this variable no longer requires user input.
 opt.HDF5chunkSize = 300*opt.sampleRate; 
 
 % Get number of channels.
-opt.numChannels     = sessions.info{ss}.numChannels;
+opt.numChannels     = sessions.info(ss).numChannels;
 opt.channelOrder    = 1:1:opt.numChannels; 
 
 % We need this parameters from Deuteron's log and documentation, to convert 
 % to physical units. (At least for .DT2)
-opt.numberOfAdcBits   = sessions.info{ss}.numADCBits;
+opt.numberOfAdcBits   = sessions.info(ss).numADCBits;
 opt.voltageResolution = 1.95e-7;
 opt.offset            = 2^(opt.numberOfAdcBits-1);
 
@@ -83,7 +85,7 @@ if opt.RetrieveEvents
     disp('Retrieving Events from Deuteron.')
    
     % Proceed to extract all events during session.
-    [EventRecord, sessions.info{ss}.numChannels] = ...
+    [EventRecord(s), sessions.info(ss).numChannels] = ...
         Deuteron_EventFileReaderDll(opt, sessions, ss);
     
 else
@@ -96,8 +98,7 @@ if opt.h5 || opt.bin
 
     % Converts Deuteron DT2 and DF1 files into single files (.bin and .h5) 
     % to further use (i.e. with Kilosort)
-    Deuteron2KilosortV2(opt);
-
+    Deuteron2Kilosort(opt);
 end
 
 if opt.FTfile

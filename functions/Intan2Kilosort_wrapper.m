@@ -1,4 +1,4 @@
-function Intan2Kilosort_wrapperV2(sessions, ss, varargin)
+function Intan2Kilosort_wrapper(sessions, ss, varargin)
 % Adaptation from the common pipeline for Intan. Prepares recorded data in 
 % the high pass for spike sorting with Kilosort. Uses the high-pass files 
 % from INTAN to create .h5 and .bin files. It reads the INTAN file, either 
@@ -20,7 +20,7 @@ function Intan2Kilosort_wrapperV2(sessions, ss, varargin)
 %               opt.h5             = true;     Logic that determines if we want to create the .h5 file.
 %               opt.bin            = true;     Logic that determines if we want to create the .bin file.
 %               opt.RetrieveEvents = false;    Logic that determines if we want to retrieve events.
-%               opt.highpass       = [300 7500]; Array of [lowest highest] ends for the band-pass filter, in Hz 
+%               opt.highpass       = [500 7500]; Array of [lowest highest] ends for the band-pass filter, in Hz 
 %
 % OUTPUT:
 %    Binary file, channels(rows) per sample (columns), with channels
@@ -36,11 +36,12 @@ elseif nargin == 3, opt = varargin{1};
 end
 
 %% Defaults
-if ~isfield(opt,'StpSz'),          opt.StpSz          = 1000000;    end
-if ~isfield(opt,'h5'),             opt.h5             = true;       end
 if ~isfield(opt,'bin'),            opt.bin            = true;       end
 if ~isfield(opt,'RetrieveEvents'), opt.RetrieveEvents = false;      end
-if ~isfield(opt,'highpass'),       opt.highpass       = [300 7500]; end
+if ~isfield(opt,'highpass'),       opt.highpass       = [500 7500]; end
+if ~isfield(opt,'StpSz'),          opt.StpSz          = 1000000;    end
+
+if ~isfield(opt,'h5'),             opt.h5             = true;       end
 
 %% Collect parameters that not need to necessarily defaulted to a given value. 
 % To proceed, list all files (multiple or single, depending on filetype).
@@ -56,10 +57,10 @@ if isempty(opt.myFiles)
 end
 
 % How many channels, from Intan_hdr.
-opt.numChannels = sessions.info{ss}.nchannels; 
+opt.numChannels = sessions.info(ss).nchannels; 
 
 % Sample rate, from Intan_hdr.
-opt.sampleRate  = sessions.info{ss}.amplifier_sample_rate;
+opt.sampleRate  = sessions.info(ss).amplifier_sample_rate;
 
 % ChunkSize of HDF5 file (e.g. 5 minutes = 300 s @30000 Hz = 9600000 samples).
 opt.HDF5chunkSize = 300*opt.sampleRate;
@@ -73,21 +74,21 @@ opt.HDF5chunkSize = 300*opt.sampleRate;
 fileinfo = dir(opt.myFiles(1).name);
 
 %% Main call
-if strcmp(sessions.info{ss}.fileformat,'filepertype')
+if strcmp(sessions.info(ss).fileformat,'filepertype')
     
     % To get the number of samples, divide the file size by number of 
     % channels, times bytes that each int16 word takes (int16 = 2 bytes).
     opt.num_samples = fileinfo.bytes/(opt.numChannels * 2); 
     
-    Intan2Kilosort_filepertypeV2(opt);
+    Intan2Kilosort_filepertype(opt);
 
-elseif strcmp(sessions.info{ss}.fileformat,'fileperch')
+elseif strcmp(sessions.info(ss).fileformat,'fileperch')
 
     % To get the number of samples, divide the file size by the bytes 
     % each int16 word takes (int16 = 2 bytes).
     opt.num_samples = fileinfo.bytes/2;
 
-    Intan2Kilosort_fileperchV2(opt);
+    Intan2Kilosort_fileperch(opt);
     
 end
 

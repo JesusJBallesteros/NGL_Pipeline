@@ -1,4 +1,4 @@
-function Intan2Kilosort_filepertypeV2(opt)
+function Intan2Kilosort_filepertype(opt)
 % This function is a dependency of the script Intan2Kilosort_wrapper,
 % only necessary if the recording system in use is Intan.
 % Optimized to use only the necessary number of samples (instead of Inf).

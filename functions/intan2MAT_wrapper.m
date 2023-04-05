@@ -6,14 +6,7 @@ function [data] = intan2mat_wrapper(sessions, ss, varargin)
 % Dependencies: 'bandFilter'
 %               'downsampleVolt'
 %
-% Version 07.03.2023 Jesus
-
-if nargin < 3, opt = struct();
-elseif nargin == 3, opt = varargin{1};
-end
-
-% Default options if not specified
-if ~isfield(opt,'lowpass'), opt.lowpass = [  0  400];  end
+% Version 05.04.2023 Jesus
 
 %% Collect parameters to proceed with file creation
 % List all files (multiple or single depending on type). If No lowpass
@@ -26,11 +19,11 @@ if isempty(opt.myFiles)
     opt.set_filter = 1;
 
     % Gather info to create and apply the lowpass filter
-    opt.sampleRate  = sessions.info{ss}.amplifier_sample_rate;
+    opt.sampleRate  = sessions.info(ss).amplifier_sample_rate;
     opt.dwnsmplRate = 937.5; % Matches INTAN's 32x downsample factor
 else
     opt.set_filter = 0;
-    opt.dwnsmplRate = sessions.info{ss}.amplifier_sample_rate / sessions.info{ss}.lowpass_downsample;
+    opt.dwnsmplRate = sessions.info(ss).amplifier_sample_rate / sessions.info(ss).lowpass_downsample;
 end
 
 nfiles = length(opt.myFiles);
@@ -42,8 +35,8 @@ if nfiles == 1
     
     % Read voltage data according to INTAN
     % Open file, read as 'int16' but store as double.
-    fid = fopen(sessions.info{ss}.files.name, 'r');
-        tmp = fread(fid, [sessions.info{ss}.nchannels inf], 'int16');
+    fid = fopen(sessions.info(ss).files.name, 'r');
+        tmp = fread(fid, [sessions.info(ss).nchannels inf], 'int16');
     fclose(fid);
 
     % Convert to microvolts
@@ -52,7 +45,7 @@ if nfiles == 1
     % If filtering is required (meaning, we are dealing with 'amp' files)
     if opt.set_filter
         % Go channel by channel.
-        for b = 1:sessions.info{ss}.nchannels
+        for b = 1:sessions.info(ss).nchannels
             fprintf('- Filtering channel %d of %d.\n', b, opt.numChannels);
             
             % Proceed with filter. 'bandFilter' likes double precision.
@@ -77,7 +70,7 @@ elseif nfiles > 1
     % Open file by file
     for b = 1:nfiles
         % Read voltage as 'int16', store as double.
-        fid = fopen(sessions.info{ss}.files(b).name, 'r');
+        fid = fopen(sessions.info(ss).files(b).name, 'r');
             tmp = fread(fid, [1 inf], 'int16');
         fclose(fid);
         
@@ -125,8 +118,8 @@ time = (1:length(volt)) / opt.dwnsmplRate; % in Seconds
 
 disp('Creating pseudo-FieldTrip structure...');
 % Starting with labels as they have been extracted from the INTAN header
-for i = 1:sessions.info{ss}.nchannels
-    data.label{i,1} = convertStringsToChars(sessions.info{ss}.INTAN_hdr.amplifier_channels(i).native_channel_name);
+for i = 1:sessions.info(ss).nchannels
+    data.label{i,1} = convertStringsToChars(sessions.info(ss).INTAN_hdr.amplifier_channels(i).native_channel_name);
 end
 
 % The only trial contains all channels*time info                

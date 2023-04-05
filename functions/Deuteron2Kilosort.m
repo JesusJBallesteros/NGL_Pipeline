@@ -1,4 +1,4 @@
-function Deuteron2KilosortV2(opt)
+function Deuteron2Kilosort(opt)
 % This function is a dependency of the script Deuteron2Kilosort_wrapper,
 % only necessary if the recording system in use is Deuteron
 % It compiles the data save in DT2 opt.myFiles in a HDF5file per channel
@@ -21,7 +21,7 @@ function Deuteron2KilosortV2(opt)
 % TODO: prepare filtering for DF1 format.
 
 % Name dataset to an useful denomination?
-filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName '.h5']); 
+filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName ".h5"]); 
 dataset = '/allChnMat'; % for now, as before.
 
 %% Pre-define .h5 and .bin opt.myFiles
@@ -35,7 +35,7 @@ if opt.h5
 end
 
 % Create an empty .bin file.
-fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName + '.bin']), 'a'); 
+fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName + ".bin"]), 'a'); 
 
 %% Open each neural data file, convert data units
 % Differentiate between old and new Deuteron Formats
