@@ -63,7 +63,7 @@ input.studyName     = 'ephysTest';
 % To run the script on all subjects and sessions included in your project,
 % just leave as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = '296'; % char array 'all', or a SINGLE subject e.g. 'DOE'
+input.subjects       = '478'; % char array 'all', or a SINGLE subject e.g. 'DOE'
 input.dates          = 'all'; % 'all'; % char array 'all', or cell array of dates for a SINGLE subject e.g. {'YYYYMMDD' 'yyyymmdd' ...)
 
 %% General Options. What you want to obtain:
@@ -103,6 +103,7 @@ for s = 1:input.nsubjects
     
         %% 03. Check file type, version and folders.
         % Check System and version, based on existing files. Get info. 
+        sessions(s).info = [];
         sessions(s).info = chckV();
     
         % Determine where processed data will be saved, done for every session.
@@ -122,16 +123,16 @@ for s = 1:input.nsubjects
                    % So far, we are NOT applying any filters, bc we are only
                    % recording high pass data.
                    disp('Deuteron data is NOT being filter, by default');
-                   Deuteron_PipelineWrapper(sessions(s), ss, opt);
+                   Deuteron_PipelineWrapper(sessions(s), opt);
                 end
     
             case {'fileperch', 'filepertype'}
               %% 04.2 INTAN Pipeline
               % 01. Find out INTAN settings and header file. Extract info.
               %  Uses a modified Intan function, to make the basic information
-              %  available at 'sessions.info{ss}' and a more detailed info at
+              %  available at 'info{ss}' and a more detailed info at
               %  the '.INTAN_hdr' sub-structure.
-              sessions(s) = findSetting(sessions(s), ss);
+              sessions(s) = findSetting(sessions(s));
     
               % 02. Create NWB file
               if input.useNWB % We want a .NWB file.
@@ -160,7 +161,7 @@ for s = 1:input.nsubjects
                   if opt.h5 || opt.bin
     
                   % Based on Sara, Aylin and Lukas' scripts.
-                  Intan2Kilosort_wrapper(sessions(s), ss, opt);
+                  Intan2Kilosort_wrapper(sessions(s), opt);
                   end
               end
               
@@ -168,8 +169,7 @@ for s = 1:input.nsubjects
                   % 04. Run wrapper for the INTAN to FIELDTRIP.
                   % Includes a mix of INTAN funtions. CREATES and GIVES proper
                   % FieldTrip format without trial-parsing. 
-                  intan2FieldTrip(sessions(s), ss, opt)
-                  
+                  intan2FieldTrip(sessions(s), opt)
               end
     
             case 'Allego'
@@ -185,7 +185,7 @@ for s = 1:input.nsubjects
     
             otherwise
                 warning('Something went wrong during format verification. Skipping');
-                sessions.info{ss}.fileformat = 'ERR'; % Flag for ERROR
+                sessions(s).info.fileformat = 'ERR'; % Flag for ERROR
                 continue
         end 
     

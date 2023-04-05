@@ -1,4 +1,4 @@
-function Intan2Kilosort_wrapper(sessions, ss, varargin)
+function Intan2Kilosort_wrapper(sessions, varargin)
 % Adaptation from the common pipeline for Intan. Prepares recorded data in 
 % the high pass for spike sorting with Kilosort. Uses the high-pass files 
 % from INTAN to create .h5 and .bin files. It reads the INTAN file, either 
@@ -31,8 +31,8 @@ function Intan2Kilosort_wrapper(sessions, ss, varargin)
 %
 % Version 07.03.2023 Jesus
 
-if nargin < 3, opt = struct();
-elseif nargin == 3, opt = varargin{1};
+if nargin < 2, opt = struct();
+elseif nargin == 2, opt = varargin{1};
 end
 
 %% Defaults
@@ -57,10 +57,10 @@ if isempty(opt.myFiles)
 end
 
 % How many channels, from Intan_hdr.
-opt.numChannels = sessions.info(ss).nchannels; 
+opt.numChannels = sessions.info.nchannels; 
 
 % Sample rate, from Intan_hdr.
-opt.sampleRate  = sessions.info(ss).amplifier_sample_rate;
+opt.sampleRate  = sessions.info.amplifier_sample_rate;
 
 % ChunkSize of HDF5 file (e.g. 5 minutes = 300 s @30000 Hz = 9600000 samples).
 opt.HDF5chunkSize = 300*opt.sampleRate;
@@ -74,7 +74,7 @@ opt.HDF5chunkSize = 300*opt.sampleRate;
 fileinfo = dir(opt.myFiles(1).name);
 
 %% Main call
-if strcmp(sessions.info(ss).fileformat,'filepertype')
+if strcmp(sessions.info.fileformat,'filepertype')
     
     % To get the number of samples, divide the file size by number of 
     % channels, times bytes that each int16 word takes (int16 = 2 bytes).
@@ -82,7 +82,7 @@ if strcmp(sessions.info(ss).fileformat,'filepertype')
     
     Intan2Kilosort_filepertype(opt);
 
-elseif strcmp(sessions.info(ss).fileformat,'fileperch')
+elseif strcmp(sessions.info.fileformat,'fileperch')
 
     % To get the number of samples, divide the file size by the bytes 
     % each int16 word takes (int16 = 2 bytes).

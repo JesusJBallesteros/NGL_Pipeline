@@ -1,4 +1,4 @@
-function Deuteron_PipelineWrapper(sessions, ss, varargin)
+function Deuteron_PipelineWrapper(sessions, varargin)
 % Adaptation from the common pipeline for Deuteron. Wraps up the most common 
 % processing lines necessary to get data from Deuteron raw files. This
 % includes the Neural data and the motion sensors, so far. Could be
@@ -38,8 +38,8 @@ function Deuteron_PipelineWrapper(sessions, ss, varargin)
 %
 % Version 06.03.2023 Jesus
 
-if nargin < 3, opt = struct();
-elseif nargin == 3, opt = varargin{1};
+if nargin < 2, opt = struct();
+elseif nargin == 2, opt = varargin{1};
 end
 
 %% Options 
@@ -60,23 +60,23 @@ opt.ReaderDll = 'C:\Code\Scripts\ephys-data-pipeline\functions\dlls\Event_File_R
 
 %% Parameters
 % Collect parameters to proceed with file creation. List all files.
-opt.myFiles = sessions.info(ss).files;
-opt.ext     = sessions.info(ss).fileformat;
+opt.myFiles = sessions.info.files;
+opt.ext     = sessions.info.fileformat;
 
 % Sample rate.
-opt.sampleRate  = sessions.info(ss).sampleRate;
+opt.sampleRate  = sessions.info.sampleRate;
 
 % ChunkSize of HDF5 file (e.g., 5 minutes is, 300s at 30000Hz = 9600000 samples)
 %  this chunk size works well. optimal? Once it is, this variable no longer requires user input.
 opt.HDF5chunkSize = 300*opt.sampleRate; 
 
 % Get number of channels.
-opt.numChannels     = sessions.info(ss).numChannels;
+opt.numChannels     = sessions.info.numChannels;
 opt.channelOrder    = 1:1:opt.numChannels; 
 
 % We need this parameters from Deuteron's log and documentation, to convert 
 % to physical units. (At least for .DT2)
-opt.numberOfAdcBits   = sessions.info(ss).numADCBits;
+opt.numberOfAdcBits   = sessions.info.numADCBits;
 opt.voltageResolution = 1.95e-7;
 opt.offset            = 2^(opt.numberOfAdcBits-1);
 
@@ -85,8 +85,8 @@ if opt.RetrieveEvents
     disp('Retrieving Events from Deuteron.')
    
     % Proceed to extract all events during session.
-    [EventRecord(s), sessions.info(ss).numChannels] = ...
-        Deuteron_EventFileReaderDll(opt, sessions, ss);
+    [EventRecord, sessions.info.numChannels] = ...
+        Deuteron_EventFileReaderDll(opt, sessions);
     
 else
    disp('Event extraction not requested. Skipping...')
