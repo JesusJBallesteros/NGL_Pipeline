@@ -45,7 +45,7 @@ end
 %% Options 
 if ~isfield(opt,'bin'),             opt.bin                 = true;         end
 if ~isfield(opt,'FTfile'),          opt.FTfile              = true;         end
-if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = false;        end
+if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
 
 if ~isfield(opt,'set_filter'),      opt.set_filter          = 1;            end
@@ -77,19 +77,19 @@ opt.channelOrder    = 1:1:opt.numChannels;
 % We need this parameters from Deuteron's log and documentation, to convert 
 % to physical units. (At least for .DT2)
 opt.numberOfAdcBits   = sessions.info.numADCBits;
-opt.voltageResolution = 1.95e-7;
+opt.voltageResolution = sessions.info.voltageRes;
 opt.offset            = 2^(opt.numberOfAdcBits-1);
 
 %% Event data, using dll
-if opt.RetrieveEvents
-    disp('Retrieving Events from Deuteron.')
+if opt.RetrieveEvents && strcmp(sessions.info.fileformat, 'DF1')
+    disp('Retrieving Events from Deuteron BLOCK format.')
    
     % Proceed to extract all events during session.
     [EventRecord, sessions.info.numChannels] = ...
         Deuteron_EventFileReaderDll(opt, sessions);
     
 else
-   disp('Event extraction not requested. Skipping...')
+   disp('Event extraction not requested or session is FLAT format. Skipping...')
 end
 
 %% Neural Data Conversion.

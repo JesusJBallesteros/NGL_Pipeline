@@ -90,8 +90,8 @@ end
 fprintf('Successfully loaded file into EventRecords struct.\n');
 
 %% Use event log to determine number of channels.
-modechange = find(strcmp({EventRecord.EventType}, 'Mode change')==1);
-geninfo = split(EventRecord(modechange(1)+1).Details, ";");
+filestarted = find(strcmp({EventRecord.EventType}, 'File started')==1);
+geninfo = split(EventRecord(filestarted(1)).Details, ";");
 geninfo = regexp(geninfo,'\d*','Match');
 nchan = str2double(geninfo{3});
 

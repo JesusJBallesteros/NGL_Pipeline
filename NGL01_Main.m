@@ -48,6 +48,7 @@
 % Last modified 05.04.2023 (Jesus)
 
 % TODO LIST 
+%    Prepare a small function that, if the IKN folder structure does not exists, it will be created and all data included there.
 %    There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 %    Prepare to downsample highpass data to a half? For Data size reduction.
@@ -61,10 +62,10 @@ input.datadrive     = 'D:\';
 input.studyName     = 'ephysTest';
 
 % To run the script on all subjects and sessions included in your project,
-% just leave as 'all'. For a session-to-session process, explicit the
+% just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = '478'; % char array 'all', or a SINGLE subject e.g. 'DOE'
-input.dates          = 'all'; % 'all'; % char array 'all', or cell array of dates for a SINGLE subject e.g. {'YYYYMMDD' 'yyyymmdd' ...)
+input.subjects       = '200'; % char array 'all', or a SINGLE subject e.g. 'DOE'
+input.dates          = {'20230403' '20230404' '20230405'}; % char array 'all', or cell array of dates for a SINGLE subject e.g. {'YYYYMMDD' 'yyyymmdd' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. The specific ones can be set below.
@@ -72,7 +73,7 @@ opt = struct();
     % Normally these are essential.
     opt.bin               = true;  % Creation of .bin file, for Kilosort.
     opt.FTfile            = true;  % Creation of .mat file, FieldTrip ready.
-    opt.RetrieveEvents    = false; % Retrieve event log from Deuteron system.
+    opt.RetrieveEvents    = true;  % Retrieve event log from Deuteron system.
     opt.GetMotionSensors  = false; % Retrieve data from motion sensors in Deuteron.
     opt.kilosort          = false; % Call to kilosort processing and retrieve its results.
     opt.h5                = false; % Creation of .h5 file, deprecating.
@@ -82,6 +83,7 @@ opt = struct();
     % dataset, to check for empty channels or other weird stuff. 
     % Can be used to plot snippets as example as well.
     opt.test_ch    = []; % An array of numerals for channels to plot.
+
 
 %% 00. Check inputs, set defaults and dependencies.
 set_default(input);
