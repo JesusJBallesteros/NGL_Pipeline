@@ -1,0 +1,54 @@
+Folder structure
+These are the top-level folders for a completed neurophysiology experiment. The structures of the subfolders is outlined below.
+Only if the structure is followed will shared analysis code work for your experiment! 
+You can use this template to generate the folder-structure and all files described here. Make sure you follow this format to the point!
+
+studyName
+\analysisCode
+\data
+\manuscript
+\paradigmCode
+\training
+\readme.txt  (Brief description, date and the person responsible for the experiment and assembly of the data)
+
+1. data
+All data contributing to the publication/project are stored in data.
+
+studyName
+\data
+ \analysis
+ \preprocessing
+ \raw
+ \spikesorted
+ \trialsorted
+
+1.1 raw
+The unprocessed raw-data as collected are stored in raw. For each subject should be one folder subject with its unique subject name. 
+All collected data (both electrophysiology or similar data as well as behavioral data) should contain subfolders for each day. 
+Folder name is: YYMMDD
+If there are multiple recordings of one subject per day append a, b, c... (YYMMDDa).
+
+studyName
+\data
+ \raw
+  \subjectName
+   \day
+   settings.isf (filetype in case of Intan)
+
+   The Ephys-hardware settings used for recording (if they changed during recording, settings must be included in each 
+   day/ directory beginning with the change).
+
+   recordingProtocol.xls
+
+   A record of which electrodes (description and code) were used in each animal/ region. Also the electrode advancement record for each animal/ day (refer to example-file, stick with the foramt since it can be read directly into the analysis pipeline). Generated during recording.
+
+
+1.2 preprocessing
+Filtered and referenced data for Klusta. Can be deleted later. [Not required in our current pipeline.]
+Use the same structure for subfolders as in 'raw'.
+
+studyName
+\data
+ \raw
+  \subjectName
+   \day

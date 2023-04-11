@@ -1,8 +1,11 @@
 # First edition of 'Ephys-data-pipeline'
 Main Scripts, functions and tools to work with electrophysiological data at NGL.
 
-# A Script 'NGL01_Main' that transforms data from (most) INTAN and Deuteron formats into .bin files (for kilosort) and Fieldtrip .mat files.
+# A Script 'NGL01_Main' that transforms data from INTAN and Deuteron formats into .bin files (for kilosort) and Fieldtrip .mat files.
 Additionally, data can be converted into a Neurodata Without Borders (.nwb) single file, a class of HDF5 file format.
+
+Your data SHOULD be stored as the IKN standard Harddisk data structure. See:
+  gitlab.ruhr-uni-bochum.de/ikn/howto/-/wikis/Neurophysiology/hard-disk-data-structure
 
   *ABOUT .NWB: The creation of a NWB file is made by 'intan2NWB_wrapper.m', which performs the main INTAN-NWB transformation. This wrapper NEEDS a working python installation. This is because INTAN's tool (INTANToNWB) requires so. See:
   https://github.com/Intan-Technologies/IntanToNWB
@@ -15,12 +18,7 @@ Additionally, data can be converted into a Neurodata Without Borders (.nwb) sing
 # Getting Started
 For the very first time: Set the folder where 'NGL01_Main' script is as working folder.
 
-Adding this folder to Matlab's path could be useful, the rest will be temporarily added during the run.
-
-If .NWB files are going to be created, a working Python installation is necessary. Reccomended v3.9.
-
-Your data SHOULD be stored as the IKN standard Harddisk data structure. See:
-  gitlab.ruhr-uni-bochum.de/ikn/howto/-/wikis/Neurophysiology/hard-disk-data-structure
+Adding this folder permanently to Matlab's path could be useful, the rest will be temporarily added during the run.
 
 Fill out the Inputs ('datadrive', 'studyName', 'subjects' and 'dates').
 Fill out the Options at wish.

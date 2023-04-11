@@ -64,8 +64,8 @@ input.studyName     = 'ephysTest';
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = '200'; % char array 'all', or a SINGLE subject e.g. 'DOE'
-input.dates          = {'20230403' '20230404' '20230405'}; % char array 'all', or cell array of dates for a SINGLE subject e.g. {'YYYYMMDD' 'yyyymmdd' ...}
+input.subjects       = '296'; % char array 'all', or a SINGLE subject e.g. 'DOE'
+input.dates          = 'all'; % char array 'all', or cell array of dates for a SINGLE subject e.g. {'YYYYMMDD' 'yyyymmdd' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. The specific ones can be set below.
