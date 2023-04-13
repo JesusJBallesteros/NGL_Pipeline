@@ -9,8 +9,8 @@ function Intan2Kilosort_wrapper(sessions, varargin)
 % This data is saved as a whole into a .bin file. 
 %
 % DEPENDENCIES: 
-%   Intan2Kilosort_filepertypeV2
-%   Intan2Kilosort_fileperchannelV2
+%   Intan2Kilosort_filepertype
+%   Intan2Kilosort_fileperchannel
 %
 % INPUTS:
 %    sessions: struct. Variable containing info about sessions in process
@@ -29,7 +29,7 @@ function Intan2Kilosort_wrapper(sessions, varargin)
 % VERSION HISTORY:
 % Author:         Aylin, Lukas & Sara
 %
-% Version 07.03.2023 Jesus
+% Version 13.04.2023 Jesus
 
 if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
@@ -41,7 +41,7 @@ if ~isfield(opt,'RetrieveEvents'), opt.RetrieveEvents = false;      end
 if ~isfield(opt,'highpass'),       opt.highpass       = [500 7500]; end
 if ~isfield(opt,'StpSz'),          opt.StpSz          = 1000000;    end
 
-if ~isfield(opt,'h5'),             opt.h5             = true;       end
+if ~isfield(opt,'h5'),             opt.h5             = false;       end
 
 %% Collect parameters that not need to necessarily defaulted to a given value. 
 % To proceed, list all files (multiple or single, depending on filetype).
