@@ -64,8 +64,8 @@ input.studyName     = 'ephysTest';
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = '420';           % char array 'all', or a single subject denomination e.g. 'DOE'
-input.dates          = {'20230217a'};    % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.subjects       = 'all';    % char array 'all', or a single subject denomination e.g. 'DOE'
+input.dates          = 'all';    % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
@@ -76,7 +76,7 @@ opt = struct();
     opt.RetrieveEvents    = true;   % Retrieve event log from Deuteron system.
     opt.GetMotionSensors  = false;  % JACOB? Retrieve data from motion sensors in Deuteron.
     opt.kilosort          = false;  % TODO. Call to kilosort processing and retrieve its results.
-    opt.h5                = false;  % DEPR. Creation of single .h5 file.
+    opt.h5                = false;
 
     % This applies only to FieldTrip .mat files. Useful here for testing, 
     % or as fast check in a new dataset. Plots snippets of raw signals 
@@ -87,25 +87,24 @@ opt = struct();
 set_default(input);
 
 %% 01. Find and list sessions, per animal
-% Read requested sessions from specified animal folder.
-sessions = findSessions(input);
-
-%% 02. Loop subjects and sessions to process.
 for s = 1:input.nsubjects
-    for ss = 1:sessions(s).nsessions
-        % check if session is among requested
-        if ismember(sessions(s).list{ss}, input.dates)
+    % Read requested sessions from specified animal folder.
+    sessions = findSessions(input);
 
-            % Navigate to session raw data folder.
-            cd(fullfile(sessions(s).folder,sessions(s).list{ss}));
-            
-            % Progress report.
-            txt = sprintf('\n --> Subject %s, session %d out of %d: %s \n', ...
-                                  input.subjects(s).name, ss, sessions(s).nsessions, sessions(s).list{ss});
-            fprintf(txt);
+    %% 02. Loop subjects and sessions to process.
+    for ss = 1:sessions(s).nsessions
+        % Navigate to session raw data folder.
+        cd(fullfile(sessions(s).folder,sessions(s).list{ss}));
+        
+        % Progress report.
+        txt = sprintf('\n --> Subject %s, session %d out of %d: %s \n', ...
+                              input.subjects(s).name, ss, sessions(s).nsessions, sessions(s).list{ss});
+        fprintf(txt);
+       % check if session is among requested
+       if ismember(sessions(s).list{ss}, input.dates) | strcmp(input.dates, 'all')
         
             %% 03. Check file type, version and folders.
-            % Check System and version, based on existing files. Get info. 
+            % Check System and version for current session.
             sessions(s).info = [];
             sessions(s).info = chckV();
         
@@ -229,7 +228,8 @@ for s = 1:input.nsubjects
         
             %% 06 Clean up to move on to next session
             clear FT_data INTANdata txt
-
+       else
+           disp('Session not requested. Skipping.')
         end % if session is among requested
     end % sessions loop
 end % subjects loop

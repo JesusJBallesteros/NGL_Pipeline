@@ -102,7 +102,6 @@ if opt.h5 || opt.bin
 end
 
 if opt.FTfile
-    
     % Convert Deuteron files into a FieldTrip formatted .mat file
     disp('Converting Deuteron files into a pseudo-FT file.');
     [DEUTdata] = Deuteron2mat(opt);
@@ -110,7 +109,6 @@ if opt.FTfile
     %% Conversion to Fieldtrip formatted data
     disp('Giving proper FieldTrip format.');
     mat2FieldTrip(DEUTdata, opt);
-
 end
 
 %% Motion Data to Matlab
