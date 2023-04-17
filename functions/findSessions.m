@@ -5,7 +5,7 @@ function sessions = findSessions(input)
 
 % Goes over every subject's folder and reads the sessions    
 for s = 1:input.nsubjects
-    cd(fullfile(input.datafolder, input.subjects(s).name))
+    cd(fullfile(input.datafolder, string(input.subjects(s).name)))
     ss = dir();
     dirFlags = [ss.isdir];
     ss = ss(dirFlags);

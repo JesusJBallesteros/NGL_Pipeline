@@ -1,4 +1,4 @@
-function set_default_new(input)
+function set_default(input)
 % 'set_default' adds the dependencies, included under the main folder.
 %
 % It reads the inputs, if any, and validates them.
@@ -31,10 +31,7 @@ end
 
 % Get subjects
 cd(fullfile(input.datafolder))
-subjects = dir();
-dirFlags = [subjects.isdir];
-subjects = subjects(dirFlags);
-subjects(ismember({subjects.name}, {'.', '..'})) = [];
+subjects = dir('???*');
 
 if strcmp(input.subjects, 'all')
     input.subjects = subjects;
