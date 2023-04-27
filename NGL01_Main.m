@@ -59,30 +59,41 @@
 
 %% Input storage drive and project:
 input.datadrive     = 'D:\';
-input.studyName     = 'ephysTest';
+input.studyName     = 'ephysTest'; % For SPP people: 'Dorian\SPP'
 
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = {'451' '478'};    % char array 'all', or a single subject denomination e.g. 'DOE'
+input.subjects       = {'478'};    % char array 'all', or a single subject denomination e.g. 'DOE'
 input.dates          = 'all';    % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
 opt = struct();
-    % Normally these are essential.
+    % These are essential.
     opt.bin               = true;   % Creation of .bin file, for Kilosort.
+    opt.kilosort          = true;   % Call to kilosort processing. NEEDS configfile and chanmap in \analysisCode 
+                                    % An example of both can be found in
+                                    % the Instructions folder of this toolbox.
+                                    % (and retrieve its results (*in progress)).
     opt.FTfile            = true;   % Creation of .mat file, FieldTrip ready.
     opt.RetrieveEvents    = true;   % Retrieve event log from Deuteron system.
     opt.GetMotionSensors  = false;  % JACOB? Retrieve data from motion sensors in Deuteron.
-    opt.kilosort          = false;  % TODO. Call to kilosort processing and retrieve its results.
-    opt.h5                = false;
+    
+    % LET ME KNOW IF IT WORKS without giving any input here.
+    % If a proper 'studyName' is given, should be now defaulted to 'studyName\analysisCode'
+    %   opt.KSConfigFile  = 'D:\Dorian\SPP\analysisCode';  % path to kilosortConfig.m (together with the master_file, originally named StandardConfig_MOVEME.m)
+    % If properly stored, defaulted to whatever 'chanMap*.mat' file that lives in 'studyName\analysisCode'
+    %   opt.KSchanMapFile = 'chanMapNeuronexusBuzaki.mat'; % filename of channel map. If not yet created, do so with createChannelMapFile.m in kilosort subfolder "configFiles".
 
     % This applies only to FieldTrip .mat files. Useful here for testing, 
     % or as fast check in a new dataset. Plots snippets of raw signals 
     % and spectrograms.
     opt.test_ch    = []; % An array of numerals for channels to plot.
-
+    
+    % deprecating
+    opt.h5                = false;
+    
 %% 00. Check inputs, set defaults and dependencies.
 set_default(input);
 
@@ -101,7 +112,7 @@ for s = 1:input.nsubjects
                               input.subjects(s).name, ss, sessions(s).nsessions, sessions(s).list{ss});
         fprintf(txt);
        % check if session is among requested
-       if ismember(sessions(s).list{ss}, input.dates) | strcmp(input.dates, 'all')
+       if strcmp(input.dates, 'all') | ismember(sessions(s).list{ss}, input.dates) 
         
             %% 03. Check file type, version and folders.
             % Check System and version for current session.
@@ -201,29 +212,20 @@ for s = 1:input.nsubjects
             
             %% 06 Go Kilosorting, do the thing
             if opt.kilosort
-                % Add here a call to kilosort GUI.
-                % It could wait until a given variable changes, at the end of the proccessing pipeline
-                % or wait for user input to continue reading the results.
-                
-                % Or both, above and below steps, could be taken to a new Script
-                % NGL02_kilosort, so it could be ran only after all sessions are
-                % preprocessed.
-        
-                % For now, I'll make a uiwait warning the user and let know about.
-                fig = uifigure;
-                fig.Position = [500 500 500 350]; 
-                uialert(fig, 'Proceed to kilosort pipeline, process the current session and close this figure once it is finish.', ...
-                             'Execution paused','Icon','info','CloseFcn','uiresume(fig)')
-                
-                uiwait(fig)
+
+                % Based on Winston's Kilosort Run. Programatically instead of GUI
+                % Create in your scripts folder, a copy of master_kilosort.m 
+                % from your Kilosort2-master folder and StandardConfig_MOVEME.m  
+                % in subfolder "configFiles". Edit their directories as appropriate.
+                master_kilosort(sessions, opt) % ops (not opt) is created as kilosort settings
             
-                %% 07 NGLXX_postKS
-                    opt.UseEvents      = false;
-                    opt.drift          = true; %
-                    opt.amplitude      = true; %
-                    opt.psth           = false; % Needs Events
-                
-                    spike = read_KSresults(opt);
+                %% 07 NGLXX_postKS (in progress)
+%                     opt.UseEvents      = false;
+%                     opt.drift          = true; %
+%                     opt.amplitude      = true; %
+%                     opt.psth           = false; % Needs Events
+%                 
+%                     spike = read_KSresults(opt);
             end
         
             %% 06 Clean up to move on to next session

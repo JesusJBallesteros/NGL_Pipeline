@@ -23,6 +23,7 @@ if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB    
 input.toolbox    = 'C:\Code\Scripts\ephys-data-pipeline'; % Default: 'C:\Code\Scripts\ephys-data-pipeline'
 input.datafolder = fullfile(input.datadrive, input.studyName, '\data\raw\');              % Default: '\data\raw'
 input.processed  = fullfile(input.datadrive, input.studyName, '\data\preprocessing\');    % Default: '\data\preprocessing'
+input.analysisCode = fullfile(input.datadrive, input.studyName, '\analysisCode\');
 
 %% Find requested subjects.
 if ~isfield(input,'subjects') || isempty(input.subjects)
