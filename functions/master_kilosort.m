@@ -1,4 +1,4 @@
-function master_kilosort(sessions, varargin)
+function master_kilosort(sessions,input, varargin)
 % Run Kilosort processing line programatically, without GUI. 
 % Uses some info from the current session and searches for configuration
 % and channel map files on '\analysisCode' folder.
@@ -14,13 +14,13 @@ function master_kilosort(sessions, varargin)
 addpath(genpath('C:\KiloSort2_SpikeSorting')) % path to kilosort folder and all its subfolder (Assumes Sorting PC, not local)
 
 %% Defaults, if not given as opt
-if nargin < 2, opt = struct();
-elseif nargin == 2, opt = varargin{1};
+if nargin < 3, opt = struct(); %changed to 3 due to missing input variable 
+elseif nargin == 3, opt = varargin{1};
 end
 
 % Config and Channelmap files are defaulted to be found under '\analysisCode'
-if ~isfield(opt,'KSConfigFile') || isempty(opt.KSConfigFile),       opt.KSConfigFile   = input.analysisCode;  end
-if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),     opt.KSchanMapFile  = ls('chanMap*.mat'); end
+if ~isfield(opt,'KSConfigFile') || isempty(opt.KSConfigFile),       opt.KSConfigFile   = input.analysisCode;  end %input was missing in the variable 
+if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),     opt.KSchanMapFile  = dir(fullfile(input.analysisCode, '*chanMap*.mat')); end %saved outside the cd
 
 % Find .bin files (raw and temp)
 % TODO  Why are both the same? can we get rid of one?
@@ -34,7 +34,7 @@ ops.NchanTOT    = sessions.info.nchannels; % total number of channels in your re
 % Set configuration, SSD and channel map
 run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'))
 ops.fproc   = fullfile(rootH, 'temp_wh.dat'); % proc file on a fast SSD
-ops.chanMap = fullfile(opt.KSConfigFile, opt.KSchanMapFile);
+ops.chanMap = fullfile(opt.KSConfigFile, opt.KSchanMapFile.name); %changed to find path 
 
 %% This block runs all the steps of the algorithm
 fprintf('Looking for data inside %s \n', rootZ)

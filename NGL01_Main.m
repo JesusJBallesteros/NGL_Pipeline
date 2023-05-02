@@ -58,14 +58,14 @@
 %
 
 %% Input storage drive and project:
-input.datadrive     = 'D:\';
-input.studyName     = 'ephysTest'; % For SPP people: 'Dorian\SPP'
+input.datadrive     = 'E:\';
+input.studyName     = 'Sara'; % For SPP people: 'Dorian\SPP'
 
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
 input.subjects       = {'478'};    % char array 'all', or a single subject denomination e.g. 'DOE'
-input.dates          = 'all';    % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.dates          = {'20230427_01'};    % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
@@ -76,7 +76,7 @@ opt = struct();
                                     % An example of both can be found in
                                     % the Instructions folder of this toolbox.
                                     % (and retrieve its results (*in progress)).
-    opt.FTfile            = true;   % Creation of .mat file, FieldTrip ready.
+    opt.FTfile            = false;   % Creation of .mat file, FieldTrip ready.
     opt.RetrieveEvents    = true;   % Retrieve event log from Deuteron system.
     opt.GetMotionSensors  = false;  % JACOB? Retrieve data from motion sensors in Deuteron.
     
@@ -217,7 +217,7 @@ for s = 1:input.nsubjects
                 % Create in your scripts folder, a copy of master_kilosort.m 
                 % from your Kilosort2-master folder and StandardConfig_MOVEME.m  
                 % in subfolder "configFiles". Edit their directories as appropriate.
-                master_kilosort(sessions, opt) % ops (not opt) is created as kilosort settings
+                master_kilosort(sessions,input, opt) % ops (not opt) is created as kilosort settings
             
                 %% 07 NGLXX_postKS (in progress)
 %                     opt.UseEvents      = false;
