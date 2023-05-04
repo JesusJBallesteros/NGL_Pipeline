@@ -1,4 +1,4 @@
-function [data] = intan2mat_wrapper(sessions, opt)
+function [data] = intan2MAT_wrapper(sessions, opt)
 % We need a mix of INTAN file reading tools to bring data into MATLAB.
 % It def needs to know if we have one file per channel or one file per type.
 % To complete description ...
@@ -6,7 +6,7 @@ function [data] = intan2mat_wrapper(sessions, opt)
 % Dependencies: 'bandFilter'
 %               'downsampleVolt'
 %
-% Version 05.04.2023 Jesus
+% Version 04.05.2023 Jesus
 
 %% Collect parameters to proceed with file creation
 % List all files (multiple or single depending on type). If No lowpass

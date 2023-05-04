@@ -9,8 +9,8 @@ end
 % Default options if not specified
 if ~isfield(opt,'lowpass'), opt.lowpass = [  0  400];  end
 
-% Proceed with the main fuinctions
-INTANdata = intan2mat_wrapper(sessions, opt);
-mat2FieldTrip(INTANdata, opt);
+% Proceed with the main functions
+INTANdata = intan2MAT_wrapper(sessions, opt);
+MAT2FieldTrip(INTANdata, opt);
 
 end

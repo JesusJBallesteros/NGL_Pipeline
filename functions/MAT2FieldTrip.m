@@ -1,4 +1,4 @@
-function mat2FieldTrip(data, opt, varargin)
+function MAT2FieldTrip(data, opt, varargin)
 % Wraps the process to transform a simple .mat file into one with
 % appropiate format for further processing with FieldTrip toolbox.
 % Options are, to create a 'continuous' FT file, (one, large trial) or to
