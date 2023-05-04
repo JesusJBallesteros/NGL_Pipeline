@@ -81,10 +81,14 @@ end
 
 % The amplitude on each channel is the positive peak minus the negative
 tempChanAmps = squeeze(max(tempsUnW,[],2))-squeeze(min(tempsUnW,[],2));
-
+%
+[~,bestIdx] = max(tempChanAmps,[],2); %bestIdx was not assigned. Is this what you had in mind? (added by Sara)
 % Explicitly pair each template with its best (highest amplitude) channel % (added by Winston)
 bestChannels = chanMap0ind(bestIdx);
 templateBestChannels = cat(2, (0:length(bestChannels)-1)', bestChannels); % This is the variable you want [templateNumber bestChannel]
+
+
+
 
 % The template amplitude is the amplitude of its largest channel
 tempAmpsUnscaled = max(tempChanAmps,[],2);
@@ -103,7 +107,7 @@ tempAmps = gain*tempAmps'; % for consistency, make first dimension template numb
 
 if ~isempty(savePath)
     
-    save(fullfile(savePath,'template_bestchannels.mat'), templateBestChannels); % (added by Winston)
+    save(fullfile(savePath,'template_bestchannels.mat'), 'templateBestChannels'); % (added by Winston)
 
     writeNPY(spikeTimes, fullfile(savePath, 'spike_times.npy'));
     writeNPY(uint32(spikeTemplates-1), fullfile(savePath, 'spike_templates.npy')); % -1 for zero indexing
