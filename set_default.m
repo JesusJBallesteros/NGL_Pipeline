@@ -15,12 +15,11 @@ function set_default(input)
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
 % are requested, the NWB will perform well but the data extraction will not. 
 % It will crash for not completely known reason. It needs a Matlab restart between runs.
-if ~isfield(input,'ExtractData') || isempty(input.ExtractData), input.ExtractData = true; end
-if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB      = false;end
+if ~isfield(input,'ExtractData') || isempty(input.ExtractData), input.ExtractData = true;  end
+if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB      = false; end
 % Meaning, do not run both 'true' (for now). 
 
 %% Set default paths. IKN Standard recommended.
-input.toolbox    = 'C:\Sara\jesusPipeline'; % Default: 'C:\Code\Scripts\ephys-data-pipeline'
 input.datafolder = fullfile(input.datadrive, input.studyName, '\data\raw\');              % Default: '\data\raw'
 input.processed  = fullfile(input.datadrive, input.studyName, '\data\preprocessing\');    % Default: '\data\preprocessing'
 input.analysisCode = fullfile(input.datadrive, input.studyName, '\analysisCode\');

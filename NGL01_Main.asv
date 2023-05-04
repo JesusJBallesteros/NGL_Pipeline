@@ -66,24 +66,25 @@ input.toolbox       = 'C:\Code\Scripts\ephys-data-pipeline'; % Default: 'C:\Code
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
 input.subjects       = {'478'};    % char array 'all', or a single subject denomination e.g. 'DOE'
-input.dates          = {'20230427_01' '20230427_02'};    % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.dates          = {'20230427_01'};    % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
 opt = struct();
     % These are essential.
     opt.bin               = true;   % Creation of .bin file, for Kilosort.
-    opt.kilosort          = false;   % Call to kilosort processing. NEEDS configfile and chanmap in \analysisCode 
+    opt.kilosort          = true;   % Call to kilosort processing. NEEDS configfile and chanmap in \analysisCode 
     opt.FTfile            = true;   % Creation of .mat file, FieldTrip ready.
     opt.RetrieveEvents    = true;   % Retrieve event log from Deuteron system.
     opt.GetMotionSensors  = false;  % JACOB gone MIA. Retrieve data from motion sensors in Deuteron.
 
-    % KS options. Leave commented to default, or explicit your own paths here (NOT Recommended). 
-        % opt.KSConfigFile   = 'D:\ephysTest\analysisCode\'; % Location of configfile
-        % opt.KSchanMapFile  = 'D:\ephysTest\analysisCode\chanMap*.mat'; % Location AND name of channel map file
+    % KS options. Possible to comment or leave empty to default. 
+%     opt.KSConfigFile   = 'D:\ephysTest\analysisCode\'; % Location of configfile
+%     opt.KSchanMapFile  = 'D:\ephysTest\analysisCode\chanMap*.mat'; % Location AND name of channel map file
 
-    % Only for FieldTrip .mat files. Plots snippets of raw signals and spectrograms.
-        % opt.test_ch    = []; % An array of numerals for channels to plot.
+    % Only for FieldTrip .mat files. Useful for testing or as fast check.
+    % Plots snippets of raw signals and spectrograms.
+    opt.test_ch    = []; % An array of numerals for channels to plot.
         
 %% 00. Check inputs, set defaults and dependencies.
 set_default(input);
@@ -179,7 +180,7 @@ for s = 1:input.nsubjects
                       % single-tappered Spectrograms on a subset of channels for a small chunck
                       % of time. Just to have a preview of how the signal looks like in
                       % the LFP range.
-                      if isfield(input, 'test_ch') && ~isempty(input.test_ch)
+                      if ~isempty(input.test_ch)
                           plot_testsignal(FT_data, input.test_ch, opt)
                       end
                   end
