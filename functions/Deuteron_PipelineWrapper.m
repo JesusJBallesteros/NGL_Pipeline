@@ -53,8 +53,6 @@ if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  400];   end
 if ~isfield(opt,'highpass'),        opt.highpass            = [500 7500];   end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
 
-if ~isfield(opt,'h5'),              opt.h5                  = false;        end
-
 % Hardcode the .dll file from Deuteron. Not really an option.
 opt.ReaderDll = 'C:\Code\Scripts\ephys-data-pipeline\functions\dlls\Event_File_Reader_8_3.dll';
 
@@ -93,7 +91,7 @@ else
 end
 
 %% Neural Data Conversion.
-if opt.h5 || opt.bin
+if opt.bin
     disp('Converting Deuteron files into .h5 and .bin...');
 
     % Converts Deuteron DT2 and DF1 files into single files (.bin and .h5) 

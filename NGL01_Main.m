@@ -33,7 +33,6 @@
 %     opt.set_filter,       If Deuteron data was adquired with a wideband.
 %     opt.lowpass,          Lowpass band to extract LFP from wideband.
 %     opt.highpass,         Highpass band to extract spike activity.
-%     opt.h5,               Creation of .h5 file (not really used, to deprecate?).
 %
 % OUTPUTS:
 % For one single session or for a batch of sessions, from one single animal:
@@ -162,7 +161,7 @@ for s = 1:input.nsubjects
         
                   % 03. Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
                   if input.ExtractData 
-                      if opt.h5 || opt.bin
+                      if opt.bin
         
                       % Based on Sara, Aylin and Lukas' scripts.
                       Intan2Kilosort_wrapper(sessions(s), opt);

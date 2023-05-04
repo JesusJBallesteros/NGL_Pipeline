@@ -12,13 +12,11 @@ function Intan2Kilosort_filepertype(opt)
 % Version 01.03.2023 Jesus
  
 %% Pre-define .h5 and .bin files
-if opt.h5
     % Create complete HDF5 file matching the size needs.
     h5create(fullfile(opt.FolderProcDataMat, [opt.SavFileName '.h5']), ...
             '/allChnMat', [opt.numChannels opt.num_samples], ...
             'ChunkSize', [1 opt.HDF5chunkSize], ...
             'Datatype', 'int16')
-end
 
 % Also create a bin file.
 fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']), 'a'); 
@@ -40,7 +38,6 @@ data = data * 0.195;
 % Total number of samples per channel is 'opt.num_samples'.
 ChunkStart = 1:opt.StpSz:opt.num_samples-mod(opt.num_samples,opt.StpSz);
 
-if opt.h5
 disp('Writting the .h5 file.');
     for i = 1:opt.numChannels
         for j = 1:opt.StpSz:ChunkStart(end)
@@ -52,7 +49,6 @@ disp('Writting the .h5 file.');
                    [1 opt.StpSz]);                          % chunk size
         end
     end
-end
 
 disp('Done writting the .h5 file. Now writting the .bin file');
 fwrite(fidDataMat, data, 'int16');

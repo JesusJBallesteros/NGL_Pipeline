@@ -17,7 +17,6 @@ function Intan2Kilosort_wrapper(sessions, varargin)
 %    ss:       int. Current session ordinal in the pipeline
 %    opt:      struct. optional inputs to override the defaults:
 %               opt.StpSz          = 1000000;  int that determines the chunk size to writo into the .h5 file
-%               opt.h5             = true;     Logic that determines if we want to create the .h5 file.
 %               opt.bin            = true;     Logic that determines if we want to create the .bin file.
 %               opt.RetrieveEvents = false;    Logic that determines if we want to retrieve events.
 %               opt.highpass       = [500 7500]; Array of [lowest highest] ends for the band-pass filter, in Hz 
@@ -40,8 +39,6 @@ if ~isfield(opt,'bin'),            opt.bin            = true;       end
 if ~isfield(opt,'RetrieveEvents'), opt.RetrieveEvents = false;      end
 if ~isfield(opt,'highpass'),       opt.highpass       = [500 7500]; end
 if ~isfield(opt,'StpSz'),          opt.StpSz          = 1000000;    end
-
-if ~isfield(opt,'h5'),             opt.h5             = false;       end
 
 %% Collect parameters that not need to necessarily defaulted to a given value. 
 % To proceed, list all files (multiple or single, depending on filetype).

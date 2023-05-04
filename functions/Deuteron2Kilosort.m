@@ -25,14 +25,14 @@ filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName ".h5"]);
 dataset = '/allChnMat'; % for now, as before.
 
 %% Pre-define .h5 and .bin opt.myFiles
-if opt.h5
-    % Create complete HDF5 file matching size needs.
-    h5create(filename,                          ... % filename.
-             dataset,                           ... % dataset name.
-             [opt.numChannels Inf],              ... % prepare data dimensions (nCh x samples).
-             'ChunkSize', [1 opt.HDF5chunkSize], ... % prepare to write chunks in time dimension.
-             'Datatype', 'int16');                   % data precision.
-end
+% if opt.h5
+%     % Create complete HDF5 file matching size needs.
+%     h5create(filename,                          ... % filename.
+%              dataset,                           ... % dataset name.
+%              [opt.numChannels Inf],              ... % prepare data dimensions (nCh x samples).
+%              'ChunkSize', [1 opt.HDF5chunkSize], ... % prepare to write chunks in time dimension.
+%              'Datatype', 'int16');                   % data precision.
+% end
 
 % Create an empty .bin file.
 fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName + ".bin"]), 'a'); 
@@ -75,13 +75,13 @@ if strcmp(opt.ext, 'DT2')
 
         % Distribute each channel to its respective slot in .h5 file
         for b = 1:opt.numChannels
-            if opt.h5
-                h5write(filename,       ... % filename.
-                        dataset,        ... % dataset name.
-                        tempdata(b,:),  ... % data of a channel stored in the DT2 file (already scaled)
-                        [b indexPos+1], ... % Write channel b, from starting sample
-                        [1 nSamples]);      %  and this amount of samples.
-            end
+%             if opt.h5
+%                 h5write(filename,       ... % filename.
+%                         dataset,        ... % dataset name.
+%                         tempdata(b,:),  ... % data of a channel stored in the DT2 file (already scaled)
+%                         [b indexPos+1], ... % Write channel b, from starting sample
+%                         [1 nSamples]);      %  and this amount of samples.
+%             end
             
             % Write channel into general cell array.
             data_mat{b,1} = [data_mat{b,1} tempdata(b,:)];
@@ -144,16 +144,16 @@ elseif strcmp(opt.ext, 'DF1')
     % Reshape to sort as channels x samples.
     data_mat = reshape(data_mat, opt.numChannels, []);
 
-    % distribute each row of data to its respective single-channel file
-    if opt.h5
-        for b = 1:opt.numChannels
-            h5write(filename,         ... % filename.
-                    dataset,          ... % dataset name.
-                    data_mat(b,:),        ... % channel b, complete
-                    [b b],                ... %   into slot b
-                    [1 size(data_mat,2)]);    %   as long as it is.
-        end
-    end
+%     % distribute each row of data to its respective single-channel file
+%     if opt.h5
+%         for b = 1:opt.numChannels
+%             h5write(filename,         ... % filename.
+%                     dataset,          ... % dataset name.
+%                     data_mat(b,:),        ... % channel b, complete
+%                     [b b],                ... %   into slot b
+%                     [1 size(data_mat,2)]);    %   as long as it is.
+%         end
+%     end
 
     % Write bin file
     fwrite(fidDataMat, data_mat, 'int16');
