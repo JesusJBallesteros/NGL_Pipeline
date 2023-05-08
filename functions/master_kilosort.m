@@ -26,19 +26,16 @@ addpath(genpath('C:\KiloSort2_SpikeSorting')) % path to kilosort toolbox (Assume
 if ~isfield(opt,'KSConfigFile') || isempty(opt.KSConfigFile),       opt.KSConfigFile   = input.analysisCode;  end 
 if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),     opt.KSchanMapFile  = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end 
 
-% Find .bin files (raw and temp) % JESUS, changed the name and left only one.
+%% Find .bin files (raw and temp) % JESUS, changed the name and left only one.
 % I assume it will be always in a SDD for processing.
 rootfolder = opt.FolderProcDataMat; % the raw data binary file is in this folder (for current subject and session)
 % rootfolder = opt.FolderProcDataMat; % path to temporary binary file (same size as data, should be on fast SSD)
 
-% Total time and channels to process
-ops.trange      = [0 Inf]; % time range to sort (defaulted to the whole recording)
-ops.NchanTOT    = sessions.info.nchannels; % total number of channels in your recording
-
-% Set configuration, SSD and channel map
+%% Set configuration.
+%(JESUS: added all ops INSIDE config file. having some inside some outside made no sense
+% The alternative is to GET RID of configfile and set ops out here. 
+% All it does is to create the 'ops' variable)
 run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'))
-ops.fproc   = fullfile(rootfolder, 'temp_wh.dat'); % proc file on a fast SSD
-ops.chanMap = fullfile(opt.KSConfigFile, opt.KSchanMapFile); %changed to find path 
 
 %% This block runs all the steps of the algorithm
 fprintf('Looking for data inside %s \n', rootfolder)

@@ -10,6 +10,13 @@ for s = 1:input.nsubjects
     dirFlags = [ss.isdir];
     ss = ss(dirFlags);
     ss(ismember({ss.name}, {'.', '..'})) = [];
+
+        % Check 'all' vs explicit sessions request
+        if iscell(input.dates)
+            nameFlags = ismember({ss.name}, input.dates);
+            ss = ss(nameFlags);
+        end
+
     sessions(s).nsessions = length(ss);
     sessions(s).folder = ss(1).folder;
     

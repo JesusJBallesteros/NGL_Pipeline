@@ -95,7 +95,7 @@ for j = chunks
     Chunk = int16(zeros(opt.numChannels, opt.StpSz));
 
     for k = 1:opt.numChannels
-    fprintf('Chunck %d/%d. Ch %d/%d \n', iter, length(chunks), k, opt.numChannels)
+    fprintf('Chunk %d/%d. Ch %d/%d \n', iter, length(chunks), k, opt.numChannels)
         if j < opt.num_samples-mod(opt.num_samples, opt.StpSz)+1
             Chunk(k,:) = h5read(opt.filename, ... % filename
                                 opt.dataset,  ... % dataset name

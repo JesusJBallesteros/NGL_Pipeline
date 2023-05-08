@@ -65,15 +65,15 @@ input.toolbox       = 'C:\Code\Scripts\ephys-data-pipeline'; % Default: 'C:\Code
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
 input.subjects       = {'478'};    % char array 'all', or a single subject denomination e.g. 'DOE'
-input.dates          = {'20230427_01' '20230427_02'};    % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.dates          = {'20230505'};    % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
 opt = struct();
     % These are essential.
     opt.bin               = true;   % Creation of .bin file, for Kilosort.
-    opt.kilosort          = false;   % Call to kilosort processing. NEEDS configfile and chanmap in \analysisCode 
-    opt.FTfile            = true;   % Creation of .mat file, FieldTrip ready.
+    opt.kilosort          = true;   % Call to kilosort processing. NEEDS configfile and chanmap in \analysisCode 
+    opt.FTfile            = false;   % Creation of .mat file, FieldTrip ready.
     opt.RetrieveEvents    = true;   % Retrieve event log from Deuteron system.
     opt.GetMotionSensors  = false;  % JACOB gone MIA. Retrieve data from motion sensors in Deuteron.
 
@@ -94,130 +94,125 @@ for s = 1:input.nsubjects
 
     %% 02. Loop subjects and sessions to process.
     for ss = 1:sessions(s).nsessions
-        % Navigate to session raw data folder.
+        % Navigate to session's raw data folder.
         cd(fullfile(sessions(s).folder,sessions(s).list{ss}));
-        
+                
         % Progress report.
         txt = sprintf('\n --> Subject %s, session %d out of %d: %s \n', ...
-                              input.subjects(s).name, ss, sessions(s).nsessions, sessions(s).list{ss});
+                     input.subjects(s).name, ss, sessions(s).nsessions, sessions(s).list{ss});
         fprintf(txt);
-       % check if session is among requested
-       if strcmp(input.dates, 'all') | ismember(sessions(s).list{ss}, input.dates) 
+    
+        %% 03. Check file type, version and folders.
+        % Check System and version for current session.
+        sessions(s).info = [];
+        sessions(s).info = chckV();
+    
+        % Determine where processed data will be saved, done for every session.
+        opt.PathRaw           = pwd;
+        opt.FolderProcDataMat = fullfile(input.processed, input.subjects(s).name, sessions(s).list{ss});
+        opt.SavFileName       = sessions(s).list{ss}; 
         
-            %% 03. Check file type, version and folders.
-            % Check System and version for current session.
-            sessions(s).info = [];
-            sessions(s).info = chckV();
-        
-            % Determine where processed data will be saved, done for every session.
-            opt.PathRaw           = pwd;
-            opt.FolderProcDataMat = fullfile(input.processed, input.subjects(s).name, sessions(s).list{ss});
-            opt.SavFileName       = sessions(s).list{ss}; 
-            
-            % Report and create folder.
-            disp(strcat('Processed data will be saved to: >', opt.FolderProcDataMat));
-            mkdir(opt.FolderProcDataMat);
-        
-            %% 04. Determine pipeline based on type of data.
-            switch sessions(s).info.fileformat
-                case {'DT2', 'DF1'} % 'DT4', 'DT8', 'DAT', never seen.
-                    %% 04.1 Deuteron Pipeline. Neural Data
-                    if input.ExtractData
-                       % So far, we are NOT applying any filters, bc we are only
-                       % recording high pass data.
-                       disp('Deuteron data is NOT being filter, by default');
-                       Deuteron_PipelineWrapper(sessions(s), opt);
-                    end
-        
-                case {'fileperch', 'filepertype'}
-                  %% 04.2 INTAN Pipeline
-                  % 01. Find out INTAN settings and header file. Extract info.
-                  %  Uses a modified Intan function, to make the basic information
-                  %  available at 'info{ss}' and a more detailed info at
-                  %  the '.INTAN_hdr' sub-structure.
-                  sessions(s) = findSetting(sessions(s));
-        
-                  % 02. Create NWB file
-                  if input.useNWB % We want a .NWB file.
-        
-                      % Run wrapper for the INTAN to NWB functionality:               
-                        % This NEEDS A PYTHON installation and the tooldbox inside!
-                        % Detailed explanation:
-                        % WHAT IT IS: function to convert data from INTAN to .NWB format.
-                        % WHAT IT DOES: Checks for Python engine in computer. Adds the necessary
-                        %  dependences. Locates input session, copies ALL files to the IntanToNWB
-                        %  folder and merges them into a new 'info.nwb' file. This file 
-                        %  is renamed to 'session_name.nwb'. Moves this new file back to 
-                        %  the original session folder. Removes the copied data from the 
-                        %  IntanToNWB folder.
-                        %
-                        % Requires Python installed in the machine. 
-                        %  To date, MATLAB 2021b accepts up to Python 3.9. Install the
-                        %  64 bits version:
-                        % (https://de.mathworks.com/help/matlab/matlab_external/install-supported-python-implementation.html)
-                        %  To check access to Python Modules from MATLAB, look that 'pe' is correctly populated when running the script.
-                      intan2NWB_wrapper(input, opt);
-                  end 
-        
-                  % 03. Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
-                  if input.ExtractData 
-                      if opt.bin
-        
-                      % Based on Sara, Aylin and Lukas' scripts.
-                      Intan2Kilosort_wrapper(sessions(s), opt);
-                      end
+        % Report and create folder.
+        disp(strcat('Processed data will be saved to: >', opt.FolderProcDataMat));
+        mkdir(opt.FolderProcDataMat);
+    
+        %% 04. Determine pipeline based on type of data.
+        switch sessions(s).info.fileformat
+            case {'DT2', 'DF1'} % 'DT4', 'DT8', 'DAT', never seen.
+                %% 04.1 Deuteron Pipeline. Neural Data
+                if input.ExtractData
+                   % So far, we are NOT applying any filters, bc we are only
+                   % recording high pass data.
+                   disp('Deuteron data is NOT being filter, by default');
+                   Deuteron_PipelineWrapper(sessions(s), opt);
+                end
+    
+            case {'fileperch', 'filepertype'}
+              %% 04.2 INTAN Pipeline
+              % 01. Find out INTAN settings and header file. Extract info.
+              %  Uses a modified Intan function, to make the basic information
+              %  available at 'info{ss}' and a more detailed info at
+              %  the '.INTAN_hdr' sub-structure.
+              sessions(s) = findSetting(sessions(s));
+    
+              % 02. Create NWB file
+              if input.useNWB % We want a .NWB file.
+    
+                  % Run wrapper for the INTAN to NWB functionality:               
+                    % This NEEDS A PYTHON installation and the tooldbox inside!
+                    % Detailed explanation:
+                    % WHAT IT IS: function to convert data from INTAN to .NWB format.
+                    % WHAT IT DOES: Checks for Python engine in computer. Adds the necessary
+                    %  dependences. Locates input session, copies ALL files to the IntanToNWB
+                    %  folder and merges them into a new 'info.nwb' file. This file 
+                    %  is renamed to 'session_name.nwb'. Moves this new file back to 
+                    %  the original session folder. Removes the copied data from the 
+                    %  IntanToNWB folder.
+                    %
+                    % Requires Python installed in the machine. 
+                    %  To date, MATLAB 2021b accepts up to Python 3.9. Install the
+                    %  64 bits version:
+                    % (https://de.mathworks.com/help/matlab/matlab_external/install-supported-python-implementation.html)
+                    %  To check access to Python Modules from MATLAB, look that 'pe' is correctly populated when running the script.
+                  intan2NWB_wrapper(input, opt);
+              end 
+    
+              % 03. Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
+              if input.ExtractData 
+                  if opt.bin
+    
+                  % Based on Sara, Aylin and Lukas' scripts.
+                  Intan2Kilosort_wrapper(sessions(s), opt);
                   end
-                  
-                  if opt.FTfile
-                      % 04. Run wrapper for the INTAN to FIELDTRIP.
-                      % Includes a mix of INTAN funtions. CREATES and GIVES proper
-                      % FieldTrip format without trial-parsing. 
-                      intan2FieldTrip(sessions(s), opt)
+              end
+              
+              if opt.FTfile
+                  % 04. Run wrapper for the INTAN to FIELDTRIP.
+                  % Includes a mix of INTAN funtions. CREATES and GIVES proper
+                  % FieldTrip format without trial-parsing. 
+                  intan2FieldTrip(sessions(s), opt)
 
-                      % 04.1 Plotting. Uses Chronux Multitaper approach to generate fast
-                      % single-tappered Spectrograms on a subset of channels for a small chunck
-                      % of time. Just to have a preview of how the signal looks like in
-                      % the LFP range.
-                      if isfield(input, 'test_ch') && ~isempty(input.test_ch)
-                          plot_testsignal(FT_data, input.test_ch, opt)
-                      end
+                  % 04.1 Plotting. Uses Chronux Multitaper approach to generate fast
+                  % single-tappered Spectrograms on a subset of channels for a small chunck
+                  % of time. Just to have a preview of how the signal looks like in
+                  % the LFP range.
+                  if isfield(input, 'test_ch') && ~isempty(input.test_ch)
+                      plot_testsignal(FT_data, input.test_ch, opt)
                   end
-        
-                case 'Allego'
-                    warning('Allego format not implemented yet.');
-        
-                case 'Intanformat'
-                    warning('INTAN old format not implemented. Probably it wont be.');
-        
-                case 'NAN'
-                    warning('The format of this session could not be recognized. Skipping.');
-                    continue
-        
-                otherwise
-                    warning('Something went wrong during format verification. Skipping');
-                    sessions(s).info.fileformat = 'ERR'; % Flag for ERROR
-                    continue
-            end 
-                    
-            %% 04 Go Kilosorting!
-            if opt.kilosort
+              end
+    
+            case 'Allego'
+                warning('Allego format not implemented yet.');
+    
+            case 'Intanformat'
+                warning('INTAN old format not implemented. Probably it wont be.');
+    
+            case 'NAN'
+                warning('The format of this session could not be recognized. Skipping.');
+                continue
+    
+            otherwise
+                warning('Something went wrong during format verification. Skipping');
+                sessions(s).info.fileformat = 'ERR'; % Flag for ERROR
+                continue
+        end 
                 
-                % Kilosort Run without GUI.
-                master_kilosort(sessions, input) % ops (not opt) is created as kilosort settings
+        %% 04 Go Kilosorting!
+        if opt.kilosort
             
-                % Manual curation of data in Phy would be done once all requested sessions are finished. Therefore, I think that
-                % NGLXX_postPhy will be a new script, to run after all manual cuartion is done, allowing to recover the final
-                % data from all sessions at once.
-                
-                % In principle, some basic curation could be automated (tossing very low firing rates, clusters with low
-                % numbers of spikes, etc.)
-            end
+            % Kilosort Run without GUI.
+            master_kilosort(sessions, input) % ops (not opt) is created as kilosort settings
         
-            % Clean up to move on to next session
-            clear FT_data INTANdata txt
+            % Manual curation of data in Phy would be done once all requested sessions are finished. Therefore, I think that
+            % NGLXX_postPhy will be a new script, to run after all manual cuartion is done, allowing to recover the final
+            % data from all sessions at once.
+            
+            % In principle, some basic curation could be automated (tossing very low firing rates, clusters with low
+            % numbers of spikes, etc.)
+        end
+    
+        % Clean up to move on to next session
+        clear FT_data INTANdata txt
 
-       else % if session is among requested
-           disp('Session not requested. Skipping.')
-       end 
     end % sessions loop
 end % subjects loop
