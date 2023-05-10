@@ -46,15 +46,13 @@
 %       
 % Last modified 05.04.2023 (Jesus)
 
-% TODO LIST 
+% TODO LIST
 %    Prepare a small function that, if the IKN folder structure does not exists, it will be created and all data included there.
 %    There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 %    Prepare to downsample highpass data to a half? For Data size reduction.
 %    Continue with 'Deuteron_GetDigInEvents' when I get a recording with EVENTS
 %    Create a 'trial-parsed' stream in 'mat2FieldTrip' VS. add post-hoc parsing
-%    Figure out how to work with Allego files (most likely, after Allego's self preprocessing tool?)
-%
 
 %% Input storage drive, project name and toolbox folder:
 input.datadrive     = 'D:\';
@@ -64,8 +62,8 @@ input.toolbox       = 'C:\Code\Scripts\ephys-data-pipeline'; % Default: 'C:\Code
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = {'478'};    % char array 'all', or a single subject denomination e.g. 'DOE'
-input.dates          = {'20230505'};    % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.subjects       = {'646'};    % char array 'all', or a single subject denomination e.g. 'DOE'
+input.dates          = {'20230508' '20230509'};    % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
@@ -201,8 +199,8 @@ for s = 1:input.nsubjects
         if opt.kilosort
             
             % Kilosort Run without GUI.
-            master_kilosort(sessions, input) % ops (not opt) is created as kilosort settings
-        
+            master_kilosort(sessions, input, opt) % 'opt' is a pipeline running variable.
+
             % Manual curation of data in Phy would be done once all requested sessions are finished. Therefore, I think that
             % NGLXX_postPhy will be a new script, to run after all manual cuartion is done, allowing to recover the final
             % data from all sessions at once.

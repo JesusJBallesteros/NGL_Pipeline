@@ -9,43 +9,60 @@ function master_kilosort(sessions, input, varargin)
 %
 % INPUT:    sessions: stores info about current session. Relevant here to
 %                     know number of channels withlut hard coding it.
+%                     *IMPORTANT: It is used by running the ConfigFile.
 %           input:    stores general info about project, paths and so on. 
 %           varargin: optional input (opt) that can be given or not.
 %
-% Winston's script and functions and Sara's fixes.
+% Winston's script and functions together with Sara's fixes.
 %
-% Version 27.04.2023 (Jesus)
+% Version 10.05.2023 (Jesus)
 
-%% Defaults, if not given as opt
+
 if nargin < 3, opt = struct();
 elseif nargin == 3, opt = varargin{1};
 end
 
-% Config and Channelmap files are defaulted to be found under '\analysisCode'
+%% Defaults, if not given.
+% Config and Channelmap files are to be found under '\analysisCode'
 addpath(genpath('C:\KiloSort2_SpikeSorting')) % path to kilosort toolbox (Assumes Sorting PC, not local)
-if ~isfield(opt,'KSConfigFile') || isempty(opt.KSConfigFile),       opt.KSConfigFile   = input.analysisCode;  end 
-if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),     opt.KSchanMapFile  = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end 
+if ~isfield(opt,'KSConfigFile') || isempty(opt.KSConfigFile),           opt.KSConfigFile    = input.analysisCode;  end 
+if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),         opt.KSchanMapFile   = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end 
+if ~isfield(opt,'FolderProcDataMat') || isempty(opt.FolderProcDataMat), opt.FolderProcDataMat = fullfile(input.processed, input.subjects(s).name, sessions(s).list{ss}); end
 
 %% Find .bin files (raw and temp) % JESUS, changed the name and left only one.
 % I assume it will be always in a SDD for processing.
 rootfolder = opt.FolderProcDataMat; % the raw data binary file is in this folder (for current subject and session)
 % rootfolder = opt.FolderProcDataMat; % path to temporary binary file (same size as data, should be on fast SSD)
 
-%% Set configuration.
+%% Set configuration. Will run 'kilosortConfig.m'
 %(JESUS: added all ops INSIDE config file. having some inside some outside made no sense
 % The alternative is to GET RID of configfile and set ops out here. 
 % All it does is to create the 'ops' variable)
-run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'))
+ops = [];
+
+if isfile(fullfile(opt.KSConfigFile, 'kilosortConfig.m'))
+    % Existing Config file in adequate folder, use it.
+    run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'));
+else
+    % Non-existing Config file or not located in the right folder, take the
+    % standard one stored within the toolbox, and run it.
+    if isfile(fullfile(input.toolbox, '\Instructions\kilosortConfig.m'))
+        warning('Config File not found under expected folder ''analysisCode''. Using a default version.')
+        copyfile(fullfile(input.toolbox, '\Instructions\kilosortConfig.m'), ...
+                 input.analysisCode);
+    end
+    run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'));
+end
+
+%% Check for Channel map file. Will run 'createChannelMapFile.m' if necessary.
+if ~isfile(fullfile(opt.KSConfigFile, opt.KSchanMapFile))
+    % No channel map file located in expected folder. Warn and create a basic linear one.
+    warning('No channel map file found under expected folder ''\analysisCode''! Using a simple linear map.')
+    run(fullfile(input.toolbox, '\functions\createChannelMapFile.m'));
+end
 
 %% This block runs all the steps of the algorithm
 fprintf('Looking for data inside %s \n', rootfolder)
-
-% % is there a channel map file in this folder? 
-% JESUS removed this. we stick to chanmap under \analysisCode
-% fs = dir(fullfile(rootfolder, 'chan*.mat'));
-% if ~isempty(fs)
-%     ops.chanMap = fullfile(rootfolder, fs(1).name);
-% end
 
 % find the binary file
 fs          = dir(fullfile(rootfolder, '*.bin')); % JESUS, dir(.binfile) should work
