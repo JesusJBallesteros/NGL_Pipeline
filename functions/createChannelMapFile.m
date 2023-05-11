@@ -1,19 +1,19 @@
-%%  Creates a channel map file
-% kcoords is used to forcefully restrict templates to channels in the same
-%   channel group. 
+%% Creates a channel map file
+% 'kcoords' is used to forcefully restrict templates to channels in the same
+% channel group. Creates labeled clusters to better differentiate grouped
+% tetrodes, or shanks.
+%
 % An option can be set in the master_file to allow a fraction 
-%   of all templates to span more channel groups, so that they can capture shared 
-%   noise across all channels. This option is:
+% of all templates to span more channel groups, so that they can capture shared 
+% noise across all channels. This option is:
+%    ops.criterionNoiseChannels = 0.2;
+%     if < 1, it will be treated as a fraction of the total number of clusters
+%     if > 1, it will be treated as the "effective number" of channel groups 
+%     at which to set the threshold. So if a template occupies more than this many 
+%     channel groups, it will not be restricted to a single channel group. 
 %
-%       ops.criterionNoiseChannels = 0.2; 
-%
-%       if < 1, it will be treated as a fraction of the total number of clusters
-%       if > 1, it will be treated as the "effective number" of channel groups 
-%   at which to set the threshold. So if a template occupies more than this many 
-%   channel groups, it will not be restricted to a single channel group. 
-%
-% Created from Kilosort original script, with additions from Sara's 'How to
-% create a channel map document. Generalized and simplified. TESTING.
+% Created from Kilosort original script, with additions from Sara's 'Howto
+% createachannelmap' document. Generalized and simplified. TESTING.
 %
 % Jesus 10.05.2023 
 

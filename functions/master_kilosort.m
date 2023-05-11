@@ -17,7 +17,6 @@ function master_kilosort(sessions, input, varargin)
 %
 % Version 10.05.2023 (Jesus)
 
-
 if nargin < 3, opt = struct();
 elseif nargin == 3, opt = varargin{1};
 end
@@ -35,23 +34,21 @@ rootfolder = opt.FolderProcDataMat; % the raw data binary file is in this folder
 % rootfolder = opt.FolderProcDataMat; % path to temporary binary file (same size as data, should be on fast SSD)
 
 %% Set configuration. Will run 'kilosortConfig.m'
-%(JESUS: added all ops INSIDE config file. having some inside some outside made no sense
-% The alternative is to GET RID of configfile and set ops out here. 
-% All it does is to create the 'ops' variable)
+% Added all ops INSIDE config file.
 ops = [];
 
 if isfile(fullfile(opt.KSConfigFile, 'kilosortConfig.m'))
     % Existing Config file in adequate folder, use it.
     run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'));
 else
-    % Non-existing Config file or not located in the right folder, take the
-    % standard one stored within the toolbox, and run it.
+    % Non-existing Config file or not located in the right folder, take a
+    % standard one stored within the toolbox and run it.
     if isfile(fullfile(input.toolbox, '\Instructions\kilosortConfig.m'))
         warning('Config File not found under expected folder ''analysisCode''. Using a default version.')
         copyfile(fullfile(input.toolbox, '\Instructions\kilosortConfig.m'), ...
                  input.analysisCode);
+        run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'));
     end
-    run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'));
 end
 
 %% Check for Channel map file. Will run 'createChannelMapFile.m' if necessary.
@@ -62,40 +59,44 @@ if ~isfile(fullfile(opt.KSConfigFile, opt.KSchanMapFile))
 end
 
 %% This block runs all the steps of the algorithm
+% 11.05 Jesus adding a way to resume after creation of .rez file, since the
+% option is given. Useful?
 fprintf('Looking for data inside %s \n', rootfolder)
 
-% find the binary file
-fs          = dir(fullfile(rootfolder, '*.bin')); % JESUS, dir(.binfile) should work
-ops.fbinary = fullfile(rootfolder, fs(1).name);
+% if ~isfile(fullfile(rootfolder, 'rez.mat'))
+    % Find the binary file
+    fs          = dir(fullfile(rootfolder, '*.bin')); % JESUS, dir(.binfile) should work
+    ops.fbinary = fullfile(rootfolder, fs(1).name);
+    
+    % Preprocess data to create temp_wh.dat
+    rez = preprocessDataSub(ops);
+    
+    % Time-reordering as a function of drift
+    rez = clusterSingleBatches(rez);
 
-% preprocess data to create temp_wh.dat
-rez = preprocessDataSub(ops);
+    % Saving here is a good idea, because the rest can be resumed after loading rez
+    save(fullfile(rootfolder, 'rez.mat'), 'rez', '-v7.3');
+% end
 
-% time-reordering as a function of drift
-rez = clusterSingleBatches(rez);
-
-% saving here is a good idea, because the rest can be resumed after loading rez
-save(fullfile(rootfolder, 'rez.mat'), 'rez', '-v7.3');
-
-% main tracking and template matching algorithm
+% Main tracking and template matching algorithm
 rez = learnAndSolve8b(rez);
 
-% final merges
+% Final merges
 rez = find_merges(rez, 1);
 
-% final splits by SVD
+% Final splits by SVD
 rez = splitAllClusters(rez, 1);
 
-% final splits by amplitudes
+% Final splits by amplitudes
 rez = splitAllClusters(rez, 0);
 
-% decide on cutoff
+% Decide on cutoff
 rez = set_cutoff(rez);
 
-fprintf('found %d good units \n', sum(rez.good>0))
+fprintf('Found %d good units \n', sum(rez.good>0))
 
-% write to Phy
-fprintf('Saving results to Phy  \n')
+% Write to Phy
+fprintf('Saving results to Phy \n')
 rez2Phy(rez, rootfolder); % function has been modified to additionally output template_bestchannels.mat (Winston)
 
 %% If you want to save the results to a Matlab file...
@@ -108,7 +109,7 @@ rez2Phy(rez, rootfolder); % function has been modified to additionally output te
 % rez.cProjPC = [];
 % 
 % % save final results as rez2
-% fprintf('Saving final results in rez2  \n')
+% fprintf('Saving final results in rez2 \n')
 % fname = fullfile(rootZ, 'rez2.mat');
 % save(fname, 'rez', '-v7.3');
 
