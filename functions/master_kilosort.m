@@ -23,10 +23,10 @@ end
 
 %% Defaults, if not given.
 % Config and Channelmap files are to be found under '\analysisCode'
-addpath(genpath('C:\KiloSort2_SpikeSorting')) % path to kilosort toolbox (Assumes Sorting PC, not local)
+addpath(genpath('C:\KiloSort_2.0\')) % path to kilosort toolbox (Assumes Sorting PC, not local)
 if ~isfield(opt,'KSConfigFile') || isempty(opt.KSConfigFile),           opt.KSConfigFile    = input.analysisCode;  end 
 if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),         opt.KSchanMapFile   = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end 
-if ~isfield(opt,'FolderProcDataMat') || isempty(opt.FolderProcDataMat), opt.FolderProcDataMat = fullfile(input.processed, input.subjects(s).name, sessions(s).list{ss}); end
+% if ~isfield(opt,'FolderProcDataMat') || isempty(opt.FolderProcDataMat), opt.FolderProcDataMat = fullfile(input.processed, input.subjects(s).name, sessions(s).list{ss}); end
 
 %% Find .bin files (raw and temp) % JESUS, changed the name and left only one.
 % I assume it will be always in a SDD for processing.
@@ -63,7 +63,7 @@ end
 % option is given. Useful?
 fprintf('Looking for data inside %s \n', rootfolder)
 
-% if ~isfile(fullfile(rootfolder, 'rez.mat'))
+if ~isfile(fullfile(rootfolder, 'rez.mat'))
     % Find the binary file
     fs          = dir(fullfile(rootfolder, '*.bin')); % JESUS, dir(.binfile) should work
     ops.fbinary = fullfile(rootfolder, fs(1).name);
@@ -76,7 +76,9 @@ fprintf('Looking for data inside %s \n', rootfolder)
 
     % Saving here is a good idea, because the rest can be resumed after loading rez
     save(fullfile(rootfolder, 'rez.mat'), 'rez', '-v7.3');
-% end
+else
+    load(fullfile(rootfolder, 'rez.mat'), 'rez');
+end
 
 % Main tracking and template matching algorithm
 rez = learnAndSolve8b(rez);
