@@ -1,11 +1,19 @@
-function sessions = findSessions(input)
+function sessions = findSessions(input, varargin)
 % Finds and list all sessions requested, no matter the input format.
 %
-% Version 04.04.2023 Jesus
+% Version 16.05.2023 Jesus
 
 % Goes over every subject's folder and reads the sessions    
 for s = 1:input.nsubjects
-    cd(fullfile(input.datafolder, string(input.subjects(s).name)))
+    if nargin > 1 % Feeding 'opt' happens in NGL02
+       opt = varargin{1}; % Gets it
+        if isfield(opt,'postPhy') % Double check
+            cd(fullfile(input.processed, string(input.subjects(s).name)))
+        end
+    else
+        cd(fullfile(input.datafolder, string(input.subjects(s).name)))
+    end
+
     ss = dir();
     dirFlags = [ss.isdir];
     ss = ss(dirFlags);

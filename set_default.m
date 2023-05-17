@@ -23,6 +23,7 @@ if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB    
 input.datafolder = fullfile(input.datadrive, input.studyName, '\data\raw\');              % Default: '\data\raw'
 input.processed  = fullfile(input.datadrive, input.studyName, '\data\preprocessing\');    % Default: '\data\preprocessing'
 input.analysisCode = fullfile(input.datadrive, input.studyName, '\analysisCode\');
+input.sorted = fullfile(input.datadrive, input.studyName, '\data\spikeSorted\');
 
 %% Find requested subjects.
 if ~isfield(input,'subjects') || isempty(input.subjects)
@@ -45,7 +46,7 @@ input.nsubjects = length(input.subjects);
 % If NWB requested, Python-based toolbox needed.
 if input.useNWB 
     if ~isfield(input,'pyfolder') || isempty(input.pyfolder)
-        input.pyfolder = 'C:\Code\Scripts\ephys-data-pipeline\toolboxes\IntanToNWB';
+        input.pyfolder = [input.toolbox '\toolboxes\IntanToNWB'];
     end
 end
 
