@@ -55,15 +55,15 @@
 %    Create a 'trial-parsed' stream in 'mat2FieldTrip' VS. add post-hoc parsing
 
 %% Input storage drive, project name and toolbox folder:
-input.datadrive     = 'D:\';
-input.studyName     = 'ephysTest'; % For SPP people: 'Dorian\SPP'
-input.toolbox       = 'C:\Code\Scripts\ephys-data-pipeline'; % Default: 'C:\Code\Scripts\ephys-data-pipeline'
+input.datadrive     = 'F:\';
+input.studyName     = 'ephysTestATLAS'; % 'ephysTestATLAS' % For SPP people: 'Dorian\SPP'
+input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\Scripts\ephys-data-pipeline'
 
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = {'646'};    % char array 'all', or a single subject denomination e.g. 'DOE'
-input.dates          = {'20230508' '20230509'};    % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.subjects       = {'646'}; % '478' % 'all';  % char array 'all', or a single subject denomination e.g. 'DOE'
+input.dates          = {'20230516_01'}; %'20230515'  % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
@@ -76,8 +76,8 @@ opt = struct();
     opt.GetMotionSensors  = false;  % JACOB gone MIA. Retrieve data from motion sensors in Deuteron.
 
     % KS options. Leave commented to default, or explicit your own paths here (NOT Recommended). 
-        % opt.KSConfigFile   = 'D:\ephysTest\analysisCode\'; % Location of configfile
-        % opt.KSchanMapFile  = 'D:\ephysTest\analysisCode\chanMap*.mat'; % Location AND name of channel map file
+        % opt.KSConfigFile   = 'DRIVE:\projectName\analysisCode\'; % Location of configfile
+        % opt.KSchanMapFile  = 'DRIVE:\projectName\analysisCode\chanMap*.mat'; % Location AND name of channel map file
 
     % Only for FieldTrip .mat files. Plots snippets of raw signals and spectrograms.
         % opt.test_ch    = []; % An array of numerals for channels to plot.
@@ -122,7 +122,7 @@ for s = 1:input.nsubjects
                    % So far, we are NOT applying any filters, bc we are only
                    % recording high pass data.
                    disp('Deuteron data is NOT being filter, by default');
-                   Deuteron_PipelineWrapper(sessions(s), opt);
+                   Deuteron_PipelineWrapper(sessions(s), input, opt);
                 end
     
             case {'fileperch', 'filepertype'}
@@ -159,8 +159,11 @@ for s = 1:input.nsubjects
               if input.ExtractData 
                   if opt.bin
     
-                  % Based on Sara, Aylin and Lukas' scripts.
-                  Intan2Kilosort_wrapper(sessions(s), opt);
+                    % Based on Sara, Aylin and Lukas' scripts.
+                    % only if the .bin file does not exist yet.
+                      if ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
+                        Intan2Kilosort_wrapper(sessions(s), opt);
+                      end
                   end
               end
               
@@ -199,7 +202,7 @@ for s = 1:input.nsubjects
         if opt.kilosort
             
             % Kilosort Run without GUI.
-            master_kilosort(sessions, input, opt) % 'opt' is a pipeline running variable.
+            master_kilosort(sessions(s), input, opt) % 'opt' is a pipeline running variable.
 
             % Manual curation of data in Phy would be done once all requested sessions are finished. Therefore, I think that
             % NGLXX_postPhy will be a new script, to run after all manual cuartion is done, allowing to recover the final

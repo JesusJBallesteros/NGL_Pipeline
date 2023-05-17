@@ -1,4 +1,4 @@
-function Deuteron_PipelineWrapper(sessions, varargin)
+function Deuteron_PipelineWrapper(sessions, input, varargin)
 % Adaptation from the common pipeline for Deuteron. Wraps up the most common 
 % processing lines necessary to get data from Deuteron raw files. This
 % includes the Neural data and the motion sensors, so far. Could be
@@ -38,8 +38,8 @@ function Deuteron_PipelineWrapper(sessions, varargin)
 %
 % Version 06.03.2023 Jesus
 
-if nargin < 2, opt = struct();
-elseif nargin == 2, opt = varargin{1};
+if nargin < 3, opt = struct();
+elseif nargin == 3, opt = varargin{1};
 end
 
 %% Options 
@@ -54,7 +54,7 @@ if ~isfield(opt,'highpass'),        opt.highpass            = [500 7500];   end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
 
 % Hardcode the .dll file from Deuteron. Not really an option.
-opt.ReaderDll = 'C:\Code\Scripts\ephys-data-pipeline\functions\dlls\Event_File_Reader_8_3.dll';
+opt.ReaderDll = [input.toolbox, '\functions\dlls\Event_File_Reader_8_3.dll'];
 
 %% Parameters
 % Collect parameters to proceed with file creation. List all files.

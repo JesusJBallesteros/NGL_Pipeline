@@ -31,7 +31,7 @@ folderName = opt.PathRaw;
 minFileIndex = 1; % the number of the first file to load (e.g. for NEUR0003, set minFileIndex = 3);
 maxFileIndex = length(dir([folderName '\' filePrefix '*'])) - 1; % cero indexed, so [0:Nfiles-1]
 count = 1;
-if (IncludeEventFile)
+if IncludeEventFile
     listOfFilesToLoad = cell(maxFileIndex - minFileIndex + 2, 1);
     listOfFilesToLoad{1} = fullfile(folderName, 'EVENT000.DF1');
     count = count + 1;
@@ -53,7 +53,7 @@ end
 %% Load events
 % to cancel this while it is running, type c.Cancel()
 % Load in assembly
-asminfo = NET.addAssembly(opt.ReaderDll);        % loads in .NET dll
+asminfo = NET.addAssembly(opt.ReaderDll);        % loads in .NET dll 
 c = Event_File_Reader_8_3.EFRMatlabFunctions();
 c.Initialize();
 c.LoadFiles(fileNames);
@@ -64,7 +64,7 @@ c.CompressFiles(fileNames, [folderName '\COMP_EVENTS.DF1']);
 
 %% get number of records
 % Offer output about number of records
-pause(10)
+pause(30)
 numberOfRecords = c.GetNumberOfRecords(); % get number of records in event log
 fprintf(['The number of records is: ' num2str(numberOfRecords) '\n']);
 
