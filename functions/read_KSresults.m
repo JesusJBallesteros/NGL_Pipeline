@@ -67,8 +67,8 @@ if opt.plotAmpDepth
     % spike distribution across depth and amplitude.
     
     % This depends on the probe
-    ampBins = 0:30:min(max(spike.Amps),800);   
-    depthBins = 0:15:190; % check for this
+    ampBins = 0:20:150; %min(max(spike.Amps),800);   
+    depthBins = 0:25:250; % check for this
 
     [spike.AmpPDFS, spike.FrCDFS] = computeWFampsOverDepth(spike.Amps, spike.Depths, ampBins, depthBins, spike.st(end));
     

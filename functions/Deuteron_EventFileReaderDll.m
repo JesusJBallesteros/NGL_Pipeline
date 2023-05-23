@@ -1,4 +1,4 @@
-function [EventRecord, nchan] = Deuteron_EventFileReaderDll(opt, varargin)
+function [EventRecord, nchan] = Deuteron_EventFileReaderDll(opt)
 % Use the Event_File_Reader_X_X dll to extract events from a Deuteron
 % recording with Block Format.
 % The user must enter the full path of the dll and the file they wish to load. 

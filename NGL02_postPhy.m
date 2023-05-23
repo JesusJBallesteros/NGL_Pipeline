@@ -3,15 +3,15 @@
 % the resulting KS results after manual curation.
 
 %% Input storage drive, project name and toolbox folder:
-input.datadrive     = 'D:\';
+input.datadrive     = 'F:\';
 input.studyName     = 'ephysTestATLAS'; % For SPP people: 'Dorian\SPP'
-input.toolbox       = 'C:\Code\Scripts\ephys-data-pipeline'; % Default: 'C:\Code\Scripts\ephys-data-pipeline'
+input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\Scripts\ephys-data-pipeline'
 
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
 input.subjects       = {'478'}; % char array 'all', or a single subject denomination e.g. 'DOE'
-input.dates          = {'20230515' '20230516' '20230517'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.dates          = 'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
@@ -28,9 +28,12 @@ set_default(input);
 for s = 1:input.nsubjects
     % Read requested sessions from specified animal folder.
     sessions = findSessions(input, opt);
+    results = cell(sessions(s).nsessions,1);
 
     %% 02. Loop subjects and sessions to process.
     for ss = 1:sessions(s).nsessions
+        results{ss} = struct;
+
         % Navigate to session's raw data folder.
         cd(fullfile(sessions(s).folder,sessions(s).list{ss}));
                 
@@ -49,8 +52,7 @@ for s = 1:input.nsubjects
         mkdir(opt.FolderProcDataMat);
 
         %% 03. Proceed with reading data from preprocessed files
-        [spike, template] = read_KSresults(opt);
-
+        [results{ss}.spike, results{ss}.template] = read_KSresults(opt);
 
     end
 end

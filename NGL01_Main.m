@@ -62,8 +62,8 @@ input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\Scripts
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = {'646'}; % '478' % 'all';  % char array 'all', or a single subject denomination e.g. 'DOE'
-input.dates          = {'20230516_01'}; %'20230515'  % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.subjects       = {'478'}; % 'all';  % char array 'all', or a single subject denomination e.g. 'DOE'
+input.dates          = {'20230523_02'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
@@ -122,7 +122,7 @@ for s = 1:input.nsubjects
                    % So far, we are NOT applying any filters, bc we are only
                    % recording high pass data.
                    disp('Deuteron data is NOT being filter, by default');
-                   Deuteron_PipelineWrapper(sessions(s), input, opt);
+                   sessions(s) = Deuteron_PipelineWrapper(sessions(s), input, opt);
                 end
     
             case {'fileperch', 'filepertype'}

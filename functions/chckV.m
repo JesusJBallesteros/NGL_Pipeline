@@ -34,19 +34,19 @@ if isfile('EVENTLOG.NLE')
         % Get meta data from Deuteron:
         % Checks which type of logger was used and sets some parameters:
         metaData                = Deuteron_GetMetaData(info);
-        info.numChannels        = 32; % Coded as default here. If necessary, overrided later on.
+        info.nChannels          = 32; % Coded as default here. If necessary, overrided later on.
         info.numADCBits         = metaData.numADCBits;
         info.voltageRes         = metaData.voltageRes;
-        info.sampleRate         = metaData.fSample;
-        info.HDF5chunkSize      = 300*info.sampleRate;
+        info.amplifier_sample_rate         = metaData.fSample;
+        info.HDF5chunkSize      = 300*info.amplifier_sample_rate;
 
     else % Still empty for some reason
         warning('Something went wrong with this Deuteron flat format session.')
         info.fileformat    = 'NAN'; % Flag for error with the file format
-        info.numChannels   = [];
+        info.nChannels     = [];
         info.numOfADCBits  = [];
         info.voltageRes    = [];
-        info.sampleRate    = [];
+        info.amplifier_sample_rate    = [];
         info.HDF5chunkSize = [];
         return
     end
@@ -59,19 +59,19 @@ elseif isfile('EVENT000.DF1')
     if ~isempty(info.files)
         % Extract metadata
         metaData           = Deuteron_GetMetaData(info);
-        info.numChannels   = metaData.numChannels;
+        info.nChannels     = metaData.numChannels;
         info.numADCBits    = metaData.numADCBits;
         info.voltageRes    = metaData.voltageRes;
-        info.sampleRate    = metaData.fSample;
-        info.HDF5chunkSize = 300*info.sampleRate;
+        info.amplifier_sample_rate    = metaData.fSample;
+        info.HDF5chunkSize = 300*info.amplifier_sample_rate;
 
     else
         warning('Something went wrong with this Deuteron block format session.')
         info.fileformat    = 'NAN'; % Flag for error with the file format
-        info.numChannels   = [];
+        info.nChannels   = [];
         info.numADCBits    = [];
         info.voltageRes    = [];
-        info.sampleRate    = [];
+        info.amplifier_sample_rate    = [];
         info.HDF5chunkSize = [];
         return
     end
@@ -112,7 +112,7 @@ else
         info.numChannels   = [];
         info.numADCBits    = [];
         info.voltageRes    = [];
-        info.sampleRate    = [];
+        info.amplifier_sample_rate    = [];
         info.HDF5chunkSize = [];
     end
 end

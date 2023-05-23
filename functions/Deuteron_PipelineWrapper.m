@@ -1,4 +1,4 @@
-function Deuteron_PipelineWrapper(sessions, input, varargin)
+function sessions = Deuteron_PipelineWrapper(sessions, input, varargin)
 % Adaptation from the common pipeline for Deuteron. Wraps up the most common 
 % processing lines necessary to get data from Deuteron raw files. This
 % includes the Neural data and the motion sensors, so far. Could be
@@ -62,14 +62,14 @@ opt.myFiles = sessions.info.files;
 opt.ext     = sessions.info.fileformat;
 
 % Sample rate.
-opt.sampleRate  = sessions.info.sampleRate;
+opt.sampleRate  = sessions.info.amplifier_sample_rate;
 
 % ChunkSize of HDF5 file (e.g., 5 minutes is, 300s at 30000Hz = 9600000 samples)
 %  this chunk size works well. optimal? Once it is, this variable no longer requires user input.
 opt.HDF5chunkSize = 300*opt.sampleRate; 
 
 % Get number of channels.
-opt.numChannels     = sessions.info.numChannels;
+opt.numChannels     = sessions.info.nChannels;
 opt.channelOrder    = 1:1:opt.numChannels; 
 
 % We need this parameters from Deuteron's log and documentation, to convert 
@@ -83,9 +83,9 @@ if opt.RetrieveEvents && strcmp(sessions.info.fileformat, 'DF1')
     disp('Retrieving Events from Deuteron BLOCK format.')
    
     % Proceed to extract all events during session.
-    [EventRecord, sessions.info.numChannels] = ...
-        Deuteron_EventFileReaderDll(opt, sessions);
-    
+    [EventRecord, opt.numChannels] = Deuteron_EventFileReaderDll(opt);
+    sessions.info.nChannels = opt.numChannels;
+
 else
    disp('Event extraction not requested or session is FLAT format. Skipping...')
 end

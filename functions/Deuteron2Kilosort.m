@@ -21,8 +21,8 @@ function Deuteron2Kilosort(opt)
 % TODO: prepare filtering for DF1 format.
 
 % Name dataset to an useful denomination?
-filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName ".h5"]); 
-dataset = '/allChnMat'; % for now, as before.
+% filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName ".h5"]); 
+% dataset = '/allChnMat'; % for now, as before.
 
 %% Pre-define .h5 and .bin opt.myFiles
 % if opt.h5
@@ -128,7 +128,7 @@ elseif strcmp(opt.ext, 'DF1')
     % Allocate data to its respective single-channel file
     % Open each neural data file, resize data for detection with Kilosort,
     % Allocate data to its respective single-channel file.
-    for i = 2:length(opt.myFiles)-1      
+    for i = 2:length(opt.myFiles)-1
         fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name), 'r');
             tempdata = Deuteron_extractData(stream, fid, opt);
         fclose(fid);
