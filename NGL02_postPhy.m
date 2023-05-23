@@ -10,8 +10,8 @@ input.toolbox       = 'C:\Code\Scripts\ephys-data-pipeline'; % Default: 'C:\Code
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = {'478'};    % char array 'all', or a single subject denomination e.g. 'DOE'
-input.dates          = {'20230516'};    % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.subjects       = {'478'}; % char array 'all', or a single subject denomination e.g. 'DOE'
+input.dates          = {'20230515' '20230516' '20230517'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.

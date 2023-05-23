@@ -1,5 +1,3 @@
-
-
 function S = loadParamsPy(fn)
 % Loads a phy-style "params.py" into a matlab struct. The params.py is
 % python code but just a series of assignments, so most of it will run
