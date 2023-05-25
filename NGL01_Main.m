@@ -63,7 +63,7 @@ input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\Scripts
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
 input.subjects       = {'478'}; % 'all';  % char array 'all', or a single subject denomination e.g. 'DOE'
-input.dates          = {'20230523_02'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.dates          = {'20230524' '20230525'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
@@ -71,7 +71,7 @@ opt = struct();
     % These are essential.
     opt.bin               = true;   % Creation of .bin file, for Kilosort.
     opt.kilosort          = true;   % Call to kilosort processing. NEEDS configfile and chanmap in \analysisCode 
-    opt.FTfile            = false;   % Creation of .mat file, FieldTrip ready.
+    opt.FTfile            = true;   % Creation of .mat file, FieldTrip ready.
     opt.RetrieveEvents    = true;   % Retrieve event log from Deuteron system.
     opt.GetMotionSensors  = false;  % JACOB gone MIA. Retrieve data from motion sensors in Deuteron.
 
@@ -203,17 +203,9 @@ for s = 1:input.nsubjects
             
             % Kilosort Run without GUI.
             master_kilosort(sessions(s), input, opt) % 'opt' is a pipeline running variable.
-
-            % Manual curation of data in Phy would be done once all requested sessions are finished. Therefore, I think that
-            % NGLXX_postPhy will be a new script, to run after all manual cuartion is done, allowing to recover the final
-            % data from all sessions at once.
-            
-            % In principle, some basic curation could be automated (tossing very low firing rates, clusters with low
-            % numbers of spikes, etc.)
         end
     
         % Clean up to move on to next session
         clear FT_data INTANdata txt
-
     end % sessions loop
 end % subjects loop
