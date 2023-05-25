@@ -36,7 +36,7 @@ if nfiles == 1
     % Read voltage data according to INTAN
     % Open file, read as 'int16' but store as double.
     fid = fopen(sessions.info.files.name, 'r');
-        tmp = fread(fid, [sessions.info.nchannels inf], 'int16');
+        tmp = fread(fid, [sessions.info.nChannels inf], 'int16');
     fclose(fid);
 
     % Convert to microvolts
@@ -45,7 +45,7 @@ if nfiles == 1
     % If filtering is required (meaning, we are dealing with 'amp' files)
     if opt.set_filter
         % Go channel by channel.
-        for b = 1:sessions.info.nchannels
+        for b = 1:sessions.info.nChannels
             fprintf('- Filtering channel %d of %d.\n', b, opt.numChannels);
             
             % Proceed with filter. 'bandFilter' likes double precision.
@@ -118,7 +118,7 @@ time = (1:length(volt)) / opt.dwnsmplRate; % in Seconds
 
 disp('Creating pseudo-FieldTrip structure...');
 % Starting with labels as they have been extracted from the INTAN header
-for i = 1:sessions.info.nchannels
+for i = 1:sessions.info.nChannels
     data.label{i,1} = convertStringsToChars(sessions.info.INTAN_hdr.amplifier_channels(i).native_channel_name);
 end
 

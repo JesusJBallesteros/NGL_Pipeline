@@ -54,7 +54,7 @@ if isempty(opt.myFiles)
 end
 
 % How many channels, from Intan_hdr.
-opt.numChannels = sessions.info.nchannels; 
+opt.numChannels = sessions.info.nChannels; 
 
 % Sample rate, from Intan_hdr.
 opt.sampleRate  = sessions.info.amplifier_sample_rate;

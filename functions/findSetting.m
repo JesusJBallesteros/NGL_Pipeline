@@ -9,7 +9,7 @@ if isfile('info.rhd')
     [sessions.info.INTAN_hdr] = mod_read_Intan_RHD2000_file('info.rhd');
     
     % Number of channels.
-    sessions.info.nchannels = length(sessions.info.INTAN_hdr.amplifier_channels);
+    sessions.info.nChannels = length(sessions.info.INTAN_hdr.amplifier_channels);
     
     % If available, parse info from 'settings.xml' (for easy access).
     %  Contains metadata that may be worth to keep. Some data is relocated
