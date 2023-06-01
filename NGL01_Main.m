@@ -56,14 +56,14 @@
 
 %% Input storage drive, project name and toolbox folder:
 input.datadrive     = 'F:\';
-input.studyName     = 'ephysTestATLAS'; % 'ephysTestATLAS' % For SPP people: 'Dorian\SPP'
+input.studyName     = 'ephysTestNeuronexVSAtlas'; % 'ephysTestATLAS' % For SPP people: 'Dorian\SPP'
 input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\Scripts\ephys-data-pipeline'
 
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = {'478'}; % 'all';  % char array 'all', or a single subject denomination e.g. 'DOE'
-input.dates          = {'20230524' '20230525'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.subjects       = {'408_Masahiro'}; % 'all';  % char array 'all', or a single subject denomination e.g. 'DOE'
+input.dates          = {'20230427'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
@@ -71,7 +71,7 @@ opt = struct();
     % These are essential.
     opt.bin               = true;   % Creation of .bin file, for Kilosort.
     opt.kilosort          = true;   % Call to kilosort processing. NEEDS configfile and chanmap in \analysisCode 
-    opt.FTfile            = true;   % Creation of .mat file, FieldTrip ready.
+    opt.FTfile            = false;   % Creation of .mat file, FieldTrip ready.
     opt.RetrieveEvents    = true;   % Retrieve event log from Deuteron system.
     opt.GetMotionSensors  = false;  % JACOB gone MIA. Retrieve data from motion sensors in Deuteron.
 

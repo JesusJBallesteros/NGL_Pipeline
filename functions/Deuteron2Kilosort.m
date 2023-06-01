@@ -128,7 +128,7 @@ elseif strcmp(opt.ext, 'DF1')
     % Allocate data to its respective single-channel file
     % Open each neural data file, resize data for detection with Kilosort,
     % Allocate data to its respective single-channel file.
-    for i = 2:length(opt.myFiles)-1
+    for i = 1:length(opt.myFiles)
         fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name), 'r');
             tempdata = Deuteron_extractData(stream, fid, opt);
         fclose(fid);
@@ -137,7 +137,11 @@ elseif strcmp(opt.ext, 'DF1')
         % possible without loss.
         tempdata = int16((opt.voltageResolution * (tempdata - opt.offset)) * 1000000);
 
-        data_mat = [data_mat tempdata];
+        try
+            data_mat = [data_mat tempdata];
+        catch
+            disp('found non-matching file')
+        end
     end
     clear tempdata fid
 

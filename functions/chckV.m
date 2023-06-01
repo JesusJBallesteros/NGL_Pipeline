@@ -55,7 +55,7 @@ elseif isfile('EVENT000.DF1')
     % For this format, we list the files with neural data and extract some
     % metadata with the function 'Deuteron_GetMetaData'. No further check needed.
     info.fileformat = 'DF1';
-    info.files = dir(['*.' info.fileformat]);
+    info.files = dir(['N*.' info.fileformat]);
     if ~isempty(info.files)
         % Extract metadata
         metaData           = Deuteron_GetMetaData(info);
