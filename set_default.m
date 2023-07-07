@@ -24,6 +24,7 @@ input.datafolder = fullfile(input.datadrive, input.studyName, '\data\raw\');    
 input.processed  = fullfile(input.datadrive, input.studyName, '\data\preprocessing\');    % Default: '\data\preprocessing'
 input.analysisCode = fullfile(input.datadrive, input.studyName, '\analysisCode\');
 input.sorted = fullfile(input.datadrive, input.studyName, '\data\spikeSorted\');
+input.analysisData = fullfile(input.datadrive, input.studyName, '\data\analysis\');
 
 %% Find requested subjects.
 if ~isfield(input,'subjects') || isempty(input.subjects)

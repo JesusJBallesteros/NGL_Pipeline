@@ -21,10 +21,11 @@ function Deuteron2Kilosort(opt)
 % TODO: prepare filtering for DF1 format.
 
 % Name dataset to an useful denomination?
-% filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName ".h5"]); 
+% filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName '.h5']); 
 % dataset = '/allChnMat'; % for now, as before.
 
 %% Pre-define .h5 and .bin opt.myFiles
+% opt.h5 = true;
 % if opt.h5
 %     % Create complete HDF5 file matching size needs.
 %     h5create(filename,                          ... % filename.

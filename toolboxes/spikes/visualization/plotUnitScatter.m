@@ -1,5 +1,5 @@
 
-function f = plotUnitScatter(sp, params)
+function f = plotUnitScatter(sp, template, params)
 % function plotUnitScatter(sp, params)
 % plot of each unit by its basic parameters (amplitude, extent,
 % position, firing rate, waveform duration
@@ -54,14 +54,14 @@ else
     tempPerClu = sp.tempPerClu;
 end
 
-if ~isfield(sp, 'cluYpos')
-    sp.cluYpos = sp.templateYpos(tempPerClu+1);
+if ~isfield(template, 'Ypos')
+    sp.cluYpos = template.Ypos(tempPerClu+1);
 end
-if ~isfield(sp, 'cluAmps')
-    sp.cluAmps = sp.tempAmps(tempPerClu+1);
+if ~isfield(template, 'Amps')
+    sp.cluAmps = template.Amps(tempPerClu+1);
 end
 
-temps = sp.tempsUnW;
+temps = template.UnW;
 tempChanAmps = squeeze(max(temps,[],2))-squeeze(min(temps,[],2));
 
 nChansSpan = zeros(1, length(goodCIDs));
@@ -73,7 +73,8 @@ for c = 1:length(goodCIDs)
     peakYC = peakYC(1);
     thisTempAmps(ycoords<peakYC-150 | ycoords>peakYC+150) = 0;
     
-    nChansSpan(c) = sum(thisTempAmps>6*ampMed);
+    nChansSpan(c) = sum(thisTempAmps>3*ampMed);
+    if nChansSpan(c)==0, nChansSpan(c)= NaN; end
 end
 sp.nChansSpan = nChansSpan;
 
@@ -82,11 +83,11 @@ if ~isfield(sp, 'FRs')
     sp.FRs = spikeCounts/max(sp.st); % convert to Hz
 end
 
-goodAmps = sp.cluAmps(ismember(cids, goodCIDs));
+goodAmps = sp.Amps(ismember(cids, goodCIDs));
 goodFRs = sp.FRs(ismember(cids, goodCIDs));
-goodYpos = sp.cluYpos(ismember(cids, goodCIDs));
+goodYpos = template.Ypos(ismember(cids, goodCIDs));
 nChansSpan = sp.nChansSpan;
-goodDur = sp.tempDur(tempPerClu(goodCIDs+1)+1);
+goodDur = template.Dur(tempPerClu(goodCIDs+1)+1);
 isNarrow = goodDur/Fs<0.00033; % a third of a ms
 
 inclUnits = goodAmps>ampThresh & goodFRs>FRthresh;
@@ -120,7 +121,7 @@ hold on
 h = scatter(goodAmps(isNarrow), goodYpos(isNarrow), nChansSpan(isNarrow)*spanScaleFactor, goodFRs(isNarrow), 'filled');
 set(h, 'MarkerEdgeColor', 'k');
 
-ylim([0 3840])
+ylim([0 350])
 caxis([0 40]);
 colormap hot
 h = colorbar;

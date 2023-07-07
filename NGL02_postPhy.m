@@ -4,43 +4,41 @@
 
 %% Input storage drive, project name and toolbox folder:
 input.datadrive     = 'F:\';
-input.studyName     = 'ephysTestATLAS'; % For SPP people: 'Dorian\SPP'
+input.studyName     = 'ephysLabComparison'; %'ephysTestBundleWires';
 input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\Scripts\ephys-data-pipeline'
 
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = {'478'}; % char array 'all', or a single subject denomination e.g. 'DOE'
-input.dates          = {'20230524' '20230525'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.subjects       = 'all'; % char array 'all', or a single subject denomination e.g. 'DOE'
+input.dates          = 'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
 opt = struct();
-    opt.postPhy        = true; % Always true, to differentiate from NGL01
-
-    % Optionals
-    opt.plotdrift      = true; % testing
-    opt.plotAmpDepth   = true; % testing
-        
+    opt.plotdrift      = false; % logic to trigger plot
+    opt.plotAmpDepth   = false; % logic to trigger plot
+    opt.excludeNoise   = true; % param for plots                 
+    opt.loadPCs        = false; % param for plots                 
+    
 %% 00. Check inputs, set defaults and dependencies.
 set_default(input);
+opt.postPhy = true; % Always true, to differentiate from NGL01
 
 for s = 1:input.nsubjects
     % Read requested sessions from specified animal folder.
     sessions = findSessions(input, opt);
-    results = cell(sessions(s).nsessions,1);
 
-    %% 02. Loop subjects and sessions to process.
+    %% 01. Loop subjects and sessions to process.
     for ss = 1:sessions(s).nsessions
-        results{ss} = struct;
+        results{ss,s} = struct;
 
         % Navigate to session's raw data folder.
         cd(fullfile(sessions(s).folder,sessions(s).list{ss}));
                 
         % Progress report.
-        txt = sprintf('\n --> Subject %s, session %d out of %d: %s \n', ...
-                     input.subjects(s).name, ss, sessions(s).nsessions, sessions(s).list{ss});
-        fprintf(txt);
+        fprintf(sprintf('\n --> Subject %s, session %d out of %d: %s \n', ...
+                     input.subjects(s).name, ss, sessions(s).nsessions, sessions(s).list{ss}));
 
         % Determine where processed data will be saved, done for every session.
         opt.PathRaw           = pwd;
@@ -49,10 +47,34 @@ for s = 1:input.nsubjects
         
         % Report and create folder.
         disp(strcat('Processed data will be saved to: >', opt.FolderProcDataMat));
-        mkdir(opt.FolderProcDataMat);
+        if exist(opt.FolderProcDataMat,"dir") == 0
+            mkdir(opt.FolderProcDataMat);
+        end
 
-        %% 03. Proceed with reading data from preprocessed files
-        [results{ss}.spike, results{ss}.template] = read_KSresults(opt);
+        %% 02. Proceed with reading data from preprocessed files
+        % Load information as stored post-Phy curation.
+        [results{ss,s}.spike] = loadKSdir(opt.PathRaw); 
+
+        %% 03? Get 'events.mat' and generate 'conditions' struct
+        % TODO: trials needs to be readed from an event mat file created
+        % after a proper experiment. Not valid for testing recordings. 
+        
+        % If 'trials' does not exists, defaults here to 1 (single, long trial)
+          % smth like... if exists trials then use it, otherwise, trials = 1 
+          trials = 1;
+
+        % TODO: create conditions
+        % This variable will be saved under '...\data\spikeSorted\...' for further access
+
+        %% 03. Here we can create the 'neurons' cell variable, according to the IKN standard.
+        % This variable will be saved under '...\data\spikeSorted\...' for further access
+        getneurons(results{ss,s});
+
+        %% 04. For now, we can create some plots using those created by 'Cortex-Lab' at ULC, for instance.
+        if ~isempty(results{ss,s}.spike.spikeTemplates)
+            % Will update some spike parameter and create the template structure.
+            [results{ss,s}.spike, results{ss,s}.template] = plot_KSresults(results{ss,s}.spike, opt);
+        end
 
     end
 end

@@ -20,6 +20,9 @@ function plotDriftmap(spikeTimes, spikeAmps, spikeYpos, opt)
       end  
       xlabel('time (s)')
       ylabel('Contact position (um)')
+      c = colorbar(); colormap(colors); 
+      c.TickLabels = round(colorBins, 2);
+      c.Label.String = ('Spike Amplitude');
     end
     if isempty(opt)
       return

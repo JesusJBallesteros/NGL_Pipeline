@@ -15,7 +15,7 @@ function master_kilosort(sessions, input, varargin)
 %
 % Winston's script and functions together with Sara's fixes.
 %
-% Version 10.05.2023 (Jesus)
+% Version 15.06.2023 (Jesus)
 
 if nargin < 3, opt = struct();
 elseif nargin == 3, opt = varargin{1};
@@ -31,7 +31,6 @@ if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),         opt.KSch
 %% Find .bin files (raw and temp) % JESUS, changed the name and left only one.
 % I assume it will be always in a SDD for processing.
 rootfolder = opt.FolderProcDataMat; % the raw data binary file is in this folder (for current subject and session)
-% rootfolder = opt.FolderProcDataMat; % path to temporary binary file (same size as data, should be on fast SSD)
 
 %% Set configuration. Will run 'kilosortConfig.m'
 % Added all ops INSIDE config file.
@@ -58,9 +57,21 @@ if ~isfile(fullfile(opt.KSConfigFile, opt.KSchanMapFile))
     run(fullfile(input.toolbox, '\functions\createChannelMapFile.m'));
 end
 
+%% Jesus. Included ops to test a check for chanMap-actual number of channels matching.
+% It can happen that some channels are disabled. It will use the complete
+% chanMap and find unmatching arrays.
+% ops.actual_channels = [sessions.info.INTAN_hdr.amplifier_channels.custom_order].';
+% ops.actual_channels = ops.actual_channels + 1; % to match the 1-indexed map 
+% [ops.chanMap, ~, ~, ~, ~] = loadChanMap(ops.Mapchan); % function to load channel map file
+% if any(~ismember(ops.chanMap,ops.actual_channels))
+%    ch = ops.chanMap(~ismember(ops.chanMap,ops.actual_channels));
+%    ops.chanMap(~ismember(ops.chanMap,ops.actual_channels)) = [];
+%    ops.chanMap(ops.chanMap > ch) = ops.chanMap(ops.chanMap > ch) - 1;
+% end
+
 %% This block runs all the steps of the algorithm
 % 11.05 Jesus adding a way to resume after creation of .rez file, since the
-% option is given. Useful?
+% option is given.
 fprintf('Looking for data inside %s \n', rootfolder)
 
 if ~isfile(fullfile(rootfolder, 'rez.mat'))

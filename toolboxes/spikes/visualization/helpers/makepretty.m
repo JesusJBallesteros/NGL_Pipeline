@@ -1,5 +1,3 @@
-
-
 function makepretty()
 % set some graphical attributes of the current axis
 
