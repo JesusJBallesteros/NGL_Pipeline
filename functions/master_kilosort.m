@@ -26,6 +26,8 @@ end
 addpath(genpath('C:\KiloSort_2.0\')) % path to kilosort toolbox (Assumes Sorting PC, not local)
 if ~isfield(opt,'KSConfigFile') || isempty(opt.KSConfigFile),           opt.KSConfigFile    = input.analysisCode;  end 
 if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),         opt.KSchanMapFile   = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end 
+if ~isfield(opt,'spkTh') || isempty(opt.spkTh),                         opt.spkTh           = -4; end 
+
 % if ~isfield(opt,'FolderProcDataMat') || isempty(opt.FolderProcDataMat), opt.FolderProcDataMat = fullfile(input.processed, input.subjects(s).name, sessions(s).list{ss}); end
 
 %% Find .bin files (raw and temp) % JESUS, changed the name and left only one.
@@ -50,6 +52,9 @@ else
     end
 end
 
+if ops.spkTh ~= opt.spkTh
+    ops.spkTh = opt.spkTh;
+end
 %% Check for Channel map file. Will run 'createChannelMapFile.m' if necessary.
 if ~isfile(fullfile(opt.KSConfigFile, opt.KSchanMapFile))
     % No channel map file located in expected folder. Warn and create a basic linear one.

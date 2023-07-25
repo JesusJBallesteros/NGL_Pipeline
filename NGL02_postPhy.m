@@ -4,20 +4,20 @@
 
 %% Input storage drive, project name and toolbox folder:
 input.datadrive     = 'F:\';
-input.studyName     = 'ephysLabComparison'; %'ephysTestBundleWires';
+input.studyName     = 'ephysTestATLAS'; %'ephysTestBundleWires';
 input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\Scripts\ephys-data-pipeline'
 
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = 'all'; % char array 'all', or a single subject denomination e.g. 'DOE'
-input.dates          = 'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.subjects       = {'646'}; % 'all';  % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
+input.dates          = {'20230724_01' '20230724_02' '20230724_03'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
 opt = struct();
-    opt.plotdrift      = false; % logic to trigger plot
-    opt.plotAmpDepth   = false; % logic to trigger plot
+    opt.plotdrift      = true; % logic to trigger plot
+    opt.plotAmpDepth   = true; % logic to trigger plot
     opt.excludeNoise   = true; % param for plots                 
     opt.loadPCs        = false; % param for plots                 
     
@@ -53,28 +53,41 @@ for s = 1:input.nsubjects
 
         %% 02. Proceed with reading data from preprocessed files
         % Load information as stored post-Phy curation.
-        [results{ss,s}.spike] = loadKSdir(opt.PathRaw); 
-
-        %% 03? Get 'events.mat' and generate 'conditions' struct
-        % TODO: trials needs to be readed from an event mat file created
-        % after a proper experiment. Not valid for testing recordings. 
-        
-        % If 'trials' does not exists, defaults here to 1 (single, long trial)
-          % smth like... if exists trials then use it, otherwise, trials = 1 
-          trials = 1;
-
-        % TODO: create conditions
-        % This variable will be saved under '...\data\spikeSorted\...' for further access
-
-        %% 03. Here we can create the 'neurons' cell variable, according to the IKN standard.
-        % This variable will be saved under '...\data\spikeSorted\...' for further access
-        getneurons(results{ss,s});
+        try
+            [results{ss,s}.spike] = loadKSdir(opt.PathRaw); 
+        catch
+            [results{ss,s}.spike.spikeTemplates] = [];
+        end
+%         %% 03? Get 'events.mat' and generate 'conditions' struct
+%         % TODO: trials needs to be readed from an event mat file created
+%         % after a proper experiment. Not valid for testing recordings. 
+%         
+%         % If 'trials' does not exists, defaults here to 1 (single, long trial)
+%           % smth like... if exists trials then use it, otherwise, trials = 1 
+%           trials = 1;
+% 
+%         % TODO: create conditions
+%         % This variable will be saved under '...\data\spikeSorted\...' for further access
+% 
+%         %% 03. Here we can create the 'neurons' cell variable, according to the IKN standard.
+%         % This variable will be saved under '...\data\spikeSorted\...' for further access
+%         getneurons(results{ss,s});
 
         %% 04. For now, we can create some plots using those created by 'Cortex-Lab' at ULC, for instance.
         if ~isempty(results{ss,s}.spike.spikeTemplates)
             % Will update some spike parameter and create the template structure.
             [results{ss,s}.spike, results{ss,s}.template] = plot_KSresults(results{ss,s}.spike, opt);
         end
+
+%         nclusters = zeros(size(results));
+%             for a = 1:length(sessions)
+%                 for i = 1:sessions(a).nsessions
+%                     if ~isempty(results{i,a}.spike.spikeTemplates)
+%                         nclusters(i,a) = size(results{i,a}.spike.cgs,2);
+%                     end
+%                 end
+%             end
+
 
     end
 end

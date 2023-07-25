@@ -55,14 +55,14 @@
 
 %% Input storage drive, project name and toolbox folder:
 input.datadrive     = 'F:\';
-input.studyName     = 'ephysLabComparison'; %'ephysTestBundleWires';
+input.studyName     = 'ephysTestATLAS'; %'ephysTestBundleWires';
 input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\ephys-data-pipeline'
 
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = 'all'; %{'478'}; % 'all';  % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
-input.dates          = 'all'; %{'20230629'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.subjects       = {'646'}; % 'all';  % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
+input.dates          = {'20230725_02'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
@@ -70,6 +70,12 @@ opt = struct();
     % These are essential.
     opt.bin               = true;   % Creation of .bin file, for Kilosort.
     opt.kilosort          = true;   % Call to kilosort processing. NEEDS configfile and chanmap in \analysisCode 
+        opt.KSchanMapFile = ls(fullfile(input.analysisCode, 'chanMapPoly3.mat'));
+        opt.spkTh         = -2; % a smaller value can be given, mostly 
+                                % to catch spikes in Deuteron recordings, 
+                                % where the noise increases artificially the value of energy.
+                                % It will override the KS configfile.
+
     opt.FTfile            = false;   % Creation of .mat file, FieldTrip ready.
     opt.RetrieveEvents    = true;   % Retrieve event log from Deuteron system.
     opt.GetMotionSensors  = false;  % JACOB gone MIA. Retrieve data from motion sensors in Deuteron.
@@ -195,7 +201,7 @@ for s = 1:input.nsubjects
                 
         %% 04 Go Kilosorting!
         if opt.kilosort
-            
+
             % Kilosort Run without GUI.
             master_kilosort(sessions(s), input, opt) % 'opt' is a pipeline running variable.
         end
