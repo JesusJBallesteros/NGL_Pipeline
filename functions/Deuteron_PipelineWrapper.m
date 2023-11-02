@@ -1,4 +1,4 @@
-function sessions = Deuteron_PipelineWrapper(sessions, input, varargin)
+function [sessions] = Deuteron_PipelineWrapper(sessions, input, varargin)
 % Adaptation from the common pipeline for Deuteron. Wraps up the most common 
 % processing lines necessary to get data from Deuteron raw files. This
 % includes the Neural data and the motion sensors, so far. Could be
@@ -36,7 +36,7 @@ function sessions = Deuteron_PipelineWrapper(sessions, input, varargin)
 %       a 'rotators' variable, containing the quaternions to create the
 %       rotation matrices and other transformations.
 %
-% Version 06.03.2023 Jesus
+% Version 31.10.2023 Jesus
 
 if nargin < 3, opt = struct();
 elseif nargin == 3, opt = varargin{1};
@@ -49,8 +49,8 @@ if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
 
 if ~isfield(opt,'set_filter'),      opt.set_filter          = 1;            end
-if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  400];   end
-if ~isfield(opt,'highpass'),        opt.highpass            = [500 7500];   end
+if ~isfield(opt,'lowpass'),         opt.lowpass             = [  1  500];   end
+if ~isfield(opt,'highpass'),        opt.highpass            = [450 5500];   end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
 
 % Hardcode the .dll file from Deuteron. Not really an option.
@@ -64,28 +64,29 @@ opt.ext     = sessions.info.fileformat;
 % Sample rate.
 opt.sampleRate  = sessions.info.amplifier_sample_rate;
 
-% ChunkSize of HDF5 file (e.g., 5 minutes is, 300s at 30000Hz = 9600000 samples)
-%  this chunk size works well. optimal? Once it is, this variable no longer requires user input.
+% ChunkSize of HDF5 file (e.g., 5 minutes: 300s x 30000Hz = 9600000 samples)
+% this chunk size works well. optimal? Once it is, this variable no longer requires user input.
 opt.HDF5chunkSize = 300*opt.sampleRate; 
 
 % Get number of channels.
-opt.numChannels     = sessions.info.nChannels;
+opt.numChannels     = 32;
 opt.channelOrder    = 1:1:opt.numChannels; 
 
-% We need this parameters from Deuteron's log and documentation, to convert 
-% to physical units. (At least for .DT2)
+% We need these parameters (from Deuteron's log and documentation), to convert 
+% to physical units.
 opt.numberOfAdcBits   = sessions.info.numADCBits;
 opt.voltageResolution = sessions.info.voltageRes;
 opt.offset            = 2^(opt.numberOfAdcBits-1);
 
 %% Event data, using dll
 if opt.RetrieveEvents && strcmp(sessions.info.fileformat, 'DF1')
-    disp('Retrieving Events from Deuteron BLOCK format.')
-   
-    % Proceed to extract all events during session.
-    [EventRecord, opt.numChannels] = Deuteron_EventFileReaderDll(opt);
-    sessions.info.nChannels = opt.numChannels;
-
+    if exist([opt.FolderProcDataMat, '\EventRecord.mat'], "file")
+        disp('EventRecord file already exists for this session. Skipping.')
+    else
+        disp('Retrieving Events from Deuteron BLOCK format.')
+        % Proceed to extract all events during session.
+        [EventRecord, ~] = Deuteron_EventFileReaderDll(opt);
+    end
 else
    disp('Event extraction not requested or session is FLAT format. Skipping...')
 end
@@ -106,7 +107,9 @@ if opt.FTfile
 
     %% Conversion to Fieldtrip formatted data
     disp('Giving proper FieldTrip format.');
-    mat2FieldTrip(DEUTdata, opt);
+        % EventRecord = EventRecord; % eventually third argument in
+        % following function, containing events to trial-parse.
+    MAT2FieldTrip(DEUTdata, opt);
 end
 
 %% Motion Data to Matlab

@@ -12,19 +12,23 @@ function Deuteron2Kilosort(opt)
 %                 app for event reading. Retrieves the event codes in 
 %                 order, with corresponding time points (as minutes from midnight),
 %                 sample number, and pins with detected rising edge
+%  Deuteron_extractData: For new .DF1 format, data is extracted by this
+%                 function.
+%  bandFilter: to filter the highpass signal, since signal is intended to
+%                 Kilosort.
 %
 % VERSION HISTORY:
 % Author:         Aylin, Lukas & Sara
 % Version:        1
-% Last Change:    08.03.2023 (Jesus)
+% Last Change:    31.10.2023 (Jesus)
 
 % TODO: prepare filtering for DF1 format.
 
+%% Pre-define .h5 and .bin opt.myFiles
 % Name dataset to an useful denomination?
 % filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName '.h5']); 
 % dataset = '/allChnMat'; % for now, as before.
 
-%% Pre-define .h5 and .bin opt.myFiles
 % opt.h5 = true;
 % if opt.h5
 %     % Create complete HDF5 file matching size needs.
@@ -38,8 +42,7 @@ function Deuteron2Kilosort(opt)
 % Create an empty .bin file.
 fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName + ".bin"]), 'a'); 
 
-%% Open each neural data file, convert data units
-% Differentiate between old and new Deuteron Formats
+%% OLD FORMAT
 if strcmp(opt.ext, 'DT2')
     disp('Format is FLAT. Deprecating.')
 
@@ -49,7 +52,7 @@ if strcmp(opt.ext, 'DT2')
     % Initialize variable to chunk the writting. 
     indexPos  = 0;
 
-    % Go over individual files
+    %% Go over individual files
     for i = 1:length(opt.myFiles)
         
         % Neural data points are unsigned 16 bit words. Read.
@@ -74,7 +77,7 @@ if strcmp(opt.ext, 'DT2')
         % last file which normally will be smaller.
         nSamples = size(tempdata,2);
 
-        % Distribute each channel to its respective slot in .h5 file
+        %% Distribute each channel to its respective slot in .h5 file
         for b = 1:opt.numChannels
 %             if opt.h5
 %                 h5write(filename,       ... % filename.
@@ -98,7 +101,7 @@ if strcmp(opt.ext, 'DT2')
     % Because this data goes into Kilosort, apply highpass filter to data.
     if opt.set_filter
 
-        % To keep memory usage low, we proceed in a channel by channels basis
+        %% To keep memory usage low, we proceed in a channel by channels basis
         filt_data_mat = int16([]);
     
         disp('Filtering.')
@@ -117,13 +120,14 @@ if strcmp(opt.ext, 'DT2')
     fwrite(fidDataMat, cell2mat(filt_data_mat), 'int16');
     fclose(fidDataMat);
 
+%% NEW FORMAT
 elseif strcmp(opt.ext, 'DF1')
     disp('Format is BLOCK. NEW')
 
     % Create variable to store all data
     data_mat    = [];
 
-    % Set stream to continuous (or trial parsed in future)
+    % Set stream to continuous neural signals
     stream      = 1;
     
     % Allocate data to its respective single-channel file
@@ -149,6 +153,21 @@ elseif strcmp(opt.ext, 'DF1')
     % Reshape to sort as channels x samples.
     data_mat = reshape(data_mat, opt.numChannels, []);
 
+    if opt.set_filter
+        %% To keep memory usage low, we proceed in a channel by channels basis
+        filt_data_mat = int16([]);
+    
+        disp('Filtering.')
+        for b = 1:opt.numChannels
+            % Proceed with filter
+            [filt_data_mat(b,:), filt.high.a, filt.high.b] = bandFilter(double(data_mat(b,:)), [], opt.highpass, opt.sampleRate);
+            
+            filt_data_mat(b,:) = int16(filt_data_mat(b,:));
+        end
+    else
+        filt_data_mat = data_mat;
+    end
+
 %     % distribute each row of data to its respective single-channel file
 %     if opt.h5
 %         for b = 1:opt.numChannels
@@ -161,7 +180,7 @@ elseif strcmp(opt.ext, 'DF1')
 %     end
 
     % Write bin file
-    fwrite(fidDataMat, data_mat, 'int16');
+    fwrite(fidDataMat, filt_data_mat, 'int16');
     fclose(fidDataMat);
 end  
 

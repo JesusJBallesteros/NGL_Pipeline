@@ -1,4 +1,4 @@
-function [spec,b,a] = bandFilter(data,dim,freqBands,smpRate,varargin)
+function [spec,b,a] = bandFilter(data, dim, freqBands, smpRate, varargin)
 %BANDFILTER 1D frequency band filtering on data array 
 %
 % [spec,b,a] = bandFilter(data,dim,freqBands,smpRate,varargin)

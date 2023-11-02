@@ -1,4 +1,4 @@
-function set_default(input)
+function input = set_default(input)
 % 'set_default' adds the dependencies, included under the main folder.
 %
 % It reads the inputs, if any, and validates them.
@@ -9,53 +9,56 @@ function set_default(input)
 % 
 % For missing optionals, it uses defaults.
 %
-% Jesus. 04.04.2023
+% Jesus. 27.10.2023
 
-% Set default to Extract data withour NWB file creation.
+% Set default to Extract data without NWB file creation.
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
 % are requested, the NWB will perform well but the data extraction will not. 
 % It will crash for not completely known reason. It needs a Matlab restart between runs.
 if ~isfield(input,'ExtractData') || isempty(input.ExtractData), input.ExtractData = true;  end
 if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB      = false; end
-% Meaning, do not run both 'true' (for now). 
+% MEANING: do not set both 'true'.
 
 %% Set default paths. IKN Standard recommended.
-input.datafolder = fullfile(input.datadrive, input.studyName, '\data\raw\');              % Default: '\data\raw'
-input.processed  = fullfile(input.datadrive, input.studyName, '\data\preprocessing\');    % Default: '\data\preprocessing'
-input.analysisCode = fullfile(input.datadrive, input.studyName, '\analysisCode\');
-input.sorted = fullfile(input.datadrive, input.studyName, '\data\spikeSorted\');
-input.analysisData = fullfile(input.datadrive, input.studyName, '\data\analysis\');
+input.datafolder    = fullfile(input.datadrive, input.studyName, '\data\raw\');              % Default: '\data\raw'
+input.processed     = fullfile(input.datadrive, input.studyName, '\data\preprocessing\');    % Default: '\data\preprocessing'
+input.analysisCode  = fullfile(input.datadrive, input.studyName, '\analysisCode\');
+input.sorted        = fullfile(input.datadrive, input.studyName, '\data\spikeSorted\');
+input.analysisData  = fullfile(input.datadrive, input.studyName, '\data\analysis\');
 
 %% Find requested subjects.
+% In case is left empty or deleted, default to 'all'
 if ~isfield(input,'subjects') || isempty(input.subjects)
     input.subjects = 'all';
 end
 
-% Get subjects
+% Get subjects. Read all existing content under datafolder
 cd(fullfile(input.datafolder))
 subjects = dir('???*');
 
-if strcmp(input.subjects, 'all')
-    input.subjects = subjects;
-else
-    subjidx = ismember({subjects.name}, input.subjects);
-    input.subjects = subjects(subjidx); 
+if strcmp(input.subjects, 'all') % request is 'all'
+    input.subjects = subjects; % Add them all to the list
+else % Request is subset
+    subjidx = ismember({subjects.name}, input.subjects); % Index those requested
+    input.subjects = subjects(subjidx); % Add the indexed members
 end
+
+% Get final number of subjects added
 input.nsubjects = length(input.subjects);
 
 %% Optional Inputs    
-% If NWB requested, Python-based toolbox needed.
+% If NWB requested, Python-based toolbox needed. 
 if input.useNWB 
     if ~isfield(input,'pyfolder') || isempty(input.pyfolder)
-        input.pyfolder = [input.toolbox '\toolboxes\IntanToNWB'];
+        input.pyfolder = [input.toolbox '\toolboxes\IntanToNWB']; % Add it
     end
 end
 
-% Plots
+% Plots. Normally left empty.
 if ~isfield(input,'plots'),   input.plots     = []; end
 if ~isfield(input,'test_ch'), input.test_ch   = []; end
 
-%% Set Dependencies
+%% Set Dependencies. Critical to find toolboxes.
 cd(input.toolbox)
 addpath functions\
 addpath toolboxes\Deuteron
@@ -68,6 +71,7 @@ addpath(genpath('toolboxes\npy-matlab'))
 addpath(genpath('toolboxes\multitaper_prerau'))
 ft_defaults
 
-%% Send input to base workspace
-assignin('base','input', input);
+% %% Send input to base workspace. 
+% %Substituted by outputting the input variable
+% assignin('base','input', input);
 end
