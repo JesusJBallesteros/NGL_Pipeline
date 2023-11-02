@@ -70,7 +70,7 @@ opt.HDF5chunkSize = 300*opt.sampleRate;
 
 % Get number of channels.
 opt.numChannels     = sessions.info.nChannels;
-opt.channelOrder    = 1:1:opt.numChannels;
+opt.channelOrder    = 1:1:opt.numChannels; 
 
 % We need this parameters from Deuteron's log and documentation, to convert 
 % to physical units. (At least for .DT2)

@@ -4,22 +4,22 @@
 
 %% Input storage drive, project name and toolbox folder:
 input.datadrive     = 'F:\';
-input.studyName     = 'Pilot_SocialLearning'; %'ephysTestBundleWires';
+input.studyName     = 'ephysTestATLAS'; %'ephysTestBundleWires';
 input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\Scripts\ephys-data-pipeline'
 
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = 'all'; %{'487'}; % 'all';  % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
-input.dates          = 'all'; %{'20230802'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.subjects       = {'646'}; % 'all';  % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
+input.dates          = {'20230724_01' '20230724_02' '20230724_03'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
 opt = struct();
-    opt.excludeNoise   = true; % Do not extract clusters tagged as 'noise'            
-    opt.plotdrift      = false; % some plots, true if you wanna see
-    opt.plotAmpDepth   = false; % some plots, true if you wanna see
-    opt.loadPCs        = false; % param for plots. Not sure if working                
+    opt.plotdrift      = true; % logic to trigger plot
+    opt.plotAmpDepth   = true; % logic to trigger plot
+    opt.excludeNoise   = true; % param for plots                 
+    opt.loadPCs        = false; % param for plots                 
     
 %% 00. Check inputs, set defaults and dependencies.
 set_default(input);
@@ -79,11 +79,15 @@ for s = 1:input.nsubjects
             [results{ss,s}.spike, results{ss,s}.template] = plot_KSresults(results{ss,s}.spike, opt);
         end
 
+%         nclusters = zeros(size(results));
+%             for a = 1:length(sessions)
+%                 for i = 1:sessions(a).nsessions
+%                     if ~isempty(results{i,a}.spike.spikeTemplates)
+%                         nclusters(i,a) = size(results{i,a}.spike.cgs,2);
+%                     end
+%                 end
+%             end
+
+
     end
 end
-
-% Perhaps we want to save the whole results as 'spikesorted' for further...
-
-%% Plotting script
-% Do not clear the workspace after running NGL02
-% use NGL03_plot

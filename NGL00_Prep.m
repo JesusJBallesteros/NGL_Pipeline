@@ -11,20 +11,20 @@ datadrive = 'F:'; % Drive unit in local PC.
 
 %% All projects should have a name. 
 % Define it here:
-studyName = 'Pilot_TSP'; % A descriptive and unique name to the project.
+studyName = 'studyName'; % A descriptive and unique name to the project.
 
 %% The project folder contains a 'readme.txt' file.
 % It contains details about the project. 
 % Info can be added later. To add it now, just write it in 'txtcontent'.
 % To add new fields use ', ...' followed by the string in new line.
 % The default content is:
-txtcontent = [  "Study name: Pilot_TSP"                                   , ...
-                "Readme date: 08/02/2023"                                  , ...
-                "Person (1) responsible for data repository: Jesus"   , ...
-                "Person(s) responsible for study: Jesus, Sara"              , ...
-                "Hardware used: Probes: ATLAS and NNx. DAC: Deuteron"                                , ...
+txtcontent = [  "Study name:"                                   , ...
+                "Readme date:"                                  , ...
+                "Person (1) responsible for data repository:"   , ...
+                "Person(s) responsible for study:"              , ...
+                "Hardware used:"                                , ...
                 "Related Publication(s):"                       , ...
-                "Short description of study: Pilot sessions to test Deuteron recordings in not-so-easy behavioral setup."                           ];
+                "Short description of study:"                           ];
 
 %% The folder system will be created under 'datadrive:\studyName\'
 % Define project folder.
@@ -55,10 +55,6 @@ mkdir('preprocessing');
 mkdir('raw');
 mkdir('spikesorted');
 mkdir('trialsorted');
-
-% Copy main script files to local folder 'analysiscode'.
-copyfile("C:\Code\ephys-data-pipeline\NGL*.m", fullfile(projectFolder, 'analysisCode'));
-copyfile("C:\Code\ephys-data-pipeline\set_default.m", fullfile(projectFolder, 'analysisCode'));
 
 % Clear workspace.
 clear all
