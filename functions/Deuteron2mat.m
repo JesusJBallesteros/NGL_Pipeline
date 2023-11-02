@@ -5,14 +5,14 @@ function [data] = Deuteron2mat(opt)
 % the amount of data. We convert this into a flat .mat file that will be
 % feeded into 'mat2FieldTrip'.
 %
-% Version 06.03.2023 (Jesus)
+% Version 31.10.2023 (Jesus)
 
 %% Filter preparations
 % Gather info to create and apply the lowpass filter
 opt.dwnsmplRate = opt.sampleRate/32; % Matches INTAN's 32x downsample factor.
 
 if strcmp(opt.ext, 'DT2')
-    disp('Format is FLAT. Deprecating.')
+    disp('Format is FLAT.')
     
     % Initiate matrix and sample index.
     data_tmp = int16([]);
@@ -49,14 +49,14 @@ if strcmp(opt.ext, 'DT2')
     end
 
 elseif strcmp(opt.ext, 'DF1') % opt.ext = DF1
-    disp('Format is BLOCK. NEW')
+    disp('Format is BLOCK.')
 
     stream   = 1;
     data_tmp = int16([]);
 
     for i = 1:length(opt.myFiles)
-        disp('Obtaining data from Deuteron files.')
-
+        fprintf('Obtaining data from Deuteron files %d out of %d. \n',i,length(opt.myFiles));
+        
         fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name), 'r');
             tempdata = Deuteron_extractData(stream, fid, opt);
         fclose(fid);
@@ -65,7 +65,7 @@ elseif strcmp(opt.ext, 'DF1') % opt.ext = DF1
         % possible without loss.
         tempdata = int16((opt.voltageResolution * (tempdata - opt.offset)) * 1000000);
 
-        data_tmp = [data_tmp tempdata];
+        data_tmp = [data_tmp; tempdata];
     end
 
     % Reshape to sort as channels x samples.
@@ -92,7 +92,6 @@ end
 clear data_temp
 
 %% Get time series
-% There is only one file for the time series: 'time.dat' at 30KHz. We don't want it.
 % For LFP, having the voltage series already, we are going to use the number
 % of samples there to create our own time-series. 
 

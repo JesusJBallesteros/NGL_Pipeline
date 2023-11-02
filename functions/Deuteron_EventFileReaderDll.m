@@ -64,7 +64,7 @@ c.CompressFiles(fileNames, [folderName '\COMP_EVENTS.DF1']);
 
 %% get number of records
 % Offer output about number of records
-pause(30)
+pause(300)
 numberOfRecords = c.GetNumberOfRecords(); % get number of records in event log
 fprintf(['The number of records is: ' num2str(numberOfRecords) '\n']);
 

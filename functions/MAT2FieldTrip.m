@@ -31,6 +31,7 @@ switch stream
     case 2
 
         % TODO
+        % EventRecord would be used here
 end
 
 end
