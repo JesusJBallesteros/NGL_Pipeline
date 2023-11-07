@@ -28,8 +28,6 @@ if ~isfield(opt,'KSConfigFile') || isempty(opt.KSConfigFile),           opt.KSCo
 if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),         opt.KSchanMapFile   = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end 
 if ~isfield(opt,'spkTh') || isempty(opt.spkTh),                         opt.spkTh           = -4; end 
 
-% if ~isfield(opt,'FolderProcDataMat') || isempty(opt.FolderProcDataMat), opt.FolderProcDataMat = fullfile(input.processed, input.subjects(s).name, sessions(s).list{ss}); end
-
 %% Find .bin files (raw and temp) % JESUS, changed the name and left only one.
 % I assume it will be always in a SDD for processing.
 rootfolder = opt.FolderProcDataMat; % the raw data binary file is in this folder (for current subject and session)
@@ -38,23 +36,26 @@ rootfolder = opt.FolderProcDataMat; % the raw data binary file is in this folder
 % Added all ops INSIDE config file.
 ops = [];
 
-if isfile(fullfile(opt.KSConfigFile, 'kilosortConfig.m'))
-    % Existing Config file in adequate folder, use it.
-    run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'));
-else
-    % Non-existing Config file or not located in the right folder, take a
-    % standard one stored within the toolbox and run it.
+% Non-existing config file in adequate folder.
+if ~isfile(fullfile(opt.KSConfigFile, 'kilosortConfig.m'))
+    warning('Config File not found under expected folder ''analysisCode''. Using a default version.')
+    % If exists, use the standard one stored within the toolbox.
     if isfile(fullfile(input.toolbox, '\Instructions\kilosortConfig.m'))
-        warning('Config File not found under expected folder ''analysisCode''. Using a default version.')
-        copyfile(fullfile(input.toolbox, '\Instructions\kilosortConfig.m'), ...
-                 input.analysisCode);
-        run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'));
+        copyfile(fullfile(input.toolbox, '\Instructions\kilosortConfig.m'), input.analysisCode);
+    else
+        % It does not exist for some reason.
+        error('Could not find the default configuration file for Kilosort. Skipped.')
     end
 end
 
+% Valid file found.
+run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'));
+
+% Override the threshold if user opt are different from config file ops
 if ops.spkTh ~= opt.spkTh
     ops.spkTh = opt.spkTh;
 end
+
 %% Check for Channel map file. Will run 'createChannelMapFile.m' if necessary.
 if ~isfile(fullfile(opt.KSConfigFile, opt.KSchanMapFile))
     % No channel map file located in expected folder. Warn and create a basic linear one.
@@ -63,8 +64,11 @@ if ~isfile(fullfile(opt.KSConfigFile, opt.KSchanMapFile))
 end
 
 %% Jesus. Included ops to test a check for chanMap-actual number of channels matching.
-% It can happen that some channels are disabled. It will use the complete
+% It can happen that some channels are disabled or known dead. It will use the complete
 % chanMap and find unmatching arrays.
+% There is a logic variable within the map file named 'connected' which
+% could be used to use (1) or not (0) that channel.
+%
 % ops.actual_channels = [sessions.info.INTAN_hdr.amplifier_channels.custom_order].';
 % ops.actual_channels = ops.actual_channels + 1; % to match the 1-indexed map 
 % [ops.chanMap, ~, ~, ~, ~] = loadChanMap(ops.Mapchan); % function to load channel map file
@@ -81,7 +85,7 @@ fprintf('Looking for data inside %s \n', rootfolder)
 
 if ~isfile(fullfile(rootfolder, 'rez.mat'))
     % Find the binary file
-    fs          = dir(fullfile(rootfolder, '*.bin')); % JESUS, dir(.binfile) should work
+    fs          = dir(fullfile(rootfolder, '*.bin'));
     ops.fbinary = fullfile(rootfolder, fs(1).name);
     
     % Preprocess data to create temp_wh.dat

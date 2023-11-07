@@ -19,7 +19,7 @@
 
 %% Probe info 
 chanMapName = 'chanMapDefault'; % Keep 'chanMap*' nomenclature.
-Nchannels   = sessions.info.nchannels;
+Nchannels   = 32;
 connected   = true(Nchannels, 1); % Keep all
 fs          = sessions.info.amplifier_sample_rate; % sampling frequency (why?)
 

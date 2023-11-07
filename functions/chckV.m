@@ -14,6 +14,7 @@ function [info] = chckV(varargin)
 %
 % 31.10.2023. Jesus
 
+err = 0;
 % Evaluate if file exist with full name and assign case.
 if isfile('EVENTLOG.NLE') 
     formatis = 1;
@@ -58,14 +59,7 @@ switch formatis
             info.HDF5chunkSize      = 300*info.amplifier_sample_rate;
     
         else % Still empty for some reason
-            warning('Something went wrong with this Deuteron flat format session.')
-            info.fileformat    = 'NAN'; % Flag for error with the file format
-            info.nChannels     = [];
-            info.numOfADCBits  = [];
-            info.voltageRes    = [];
-            info.amplifier_sample_rate    = [];
-            info.HDF5chunkSize = [];
-            return
+            err = 1;
         end
     case 2
         % For this format, we list the files with neural data and extract some
@@ -75,21 +69,13 @@ switch formatis
         if ~isempty(info.files)
             % Extract metadata
             metaData           = Deuteron_GetMetaData(info);
-            info.nChannels     = metaData.numChannels;
+            info.nChannels     = 32;
             info.numADCBits    = metaData.numADCBits;
             info.voltageRes    = metaData.voltageRes;
             info.amplifier_sample_rate    = metaData.fSample;
             info.HDF5chunkSize = 300*info.amplifier_sample_rate;
-    
         else
-            warning('Something went wrong with this Deuteron block format session.')
-            info.fileformat    = 'NAN'; % Flag for error with the file format
-            info.nChannels   = [];
-            info.numADCBits    = [];
-            info.voltageRes    = [];
-            info.amplifier_sample_rate    = [];
-            info.HDF5chunkSize = [];
-            return
+            err = 1;
         end
 
     case 3
@@ -120,14 +106,20 @@ switch formatis
         % (most likely, after Allego's self preprocessing tool?)
     
     case 0
-    % Invalid formats or error
-    warning('The format of the sessions could not be determined.')
+        % Invalid formats or error
+        warning('The format of the sessions could not be determined.')
+        err = 1;
+end
+
+if err
+    warning('Something went wrong with this session.')
     info.fileformat    = 'NAN'; % Flag for error with the file format
-    info.numChannels   = [];
-    info.numADCBits    = [];
+    info.nChannels     = [];
+    info.numOfADCBits  = [];
     info.voltageRes    = [];
     info.amplifier_sample_rate    = [];
     info.HDF5chunkSize = [];
+    return
 end
 
 end

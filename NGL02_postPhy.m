@@ -4,25 +4,33 @@
 
 %% Input storage drive, project name and toolbox folder:
 input.datadrive     = 'F:\';
-input.studyName     = 'ephysTestATLAS'; %'ephysTestBundleWires';
-input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\Scripts\ephys-data-pipeline'
+input.studyName     = 'Pilot_SocialLearning'; 
+input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\ephys-data-pipeline'
 
 % To run the script on all subjects and sessions included in your project,
 % just leave both as 'all'. For a session-to-session process, explicit the
 % subject and session/s to process. 
-input.subjects       = {'646'}; % 'all';  % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
-input.dates          = {'20230724_01' '20230724_02' '20230724_03'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.subjects       = {'485' '257'}; % 'all';  % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
+input.dates          = {'20231106'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 %% General Options. What you want to obtain:
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
 opt = struct();
-    opt.plotdrift      = true; % logic to trigger plot
-    opt.plotAmpDepth   = true; % logic to trigger plot
-    opt.excludeNoise   = true; % param for plots                 
-    opt.loadPCs        = false; % param for plots                 
+    opt.excludeNoise   = true; % Do not extract clusters tagged as 'noise'
+
+    opt.plotdrift      = false; % plot in this script using 'Cortex-Lab' @ULC tools (needs proper chanmap)
+    opt.plotAmpDepth   = false; % plot in this script using 'Cortex-Lab' @ULC tools (needs proper chanmap)
+
+    opt.plotgeneral    = false; % plot in NGL03 script. General data about #clusters, units per animal/session, etc.
+                                % Useful only if extracting results from several animals and sessions
+                                 
+    opt.plotrasters    = true;  % plot in NGL03 script. Rasters of activity aligned to a selected t0
+    opt.plotfrs        = false; % plot in NGL03 script. Firing rates calculated from the above.
+
+    opt.loadPCs        = false; % param for plots. Not sure if working                
     
 %% 00. Check inputs, set defaults and dependencies.
-set_default(input);
+input = set_default(input);
 opt.postPhy = true; % Always true, to differentiate from NGL01
 
 for s = 1:input.nsubjects
@@ -91,3 +99,7 @@ for s = 1:input.nsubjects
 
     end
 end
+
+%% Plotting script
+% Do not clear the workspace after running NGL02
+% use NGL03_plot

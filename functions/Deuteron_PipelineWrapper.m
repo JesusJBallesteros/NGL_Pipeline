@@ -49,7 +49,7 @@ if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
 
 if ~isfield(opt,'set_filter'),      opt.set_filter          = 1;            end
-if ~isfield(opt,'lowpass'),         opt.lowpass             = [  1  500];   end
+if ~isfield(opt,'lowpass'),         opt.lowpass             = [  1  200];   end
 if ~isfield(opt,'highpass'),        opt.highpass            = [450 5500];   end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
 
@@ -69,7 +69,7 @@ opt.sampleRate  = sessions.info.amplifier_sample_rate;
 opt.HDF5chunkSize = 300*opt.sampleRate; 
 
 % Get number of channels.
-opt.numChannels     = 32;
+opt.numChannels     = sessions.info.nChannels;
 opt.channelOrder    = 1:1:opt.numChannels; 
 
 % We need these parameters (from Deuteron's log and documentation), to convert 
