@@ -12,7 +12,7 @@ function [info] = chckV(varargin)
 %
 % Calls to: 'Deuteron_GetMetaData'
 %
-% 31.10.2023. Jesus
+% 07.11.2023. Jesus
 
 err = 0;
 % Evaluate if file exist with full name and assign case.
@@ -33,9 +33,8 @@ end
 
 switch formatis
     case 1
-        % For this format, we list the files with neural data and extract some
-        % metadata with the function 'Deuteron_GetMetaData'. Apparently, it can
-        % be DT2/4/8 or DAT. We only have .DT2
+        % For this format, we list the files with neural data and generate 
+        % metadata with the function 'Deuteron_GetMetaData'.
         info.fileformat = 'DT?'; % First try most common 'DT?'
         info.files = dir(['*.' info.fileformat]); % list files
         
@@ -52,7 +51,7 @@ switch formatis
             % Get meta data from Deuteron:
             % Checks which type of logger was used and sets some parameters:
             metaData                = Deuteron_GetMetaData(info);
-            info.nChannels          = 32; % Coded as default here. If necessary, overrided later on.
+            info.nChannels          = []; %32; % Coded as default here. If necessary, overrided later on.
             info.numADCBits         = metaData.numADCBits;
             info.voltageRes         = metaData.voltageRes;
             info.amplifier_sample_rate         = metaData.fSample;
@@ -69,7 +68,7 @@ switch formatis
         if ~isempty(info.files)
             % Extract metadata
             metaData           = Deuteron_GetMetaData(info);
-            info.nChannels     = 32;
+            info.nChannels     = []; %metaData.numChannels;
             info.numADCBits    = metaData.numADCBits;
             info.voltageRes    = metaData.voltageRes;
             info.amplifier_sample_rate    = metaData.fSample;

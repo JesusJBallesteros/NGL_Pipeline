@@ -4,6 +4,19 @@
 % neural data.
 % Do not clear the variables 'input', 'results', 'opt' from previous step.
 
+%% Options
+% For now, testing in Pilot_SocialLearning: load '*par.mat'
+input.bhvfolder = fullfile(input.datadrive, input.studyName, '\data\behavior\');
+
+% Set EventCode meaning
+itiOn       = 1;
+stimOn      = 2;
+rwd         = 5;
+tutor       = 4;
+
+% Set Event to align rasters t0 to.
+alignto = rwd;
+
 %% 01. From all subjects and sessions, compile some data
 % Prepare fields
 dat.nclusters   = [];
@@ -59,12 +72,6 @@ if opt.plotgeneral
 end
 
 %% 03. Trial parse.
-% For now, testing in Pilot_SocialLearning: load '*par.mat'
-input.bhvfolder = fullfile(input.datadrive, input.studyName, '\data\behavior\');
-trialStart  = 1;
-tutor       = 4;
-stimOn      = 2;
-
 % Loop over subjects and session to collect and organize timestamps and spikes
 for s = 1:input.nsubjects
     for ss = 1:sessions(s).nsessions
@@ -86,9 +93,10 @@ for s = 1:input.nsubjects
        dat.tutorID{ss,s} = zeros(size(dat.spikes{ss,s}));
 
        % Set events to codes
-       dat.events.itiOn{ss,s} = events{ss,s}(events{ss,s}(:,2)==trialStart); % Get all timestamps for t zero
+       dat.events.itiOn{ss,s} = events{ss,s}(events{ss,s}(:,2)==itiOn); % Get all timestamps for t zero
        dat.events.tutor{ss,s} = events{ss,s}(events{ss,s}(:,2)==tutor); % Get timestamps for tutor in & out
        dat.events.stimOn{ss,s} = events{ss,s}(events{ss,s}(:,2)==stimOn); % Get timestamps for stimOn
+       dat.events.rwd{ss,s} = events{ss,s}(events{ss,s}(:,2)==rwd); % Get timestamps for stimOn
 
        % Convert times relative to session start and to seconds
        dat.events.itiOn{ss,s} = dat.events.itiOn{ss,s}-events{ss,s}(1,1); % use first event as session start time
@@ -100,19 +108,22 @@ for s = 1:input.nsubjects
        dat.events.stimOn{ss,s} = dat.events.stimOn{ss,s}-events{ss,s}(1,1); % use first event as session start time
        dat.events.stimOn{ss,s} = seconds(dat.events.stimOn{ss,s});          % Convert values to seconds
 
+       dat.events.rwd{ss,s} = dat.events.rwd{ss,s}-events{ss,s}(1,1); % use first event as session start time
+       dat.events.rwd{ss,s} = seconds(dat.events.rwd{ss,s});          % Convert values to seconds
+
        % Identify which spike times belong to which trial.
        tr = 1; % Initialize at trial 1
        tutorin = 0; % Initially Tutor is NOT present
        
        % Evaluate trial for every spike time respect to a certain time
        % when we align zero.
-       if ~isempty(dat.events.stimOn{ss,s}) %bc some sessions don't have stimOn
-           dat.t2align{ss,s} = dat.events.stimOn{ss,s};
-           dat.t2alignflag{ss,s} = 1;
-       else % then we use itiOn
+%        if alignto == 1 %bc some sessions don't have stimOn
            dat.t2align{ss,s} = dat.events.itiOn{ss,s};
-           dat.t2alignflag{ss,s} = 2;
-       end
+%        elseif alignto == 2 % then we use itiOn
+%            dat.t2align{ss,s} = dat.events.stimOn{ss,s};
+%        elseif alignto == 5 
+%            dat.t2align{ss,s} = dat.events.rwd{ss,s};
+%        end
 
        for j = 1:length(dat.spikes{ss,s}) 
             % Spike times before first trial, tag as 0
@@ -190,17 +201,20 @@ if opt.plotrasters
                 p.plot{i} = spikeRasterPlot(dat.spikes{ss,s}(dat.spikesID{ss,s}==clus), ...
                                             dat.trials{ss,s}(dat.spikesID{ss,s}==clus));
 
-                    p.plot{i}.AlignmentTimes = dat.t2align{ss,s}; % Align all trials to the stablished zero
+                    p.plot{i}.AlignmentTimes = dat.events.rwd{ss,s} ;% dat.t2align{ss,s}; % Align all trials to the stablished zero
                     p.plot{i}.GroupData      = dat.tutorID{ss,s}(dat.spikesID{ss,s}==clus);
                     p.plot{i}.LegendTitle    = 'Tutor';
                     p.plot{i}.TitleText      = ['Cluster ',int2str(clus)];
                     p.plot{i}.YLabelText     = 'Trial';
-                    if dat.t2alignflag{ss,s} == 1
-                        p.plot{i}.XLimits        = seconds([-1 30]);    % Show from -1 to +10 seconds
-                        p.plot{i}.XLabelText     = 'Time since stimOn (s)';
-                    else
-                        p.plot{i}.XLimits        = seconds([-1 30]);    % Show from -1 to +35 seconds
+                    if alignto == 1
+                        p.plot{i}.XLimits        = seconds([-1 10]);    % Show from -1 to +10 seconds
                         p.plot{i}.XLabelText     = 'Time since itiOn (s)';
+                    elseif alignto == 2
+                        p.plot{i}.XLimits        = seconds([-1 10]);    % Show from -1 to +35 seconds
+                        p.plot{i}.XLabelText     = 'Time since stimOn (s)';
+                    elseif alignto == 5
+                        p.plot{i}.XLimits        = seconds([-15 15]);    % Show from -1 to +35 seconds
+                        p.plot{i}.XLabelText     = 'Time since rwd (s)';
                     end
 
                 % Saving

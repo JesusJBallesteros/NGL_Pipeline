@@ -39,6 +39,16 @@ function Deuteron2Kilosort(opt)
 %              'Datatype', 'int16');                   % data precision.
 % end
 
+% Check bin file existence and if it was a failure or not.
+if isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName + ".bin"]))
+    bininfo = dir(fullfile(opt.FolderProcDataMat,[opt.SavFileName + ".bin"]));
+    if bininfo.bytes > 0
+        disp('A .bin file already exists in this directory. Skipping.')
+        return
+    end
+    disp('An empty .bin file was found in this directory. Will be overwritten.')
+end
+
 % Create an empty .bin file.
 fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName + ".bin"]), 'a'); 
 

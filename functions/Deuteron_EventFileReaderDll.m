@@ -18,6 +18,7 @@ function [EventRecord, nchan] = Deuteron_EventFileReaderDll(opt)
 % From Deuteron software, modified by Jesus. 01.02.2023
 
 %% Default settings
+if ~isfield(opt,'useexe'),             opt.useexe                 = 0;         end
 filePrefix = 'NEUR';
 
 % EVENT000.DF1 may be included among the files containing events but it is
@@ -33,59 +34,102 @@ maxFileIndex = length(dir([folderName '\' filePrefix '*'])) - 1; % cero indexed,
 count = 1;
 if IncludeEventFile
     listOfFilesToLoad = cell(maxFileIndex - minFileIndex + 2, 1);
-    listOfFilesToLoad{1} = fullfile(folderName, 'EVENT000.DF1');
+    if opt.useexe
+        listOfFilesToLoad{1} = 'EVENT000.DF1';
+    else
+        listOfFilesToLoad{1} = fullfile(folderName, 'EVENT000.DF1');
+    end
     count = count + 1;
 end
 
 for fileIdx = minFileIndex:maxFileIndex
     indexStr = num2str(fileIdx,'%04.f');
-    listOfFilesToLoad{count} = fullfile(folderName, strcat(filePrefix, indexStr, '.DF1'));
+    if opt.useexe
+        listOfFilesToLoad{count} = strcat(filePrefix, indexStr, '.DF1');
+    else
+        listOfFilesToLoad{count} = fullfile(folderName, strcat(filePrefix, indexStr, '.DF1'));
+    end
     count = count + 1;
 end
 numberOfFiles = length(listOfFilesToLoad);
 
-%% change this to a .NET array
-fileNames = NET.createArray('System.String',numberOfFiles);
-for i = 1:numberOfFiles
-     fileNames.Set(i - 1, listOfFilesToLoad{i});
+if opt.useexe
+    listOfFilesToLoadchar = [];
+    for i=1:numberOfFiles
+        listOfFilesToLoadchar = [listOfFilesToLoadchar ' ' cell2mat(listOfFilesToLoad(i))];
+    end
+else
+    %% change this to a .NET array
+    fileNames = NET.createArray('System.String',numberOfFiles);
+    for i = 1:numberOfFiles
+         fileNames.Set(i - 1, listOfFilesToLoad{i});
+    end
 end
 
 %% Load events
-% to cancel this while it is running, type c.Cancel()
-% Load in assembly
-asminfo = NET.addAssembly(opt.ReaderDll);        % loads in .NET dll 
-c = Event_File_Reader_8_3.EFRMatlabFunctions();
-c.Initialize();
-c.LoadFiles(fileNames);
-
-%% To compress files instead:
-% to cancel this while it is running, type c.Cancel()
-c.CompressFiles(fileNames, [folderName '\COMP_EVENTS.DF1']);
-
-%% get number of records
-% Offer output about number of records
-pause(300)
-numberOfRecords = c.GetNumberOfRecords(); % get number of records in event log
-fprintf(['The number of records is: ' num2str(numberOfRecords) '\n']);
-
-% Example to display a single record:
-% GetIndexedRecord retrieves a single record from the event log file.
-% It takes as its input a single integer corresponding the
-% the zero indexed record that the user desires to retrieve. The output
-% contains the results for each field as a string.
-% Get the chosen record: 
- % myRecord = c.GetIndexedRecord(recordToRetrieve);
- % DisplayRecord(myRecord); % Displays the record retrieved from the file
+if opt.useexe 
+    s = system([opt.exefile, ...                                        % use full path to executable
+                listOfFilesToLoadchar, ...                              % use char vector of full list of files
+                ' ', opt.FolderProcDataMat, '\EventRecord.CSV']);       % export to .cvs 
+else    
+    % to cancel this while it is running, type c.Cancel()
+    % Load in assembly
+    asminfo = NET.addAssembly(opt.ReaderDll);        % loads in .NET dll 
+    c = Event_File_Reader_8_3.EFRMatlabFunctions();
+    c.Initialize();
+    
+    lh = addlistener(c, 'WriteFileLoaded', @(o, e) fprintf('Event File loaded: %d\n', e.number));
+    
+    errorCode = c.LoadFiles(fileNames); % load eventlog file, returns an int as error code
+     
+    % Check if LoadFile executed successfully
+    if (errorCode ~= 0) % if LoadFile returned an error, display appropriate error message
+        errorStr = c.GetErrorAsString(errorCode);
+        error(char(errorStr));
+        return;
+    end
+    
+    % To compress files instead:
+    % to cancel this while it is running, type c.Cancel()
+    errorCode = c.CompressFiles(fileNames, [folderName '\COMP_EVENTS.DF1']);
+    
+    % Check if executed successfully
+    pause(30)
+    if (errorCode ~= 0) % if LoadFile returned an error, display appropriate error message
+        errorStr = c.GetErrorAsString(errorCode);
+        error(char(errorStr));
+        return;
+    end
+    
+    % get number of records
+    % Offer output about number of records
+    numberOfRecords = c.GetNumberOfRecords(); % get number of records in event log
+    fprintf(['The number of records is: ' num2str(numberOfRecords) '\n']);
+end
 
 %% Loop through records and add them to EventRecords struct array.
-for recIdx = numberOfRecords:-1:1 % iterates backwards to preallocate array by assigning the final index first.
-    myRecord = c.GetIndexedRecord(recIdx - 1); 
-    EventRecord(recIdx).EventNumber = str2double(char(myRecord(1))); 
-    EventRecord(recIdx).EventType = char(myRecord(2));
-    EventRecord(recIdx).TimeStamp = char(myRecord(3));
-    EventRecord(recIdx).TimeMsFromMidnight = str2double(char(myRecord(4)));
-    EventRecord(recIdx).TimeSource = char(myRecord(5));
-    EventRecord(recIdx).Details = char(myRecord(6));
+if opt.useexe
+    myRecord = readmatrix(fullfile(opt.FolderProcDataMat, '\EventRecord.csv'), 'OutputType','string');
+    numberOfRecords = length(myRecord);
+    for recIdx = numberOfRecords:-1:1 % iterates backwards to preallocate array by assigning the final index first.
+        EventRecord(recIdx).EventNumber = str2double(char(myRecord(recIdx,1))); 
+        EventRecord(recIdx).TimeStamp = char(myRecord(recIdx,2));
+        EventRecord(recIdx).TimeMsFromMidnight = str2double(char(myRecord(recIdx,3)));
+        EventRecord(recIdx).TimeSource = char(myRecord(recIdx,4));
+        EventRecord(recIdx).EventType = char(myRecord(recIdx,5));
+        EventRecord(recIdx).Details = char(myRecord(recIdx,6));
+    end
+
+else
+    for recIdx = numberOfRecords:-1:1 % iterates backwards to preallocate array by assigning the final index first.
+        myRecord = c.GetIndexedRecord(recIdx - 1); 
+        EventRecord(recIdx).EventNumber = str2double(char(myRecord(1))); 
+        EventRecord(recIdx).EventType = char(myRecord(2));
+        EventRecord(recIdx).TimeStamp = char(myRecord(3));
+        EventRecord(recIdx).TimeMsFromMidnight = str2double(char(myRecord(4)));
+        EventRecord(recIdx).TimeSource = char(myRecord(5));
+        EventRecord(recIdx).Details = char(myRecord(6));
+    end
 end
 fprintf('Successfully loaded file into EventRecords struct.\n');
 

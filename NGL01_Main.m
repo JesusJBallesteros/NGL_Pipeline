@@ -70,23 +70,25 @@ input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\ephys-d
 % B) SUBJECTS AND SESSIONS
 % To run the script on all subjects and sessions included in your project,
 % use char array 'all'. For a session-to-session process, explicit the subject 
-% and session/s to process using a cell array like {'001', ... , 'ETC'}.
-input.subjects       = {'485' '257'}; % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
-input.dates          = {'20231106'}; %'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+% and session/s to process using cell arrays.
+input.subjects       = {'485'}; % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
+input.dates          = {'20231031'}; %'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 % C) GENERAL Options. 
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
 opt = struct(); % leave this, to empty possible residues from a previous run.
 
     opt.RetrieveEvents      = true;  % Retrieve event log from Deuteron system.
-    opt.bin                 = true;   % Creation of .bin file, for Kilosort.
+        opt.useexe          = true;  % Use executable version instead of .dll (easier implementation)y
 
-    opt.kilosort            = true;   % Call to kilosort processing. 
-        % !! NEEDS configfile and chanmap saved under '...\analysisCode'
+    opt.bin                 = false;   % Creation of .bin file, for Kilosort.
+
+    opt.kilosort            = false;   % Call to kilosort processing. 
+        % !! NEEDS configfile saved under '...\analysisCode'
         opt.spkTh           = -2; % def: -4.5. It will override the KS configfile.
         opt.KSchanMapFile   = []; %'chanMapPoly3Deut.mat'; % 'chanMapPoly3Deut' 'chanMapPoly3' 'chanMapATLASTri'
 
-    opt.FTfile              = true;   % Creation of .mat file, FieldTrip ready.
+    opt.FTfile              = false;   % Creation of .mat file, FieldTrip ready.
         % Only for FieldTrip .mat files. 
         opt.test_ch         = []; % Plots snippets of raw signals and spectrograms. An array of numerals for channels to plot.
 

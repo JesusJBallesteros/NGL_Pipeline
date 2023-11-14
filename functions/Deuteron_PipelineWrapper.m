@@ -20,13 +20,13 @@ function [sessions] = Deuteron_PipelineWrapper(sessions, input, varargin)
 %                   FTfile: logic. Creation of Fieltrip-formatted .mat file.
 %                   RetrieveEvents:   logic. Retrieve eventlog from Deuteron (and extract eventcodes and timestamps from it).
 %                   GetMotionSensors: logic. Extraction and processing of motion sensor data.
-%                   lowpass:    int array. lower and upper boundaries for lowpass filter. [  0  300]
-%                   highpass:   int array. lower and upper boundaries for highpass filter. [300 7500]
+%                   lowpass:    int array. lower and upper boundaries for lowpass filter. e.g. [  0  300]
+%                   highpass:   int array. lower and upper boundaries for highpass filter. e.g. [300 7500]
 %                   DllFolder:  string. Location of the .dll file to process events in Deuteron.
 %                   set_filter: logic. Filtering (and downsampling) request.
 %                   StpSz:      int. Number of samples to be written per chunck.
 %
-% OUTPUS:
+% OUTPUTS:
 %    EventRecord.mat file and compressed events file.
 %    .bin file, as channels x samples. If requested.
 %    .h5 file, as channels x sample. If requested.
@@ -36,7 +36,7 @@ function [sessions] = Deuteron_PipelineWrapper(sessions, input, varargin)
 %       a 'rotators' variable, containing the quaternions to create the
 %       rotation matrices and other transformations.
 %
-% Version 31.10.2023 Jesus
+% Version 07.11.2023 Jesus
 
 if nargin < 3, opt = struct();
 elseif nargin == 3, opt = varargin{1};
@@ -46,15 +46,17 @@ end
 if ~isfield(opt,'bin'),             opt.bin                 = true;         end
 if ~isfield(opt,'FTfile'),          opt.FTfile              = true;         end
 if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
+if ~isfield(opt,'useexe'),          opt.useexe              = false;         end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
 
 if ~isfield(opt,'set_filter'),      opt.set_filter          = 1;            end
 if ~isfield(opt,'lowpass'),         opt.lowpass             = [  1  200];   end
-if ~isfield(opt,'highpass'),        opt.highpass            = [450 5500];   end
+if ~isfield(opt,'highpass'),        opt.highpass            = [450 5000];   end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
 
-% Hardcode the .dll file from Deuteron. Not really an option.
-opt.ReaderDll = [input.toolbox, '\functions\dlls\Event_File_Reader_8_3.dll'];
+% Hardcode the .dll file from Deuteron. Needed.
+opt.ReaderDll   = [input.toolbox, '\functions\dlls\Event_File_Reader_8_3.dll'];
+opt.exefile     = [input.toolbox, '\functions\dlls\EventFileReader\Event_File_Reader_9_0.exe'];
 
 %% Parameters
 % Collect parameters to proceed with file creation. List all files.
@@ -85,7 +87,7 @@ if opt.RetrieveEvents && strcmp(sessions.info.fileformat, 'DF1')
     else
         disp('Retrieving Events from Deuteron BLOCK format.')
         % Proceed to extract all events during session.
-        [EventRecord, ~] = Deuteron_EventFileReaderDll(opt);
+        [EventRecord, opt.numChannels] = Deuteron_EventFileReaderDll(opt);
     end
 else
    disp('Event extraction not requested or session is FLAT format. Skipping...')
