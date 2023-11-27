@@ -25,6 +25,8 @@ input.processed     = fullfile(input.datadrive, input.studyName, '\data\preproce
 input.analysisCode  = fullfile(input.datadrive, input.studyName, '\analysisCode\');
 input.sorted        = fullfile(input.datadrive, input.studyName, '\data\spikeSorted\');
 input.analysisData  = fullfile(input.datadrive, input.studyName, '\data\analysis\');
+input.bhvfolder     = fullfile(input.datadrive, input.studyName, '\data\behavior\');
+
 
 %% Find requested subjects.
 % In case is left empty or deleted, default to 'all'
@@ -71,7 +73,8 @@ addpath(genpath('toolboxes\npy-matlab'))
 addpath(genpath('toolboxes\multitaper_prerau'))
 ft_defaults
 
-% %% Send input to base workspace. 
-% %Substituted by outputting the input variable
-% assignin('base','input', input);
+% Hardcode Deuteron's exe/dll files location to RetrieveEvents.
+input.ReaderDll   = [input.toolbox, '\functions\dlls\Event_File_Reader_8_3.dll'];
+input.exefile     = [input.toolbox, '\functions\dlls\EventFileReader\Event_File_Reader_9_0.exe'];
+
 end

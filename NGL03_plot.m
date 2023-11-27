@@ -8,6 +8,9 @@
 % For now, testing in Pilot_SocialLearning: load '*par.mat'
 input.bhvfolder = fullfile(input.datadrive, input.studyName, '\data\behavior\');
 
+% To plot or not to plot, that's ...
+opt.plotrasters = true;
+
 % Set EventCode meaning
 itiOn       = 1;
 stimOn      = 2;
@@ -31,6 +34,8 @@ dat.spikesID    = cell(size(results));
 for a = 1:input.nsubjects % animals
     for ss = 1:size(results,1) % sessions
         if ~isempty(results{ss,a})
+            dat.info(1,a)        = {input.subjects(a).name};        % animal code
+            dat.info(2,a)        = {sessions(a).list'};             % session dates
             dat.nclusters(ss,a)  = length(results{ss,a}.spike.cgs); % #clusters per animal/session
             dat.clusID(ss,a)     = {results{ss,a}.spike.cids};      % Cluster's IDs
             dat.clusCAT(ss,a)    = {results{ss,a}.spike.cgs};       % Clsuter's category (good, mua, noise)
@@ -172,13 +177,13 @@ for s = 1:input.nsubjects
        end
        clear j
        
-       % Remove all assigned to trial 0. (Do not belong to the session)
-       dat.spikes{ss,s}(dat.trials{ss,s}==0)   = [];
-       dat.spikesID{ss,s}(dat.trials{ss,s}==0) = [];
-       dat.tutorID{ss,s}(dat.trials{ss,s}==0)  = [];
-
-       % And remove themselves
-       dat.trials{ss,s}(dat.trials{ss,s}==0)   = [];
+%        % Remove all assigned to trial 0. (Do not belong to the session)
+%        dat.spikes{ss,s}(dat.trials{ss,s}==0)   = [];
+%        dat.spikesID{ss,s}(dat.trials{ss,s}==0) = [];
+%        dat.tutorID{ss,s}(dat.trials{ss,s}==0)  = [];
+% 
+%        % And remove themselves
+%        dat.trials{ss,s}(dat.trials{ss,s}==0)   = [];
     end
 end
     
@@ -189,7 +194,7 @@ if opt.plotrasters
    addpath('C:\Code\spike-raster-plot')
 
    % Loop subjects, sessions and clusterIDs to plot their rasters
-    for s = 1:input.nsubjects
+    for s = 1:3%input.nsubjects
         for ss = 1:sessions(s).nsessions
            % prepare output file
            savefig = [fullfile(input.sorted,input.subjects(s).name,sessions(s).list{ss}), '\spikeID_'];
@@ -201,19 +206,19 @@ if opt.plotrasters
                 p.plot{i} = spikeRasterPlot(dat.spikes{ss,s}(dat.spikesID{ss,s}==clus), ...
                                             dat.trials{ss,s}(dat.spikesID{ss,s}==clus));
 
-                    p.plot{i}.AlignmentTimes = dat.events.rwd{ss,s} ;% dat.t2align{ss,s}; % Align all trials to the stablished zero
+                    p.plot{i}.AlignmentTimes = dat.events.itiOn{ss,s} ;% dat.t2align{ss,s}; % Align all trials to the stablished zero
                     p.plot{i}.GroupData      = dat.tutorID{ss,s}(dat.spikesID{ss,s}==clus);
                     p.plot{i}.LegendTitle    = 'Tutor';
                     p.plot{i}.TitleText      = ['Cluster ',int2str(clus)];
                     p.plot{i}.YLabelText     = 'Trial';
                     if alignto == 1
-                        p.plot{i}.XLimits        = seconds([-1 10]);    % Show from -1 to +10 seconds
+                        p.plot{i}.XLimits        = seconds([-1 12]);    % Show from -1 to +10 seconds
                         p.plot{i}.XLabelText     = 'Time since itiOn (s)';
                     elseif alignto == 2
                         p.plot{i}.XLimits        = seconds([-1 10]);    % Show from -1 to +35 seconds
                         p.plot{i}.XLabelText     = 'Time since stimOn (s)';
                     elseif alignto == 5
-                        p.plot{i}.XLimits        = seconds([-15 15]);    % Show from -1 to +35 seconds
+                        p.plot{i}.XLimits        = seconds([-7 8]);    % Show from -1 to +35 seconds
                         p.plot{i}.XLabelText     = 'Time since rwd (s)';
                     end
 

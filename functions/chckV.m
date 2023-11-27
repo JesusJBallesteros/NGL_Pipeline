@@ -14,21 +14,22 @@ function [info] = chckV(varargin)
 %
 % 07.11.2023. Jesus
 
-err = 0;
+err = 1;
 % Evaluate if file exist with full name and assign case.
 if isfile('EVENTLOG.NLE') 
-    formatis = 1;
+    formatis = 1; err = 0;
 elseif isfile('EVENT000.DF1') 
-    formatis = 2;
+    formatis = 2;  err = 0;
 elseif isfile('info.rhd') 
-    formatis = 3;
+    formatis = 3;  err = 0;
 else
     info.files = dir('*xdat.json'); % list files matching Allego's
     if ~isempty(info.files)
-        formatis = 4;
+        formatis = 4;  err = 0;
     else
         formatis = 0;
     end
+
 end
 
 switch formatis
@@ -51,7 +52,7 @@ switch formatis
             % Get meta data from Deuteron:
             % Checks which type of logger was used and sets some parameters:
             metaData                = Deuteron_GetMetaData(info);
-            info.nChannels          = []; %32; % Coded as default here. If necessary, overrided later on.
+            info.nChannels          = 32; % Coded as default here. If necessary, overrided later on.
             info.numADCBits         = metaData.numADCBits;
             info.voltageRes         = metaData.voltageRes;
             info.amplifier_sample_rate         = metaData.fSample;
@@ -68,7 +69,7 @@ switch formatis
         if ~isempty(info.files)
             % Extract metadata
             metaData           = Deuteron_GetMetaData(info);
-            info.nChannels     = []; %metaData.numChannels;
+            info.nChannels     = 32; %32; %metaData.numChannels;
             info.numADCBits    = metaData.numADCBits;
             info.voltageRes    = metaData.voltageRes;
             info.amplifier_sample_rate    = metaData.fSample;
@@ -107,7 +108,6 @@ switch formatis
     case 0
         % Invalid formats or error
         warning('The format of the sessions could not be determined.')
-        err = 1;
 end
 
 if err

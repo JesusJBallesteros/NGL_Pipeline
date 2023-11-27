@@ -8,10 +8,6 @@ function Deuteron2Kilosort(opt)
 % periods only seem to be necessary when recording with Deuteron.
 %
 % DEPENDENCIES:
-%  importEventsDeuteronWithDLL: interaction between Matlab and Deuteron's .NET
-%                 app for event reading. Retrieves the event codes in 
-%                 order, with corresponding time points (as minutes from midnight),
-%                 sample number, and pins with detected rising edge
 %  Deuteron_extractData: For new .DF1 format, data is extracted by this
 %                 function.
 %  bandFilter: to filter the highpass signal, since signal is intended to
@@ -28,7 +24,6 @@ function Deuteron2Kilosort(opt)
 % Name dataset to an useful denomination?
 % filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName '.h5']); 
 % dataset = '/allChnMat'; % for now, as before.
-
 % opt.h5 = true;
 % if opt.h5
 %     % Create complete HDF5 file matching size needs.
@@ -39,7 +34,7 @@ function Deuteron2Kilosort(opt)
 %              'Datatype', 'int16');                   % data precision.
 % end
 
-% Check bin file existence and if it was a failure or not.
+%% Check bin file existence and if it was a failure or not.
 if isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName + ".bin"]))
     bininfo = dir(fullfile(opt.FolderProcDataMat,[opt.SavFileName + ".bin"]));
     if bininfo.bytes > 0
@@ -52,7 +47,7 @@ end
 % Create an empty .bin file.
 fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName + ".bin"]), 'a'); 
 
-%% OLD FORMAT
+%% DT2 FORMAT
 if strcmp(opt.ext, 'DT2')
     disp('Format is FLAT. Deprecating.')
 
@@ -62,7 +57,7 @@ if strcmp(opt.ext, 'DT2')
     % Initialize variable to chunk the writting. 
     indexPos  = 0;
 
-    %% Go over individual files
+    % Go over individual files
     for i = 1:length(opt.myFiles)
         
         % Neural data points are unsigned 16 bit words. Read.
@@ -87,15 +82,15 @@ if strcmp(opt.ext, 'DT2')
         % last file which normally will be smaller.
         nSamples = size(tempdata,2);
 
-        %% Distribute each channel to its respective slot in .h5 file
+        % Distribute each channel to its respective slot in new array
         for b = 1:opt.numChannels
-%             if opt.h5
-%                 h5write(filename,       ... % filename.
-%                         dataset,        ... % dataset name.
-%                         tempdata(b,:),  ... % data of a channel stored in the DT2 file (already scaled)
-%                         [b indexPos+1], ... % Write channel b, from starting sample
-%                         [1 nSamples]);      %  and this amount of samples.
-%             end
+            % if opt.h5
+            %     h5write(filename,       ... % filename.
+            %             dataset,        ... % dataset name.
+            %             tempdata(b,:),  ... % data of a channel stored in the DT2 file (already scaled)
+            %             [b indexPos+1], ... % Write channel b, from starting sample
+            %             [1 nSamples]);      %  and this amount of samples.
+            % end
             
             % Write channel into general cell array.
             data_mat{b,1} = [data_mat{b,1} tempdata(b,:)];
@@ -108,17 +103,14 @@ if strcmp(opt.ext, 'DT2')
     end
     clear tempdata fid
 
-    % Because this data goes into Kilosort, apply highpass filter to data.
+    % Because this data goes to Kilosort, apply highpass filter to data.
     if opt.set_filter
-
-        %% To keep memory usage low, we proceed in a channel by channels basis
+        % To keep memory usage low, we proceed in a channel by channels basis
         filt_data_mat = int16([]);
-    
         disp('Filtering.')
-        for b=1:opt.numChannels
+        for b = 1:opt.numChannels
             % Proceed with filter
-            [filt_data_mat{b,1}, filt.high.a, filt.high.b] = bandFilter(double(data_mat{b,1}), [], opt.highpass, opt.sampleRate);
-            
+            [filt_data_mat{b,1}, ~, ~] = bandFilter(double(data_mat{b,1}), [], opt.highpass, opt.sampleRate);
             filt_data_mat{b,1} = int16(filt_data_mat{b,1});
         end
     else
@@ -130,7 +122,7 @@ if strcmp(opt.ext, 'DT2')
     fwrite(fidDataMat, cell2mat(filt_data_mat), 'int16');
     fclose(fidDataMat);
 
-%% NEW FORMAT
+%% DF1 FORMAT
 elseif strcmp(opt.ext, 'DF1')
     disp('Format is BLOCK. NEW')
 
@@ -164,30 +156,28 @@ elseif strcmp(opt.ext, 'DF1')
     data_mat = reshape(data_mat, opt.numChannels, []);
 
     if opt.set_filter
-        %% To keep memory usage low, we proceed in a channel by channels basis
+        % To keep memory usage low, we proceed in a channel by channels basis
         filt_data_mat = int16([]);
-    
         disp('Filtering.')
         for b = 1:opt.numChannels
             % Proceed with filter
             [filt_data_mat(b,:), filt.high.a, filt.high.b] = bandFilter(double(data_mat(b,:)), [], opt.highpass, opt.sampleRate);
-            
             filt_data_mat(b,:) = int16(filt_data_mat(b,:));
         end
     else
         filt_data_mat = data_mat;
     end
 
-%     % distribute each row of data to its respective single-channel file
-%     if opt.h5
-%         for b = 1:opt.numChannels
-%             h5write(filename,         ... % filename.
-%                     dataset,          ... % dataset name.
-%                     data_mat(b,:),        ... % channel b, complete
-%                     [b b],                ... %   into slot b
-%                     [1 size(data_mat,2)]);    %   as long as it is.
-%         end
-%     end
+    % % distribute each row of data to its respective single-channel file
+    % if opt.h5
+    %     for b = 1:opt.numChannels
+    %         h5write(filename,         ... % filename.
+    %                 dataset,          ... % dataset name.
+    %                 data_mat(b,:),        ... % channel b, complete
+    %                 [b b],                ... %   into slot b
+    %                 [1 size(data_mat,2)]);    %   as long as it is.
+    %     end
+    % end
 
     % Write bin file
     fwrite(fidDataMat, filt_data_mat, 'int16');

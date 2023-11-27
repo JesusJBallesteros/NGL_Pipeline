@@ -11,6 +11,7 @@ function [data] = Deuteron2mat(opt)
 % Gather info to create and apply the lowpass filter
 opt.dwnsmplRate = opt.sampleRate/32; % Matches INTAN's 32x downsample factor.
 
+%% DT2 Format
 if strcmp(opt.ext, 'DT2')
     disp('Format is FLAT.')
     
@@ -48,6 +49,7 @@ if strcmp(opt.ext, 'DT2')
         indexPos = indexPos+nSamples;
     end
 
+%% DF1 Format
 elseif strcmp(opt.ext, 'DF1') % opt.ext = DF1
     disp('Format is BLOCK.')
 
