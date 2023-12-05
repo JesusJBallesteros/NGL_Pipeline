@@ -9,7 +9,7 @@ function input = set_default(input)
 % 
 % For missing optionals, it uses defaults.
 %
-% Jesus. 27.10.2023
+% Jesus. 05.12.2023
 
 % Set default to Extract data without NWB file creation.
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
@@ -63,18 +63,18 @@ if ~isfield(input,'test_ch'), input.test_ch   = []; end
 %% Set Dependencies. Critical to find toolboxes.
 cd(input.toolbox)
 addpath functions\
-addpath toolboxes\Deuteron
 addpath toolboxes\Intan
 addpath toolboxes\fieldtrip_light
 addpath toolboxes\Viewer
 
-addpath(genpath('toolboxes\spikes'))
+addpath(genpath('toolboxes\Deuteron'))
 addpath(genpath('toolboxes\npy-matlab'))
-addpath(genpath('toolboxes\multitaper_prerau'))
+%addpath(genpath('toolboxes\spikes'))
+% addpath(genpath('toolboxes\multitaper_prerau'))
 ft_defaults
 
 % Hardcode Deuteron's exe/dll files location to RetrieveEvents.
-input.ReaderDll   = [input.toolbox, '\functions\dlls\Event_File_Reader_8_3.dll'];
+input.ReaderDll   = [input.toolbox, '\toolboxes\Deuteron\software\Event_File_Reader_9_0.dll'];
 input.exefile     = [input.toolbox, '\functions\dlls\EventFileReader\Event_File_Reader_9_0.exe'];
 
 end

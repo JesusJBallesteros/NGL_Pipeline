@@ -62,7 +62,7 @@
 %% USER Inputs. Check A, B and C.
 % A) CRITICAL
 % Specify drive and folder where data is located AND this toolbox folder (If not already added to MATLAB folder system)
-input.datadrive     = 'F:\';
+input.datadrive     = 'D:\';
 input.studyName     = 'Pilot_SocialLearning'; 
 input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\ephys-data-pipeline'
 

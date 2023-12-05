@@ -81,7 +81,7 @@ else
     
     % Load in assembly
     asminfo = NET.addAssembly(opt.ReaderDll);        % loads in .NET dll 
-    c = Event_File_Reader_8_3.EFRMatlabFunctions();  % an object containing the dll functions 
+    c = Event_File_Reader_9_0.EFRMatlabFunctions();  % an object containing the dll functions 
     c.Initialize();                                  % initialize the dll
     
     lh = addlistener(c, 'WriteFileLoaded', @(o, e) fprintf('Event File loaded: %d\n', e.number)); % adds listener to read progress
