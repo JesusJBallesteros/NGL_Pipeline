@@ -7,7 +7,7 @@ else
 end
 
 if ~isfield(params, 'excludeNoise') || isempty(params.excludeNoise),  params.excludeNoise = true;   end
-if ~isfield(params, 'loadPCs') || isempty(params.excludeNoise),       params.loadPCs      = false;  end
+if ~isfield(params, 'loadPCs') || isempty(params.loadPCs),            params.loadPCs      = false;  end
 
 % Load Parameters from the KS/Phy run
 spikeStruct = loadParamsPy(fullfile(ksDir, 'params.py'));
@@ -20,7 +20,7 @@ st = double(ss)/spikeStruct.sample_rate;    % Spike times in sec
 spikeTemplates = readNPY(fullfile(ksDir, 'spike_templates.npy')); % Zero-indexed
 
 % Load the spike cluster index
-if exist(fullfile(ksDir, 'spike_clusters.npy'))
+if exist(fullfile(ksDir, 'spike_clusters.npy'), "file")
     clu = readNPY(fullfile(ksDir, 'spike_clusters.npy'));
 else
     clu = spikeTemplates;
@@ -40,11 +40,9 @@ end
 
 % Load the clusters tags
 cgsFile = '';
-if exist(fullfile(ksDir, 'cluster_groups.csv')) 
+if exist(fullfile(ksDir, 'cluster_groups.csv'), "file") 
     cgsFile = fullfile(ksDir, 'cluster_groups.csv');
-end
-
-if exist(fullfile(ksDir, 'cluster_group.tsv')) 
+elseif exist(fullfile(ksDir, 'cluster_group.tsv'), "file") 
    cgsFile = fullfile(ksDir, 'cluster_group.tsv');
 end 
 

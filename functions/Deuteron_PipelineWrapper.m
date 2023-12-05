@@ -110,7 +110,7 @@ elseif opt.RetrieveEvents && opt.usepar
             opt.def.trialEnd    = 7;
             
             % Set event for trial t=0
-            opt.def.alignto = opt.def.rwd;
+            opt.def.alignto = opt.def.itiOn;
         
         if opt.usepar
             [trialdef, opt.def] = trialdefFromPar(opt);

@@ -29,7 +29,9 @@ def.ntrials = length(def.tstart);
 % 'trial end time' and 'offset to zero').
 trl      = zeros(def.ntrials,3);
 trl(:,1) = def.tstart;
-trl(:,2) = def.tend;
+try trl(:,2) = def.tend;
+catch, trl(:,2) = def.tstart+6;
+end
 % we leave offset to 0, so we can re-define where we want to zero time to
 % be aligned flexibly in the future.
 
