@@ -62,7 +62,7 @@
 %% USER Inputs. Check A, B and C.
 % A) CRITICAL
 % Specify drive and folder where data is located AND this toolbox folder (If not already added to MATLAB folder system)
-input.datadrive     = 'D:\';
+input.datadrive     = 'F:\';
 input.studyName     = 'Pilot_SocialLearning'; 
 input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\ephys-data-pipeline'
 
@@ -71,17 +71,17 @@ input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\ephys-d
 % use char array 'all'. For a session-to-session process, explicit the subject 
 % and session/s to process using cell arrays.
 input.subjects       = {'485'}; % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
-input.dates          = {'20231110'}; %'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.dates          = {'20231113'}; %'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 % C) GENERAL Options. 
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
 opt = struct(); % leave this, to empty possible residues from a previous run.
 
-    opt.RetrieveEvents      = true;  % Retrieve event log from Deuteron system.
+    opt.RetrieveEvents      = false;  % Retrieve event log from Deuteron system.
         opt.useexe          = false; % Eventually, only option for Deuteron recordings (TODO)
-        opt.usepar          = true;  % temporarily use of .par files from Juan's behavior paradigm
+        opt.usepar          = false;  % temporarily use of .par files from Juan's behavior paradigm
     
-    opt.parsetrial          = true;      % Define trials based on retrieved events
+    opt.parsetrial          = false;      % Define trials based on retrieved events
 
     opt.bin                 = false;   % Creation of .bin file, for Kilosort.
 
@@ -89,8 +89,12 @@ opt = struct(); % leave this, to empty possible residues from a previous run.
         % NEEDS configfile saved under '...\analysisCode'
         opt.spkTh           = -2; % def: -4.5. It will override the KS configfile.
         opt.KSchanMapFile   = []; %'chanMapPoly3Deut.mat'; % 'chanMapPoly3Deut' 'chanMapPoly3' 'chanMapATLASTri'
+    
+    opt.bombcell            = true; % Run bombcell on the KS output, previouly to manual curation
+        opt.rerun           = 1; % parameter 'rerun' for bombcell run
+        opt.nRawSpikesToExtract = 1000; % parameter for bombcell run
 
-    opt.FTfile              = true;   % Creation of .mat file, FieldTrip ready.
+    opt.FTfile              = false;   % Creation of .mat file, FieldTrip ready.
 
     opt.GetMotionSensors    = false;  % JACOB gone MIA. Retrieve data from motion sensors in Deuteron.
 
@@ -162,6 +166,12 @@ for s = 1:input.nsubjects
             master_kilosort(sessions(s), input, opt) % 'opt' is this pipeline running variable.
         end
     
+        %% 04 Bombcell
+        if opt.bombcell
+            % Kilosort will run without GUI.
+            Bombcell_Main(opt) % 'opt' is this pipeline running variable.
+        end
+
         % Clean up to move on to next session
         clear FT_data INTANdata txt
 

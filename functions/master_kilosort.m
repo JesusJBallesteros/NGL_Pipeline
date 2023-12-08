@@ -23,7 +23,6 @@ end
 
 %% Defaults, if not given.
 % Config and Channelmap files are to be found under '\analysisCode'
-addpath(genpath('C:\KiloSort_2.0\')) % path to kilosort toolbox (Assumes Sorting PC, not local)
 if ~isfield(opt,'KSConfigFile') || isempty(opt.KSConfigFile),           opt.KSConfigFile    = input.analysisCode;  end 
 if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),         opt.KSchanMapFile   = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end 
 if ~isfield(opt,'spkTh') || isempty(opt.spkTh),                         opt.spkTh           = -4; end 

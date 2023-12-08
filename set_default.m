@@ -62,15 +62,24 @@ if ~isfield(input,'test_ch'), input.test_ch   = []; end
 
 %% Set Dependencies. Critical to find toolboxes.
 cd(input.toolbox)
+
+% Add functions
 addpath functions\
+
+% Add toolboxes
 addpath toolboxes\Intan
 addpath toolboxes\fieldtrip_light
 addpath toolboxes\Viewer
-
 addpath(genpath('toolboxes\Deuteron'))
 addpath(genpath('toolboxes\npy-matlab'))
-%addpath(genpath('toolboxes\spikes'))
-% addpath(genpath('toolboxes\multitaper_prerau'))
+addpath(genpath('toolboxes\bombcell'))
+% %addpath(genpath('toolboxes\spikes'))
+% % addpath(genpath('toolboxes\multitaper_prerau'))
+
+% Add Kilosort (external)
+addpath(genpath('C:\KiloSort_2.0\')) % path to kilosort toolbox (Assumes Sorting PC, not local)
+
+% Initialize FT
 ft_defaults
 
 % Hardcode Deuteron's exe/dll files location to RetrieveEvents.
