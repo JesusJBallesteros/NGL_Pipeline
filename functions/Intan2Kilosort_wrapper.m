@@ -35,8 +35,6 @@ elseif nargin == 2, opt = varargin{1};
 end
 
 %% Defaults
-if ~isfield(opt,'bin'),            opt.bin            = true;       end
-if ~isfield(opt,'RetrieveEvents'), opt.RetrieveEvents = false;      end
 if ~isfield(opt,'highpass'),       opt.highpass       = [450 5000]; end
 if ~isfield(opt,'StpSz'),          opt.StpSz          = 1000000;    end
 
@@ -54,7 +52,14 @@ if isempty(opt.myFiles)
 end
 
 % How many channels, from Intan_hdr.
-opt.numChannels = sessions.info.nChannels; 
+opt.numChannels = sessions.info.nChannels;
+
+% Check that numChannels and the number of files coincide. Fix if necessary
+if sessions.info.nfiles < opt.numChannels
+    % Report
+    disp('Found less channel files than expected by header. Using number of files as truth.')
+    opt.numChannels = sessions.info.nfiles;
+end
 
 % Sample rate, from Intan_hdr.
 opt.sampleRate  = sessions.info.amplifier_sample_rate;

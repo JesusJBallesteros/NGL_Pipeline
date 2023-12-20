@@ -57,80 +57,61 @@
 % There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 
-% Last updated JESUS 31.10.2023
+% Last updated JESUS 20.12.2023
 
 %% USER Inputs. Check A, B and C.
 % A) CRITICAL
 % Specify drive and folder where data is located AND this toolbox folder (If not already added to MATLAB folder system)
 input.datadrive     = 'F:\';
-input.studyName     = 'Pilot_SocialLearning'; 
+input.studyName     = 'SPPtest'; 
 input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\ephys-data-pipeline'
 
 % B) SUBJECTS AND SESSIONS
 % To run the script on all subjects and sessions included in your project,
 % use char array 'all'. For a session-to-session process, explicit the subject 
 % and session/s to process using cell arrays.
-input.subjects       = {'485'}; % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
-input.dates          = {'20231113'}; %'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+input.subjects       = 'all'; %{'485'}; % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
+input.dates          = 'all'; %{'20231113'}; %'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
 
 % C) GENERAL Options. 
 % Those used for all sessions. Specific options can be set below or defaulted in the functions.
 opt = struct(); % leave this, to empty possible residues from a previous run.
 
-    opt.RetrieveEvents      = false;  % Retrieve event log from Deuteron system.
-        opt.useexe          = false; % Eventually, only option for Deuteron recordings (TODO)
-        opt.usepar          = false;  % temporarily use of .par files from Juan's behavior paradigm
+    opt.bin                 = true;   % Creation of .bin file, for Kilosort.
     
-    opt.parsetrial          = false;      % Define trials based on retrieved events
-
-    opt.bin                 = false;   % Creation of .bin file, for Kilosort.
-
-    opt.kilosort            = false;   % Call to kilosort processing. 
+    opt.kilosort            = true;   % Call to kilosort processing. 
         % NEEDS configfile saved under '...\analysisCode'
-        opt.spkTh           = -2; % def: -4.5. It will override the KS configfile.
-        opt.KSchanMapFile   = []; %'chanMapPoly3Deut.mat'; % 'chanMapPoly3Deut' 'chanMapPoly3' 'chanMapATLASTri'
-    
-    opt.bombcell            = true; % Run bombcell on the KS output, previouly to manual curation
+        opt.spkTh           = -4.5; % def: -4.5. It will override the KS configfile.
+        opt.KSchanMapFile   = 'chanMapNeuronexusBuzaki.mat'; %'chanMapPoly3Deut.mat'; % 'chanMapPoly3Deut' 'chanMapPoly3' 'chanMapATLASTri'
+
+    opt.bombcell            = true; % Run bombcell on the KS output, previously to manual curation
         opt.rerun           = 1; % parameter 'rerun' for bombcell run
         opt.nRawSpikesToExtract = 1000; % parameter for bombcell run
 
-    opt.FTfile              = false;   % Creation of .mat file, FieldTrip ready.
+    opt.FTfile              = true;   % Creation of .mat file, FieldTrip ready.
+    
+    opt.parsetrial          = false;  % Define trials based on retrieved events
 
+    opt.RetrieveEvents      = false;  % Retrieve event log from Deuteron system.
+        opt.useexe          = false;  % Eventually, only option for Deuteron recordings (TODO)
+        opt.usepar          = false;  % temporarily use of .par files from Juan's behavior paradigm
+    
     opt.GetMotionSensors    = false;  % JACOB gone MIA. Retrieve data from motion sensors in Deuteron.
 
 %% 00. Check current inputs.
 % Will set the rest of default inputs and dependencies.
 input = set_default(input);
 
+%% 01. Find and list requested sessions and subjects.
+sessions = findSessions(input);
+
 % Loop subjects.
 for s = 1:input.nsubjects
-    %% 01. Find and list sessions. Determine the pipeline.
-    % Read requested sessions from specified animal folder.
-    sessions = findSessions(input);
-
     % Loop sessions.
     for ss = 1:sessions(s).nsessions
-        % Navigate to session's raw data folder.
-        cd(fullfile(sessions(s).folder,sessions(s).list{ss}));
-                
-        % Report.
-        txt = sprintf('\n --> Subject %s, session %d out of %d: %s \n', ...
-                     input.subjects(s).name, ss, sessions(s).nsessions, sessions(s).list{ss});
-        fprintf(txt);
-    
-        % Check system and version.
-        sessions(s).info = [];
-        sessions(s).info = chckV();
-    
-        % Determine where processed session data will be saved.
-        opt.PathRaw           = pwd;
-        opt.FolderProcDataMat = fullfile(input.processed, input.subjects(s).name, sessions(s).list{ss});
-        opt.behavFiles        = fullfile(input.bhvfolder, input.subjects(s).name, sessions(s).list{ss});
-        opt.SavFileName       = sessions(s).list{ss}; 
-        
-        % Report and create folder.
-        disp(strcat('Processed data will be saved to: >', opt.FolderProcDataMat));
-        mkdir(opt.FolderProcDataMat);
+        % Navigate to session's raw data folder and report.
+        % Check system and version. Determine where processed session data will be saved.
+        [sessions(s).info, opt] = prepforsession(input, sessions(s), opt, ss);
     
         % Determine pipeline based on type of data.
         switch sessions(s).info.fileformat
@@ -147,13 +128,6 @@ for s = 1:input.nsubjects
                    sessions(s) = INTAN_PipelineWrapper(sessions(s), input, opt);
                 end
     
-            case 'Allego'
-                warning('Allego format not implemented yet.');
-        
-            case 'NAN'
-                warning('The format of this session could not be recognized. Skipping.');
-                continue
-    
             otherwise
                 warning('Something went wrong during format verification. Skipping');
                 sessions(s).info.fileformat = 'ERR'; % Flag for ERROR
@@ -163,13 +137,13 @@ for s = 1:input.nsubjects
         %% 03 Kilosort
         if opt.kilosort
             % Kilosort will run without GUI.
-            master_kilosort(sessions(s), input, opt) % 'opt' is this pipeline running variable.
+            master_kilosort(sessions(s), input, opt)
         end
     
         %% 04 Bombcell
         if opt.bombcell
             % Kilosort will run without GUI.
-            Bombcell_Main(opt) % 'opt' is this pipeline running variable.
+            Bombcell_Main(opt) 
         end
 
         % Clean up to move on to next session

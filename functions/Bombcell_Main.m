@@ -33,7 +33,7 @@ param = struct; % initialize bombcell param structure. Get opts
 
 %% Faster compute
 orig = pwd;
-cd('C:\Code\bombcell\ephysProperties\helpers');
+cd('C:\Code\ephys-data-pipeline\toolboxes\bombcell\ephysProperties\helpers');
 mex -O CCGHeart.c 
 cd(orig); clear orig
 

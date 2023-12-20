@@ -43,29 +43,25 @@ end
 
 %% 03. Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
 if input.ExtractData 
-  if opt.bin
-
-    % Based on Sara, Aylin and Lukas' scripts.
-    % only if the .bin file does not exist yet.
-      if ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
+    if opt.bin && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
+        % Based on Sara, Aylin and Lukas' scripts.
         Intan2Kilosort_wrapper(sessions, opt);
-      end
-  end
+    end
 end
 
 %% 04. Run wrapper for the INTAN to FIELDTRIP.
-if opt.FTfile
-  % Includes a mix of INTAN funtions. CREATES and GIVES proper
-  % FieldTrip format without trial-parsing. 
-  intan2FieldTrip(sessions, opt)
+if opt.FTfile && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '_continous_FT.mat']))
+    % Includes a mix of INTAN funtions. CREATES and GIVES proper
+    % FieldTrip format without trial-parsing. 
+    intan2FieldTrip(sessions, opt)
 
-  %% 04.1 Plotting. Uses Chronux Multitaper approach to generate fast
-  % single-tappered Spectrograms on a subset of channels for a small chunck
-  % of time. Just to have a preview of how the signal looks like in
-  % the LFP range.
-  if isfield(input, 'test_ch') && ~isempty(input.test_ch)
-      plot_testsignal(FT_data, input.test_ch, opt)
-  end
+    % 04.1 Plotting. Uses Chronux Multitaper approach to generate fast
+    % single-tappered Spectrograms on a subset of channels for a small chunck
+    % of time. Just to have a preview of how the signal looks like in
+    % the LFP range.
+    if isfield(input, 'test_ch') && ~isempty(input.test_ch)
+        plot_testsignal(FT_data, input.test_ch, opt)
+    end
 end
 
 end

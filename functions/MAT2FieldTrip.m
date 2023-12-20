@@ -29,7 +29,7 @@ switch stream
         
         % Save this session data. Generates a file with continous data for a
         %   SINGLE session only into the session folder.
-        disp('Data had no trial definition, so it was saved as continuous.');
+        disp('No trial definition was given, so data was treated as continuous.');
         save(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_continous_FT.mat')), 'FT_data', '-v7.3')
 
     case 2

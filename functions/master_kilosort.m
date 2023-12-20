@@ -9,7 +9,7 @@ function master_kilosort(sessions, input, varargin)
 %
 % INPUT:    sessions: stores info about current session. Relevant here to
 %                     know number of channels withlut hard coding it.
-%                     *IMPORTANT: It is used by running the ConfigFile.
+%                     *IMPORTANT: It is used tu run the ConfigFile.
 %           input:    stores general info about project, paths and so on. 
 %           varargin: optional input (opt) that can be given or not.
 %
@@ -63,8 +63,8 @@ if ~isfile(fullfile(opt.KSConfigFile, opt.KSchanMapFile))
 end
 
 %% Jesus. Included ops to test a check for chanMap-actual number of channels matching.
-% It can happen that some channels are disabled or known dead. It will use the complete
-% chanMap and find unmatching arrays.
+% It can happen that some channels are disabled, known dead, or just not being analyzed. 
+% It will use the complete chanMap and find unmatching arrays.
 % There is a logic variable within the map file named 'connected' which
 % could be used to use (1) or not (0) that channel.
 %

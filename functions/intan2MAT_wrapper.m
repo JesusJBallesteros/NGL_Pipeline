@@ -20,7 +20,7 @@ if isempty(opt.myFiles)
 
     % Gather info to create and apply the lowpass filter
     opt.sampleRate  = sessions.info.amplifier_sample_rate;
-    opt.dwnsmplRate = 937.5; % Matches INTAN's 32x downsample factor
+    opt.dwnsmplRate = opt.sampleRate/32; % Matches INTAN's 32x downsample factor
 else
     opt.set_filter = 0;
     opt.dwnsmplRate = sessions.info.amplifier_sample_rate / sessions.info.lowpass_downsample;
@@ -119,7 +119,11 @@ time = (1:length(volt)) / opt.dwnsmplRate; % in Seconds
 disp('Creating pseudo-FieldTrip structure...');
 % Starting with labels as they have been extracted from the INTAN header
 for i = 1:sessions.info.nChannels
-    data.label{i,1} = convertStringsToChars(sessions.info.INTAN_hdr.amplifier_channels(i).native_channel_name);
+    if i<=sessions.info.nfiles
+        data.label{i,1} = convertStringsToChars(sessions.info.INTAN_hdr.amplifier_channels(i).native_channel_name);
+    else
+        continue
+    end
 end
 
 % The only trial contains all channels*time info                

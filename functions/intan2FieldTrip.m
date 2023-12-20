@@ -11,6 +11,7 @@ if ~isfield(opt,'lowpass'), opt.lowpass = [  0  400];  end
 
 % Proceed with the main functions
 INTANdata = intan2MAT_wrapper(sessions, opt);
+
 MAT2FieldTrip(INTANdata, opt);
 
 end

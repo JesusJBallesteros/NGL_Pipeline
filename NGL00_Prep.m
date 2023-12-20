@@ -13,7 +13,7 @@ datadrive = 'F:'; % Drive unit in local PC.
 
 %% All projects should have a name. 
 % Define it here:
-studyName = 'Pilot_SocialLearning'; % A descriptive and unique name to the project.
+studyName = 'SPPtest'; % A descriptive and unique name to the project.
 
 %% The project folder contains a 'readme.txt' file.
 % It contains details about the project. 
