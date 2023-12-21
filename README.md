@@ -78,4 +78,4 @@ For one single session or for a batch of sessions, from one single animal:
        MotionData.mat file, From Deuteron sensors.
        Plots snippets of time- and frequency-domain data, from FieldTrip
        
-Last modified 05.04.2023 (Jesus)
+Last modified 21.12.2023 (Jesus)
