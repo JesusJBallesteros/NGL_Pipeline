@@ -1,5 +1,5 @@
 function Bombcell_Main(varargin)
-%% Adapted Bombcell pipeline (From JF-example pipeline)
+% Adapted Bombcell pipeline 
 % Set the paths here and the parameters in 'bc_qualityParamValues'
 % This pipeline will:
 %   (1) load your kilosorted data, 
@@ -12,7 +12,7 @@ function Bombcell_Main(varargin)
 % quality metric thresholds depending on the summary plots (histograms 
 % of the distributions of quality metrics for each unit) and GUI. 
 %
-% On the works. Jesus 08/12/2023
+% Jesus 21.12.2023
 
 if nargin < 1, opt = struct();
 elseif nargin == 1, opt = varargin{1};

@@ -4,13 +4,13 @@ function MAT2FieldTrip(data, opt, varargin)
 % Options are, to create a 'continuous' FT file, (one, large trial) or to
 % create a trial-parsed FT file, for which we need the eventcodes.
 %
-% Version 01.03.2023 Jesus
+% Jesus 21.12.2023
 
-if nargin < 3,  stream = 1; 
+if nargin < 3,  stream = 1; % do not trial parse
 else           
     trialdef = varargin{1};
-    if isempty(trialdef), stream = 1;
-    else, stream = 2;
+    if isempty(trialdef), stream = 1; % do not trial parse
+    else, stream = 2; % trial parse % TODO
     end
 end
 
@@ -32,7 +32,7 @@ switch stream
         disp('No trial definition was given, so data was treated as continuous.');
         save(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_continous_FT.mat')), 'FT_data', '-v7.3')
 
-    case 2
+    case 2 % TODO
         % Check that Fieldtrip likes what we have (it should).
         FT_data = ft_checkdata(data);
         clear data

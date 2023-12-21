@@ -1,9 +1,9 @@
 function Deuteron_GetMotionSensors(opt)
+% Description in progress
 %
 %
 %
-%
-% Version 01.03.2023 Jesus
+% Jesus 21.12.2023
 
 %% Get already existing Parameters
 numFiles        = length(opt.myFiles);
@@ -76,13 +76,13 @@ end
 clear data fid
 
 %% Plot sensors readings
-% Select plot stream for only raw data
-plot_ver = 1;
-
 % pass data into single variable
 data.acc = Accelerometer;
 data.gyr = Gyroscope;
 data.mag = Magnetometer;
+
+% Select plot stream for only raw data
+plot_ver = 1;
 
 % Run the plot function
 Deuteron_PlotMotionSensors(data, timestamps, plot_ver, 1, 0);
@@ -135,10 +135,7 @@ data.acc = Accelerometer;
 data.gyr = Gyroscope;
 data.mag = Magnetometer;
 
-% Run the plot function
-Deuteron_PlotMotionSensors(data, timestamps, plot_ver, 1, 0);
-
-clear data A b Accelerometer Gyroscope Magnetometer
+clear A b Accelerometer Gyroscope Magnetometer
 
 %% Create AHRS filter using matlab tools. Needs the sample rate and the
 % sensor noise levels. The output once the FUSE object is applied will be
@@ -160,11 +157,10 @@ clear Gyro_Noise Accel_Noise MField_Bochum
 
 %% Plot
 % Select plot stream for only raw data
-plot_ver = 2;
-data = orientation; % testing
+plot_ver = 2; % 1 for raw data; 2 for orientation
 
-% Run the plot function 
+% Run the plot function
+Deuteron_PlotMotionSensors(data, timestamps, plot_ver, 1, 0);
 Deuteron_PlotMotionSensors(orientation, timestamps, plot_ver, 1, 0)
-
 
 end

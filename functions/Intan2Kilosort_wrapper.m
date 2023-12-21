@@ -14,10 +14,8 @@ function Intan2Kilosort_wrapper(sessions, varargin)
 %
 % INPUTS:
 %    sessions: struct. Variable containing info about sessions in process
-%    ss:       int. Current session ordinal in the pipeline
 %    opt:      struct. optional inputs to override the defaults:
 %               opt.StpSz          = 1000000;  int that determines the chunk size to writo into the .h5 file
-%               opt.bin            = true;     Logic that determines if we want to create the .bin file.
 %               opt.RetrieveEvents = false;    Logic that determines if we want to retrieve events.
 %               opt.highpass       = [450 5000]; Array of [lowest highest] ends for the band-pass filter, in Hz 
 %
@@ -26,9 +24,8 @@ function Intan2Kilosort_wrapper(sessions, varargin)
 %    in increasing order ? as required for processing with Kilosort 
 % 
 % VERSION HISTORY:
-% Author:         Aylin, Lukas & Sara
-%
-% Version 13.04.2023 Jesus
+% Author: Aylin, Lukas & Sara
+% Jesus 13.04.2023
 
 if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};

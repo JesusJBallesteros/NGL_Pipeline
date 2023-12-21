@@ -13,7 +13,7 @@ opt.dwnsmplRate = opt.sampleRate/32; % Matches INTAN's 32x downsample factor.
 
 %% DT2 Format
 if strcmp(opt.ext, 'DT2')
-    disp('Format is FLAT.')
+    disp('Format is FLAT. DEPRECATING')
     
     % Initiate matrix and sample index.
     data_tmp = int16([]);
@@ -31,8 +31,7 @@ if strcmp(opt.ext, 'DT2')
             tempdata(tempdata==0) = [];
         end
 
-        % Because all channels come concatenated, we need to reshape as
-        % channels x samples.
+        % Reshape concatenated channels to channels x samples.
         tempdata = reshape(tempdata', opt.numChannels, []);
 
         % Convert ADC steps into microvolts, so conversion to int16 is

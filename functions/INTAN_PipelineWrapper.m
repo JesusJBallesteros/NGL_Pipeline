@@ -1,17 +1,18 @@
 function sessions = INTAN_PipelineWrapper(sessions, input, varargin)
+% This wrapper contains all steps and calls related to INTAn processing
+% pipeline, including a (possible) conversion to NWB format, a conversion
+% to .bin files for kilosort and a conversion into FieldTrip compatible .mat file.
 %
-%
-% Jesus 31.10.2023
+% Jesus 21.12.2023
 
 if nargin < 3, opt = struct();
 elseif nargin == 3, opt = varargin{1};
 end
 
 %% Defaults 
-if ~isfield(opt,'bin'),             opt.bin                 = true;         end
-if ~isfield(opt,'FTfile'),          opt.FTfile              = true;         end
-if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
-if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
+if ~isfield(opt,'FieldTrip'),           opt.FieldTrip           = true;         end
+if ~isfield(opt,'RetrieveEvents'),      opt.RetrieveEvents      = true;         end
+if ~isfield(opt,'GetMotionSensors'),    opt.GetMotionSensors    = false;        end
 
 %% 01. Find out INTAN settings and header file. Extract info.
 %  Uses a modified Intan function, to make the basic information
@@ -19,9 +20,8 @@ if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
 %  the '.INTAN_hdr' sub-structure.
 sessions = findSetting(sessions);
 
-%% 02. Create NWB file
+%% 02. Create NWB file (NOT in current USE)
 if input.useNWB % We want a .NWB file.
-
   % Run wrapper for the INTAN to NWB functionality:               
     % This NEEDS A PYTHON installation and the tooldbox inside!
     % Detailed explanation:
@@ -42,15 +42,12 @@ if input.useNWB % We want a .NWB file.
 end 
 
 %% 03. Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
-if input.ExtractData 
-    if opt.bin && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
-        % Based on Sara, Aylin and Lukas' scripts.
-        Intan2Kilosort_wrapper(sessions, opt);
-    end
+if opt.kilosort && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
+    Intan2Kilosort_wrapper(sessions, opt);
 end
 
 %% 04. Run wrapper for the INTAN to FIELDTRIP.
-if opt.FTfile && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '_continous_FT.mat']))
+if opt.FieldTrip && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '_continous_FT.mat']))
     % Includes a mix of INTAN funtions. CREATES and GIVES proper
     % FieldTrip format without trial-parsing. 
     intan2FieldTrip(sessions, opt)

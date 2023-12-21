@@ -16,12 +16,10 @@ function Deuteron2Kilosort(opt)
 % VERSION HISTORY:
 % Author:         Aylin, Lukas & Sara
 % Version:        1
-% Last Change:    31.10.2023 (Jesus)
+% Last Change:    21.12.2023 (Jesus)
 
-% TODO: prepare filtering for DF1 format.
-
-%% Pre-define .h5 and .bin opt.myFiles
-% Name dataset to an useful denomination?
+% % Pre-define .h5
+% % Name dataset to an useful denomination?
 % filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName '.h5']); 
 % dataset = '/allChnMat'; % for now, as before.
 % opt.h5 = true;
@@ -38,10 +36,10 @@ function Deuteron2Kilosort(opt)
 if isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName + ".bin"]))
     bininfo = dir(fullfile(opt.FolderProcDataMat,[opt.SavFileName + ".bin"]));
     if bininfo.bytes > 0
-        disp('A .bin file already exists in this directory. Skipping.')
+        disp('An actual .bin file exists in this directory. Skipping.')
         return
     end
-    disp('An empty .bin file was found in this directory. Will be overwritten.')
+    disp('A failed .bin file was found in this directory. Will be overwritten.')
 end
 
 % Create an empty .bin file.
@@ -105,7 +103,7 @@ if strcmp(opt.ext, 'DT2')
 
     % Because this data goes to Kilosort, apply highpass filter to data.
     if opt.set_filter
-        % To keep memory usage low, we proceed in a channel by channels basis
+        % Proceed in a channel by channels basis (lower memory use)
         filt_data_mat = int16([]);
         disp('Filtering.')
         for b = 1:opt.numChannels
@@ -124,7 +122,7 @@ if strcmp(opt.ext, 'DT2')
 
 %% DF1 FORMAT
 elseif strcmp(opt.ext, 'DF1')
-    disp('Format is BLOCK. NEW')
+    disp('Format is BLOCK.')
 
     % Create variable to store all data
     data_mat    = [];
@@ -152,7 +150,7 @@ elseif strcmp(opt.ext, 'DF1')
     end
     clear tempdata fid
 
-    % Reshape to sort as channels x samples.
+    % Reshape to channels x samples.
     data_mat = reshape(data_mat, opt.numChannels, []);
 
     if opt.set_filter

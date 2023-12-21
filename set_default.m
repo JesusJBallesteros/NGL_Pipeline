@@ -9,13 +9,12 @@ function input = set_default(input)
 % 
 % For missing optionals, it uses defaults.
 %
-% Jesus. 05.12.2023
+% Jesus. 21.12.2023
 
-% Set default to Extract data without NWB file creation.
+% Set default to extract data without NWB file creation.
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
 % are requested, the NWB will perform well but the data extraction will not. 
 % It will crash for not completely known reason. It needs a Matlab restart between runs.
-if ~isfield(input,'ExtractData') || isempty(input.ExtractData), input.ExtractData = true;  end
 if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB      = false; end
 % MEANING: do not set both 'true'.
 
