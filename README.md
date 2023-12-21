@@ -1,31 +1,36 @@
-# First edition of 'Ephys-data-pipeline'
-Main Scripts, functions and tools to work with electrophysiological data at NGL.
+# 'Ephys-data-pipeline'
+Scripts, functions and tools to work with electrophysiological data at NGL.
 
-# A Script 'NGL01_Main' that transforms data from INTAN and Deuteron formats into .bin files (for kilosort) and Fieldtrip .mat files.
-Additionally, data can be converted into a Neurodata Without Borders (.nwb) single file, a class of HDF5 file format.
+# Use 'NGL00_Prep' to create a new project folder system to start storing your raw data and set initial readme info.
+Then, drop your raw data into individual subject and session folders under 'data/raw'.
+Your data SHOULD be stored as the IKN standard Harddisk data structure. 
+See: gitlab.ruhr-uni-bochum.de/ikn/howto/-/wikis/Neurophysiology/hard-disk-data-structure
 
-Your data SHOULD be stored as the IKN standard Harddisk data structure. See:
-  gitlab.ruhr-uni-bochum.de/ikn/howto/-/wikis/Neurophysiology/hard-disk-data-structure
+# 'NGL01_Main' will transform raw data from INTAN and Deuteron into .bin files (for kilosort) and .mat (for Fieldtrip) files.
+A set of options let the user decide wich pipelines to follow, and to specify any filters, thresholds and so on for the related steps.
 
-  *ABOUT .NWB: The creation of a NWB file is made by 'intan2NWB_wrapper.m', which performs the main INTAN-NWB transformation. This wrapper NEEDS a working python installation. This is because INTAN's tool (INTANToNWB) requires so. See:
-  https://github.com/Intan-Technologies/IntanToNWB
-  With this wrapper, Python will never show up, neither the user will have to interact with it AT ALL. Everything happens from MATLAB.
-  Requires Python installed in the machine. As explained in the Script:
-  To date, MATLAB 2021b accepts interaction with Python up to v3.9. Needs the 64 bits version:
-  (https://de.mathworks.com/help/matlab/matlab_external/install-supported-python-implementation.html)
-  To check that MATLAB can interact with the Python Modules, look if variable 'pe' is correctly populated when debugging.
+This Script will process high-pass data and proceed to Kilosort it with no GUI. 
+Inmediately after, it will call Bombcell to 'pre-curate' and create an initial set of tags for the sorted clusters.
+Then, the user needs to manually curate the results. There is no way around this.
+
+For low-pass data, the downsampled time series will be stored into .mat files with the FieldTrip expected format. 
+Events will be used to trial-parse the data (or let it be continous) and give proper format to allow the use of FT functions.
+
+# 'NGL02_postPhy' will proceed with typical steps to transform the manually-curated spike data to NLG data format.
+It will read and extract data from the python-based files into MATLAB, generating spike matices according to the lab format.
+This can then be feeded into further functions to analyze, plot, etc.
+It will also process the spike data to fit the FieldTrip structures together with the LFP data, and trial parsed if required.
+This would allow for spike-field analysis, as well as the use of FT funtions on both domains.
 
 # Getting Started
-For the very first time: Set the folder where 'NGL01_Main' script is as working folder.
+For the very first time: Set the main repo folder (where 'NGL01_Main.m' is) as working folder.
+*Adding this folder permanently to Matlab's path is recommended, the rest will be taken care of during the run.
 
-Adding this folder permanently to Matlab's path could be useful, the rest will be temporarily added during the run.
-
-Fill out the Inputs ('datadrive', 'studyName', 'subjects' and 'dates').
-Fill out the Options at wish.
+Fill out the A, B and C Sections as needed. A is mandatory.
 
 Hit F5.
 
-# Script Description.
+# Script Description. (in progress)
 Pipeline process INTAN and Deuteron continous data.
 Will read and process INTAN, DEUTERON (or ALLEGO) data, from selected sessions for a given animal.
 The main pipeline will be: INTAN/DEUTERON raw formats to be located, then
