@@ -81,6 +81,8 @@ opt = struct(); % leave this, to empty possible residues from a previous run.
     opt.bombcell            = true; % Run bombcell on the KS output, previously to manual curation
         opt.rerun           = 1;    % To overwrite previous results
         opt.nRawSpikesToExtract = 1000; % Parameter for bombcell run
+    opt.phy                 = true;   % Calls phy for manual inspection or curation. 
+        % !! It PUTS MATLAB ON HOLD!
     opt.FieldTrip           = true;   % Creation of .mat file, FieldTrip ready.
     opt.RetrieveEvents      = true;   % Retrieve event log.
         opt.useexe          = false;  % Eventually, only option for Deuteron recordings (TODO)
@@ -103,17 +105,15 @@ for s = 1:input.nsubjects
         % Check system and version. Determine where processed session data will be saved.
         [sessions(s).info, opt] = prepforsession(input, sessions(s), opt, ss);
     
-        % Determine pipeline based on type of data.
+        %% 02 Run pipeline based on type of data.
         switch sessions(s).info.fileformat
-            case {'DT2', 'DF1'} 
-                %% 02.1 Deuteron Pipeline
+            case {'DT2', 'DF1'} %% 02.1 Deuteron Pipeline
                 if input.ExtractData
                    disp('Deuteron data is NOT being filter, by default');
                    sessions(s) = Deuteron_PipelineWrapper(sessions(s), input, opt);
                 end
     
-            case {'fileperch', 'filepertype'}
-                %% 02.2 INTAN Pipeline
+            case {'fileperch', 'filepertype'} %% 02.2 INTAN Pipeline
                 if input.ExtractData
                    sessions(s) = INTAN_PipelineWrapper(sessions(s), input, opt);
                 end
@@ -124,16 +124,24 @@ for s = 1:input.nsubjects
                 continue
         end 
                 
-        %% 03 Kilosort
+        %% 03 Do Kilosort
         if opt.kilosort
             % Kilosort will run without GUI.
             master_kilosort(sessions(s), input, opt)
         end
     
-        %% 04 Bombcell
+        %% 04 Do Bombcell
         if opt.bombcell
             % Kilosort will run without GUI.
             Bombcell_Main(opt) 
+        end
+
+        %% 05 Open Phy to manual curation or just inspection
+        if opt.phy
+            % Will change to current session directory and open phy.
+            % ! Keeps MATLAB busy until interface is closed.
+            cd(opt.FolderProcDataMat)
+            system('phy template-gui params.py');
         end
 
         % Clean up to move on to next session
