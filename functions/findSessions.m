@@ -1,7 +1,7 @@
 function sessions = findSessions(input, varargin)
 % Finds and list all sessions requested, no matter the input format.
 %
-% Version 27.10.2023 Jesus
+% Version 02.01.2024 (Jesus)
 
 % Goes over every subject's folder and reads existing sessions    
 for s = 1:input.nsubjects

@@ -1,4 +1,4 @@
-function master_kilosort(sessions, input, varargin)
+function master_kilosort(input, varargin)
 % Run Kilosort processing line programatically, without GUI. 
 % Uses some info from the current session and searches for configuration
 % and channel map files on '\analysisCode' folder.
@@ -7,18 +7,15 @@ function master_kilosort(sessions, input, varargin)
 % chanMaps can co-exist, but then it will need to make explicit which one
 % you want, modifying the opt.KSchanMapFile below.
 %
-% INPUT:    sessions: stores info about current session. Relevant here to
-%                     know number of channels withlut hard coding it.
-%                     *IMPORTANT: It is used tu run the ConfigFile.
-%           input:    stores general info about project, paths and so on. 
+% INPUT:    input:    stores general info about project, paths and so on. 
 %           varargin: optional input (opt) that can be given or not.
 %
 % Winston's script and functions together with Sara's fixes.
 %
-% Version 21.12.2023 (Jesus)
+% Version 02.01.2024 (Jesus)
 
-if nargin < 3, opt = struct();
-elseif nargin == 3, opt = varargin{1};
+if nargin < 2, opt = struct();
+elseif nargin == 2, opt = varargin{1};
 end
 
 %% Defaults, if not given.
@@ -78,7 +75,8 @@ end
 % end
 
 %% This block runs all the steps of the algorithm
-% If a previous .rez file exists, it will resume the process from there.
+% 11.05 Jesus adding a way to resume after creation of .rez file, since the
+% option is given.
 fprintf('Looking for data inside %s \n', rootfolder)
 
 if ~isfile(fullfile(rootfolder, 'rez.mat'))
@@ -95,7 +93,6 @@ if ~isfile(fullfile(rootfolder, 'rez.mat'))
     % Saving here is a good idea, because the rest can be resumed after loading rez
     save(fullfile(rootfolder, 'rez.mat'), 'rez', '-v7.3');
 else
-    disp('A .rez file was found in the directory, loading it and resuming from there.')
     load(fullfile(rootfolder, 'rez.mat'), 'rez');
 end
 
@@ -119,5 +116,19 @@ fprintf('Found %d good units \n', sum(rez.good>0))
 % Write to Phy
 fprintf('Saving results to Phy \n')
 rez2Phy(rez, rootfolder); % function has been modified to additionally output template_bestchannels.mat (Winston)
+
+%% If you want to save the results to a Matlab file...
+% % TODO. We can discuss if we want to go this way. We also need to find out
+% exctly which file we need for extracting the data we want afterwards, and
+% keep only those.
+%
+% % discard features in final rez file (too slow to save)
+% rez.cProj = [];
+% rez.cProjPC = [];
+% 
+% % save final results as rez2
+% fprintf('Saving final results in rez2 \n')
+% fname = fullfile(rootZ, 'rez2.mat');
+% save(fname, 'rez', '-v7.3');
 
 end

@@ -1,11 +1,11 @@
-function [sessions] = Deuteron_PipelineWrapper(sessions, input, varargin)
+function [sessions] = Deuteron_PipelineWrapper(input, varargin)
 % Adaptation from the common pipeline for Deuteron. Wraps up the most common 
 % processing lines necessary to get data from Deuteron raw files. This
 % includes the Neural data and the motion sensors, so far. Could be
 % expanded to extract audio as well.
 %
 % DEPENDENCIES
-%   Deuteron .exe app: To extract Event Record from Deuteron Block format.
+%   Deuteron_EventFileReaderDll: To extract Event Record from Deuteron Block format.
 %   Deuteron2Kilosort: To compile recorded data in a single file per channel.
 %                      Can also split the data based on event codes. 
 %   Deuteron_GetMotionSensors: To extract data from motion sensors.
@@ -13,13 +13,16 @@ function [sessions] = Deuteron_PipelineWrapper(sessions, input, varargin)
 %
 % INPUTS:
 %    sessions: struct. Variable containing info about sessions in process
+%    ss:       int. Current session ordinal in the pipeline
 %    opt:      struct. optional inputs to override the defaults:
 %                   h5:     logic. Creation of .h5 file. Normally 'false'
-%                   FieldTrip: logic. Creation of Fieltrip-formatted .mat file.
+%                   bin:    logic. Creation of .bin file. Normally 'true'
+%                   FTfile: logic. Creation of Fieltrip-formatted .mat file.
 %                   RetrieveEvents:   logic. Retrieve eventlog from Deuteron (and extract eventcodes and timestamps from it).
 %                   GetMotionSensors: logic. Extraction and processing of motion sensor data.
 %                   lowpass:    int array. lower and upper boundaries for lowpass filter. e.g. [  0  300]
 %                   highpass:   int array. lower and upper boundaries for highpass filter. e.g. [300 7500]
+%                   DllFolder:  string. Location of the .dll file to process events in Deuteron.
 %                   set_filter: logic. Filtering (and downsampling) request.
 %                   StpSz:      int. Number of samples to be written per chunck.
 %
@@ -33,43 +36,44 @@ function [sessions] = Deuteron_PipelineWrapper(sessions, input, varargin)
 %       a 'rotators' variable, containing the quaternions to create the
 %       rotation matrices and other transformations.
 %
-% Version 21.12.2023 Jesus
+% Version 02.01.2024 (Jesus)
 
-if nargin < 3, opt = struct();
-elseif nargin == 3, opt = varargin{1};
+if nargin < 2, opt = struct();
+elseif nargin == 2, opt = varargin{1};
 end
 
 %% Default options.
-if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
+if ~isfield(opt,'bin'),             opt.bin                 = true;         end
+if ~isfield(opt,'FTfile'),          opt.FTfile              = true;         end
 if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
 if ~isfield(opt,'useexe'),          opt.useexe              = true;         end
-if ~isfield(opt,'usepar'),          opt.usepar              = false;        end
-if ~isfield(opt,'parsetrial'),      opt.parsetrial          = true;         end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
-
 if ~isfield(opt,'set_filter'),      opt.set_filter          = 1;            end
 if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  150];   end
 if ~isfield(opt,'highpass'),        opt.highpass            = [450 5000];   end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
+if ~isfield(opt,'useexe'),          opt.useexe              = true;         end
+if ~isfield(opt,'usepar'),          opt.usepar              = false;        end
+if ~isfield(opt,'parsetrial'),      opt.parsetrial          = true;         end
 
 %% Parameters
     % exe/dll locations 
     opt.exefile     = input.exefile;
-    opt.ReaderDll   = input.ReaderDll; % Depr
+    opt.ReaderDll   = input.ReaderDll;
 
     % Collect parameters to proceed with file creation. List all files.
-    opt.myFiles = sessions.info.files;
-    opt.ext     = sessions.info.fileformat;
+    opt.myFiles = input.sessions(input.run(1)).info.files;
+    opt.ext     = input.sessions(input.run(1)).info.fileformat;
     
     % Sample rate.
-    opt.sampleRate  = sessions.info.amplifier_sample_rate;
+    opt.sampleRate  = input.sessions(input.run(1)).info.amplifier_sample_rate;
     
     % ChunkSize of HDF5 file (e.g., 5 minutes: 300s x 30000Hz = 9600000 samples)
     opt.HDF5chunkSize = 300*opt.sampleRate; 
     
     % Get number of channels.
-    if ~isempty(sessions.info.nChannels)
-        opt.numChannels     = sessions.info.nChannels;
+    if ~isempty(input.sessions(input.run(1)).info.nChannels)
+        opt.numChannels     = input.sessions(input.run(1)).info.nChannels;
         opt.channelOrder    = 1:1:opt.numChannels; 
     else
         opt.numChannels     = [];
@@ -77,21 +81,20 @@ if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
     end
 
     % We need these parameters (from Deuteron's log and documentation), to convert to physical units.
-    opt.numberOfAdcBits   = sessions.info.numADCBits;
-    opt.voltageResolution = sessions.info.voltageRes;
+    opt.numberOfAdcBits   = input.sessions(input.run(1)).info.numADCBits;
+    opt.voltageResolution = input.sessions(input.run(1)).info.voltageRes;
     opt.offset            = 2^(opt.numberOfAdcBits-1);
 
 %% Event data retrieval
-
-% Proceed to extract events from ephys files with Deuteron's app
 if opt.RetrieveEvents && opt.useexe
+    % Proceed to extract all events during session.
     disp('Retrieving Events from Deuteron.')
-    [EventRecord, opt] = Deuteron_ExtractEvents(opt);
+    [EventRecord, opt] = Deuteron_EventFileReaderDll(opt);
     
-    % Create trial definition using the proper eventcodes % TODO
+    % Create trial definition using the proper eventcodes
+    % TODO
     trialdef = [];
 
-% Proceed to extract events from OTBR generated variable
 elseif opt.RetrieveEvents && opt.usepar
     trialdef = [];
     
@@ -99,7 +102,7 @@ elseif opt.RetrieveEvents && opt.usepar
     % To discontinue once above works.
     if opt.parsetrial
         opt.def = [];
-            % Set EventCode meaning (UPDATE)
+            % Set EventCode meaning
             opt.def.itiOn       = 1;
             opt.def.stimOn      = 2;
             opt.def.rwd         = 5;
@@ -120,14 +123,14 @@ else
 end
 
 %% High-pass Neural Data Conversion to .bin
-if opt.kilosort
-    % Converts Deuteron DT2/DF1 files in a single .bin 
+if opt.bin
+    % Converts Deuteron DT2/DF1 files into .bin and/or .h5 files.
     disp('Converting Deuteron files to .bin format...');
     Deuteron2Kilosort(opt);
 end
 
 %% Low pass Neural Data Conversion to FT format
-if opt.FieldTrip
+if opt.FTfile
     if ~isfile(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_continous_FT.mat')))
         % Convert Deuteron files into a FieldTrip formatted .mat file
         disp('Converting Deuteron files into a pseudo-FT file.');
@@ -138,7 +141,7 @@ if opt.FieldTrip
     
     % Give proper Fieldtrip format and trial parse data.
     disp('Giving proper FieldTrip format.');
-    MAT2FieldTrip(FT_data, opt, trialdef);
+    MAT2FieldTrip(FT_data, opt, []); %trialdef after fixed
 end
 
 %% Motion Data to Matlab

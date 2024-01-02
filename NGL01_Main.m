@@ -25,10 +25,11 @@
 % OPTIONS: is a struct with many possible fields. All should have a
 % corresponding default inside whatever function is being called. Main ones
 % are:     
-%     opt.kilosort,         Asks to proceed with KS processing and waits to retrieve its results.
-%     opt.FieldTrip,           Creation of .mat file with FieldTrip format.
+%     opt.bin,              Creation of .bin file, input to Kilosort 2/4.
+%     opt.FTfile,           Creation of .mat file with FieldTrip format.
 %     opt.RetrieveEvents,   Retrieve event log from Deuteron system.
 %     opt.GetMotionSensors, Retrieve data from motion sensors in Deuteron.
+%     opt.kilosort,         Asks to proceed with KS processing and waits to retrieve its results.
 %     opt.set_filter,       If Deuteron data was adquired with a wideband.
 %     opt.lowpass,          Lowpass band to extract LFP from wideband.
 %     opt.highpass,         Highpass band to extract spike activity.
@@ -43,6 +44,7 @@
 %       MotionData.mat file, From Deuteron sensors.
 %       Plots snippets of time- and frequency-domain data, from FieldTrip
 %       
+% Last modified 05.04.2023 (Jesus)
 
 % TODO LIST
 % If Deuteron2Kilosort(opt) filter for DF1 format works, set filter out of format cases (generalize)
@@ -55,12 +57,12 @@
 % There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 
-% Last modified 21.12.2023 (Jesus)
+% Version 02.01.2024 (Jesus)
 
 %% USER Inputs. Check A, B and C.
 % A) CRITICAL
 % Specify drive and folder where data is located AND this toolbox folder (If not already added to MATLAB folder system)
-input.datadrive     = 'D:\';
+input.datadrive     = 'F:\';
 input.studyName     = 'Pilot_SocialLearning'; 
 input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\ephys-data-pipeline'
 
@@ -76,7 +78,7 @@ input.dates          = 'all'; %{'20231113'}; %'all'; % char array 'all', or cell
 opt = struct(); % leave this, to empty possible residues from a previous run.
     opt.kilosort            = true; % Call to kilosort processing. 
         % !! NEEDS configfile saved under '...\analysisCode'
-        opt.spkTh           = -2;   % Default: -4.5.
+        opt.spkTh           = -2.5;   % Default: -4.5.
         % opt.KSchanMapFile   = ''; % 'chanMapPoly3Deut.mat'; % 'chanMapPoly3Deut' 'chanMapPoly3' 'chanMapATLASTri'
     opt.bombcell            = true; % Run bombcell on the KS output, previously to manual curation
         opt.rerun           = 1;    % To overwrite previous results
@@ -95,42 +97,47 @@ opt = struct(); % leave this, to empty possible residues from a previous run.
 input = set_default(input);
 
 %% 01. Find and list requested sessions and subjects.
-sessions = findSessions(input);
+input.sessions = findSessions(input);
 
 % Loop subjects.
-for s = 1:input.nsubjects
+for x = 1:input.nsubjects
     % Loop sessions.
-    for ss = 1:sessions(s).nsessions
+    for y = 1:input.sessions(x).nsessions
+        input.run = [x y];
+
         % Navigate to session's raw data folder and report.
         % Check system and version. Determine where processed session data will be saved.
-        [sessions(s).info, opt] = prepforsession(input, sessions(s), opt, ss);
+        [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);
     
-        %% 02 Run pipeline based on type of data.
-        switch sessions(s).info.fileformat
-            case {'DT2', 'DF1'} %% 02.1 Deuteron Pipeline
+        % Determine pipeline based on type of data.
+        switch input.sessions(input.run(1)).info.fileformat
+            case {'DT2', 'DF1'} 
+                %% 02.1 Deuteron Pipeline
                 if input.ExtractData
                    disp('Deuteron data is NOT being filter, by default');
-                   sessions(s) = Deuteron_PipelineWrapper(sessions(s), input, opt);
+                   Deuteron_PipelineWrapper(input, opt);
                 end
     
-            case {'fileperch', 'filepertype'} %% 02.2 INTAN Pipeline
+            case {'fileperch', 'filepertype'}
+                %% 02.2 INTAN Pipeline
                 if input.ExtractData
-                   sessions(s) = INTAN_PipelineWrapper(sessions(s), input, opt);
+%                    input.sessions(input.run(1)) = INTAN_PipelineWrapper(sessions(input.run(1)), input, opt); %mod
+                    INTAN_PipelineWrapper(input, opt);
                 end
     
             otherwise
                 warning('Something went wrong during format verification. Skipping');
-                sessions(s).info.fileformat = 'ERR'; % Flag for ERROR
+                input.sessions(input.run(1)).info.fileformat = 'ERR'; % Flag for ERROR
                 continue
         end 
                 
-        %% 03 Do Kilosort
+        %% 03 Kilosort
         if opt.kilosort
             % Kilosort will run without GUI.
-            master_kilosort(sessions(s), input, opt)
+            master_kilosort(input, opt) %mod
         end
     
-        %% 04 Do Bombcell
+        %% 04 Bombcell
         if opt.bombcell
             % Kilosort will run without GUI.
             Bombcell_Main(opt) 

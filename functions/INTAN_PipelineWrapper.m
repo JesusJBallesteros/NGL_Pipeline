@@ -1,27 +1,27 @@
-function sessions = INTAN_PipelineWrapper(sessions, input, varargin)
-% This wrapper contains all steps and calls related to INTAn processing
-% pipeline, including a (possible) conversion to NWB format, a conversion
-% to .bin files for kilosort and a conversion into FieldTrip compatible .mat file.
+function sessions = INTAN_PipelineWrapper(input, varargin)
 %
-% Jesus 21.12.2023
+%
+% Version 02.01.2024 (Jesus)
 
-if nargin < 3, opt = struct();
-elseif nargin == 3, opt = varargin{1};
+if nargin < 2, opt = struct();
+elseif nargin == 2, opt = varargin{1};
 end
 
 %% Defaults 
-if ~isfield(opt,'FieldTrip'),           opt.FieldTrip           = true;         end
-if ~isfield(opt,'RetrieveEvents'),      opt.RetrieveEvents      = true;         end
-if ~isfield(opt,'GetMotionSensors'),    opt.GetMotionSensors    = false;        end
+if ~isfield(opt,'bin'),             opt.bin                 = true;         end
+if ~isfield(opt,'FTfile'),          opt.FTfile              = true;         end
+if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
+if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
 
 %% 01. Find out INTAN settings and header file. Extract info.
 %  Uses a modified Intan function, to make the basic information
 %  available at 'info{ss}' and a more detailed info at
 %  the '.INTAN_hdr' sub-structure.
-sessions = findSetting(sessions);
+input.sessions(input.run(1)) = findSetting(input.sessions(input.run(1)));
 
-%% 02. Create NWB file (NOT in current USE)
+%% 02. Create NWB file
 if input.useNWB % We want a .NWB file.
+
   % Run wrapper for the INTAN to NWB functionality:               
     % This NEEDS A PYTHON installation and the tooldbox inside!
     % Detailed explanation:
@@ -42,23 +42,26 @@ if input.useNWB % We want a .NWB file.
 end 
 
 %% 03. Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
-if opt.kilosort && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
-    Intan2Kilosort_wrapper(sessions, opt);
+if input.ExtractData 
+    if opt.bin && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
+        % Based on Sara, Aylin and Lukas' scripts.
+        Intan2Kilosort_wrapper(input.sessions(input.run(1)), opt);
+    end
 end
 
 %% 04. Run wrapper for the INTAN to FIELDTRIP.
-if opt.FieldTrip && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '_continous_FT.mat']))
+if opt.FTfile && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '_continous_FT.mat']))
     % Includes a mix of INTAN funtions. CREATES and GIVES proper
     % FieldTrip format without trial-parsing. 
-    intan2FieldTrip(sessions, opt)
+    intan2FieldTrip(input.sessions(input.run(1)), opt)
 
     % 04.1 Plotting. Uses Chronux Multitaper approach to generate fast
     % single-tappered Spectrograms on a subset of channels for a small chunck
     % of time. Just to have a preview of how the signal looks like in
     % the LFP range.
-    if isfield(input, 'test_ch') && ~isempty(input.test_ch)
-        plot_testsignal(FT_data, input.test_ch, opt)
-    end
+%     if isfield(input, 'test_ch') && ~isempty(input.test_ch)
+%         plot_testsignal(FT_data, input.test_ch, opt)
+%     end
 end
 
 end
