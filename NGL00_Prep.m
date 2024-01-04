@@ -55,3 +55,5 @@ else
 
     clear fileID
 end
+
+clear projectFolder
