@@ -57,43 +57,42 @@
 % There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 
-% Version 02.01.2024 (Jesus)
+% Version 03.01.2024 (Jesus)
 
-%% USER Inputs. Check A, B and C.
-% A) CRITICAL
-% Specify drive and folder where data is located AND this toolbox folder (If not already added to MATLAB folder system)
-input.datadrive     = 'F:\';
-input.studyName     = 'Pilot_SocialLearning'; 
-input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\ephys-data-pipeline'
-
-% B) SUBJECTS AND SESSIONS
-% To run the script on all subjects and sessions included in your project,
-% use char array 'all'. For a session-to-session process, explicit the subject 
-% and session/s to process using cell arrays.
-input.subjects       = 'all'; %{'485'}; % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
-input.dates          = 'all'; %{'20231113'}; %'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
-
-% C) GENERAL Options. 
-% Those used for all sessions. Specific options can be set below or defaulted in the functions.
-opt = struct(); % leave this, to empty possible residues from a previous run.
-    opt.kilosort            = true; % Call to kilosort processing. 
-        % !! NEEDS configfile saved under '...\analysisCode'
-        opt.spkTh           = -2.5;   % Default: -4.5.
-        % opt.KSchanMapFile   = ''; % 'chanMapPoly3Deut.mat'; % 'chanMapPoly3Deut' 'chanMapPoly3' 'chanMapATLASTri'
-    opt.bombcell            = true; % Run bombcell on the KS output, previously to manual curation
-        opt.rerun           = 1;    % To overwrite previous results
-        opt.nRawSpikesToExtract = 1000; % Parameter for bombcell run
-    opt.phy                 = true;   % Calls phy for manual inspection or curation. 
-        % !! It PUTS MATLAB ON HOLD!
-    opt.FieldTrip           = true;   % Creation of .mat file, FieldTrip ready.
-    opt.RetrieveEvents      = true;   % Retrieve event log.
-        opt.useexe          = false;  % Eventually, only option for Deuteron recordings (TODO)
-        opt.usepar          = true;   % temporarily use of .par files from Juan's behavior paradigm
-    opt.parsetrial          = false;  % Define and split data into trials
-    opt.GetMotionSensors    = false;  % Retrieve data from motion sensors in Deuteron. (TODO)
+% %% USER Inputs. Check A, B and C.
+% % A) CRITICAL
+% % Specify drive and folder where data is located AND this toolbox folder (If not already added to MATLAB folder system)
+% input.datadrive     = 'F:\';
+% input.studyName     = 'Pilot_SocialLearning'; 
+% input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\ephys-data-pipeline'
+% 
+% % B) SUBJECTS AND SESSIONS
+% % To run the script on all subjects and sessions included in your project,
+% % use char array 'all'. For a session-to-session process, explicit the subject 
+% % and session/s to process using cell arrays.
+% input.subjects       = 'all'; %{'485'}; % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
+% input.dates          = 'all'; %{'20231113'}; %'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
+% 
+% % C) GENERAL Options. 
+% % Those used for all sessions. Specific options can be set below or defaulted in the functions.
+% opt = struct(); % leave this, to empty possible residues from a previous run.
+%     opt.kilosort            = true; % Call to kilosort processing.                      !! NEEDS configfile saved under 'studyName\analysisCode\'
+%         opt.spkTh           = -2.5;     % Default: -4.5.
+%         opt.KSchanMapFile   = '';       % e.g.'chanMapPoly3Deut', 'chanMapATLASTri'
+%     opt.bombcell            = true;     % Run bombcell on the KS output, previously to manual curation
+%         opt.rerun           = true;     % To overwrite previous results or not
+%         opt.nRawSpikesToExtract = 1000; % Parameter for bombcell run
+%     opt.phy                 = true;     % Calls phy for manual inspection or curation. !! It PUTS MATLAB on HOLD!
+%     opt.FieldTrip           = true;     % Creation of .mat file, FieldTrip ready.
+%     opt.RetrieveEvents      = true;     % Retrieve event log.
+%         opt.useexe          = false;    % Eventually, only option for Deuteron recordings (TODO)
+%         opt.usepar          = true;     % temporarily use of .par files from Juan's behavior paradigm
+%     opt.parsetrial          = false;    % Define and split data into trials
+%     opt.GetMotionSensors    = false;    % Retrieve data from motion sensors in Deuteron. (TODO)
 
 %% 00. Check current inputs.
 % Will set the rest of default inputs and dependencies.
+cd(input.toolbox)
 input = set_default(input);
 
 %% 01. Find and list requested sessions and subjects.
@@ -103,7 +102,7 @@ input.sessions = findSessions(input);
 for x = 1:input.nsubjects
     % Loop sessions.
     for y = 1:input.sessions(x).nsessions
-        input.run = [x y];
+        input.run = [x y]; % Store current run as input to pass to functions
 
         % Navigate to session's raw data folder and report.
         % Check system and version. Determine where processed session data will be saved.
@@ -112,23 +111,18 @@ for x = 1:input.nsubjects
         % Determine pipeline based on type of data.
         switch input.sessions(input.run(1)).info.fileformat
             case {'DT2', 'DF1'} 
-                %% 02.1 Deuteron Pipeline
-                if input.ExtractData
-                   disp('Deuteron data is NOT being filter, by default');
-                   Deuteron_PipelineWrapper(input, opt);
-                end
+               %% 02.1 Deuteron Pipeline
+               disp('Deuteron data is NOT being filter, by default');
+               Deuteron_PipelineWrapper(input, opt);
     
             case {'fileperch', 'filepertype'}
-                %% 02.2 INTAN Pipeline
-                if input.ExtractData
-%                    input.sessions(input.run(1)) = INTAN_PipelineWrapper(sessions(input.run(1)), input, opt); %mod
-                    INTAN_PipelineWrapper(input, opt);
-                end
+               %% 02.2 INTAN Pipeline
+               % input.sessions(input.run(1)) = INTAN_PipelineWrapper(sessions(input.run(1)), input, opt); %mod
+               INTAN_PipelineWrapper(input, opt);
     
             otherwise
-                warning('Something went wrong during format verification. Skipping');
-                input.sessions(input.run(1)).info.fileformat = 'ERR'; % Flag for ERROR
-                continue
+               warning('Something went wrong during format verification. Skipping');
+               continue
         end 
                 
         %% 03 Kilosort

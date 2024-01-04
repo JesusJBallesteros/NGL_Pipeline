@@ -1,6 +1,8 @@
 %% NGLXX_postPhy (in progress)
 % To run after manual curation of desired sessions is completed. Will read
 % the resulting KS results after manual curation.
+%
+% Jesus 03.01.20024
 
 %% Input storage drive, project name and toolbox folder:
 input.datadrive     = 'F:\';
@@ -193,7 +195,3 @@ for s = 1:input.nsubjects
 
     end
 end
-
-%% Plotting script
-% Do not clear the workspace after running NGL02
-% use NGL03_plot

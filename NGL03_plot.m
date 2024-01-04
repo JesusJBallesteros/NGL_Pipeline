@@ -3,6 +3,8 @@
 % In the works. Provisional until we have the events extracted with the
 % neural data.
 % Do not clear the variables 'input', 'results', 'opt' from previous step.
+%
+% % Jesus 03.01.20024
 
 %% Options
 % For now, testing in Pilot_SocialLearning: load '*par.mat'

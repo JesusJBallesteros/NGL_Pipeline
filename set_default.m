@@ -18,6 +18,8 @@ function input = set_default(input)
 if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB      = false; end
 % MEANING: do not set both 'true'.
 
+input.datadrive = [input.datadrive ':\'];
+
 %% Set default paths. IKN Standard recommended.
 input.datafolder    = fullfile(input.datadrive, input.studyName, '\data\raw\');              % Default: '\data\raw'
 input.processed     = fullfile(input.datadrive, input.studyName, '\data\preprocessing\');    % Default: '\data\preprocessing'
@@ -25,7 +27,6 @@ input.analysisCode  = fullfile(input.datadrive, input.studyName, '\analysisCode\
 input.sorted        = fullfile(input.datadrive, input.studyName, '\data\spikeSorted\');
 input.analysisData  = fullfile(input.datadrive, input.studyName, '\data\analysis\');
 input.bhvfolder     = fullfile(input.datadrive, input.studyName, '\data\behavior\');
-
 
 %% Find requested subjects.
 % In case is left empty or deleted, default to 'all'
