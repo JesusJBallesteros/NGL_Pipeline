@@ -18,7 +18,7 @@ function input = set_default(input)
 if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB      = false; end
 % MEANING: do not set both 'true'.
 
-input.datadrive = [input.datadrive ':\'];
+% input.datadrive = [input.datadrive ':\'];
 
 %% Set default paths. IKN Standard recommended.
 input.datafolder    = fullfile(input.datadrive, input.studyName, '\data\raw\');              % Default: '\data\raw'

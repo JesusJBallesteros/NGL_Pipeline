@@ -1,8 +1,8 @@
-function data = Deuteron_extractData(stream, fid, opt)
-% This is an example demonstrating how to correctly extract data from block
-% file format files.
-%
-% Version 01.03.2023 Jesus 
+function data = Deuteron_extractData(fid, opt)
+% This extracts data from Deuteron's block file format files.
+% Determines how to proceed depending on the value of the 'stream' variable.
+
+% Jesus 05.01.2024. Modified from Deuteron's
 
 %% Parse file
 rawData = uint8(fread(fid, Inf, 'uint8'));
@@ -17,7 +17,7 @@ endOfFirstHeader    = startOfFirstHeader + HeaderConstants.HeaderTotalBytes;
 firstHeader         = rawData(startOfFirstHeader:endOfFirstHeader);
 HeaderStruct        = ExtractHeaderData(firstHeader);
 
-switch stream
+switch opt.stream
     case 1
     %% Extract neural data from blocks. 
     % Check where each type data is in partition info.
@@ -63,7 +63,7 @@ switch stream
     end
 
     case 3 
-    %% TODO: Extract audio data from blocks
+    %% Extract audio data from blocks
     % Check where each type data is in partition info
     audioIndex = find(cell2mat(arrayfun(@(x) x.DataType == uint32(DataTypeEnum.Audio), HeaderStruct.PartitionInfo, 'un', 0)));
     isAudioPresent = ~isempty(audioIndex);

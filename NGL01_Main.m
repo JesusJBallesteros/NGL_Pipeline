@@ -47,6 +47,9 @@
 % Last modified 05.04.2023 (Jesus)
 
 % TODO LIST
+% Define event-code equivalency (Modify to match newest event convention, in 'Deuteron_PipelineWrapper' ~111)
+% Order channels as incremental ordinals. (in 'Deuteron_ExtractEvents' ~136)
+% Create trial definition using the proper eventcodes (in 'Deuteron_PipelineWrapper' ~96)
 % If Deuteron2Kilosort(opt) filter for DF1 format works, set filter out of format cases (generalize)
 % Continue with 'Deuteron_GetDigInEvents' when we get a recording with EVENTS
 % Check for Deuteron_GetDigInEvents(EventRecord) status.
@@ -57,66 +60,47 @@
 % There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 
-% Version 03.01.2024 (Jesus)
-
-% %% USER Inputs. Check A, B and C.
-% % A) CRITICAL
-% % Specify drive and folder where data is located AND this toolbox folder (If not already added to MATLAB folder system)
-% input.datadrive     = 'F:\';
-% input.studyName     = 'Pilot_SocialLearning'; 
-% input.toolbox       = 'C:\Code\ephys-data-pipeline'; % Default: 'C:\Code\ephys-data-pipeline'
-% 
-% % B) SUBJECTS AND SESSIONS
-% % To run the script on all subjects and sessions included in your project,
-% % use char array 'all'. For a session-to-session process, explicit the subject 
-% % and session/s to process using cell arrays.
-% input.subjects       = 'all'; %{'485'}; % char array 'all', or a cell with a single subject denomination e.g. {'DOE'} or {'042'}
-% input.dates          = 'all'; %{'20231113'}; %'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}
-% 
-% % C) GENERAL Options. 
-% % Those used for all sessions. Specific options can be set below or defaulted in the functions.
-% opt = struct(); % leave this, to empty possible residues from a previous run.
-%     opt.kilosort            = true; % Call to kilosort processing.                      !! NEEDS configfile saved under 'studyName\analysisCode\'
-%         opt.spkTh           = -2.5;     % Default: -4.5.
-%         opt.KSchanMapFile   = '';       % e.g.'chanMapPoly3Deut', 'chanMapATLASTri'
-%     opt.bombcell            = true;     % Run bombcell on the KS output, previously to manual curation
-%         opt.rerun           = true;     % To overwrite previous results or not
-%         opt.nRawSpikesToExtract = 1000; % Parameter for bombcell run
-%     opt.phy                 = true;     % Calls phy for manual inspection or curation. !! It PUTS MATLAB on HOLD!
-%     opt.FieldTrip           = true;     % Creation of .mat file, FieldTrip ready.
-%     opt.RetrieveEvents      = true;     % Retrieve event log.
-%         opt.useexe          = false;    % Eventually, only option for Deuteron recordings (TODO)
-%         opt.usepar          = true;     % temporarily use of .par files from Juan's behavior paradigm
-%     opt.parsetrial          = false;    % Define and split data into trials
-%     opt.GetMotionSensors    = false;    % Retrieve data from motion sensors in Deuteron. (TODO)
+% Version 05.01.2024 (Jesus)
 
 %% 00. Check current inputs.
-% Will set the rest of default inputs and dependencies.
+% Check if input variable exist already. Parse values.
+if ~exist("input","var")
+    input = struct( 'datadrive' , datadrive , ...   % force char array
+                    'studyName' , studyname , ...   % force char array
+                    'toolbox'   , toolbox   , ...   % force char array
+                    'subjects'  , [], ...           % do NOT force char array
+                    'dates'     , []        );      % do NOT force char array
+    input.dates     = dates;    % place as it comes
+    input.subjects  = subjects; % place as it comes
+end
+
+% Fix drive letter if needed.
+if ~contains(input.datadrive,':\')
+    datadrive = [input.datadrive ':\'];
+end
+
+% Find toolbox
 cd(input.toolbox)
+
+% Set default inputs and dependencies.
 input = set_default(input);
 
 %% 01. Find and list requested sessions and subjects.
 input.sessions = findSessions(input);
-
-% Loop subjects.
-for x = 1:input.nsubjects
-    % Loop sessions.
-    for y = 1:input.sessions(x).nsessions
-        input.run = [x y]; % Store current run as input to pass to functions
-
-        % Navigate to session's raw data folder and report.
-        % Check system and version. Determine where processed session data will be saved.
+for x = 1:input.nsubjects % Subjects.
+    for y = 1:input.sessions(x).nsessions % Sessions.
+        input.run = [x y]; % Current run, to pass to functions.
+        %% 02. Prepare to proceed with a single session.
         [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);
     
-        % Determine pipeline based on type of data.
+        %% 03. Proceed to appropiated pipeline.
         switch input.sessions(input.run(1)).info.fileformat
             case {'DT2', 'DF1'} 
-               %% 02.1 Deuteron Pipeline
-               disp('Deuteron data is NOT being filter, by default');
+               % 03.1 Deuteron Pipeline
                Deuteron_PipelineWrapper(input, opt);
     
             case {'fileperch', 'filepertype'}
-               %% 02.2 INTAN Pipeline
+               % 03.2 INTAN Pipeline
                % input.sessions(input.run(1)) = INTAN_PipelineWrapper(sessions(input.run(1)), input, opt); %mod
                INTAN_PipelineWrapper(input, opt);
     
@@ -124,20 +108,19 @@ for x = 1:input.nsubjects
                warning('Something went wrong during format verification. Skipping');
                continue
         end 
-                
-        %% 03 Kilosort
+        %% 04. Kilosort
         if opt.kilosort
             % Kilosort will run without GUI.
             master_kilosort(input, opt) %mod
         end
     
-        %% 04 Bombcell
+        %% 05. Bombcell
         if opt.bombcell
             % Kilosort will run without GUI.
             Bombcell_Main(opt) 
         end
 
-        %% 05 Open Phy to manual curation or just inspection
+        %% 06. Open Phy to manual curation or just inspection
         if opt.phy
             % Will change to current session directory and open phy.
             % ! Keeps MATLAB busy until interface is closed.
