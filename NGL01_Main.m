@@ -102,6 +102,7 @@ for x = 1:input.nsubjects % Subjects.
             case {'fileperch', 'filepertype'}
                % 03.2 INTAN Pipeline
                % input.sessions(input.run(1)) = INTAN_PipelineWrapper(sessions(input.run(1)), input, opt); %mod
+               input.ExtractData = true; %Lukas, 20240119, required to extract data from .bin, I guess should always be true
                INTAN_PipelineWrapper(input, opt);
     
             otherwise
