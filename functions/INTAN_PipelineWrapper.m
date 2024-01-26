@@ -1,4 +1,4 @@
-function sessions = INTAN_PipelineWrapper(input, varargin)
+function INTAN_PipelineWrapper(input, varargin)
 %
 %
 % Version 02.01.2024 (Jesus)
@@ -42,11 +42,9 @@ if input.useNWB % We want a .NWB file.
 end 
 
 %% 03. Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
-if input.ExtractData 
-    if opt.bin && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
-        % Based on Sara, Aylin and Lukas' scripts.
-        Intan2Kilosort_wrapper(input.sessions(input.run(1)), opt);
-    end
+if opt.bin && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
+    % Based on Sara, Aylin and Lukas' scripts.
+    Intan2Kilosort_wrapper(input.sessions(input.run(1)), opt);
 end
 
 %% 04. Run wrapper for the INTAN to FIELDTRIP.

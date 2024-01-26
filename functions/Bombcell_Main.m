@@ -31,11 +31,13 @@ param = struct; % initialize bombcell param structure. Get opts
     param.ephys_sample_rate = opt.ephys_sample_rate; % samples per second. 32KHz Deuteron, 30KHz Intan
     param.gain_to_uV = opt.gain_to_uV; % Same for Deuteron and Intan. (vs their openephys stuff)
 
-%% Faster compute
-orig = pwd;
-cd('C:\Code\ephys-data-pipeline\toolboxes\bombcell\ephysProperties\helpers');
-mex -O CCGHeart.c 
-cd(orig); clear orig
+%% Faster compute. Compile .mex file only if not done yet
+if ~isfile('C:\Code\ephys-data-pipeline\toolboxes\bombcell\ephysProperties\helpers\CCGHeart.mexw64')
+    orig = pwd;
+    cd('C:\Code\ephys-data-pipeline\toolboxes\bombcell\ephysProperties\helpers');
+    mex -O CCGHeart.c 
+    cd(orig); clear orig
+end
 
 %% Set paths - EDIT THESE
 % Find .bin files. I assume it will be always in a SDD for processing.

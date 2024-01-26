@@ -5,13 +5,19 @@ function [data] = Deuteron2Fieldtrip(opt)
 % the amount of data. We convert this into a flat .mat file that will be
 % feeded into 'mat2FieldTrip'.
 
-% Jesus 05.01.2024
+% Jesus 25.01.2024
 
 %% Check existence of a FieldTrip file.
 % If existing, load it instead and return to main script
-if isfile(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_continous_FT.mat')))
-    data = load(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_continous_FT.mat')));
-    data = data.FT_data;
+if isfile(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_continous_FT.mat'))) || ...
+   isfile(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_tparsed_FT.mat')))
+    disp('A Fieldtrip-formatted file found in this directory, skipping.')
+% 
+%     try     data = load(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_continous_FT.mat')));
+%     catch,  data = load(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_tparsed_FT.mat')));
+%     end
+% 
+    data = [];
     return
 end
 

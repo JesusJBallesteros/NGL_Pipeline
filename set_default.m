@@ -11,14 +11,19 @@ function input = set_default(input)
 %
 % Jesus. 21.12.2023
 
-% Set default to extract data without NWB file creation.
+%% Set default to extract data without NWB file creation.
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
 % are requested, the NWB will perform well but the data extraction will not. 
 % It will crash for not completely known reason. It needs a Matlab restart between runs.
 if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB      = false; end
-% MEANING: do not set both 'true'.
 
-% input.datadrive = [input.datadrive ':\'];
+%% Fix drive letter if needed.
+if ~contains(input.datadrive,':\')
+    input.datadrive = [input.datadrive ':\'];
+end
+
+%% Find toolbox
+cd(input.toolbox)
 
 %% Set default paths. IKN Standard recommended.
 input.datafolder    = fullfile(input.datadrive, input.studyName, '\data\raw\');              % Default: '\data\raw'
@@ -34,7 +39,7 @@ if ~isfield(input,'subjects') || isempty(input.subjects)
     input.subjects = 'all';
 end
 
-% Get subjects. Read all existing content under datafolder
+% Get available subjects. Read all existing content under datafolder
 cd(fullfile(input.datafolder))
 subjects = dir('???*');
 
@@ -73,8 +78,6 @@ addpath toolboxes\Viewer
 addpath(genpath('toolboxes\Deuteron'))
 addpath(genpath('toolboxes\npy-matlab'))
 addpath(genpath('toolboxes\bombcell'))
-% %addpath(genpath('toolboxes\spikes'))
-% % addpath(genpath('toolboxes\multitaper_prerau'))
 
 % Add Kilosort (external)
 addpath(genpath('C:\KiloSort_2.0\')) % path to kilosort toolbox (Assumes Sorting PC, not local)

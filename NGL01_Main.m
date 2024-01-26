@@ -74,19 +74,12 @@ if ~exist("input","var")
     input.subjects  = subjects; % place as it comes
 end
 
-% Fix drive letter if needed.
-if ~contains(input.datadrive,':\')
-    datadrive = [input.datadrive ':\'];
-end
-
-% Find toolbox
-cd(input.toolbox)
-
 % Set default inputs and dependencies.
 input = set_default(input);
 
 %% 01. Find and list requested sessions and subjects.
 input.sessions = findSessions(input);
+
 for x = 1:input.nsubjects % Subjects.
     for y = 1:input.sessions(x).nsessions % Sessions.
         input.run = [x y]; % Current run, to pass to functions.
@@ -97,22 +90,20 @@ for x = 1:input.nsubjects % Subjects.
         switch input.sessions(input.run(1)).info.fileformat
             case {'DT2', 'DF1'} 
                % 03.1 Deuteron Pipeline
-               Deuteron_PipelineWrapper(input, opt);
+               opt = Deuteron_PipelineWrapper(input, opt);
     
             case {'fileperch', 'filepertype'}
                % 03.2 INTAN Pipeline
-               % input.sessions(input.run(1)) = INTAN_PipelineWrapper(sessions(input.run(1)), input, opt); %mod
-               input.ExtractData = true; %Lukas, 20240119, required to extract data from .bin, I guess should always be true
                INTAN_PipelineWrapper(input, opt);
     
             otherwise
-               warning('Something went wrong during format verification. Skipping');
+               warning('Something went wrong during format verification. Skipping Session');
                continue
         end 
         %% 04. Kilosort
         if opt.kilosort
             % Kilosort will run without GUI.
-            master_kilosort(input, opt) %mod
+            master_kilosort(input, opt)
         end
     
         %% 05. Bombcell
