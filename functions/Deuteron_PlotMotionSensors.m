@@ -1,4 +1,4 @@
-function Deuteron_PlotMotionSensors(data, timestamps, stream, varargin)
+function Deuteron_PlotMotionSensors(data, opt, timestamps, stream, varargin)
 % Description is progress
 %
 %
@@ -6,13 +6,13 @@ function Deuteron_PlotMotionSensors(data, timestamps, stream, varargin)
 % Jesus
 
 %% Check input variables
-if nargin < 4
+if nargin < 5
     visual = 0; % Plot dynamic figure to visualize the rotation.
     record = 0; % If plotting the figure, create a video from it. If 'visual' = 0, this has no effect.
-elseif nargin == 4
+elseif nargin == 5
     visual = varargin{1};
     record = 0; 
-elseif nargin == 5
+elseif nargin == 6
     visual = varargin{1};
     record = varargin{2}; 
 end
@@ -34,7 +34,7 @@ if stream == 1
             plot(timestamps, MSData.Z);
             xlim([timestamps(1) timestamps(end)]);
             ylabel(units);
-            if i<3, ylim([-MSData.max MSData.max]);  
+            if i<3, ylim([-MSData.max*1.1 MSData.max*1.1]);  
             else,   ylim([-1e-4 1e-4]); xlabel('ms');
                     legend({'X' 'Y' 'Z'}, 'Box', 'off');
             end
@@ -47,12 +47,13 @@ elseif stream == 2
     time = timestamps-(timestamps(1));
     orientation_deg = eulerd(data, 'ZYX', 'frame');
 
+    figure,
     plot(time/1000,orientation_deg);
-    title('Orientation Estimate');
-    xlim([time(1)/1000 time(end)/1000]);
-    xlabel('Time (sec)');
-    ylabel('Rot. around axis (deg)');
-    legend({'Z (Pitch)', 'Y (Yaw)', 'X (Roll'}, 'Box','off');
+        xlim([time(1)/1000 time(end)/1000]);
+        xlabel('Time (sec)');
+        ylabel('Rot. around axis (deg)');
+        legend({'Z, Pitch', 'Y, Yaw', 'X, Roll'}, 'Box','off');
+        title('Orientation Estimate');
     
     %% Plot the helper viewer example from MATLAB
     % Initialize objects and set timer.
@@ -60,33 +61,28 @@ elseif stream == 2
         stopTimer = (timestamps(end)-timestamps(1))/1000; % seconds to run simulation
         framerate = 1/50; % As 1/Hz of pause for next frame. Default to 50Hz.
     
-        % Creates a very specific figure object provided by Matlab (needs folder
-        %  to be added, normally under'ephys-data-pipeline\toolboxes\Viewer'.
+        % Creates a very specific figure object provided by Matlab.
         viewer = HelperOrientationViewer('Title',{'AHRS Filter'});
-    
+
         if record
             % initialize the VideoWriter object.
-            writerObj = VideoWriter('Magnetometer_rotations.avi','Motion JPEG AVI'); 
+            writerObj = VideoWriter(fullfile(opt.FolderProcDataMat, strcat('Magnetometer_rotations.avi')),'Motion JPEG AVI'); 
             open(writerObj); % Opens the file.
         end
     
         % Timer
         ts = tic; % start timer
         pause(0.0009) % Let clock tic to a first milisecond
-        
         % Run until elapsed time reaches set 'stopTimer' (-1 msec to avoid breaks)
         while(toc(ts) < stopTimer-0.001) 
             t = round(toc(ts)*1000); % takes the approximated msec of the run.
-
             % Plot it in the dynamic figure
             viewer(data(t));
-    
             % If desired, get the frame and write it to video.
             if record
                 F = getframe;           % Capture the frame
                 writeVideo(writerObj, F) % add the frame to the movie
             end
-    
             pause(framerate) % pause the run for 1/Hz msec, to an approx framerate.
         end
     
@@ -100,22 +96,18 @@ elseif stream == 2
     % Assuming you have an array of quaternions "rotators" with dimensions (n, 4)
     % where n is the number of time points. Convert the quaternions to rotation matrices
 %     rotMat = quat2rotm(data);
-    
-    % Define an initial vector.
-%     curr_pos = [1; 1; 0]; % do not use [0; 0; 0]
-    curr_pos = [1, 1, 0]; % do not use [0, 0, 0]
 
+    % Define an initial vector.
+    curr_pos = [1, 1, 0]; % do not use [0, 0, 0]
     
     if visual
         stopTimer = (timestamps(end)-timestamps(1))/1000; % seconds to run simulation
         framerate = 1/50; % As 1/Hz of pause for next measurement. Default to 50Hz
-    
         if record
             % Initialize the VideoWriter object.
-            writerObj = VideoWriter('Agent_estim_heading.avi','Motion JPEG AVI'); 
+            writerObj = VideoWriter(fullfile(opt.FolderProcDataMat, strcat('Agent_estim_heading.avi')),'Motion JPEG AVI'); 
             open(writerObj); % Opens the file.
         end
-    
         % Create a figure with initial, non-visible vector.
         c = quiver3(0,0,0,0,0,0,'off');
             c.Color = 'r'; % Arrow color
@@ -129,17 +121,13 @@ elseif stream == 2
         % Timer
         ts = tic; % start timer
         pause(0.0009) % Let clock tic to a first milisecond
-        
         % Run until elapsed time reaches set 'stopTimer' (-5 msec to avoid breaks)
         while(toc(ts) < stopTimer-0.005) 
             t = round(toc(ts)*1000); % takes the approximated msec of the run.
-
-            % Get the rotation matrix at the current time point and
-            % rotate the previous position by the rotation matrix.
+            % Get the rotation matrix at the current time point and rotate the previous position by the rotation matrix.
             txt = ['Time: ', num2str(t/1000), ' sec'];
 %             curr_pos = rotMat(:,:,t) * curr_pos; % Get current position and rotate according to 'rotMat' step
             curr_pos = rotatepoint(data(t), curr_pos); % Get current position and rotate according to 'quaternion' step
-            
             % Collect new datapoints 
             c.UData = curr_pos(1);
             c.VData = curr_pos(2);
@@ -147,14 +135,13 @@ elseif stream == 2
             
             % Update figure.
             drawnow;
-            title(txt);
-    
+                title(txt);
+
             % Get the frame and write it to video.
             if record
                 F = getframe;           % Capture the frame
                 writeVideo(writerObj,F) % add the frame to the movie
             end
-    
             pause(framerate) % pause the run to an approx. framerate.
         end
     
@@ -165,31 +152,4 @@ elseif stream == 2
     end
 end
 
-% %% Toughts
-% % We probably want a timeseries of ANGLES from the initial heading 
-% % The ANGLES from initial 0 will always be relative to that initial point:
-% % (what will we consider 0 angle? facing a specific arm?)
-% % (will we try to fix it by making the animal face a specific direction?)
-% % (will we need the starting video frame, to use the 'visual' heading as ground
-% % truth for the following ones?) In case animals don't cooperate??
-% %
-% % Obtaining a rotation matrix in degrees is trivial. 
-% rot_matrix = rotvecd(orientation); % is a [x y z] rotation matrix in degrees. 
-% 
-% % We only need the rotation around X (our vertical axis) does that mean we
-% % only need the first column? or the other two?
-% 
-% rot_plane = rot_matrix.*[0 1 1]; % Zeroing the x axis, we generate a rotation plane?
-% rot_plane = rot_plane(:,2:3);
-% 
-% % TODO
-% % plot(rotators);
-% 
-% % Create color scale for time dimension.
-% % t_col = (Magnetometer.t - min(Magnetometer.t)) / ( max(Magnetometer.t) - min(Magnetometer.t) );
-% 
-% 
-% %% Save data to matfile
-% save("MotionData.mat", "orientation", '-append');
-% 
 end

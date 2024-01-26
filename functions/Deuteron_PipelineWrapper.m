@@ -36,7 +36,7 @@ function [opt] = Deuteron_PipelineWrapper(input, varargin)
 %       a 'rotators' variable, containing the quaternions to create the
 %       rotation matrices and other transformations.
 
-% Version 25.01.2024 (Jesus)
+% Version 26.01.2024 (Jesus)
 
 if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
@@ -44,7 +44,7 @@ end
 
 %% Default options.
 if ~isfield(opt,'bin'),             opt.bin                 = true;         end
-if ~isfield(opt,'FTfile'),          opt.FTfile              = true;         end
+if ~isfield(opt,'FTfile'),          opt.FieldTrip           = true;         end
 if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = true;         end
 if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  150];   end
@@ -52,7 +52,7 @@ if ~isfield(opt,'highpass'),        opt.highpass            = [450 5000];   end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
 if ~isfield(opt,'useexe'),          opt.useexe              = false;        end
 if ~isfield(opt,'usepar'),          opt.usepar              = false;        end
-if ~isfield(opt,'parsetrial'),      opt.parsetrial          = true;         end
+if ~isfield(opt,'parsetrial'),      opt.parsetrial          = false;        end
 
 %% Set local options.
 % Explicit exe/dll locations 
@@ -85,7 +85,7 @@ opt.offset            = 2^(opt.numberOfAdcBits-1);
 
 %% Event data retrieval and trial definition.
 % An empty 'events'/'trialdef' would tell that data shall be treated as continuous.
-[~, trialdef, ~] = Deuteron_EventProcess(opt);
+[~, trialdef, ~] = Deuteron_EventProcess(opt); % 'trialdef' outputted for later feed into fieldtrip transf.
 
 %% High-pass Neural Data Conversion to .bin
 if opt.bin

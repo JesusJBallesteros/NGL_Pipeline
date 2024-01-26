@@ -44,12 +44,10 @@
 %       MotionData.mat file, From Deuteron sensors.
 %       Plots snippets of time- and frequency-domain data, from FieldTrip
 %       
-% Last modified 05.04.2023 (Jesus)
+% Last modified 26.04.2023 (Jesus)
 
 % TODO LIST
-% Define event-code equivalency (Modify to match newest event convention, in 'Deuteron_PipelineWrapper' ~111)
 % Order channels as incremental ordinals. (in 'Deuteron_ExtractEvents' ~136)
-% Create trial definition using the proper eventcodes (in 'Deuteron_PipelineWrapper' ~96)
 % If Deuteron2Kilosort(opt) filter for DF1 format works, set filter out of format cases (generalize)
 % Continue with 'Deuteron_GetDigInEvents' when we get a recording with EVENTS
 % Check for Deuteron_GetDigInEvents(EventRecord) status.
@@ -60,7 +58,7 @@
 % There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 
-% Version 05.01.2024 (Jesus)
+% Version 25.01.2024 (Jesus)
 
 %% 00. Check current inputs.
 % Check if input variable exist already. Parse values.

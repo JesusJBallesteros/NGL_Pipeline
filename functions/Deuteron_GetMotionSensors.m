@@ -1,60 +1,64 @@
 function Deuteron_GetMotionSensors(opt)
-% Description in progress
+% This function allows for Motion Data extraction from Deuteron's raw DT1 data
+% format. Uses a few fixed parameters to give proper units to the extracted
+% timeseries and sorts each sensor's data to its respective variable.
+% It plots the extracted raw data and saves it into separated file.
+% It processes the data using an attitude and heading reference system
+% (AHRS) to hopefully put the data in a meaningful reference system that
+% can be used to predict/estimate the animal's position/heading.
+% 
+% IN WORKING PROCESS
 %
-%
-%
-% Jesus 21.12.2023
+% Jesus 26.01.2024
 
-%% Get already existing Parameters
+%% Some local Parameters
 numFiles        = length(opt.myFiles);
-stream          = 2;
+opt.stream      = 2;
   
 % Bochum Magnetic Field Horizontal Intensity. According to 
 % https://www.ngdc.noaa.gov/geomag/calculators/magcalc.shtml#igrfwmm
 MField_Bochum = 19.7; % uTesla.
 
-%% Sample rate for motion sensors is 1000Hz. 
-% Gyro/Accel_Noise are determined from the hardware datasheets.
+% Sample rate for motion sensors is 1000Hz. 
 fs          = 1000;         % Sample Rate of the feeded data (Hz)
-Gyro_Noise  = 1.7453e-04;   % Gyroscope Noise (variance value) in units of rad/s. (MPU-9250: 0.01 deg/sec)
-Accel_Noise = 0.008;        % Accelerometer Noise(variance value) in units of m/s^2 (g). (MPU-9250: 8 mg)
 
-%% Sort motion sensor data by data type.
+% Gyro/Accel_Noise are determined from the hardware datasheets.
+Gyro_Noise  = 1.7453e-04;   % Gyroscope Noise (variance value) in units of rad/s. (MPU-9250: 0.01 deg/sec)
+Accel_Noise = .008;        % Accelerometer Noise(variance value) in units of m/s^2 (g). (MPU-9250: 8 mg)
+
 % The values for acclMax and gyroMax are chosen by the user. They can be found using the Event
-% File Viewer in the file started event. If not activelly changed, they
-% should stay as follows:
+% File Viewer in the file started event. If not activelly changed, they should stay as follows:
 opt.acclMax = 2*MotionSensorConstants.G; % m/s^2, max value of selected range
 opt.gyroMax = 250;                       % degrees/s, max value of selected range
 opt.magMax  = MotionSensorConstants.Magnetometer9250Range; % Teslas, max value of selected range
 
+%% Sort motion sensor data by data type.
 % Create structs
-Accelerometer   = struct('X',[],'Y',[],'Z',[],'max',opt.acclMax);
-Gyroscope       = struct('X',[],'Y',[],'Z',[],'max',opt.gyroMax);
-Magnetometer    = struct('X',[],'Y',[],'Z',[],'max',opt.magMax);
+Accelerometer   = struct('X', [], 'Y', [], 'Z', [], 'max', opt.acclMax);
+Gyroscope       = struct('X', [], 'Y', [], 'Z', [], 'max', opt.gyroMax);
+Magnetometer    = struct('X', [], 'Y', [], 'Z', [], 'max', opt.magMax);
 timestamps      = [];
             
-% Axes description. With board plugged on animal's head, and according to
-% the sensor sheet:
+% Axes description. With board plugged on animal's head, and according to the sensor sheet:
 %   Magnetometer: Y for vertical, X for AP and Z for DL.
 %   Acc: +X for vertical up, +Y for AP forward and +Z for DL left.
 %   Gyro: around +X for yaw left (look around),
 %         around +Y for roll left (rolling, 'croqueta'),
 %         around +Z for pitch down (nodding).
+% note: Feels like X-Y axes in Acc and Gyro are interchanged with the ones in the Magnetometer
 %
-% Feels like X-Y axes in Acc and Gyro are exchanged with Magnetometer's.
-
 % Therefore:
 %     Head movement is detected mostly by gyroscope yaw (X)
 %     The magnetometer needs the two horizontal (planar) axes for head orientation: Z and Y
-%     Acc.X detects gravity acceleration
+%     Acc.X detects gravity acceleration (points down-up axes!)
 
 for i = 1:numFiles         
     if ~strcmp(opt.myFiles(i).name(1:4),'NEUR')
-        % Skips Event Files (do not contain data)
+        % Skips Event and other files (do not contain data)
         continue
     else
         fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name), 'r');
-         data = Deuteron_extractData(stream, fid, opt);
+         data = Deuteron_extractData(fid, opt);
         fclose(fid);
 
         Accelerometer.X   = [Accelerometer.X  data.Accelerometer.Data.Y']; % Note here comes Y axis, to make it X.
@@ -75,24 +79,23 @@ end
 
 clear data fid
 
-%% Plot sensors readings
+%% Save data to matfile
+save(fullfile(opt.FolderProcDataMat, strcat('MotionData_raw.mat')), "Magnetometer", "Gyroscope", "Accelerometer", "timestamps", '-mat');
+disp('Raw motion data saved.')
+
+%% Plot sensors readings. UNTREATED, UNCORRECTED.
 % pass data into single variable
 data.acc = Accelerometer;
 data.gyr = Gyroscope;
 data.mag = Magnetometer;
 
-% Select plot stream for only raw data
-plot_ver = 1;
-
-% Run the plot function
-Deuteron_PlotMotionSensors(data, timestamps, plot_ver, 1, 0);
-
+% Run the plot function. 3r input == 1 (only raw data)
+Deuteron_PlotMotionSensors(data, opt, timestamps, 1);
+exportgraphics(gcf, fullfile(opt.FolderProcDataMat, strcat('MotionRaw.png')),'Resolution',300)
+close gcf
 clear data
 
-%% Save data to matfile
-save((opt.FolderProcDataMat + "\MotionData_raw.mat"), "Magnetometer", "Gyroscope", "Accelerometer", "timestamps", '-mat');
-
-%% Process raw motion data
+%% Transform readings to match real axes
 % An attitude and heading reference system (AHRS) consist of a 9-axis system 
 % that uses an accelerometer, gyroscope, and magnetometer to compute orientation 
 % of the device. The 'ahrsfilter' produces a smoothly changing estimate of 
@@ -103,7 +106,6 @@ save((opt.FolderProcDataMat + "\MotionData_raw.mat"), "Magnetometer", "Gyroscope
 % orientation of the sensor and creates a figure which gets updated as you 
 % move the sensor. The sensor has to be stationary, before the start of this example.
 
-%% Transform readings to match real axes
 % Put the readings as the scripts like them (t x axis matrices).
 % Note the axes swapping in Accelerometer and Gyroscope, to match NED magnetometer 
 % coordinates system.
@@ -135,32 +137,35 @@ data.acc = Accelerometer;
 data.gyr = Gyroscope;
 data.mag = Magnetometer;
 
+%% Plot sensors readings. TREATED, CORRECTED.
+% Run the plot function, set 3rd input to 1 to plot corrected data.
+Deuteron_PlotMotionSensors(data, opt, timestamps, 1); % corrected data
+exportgraphics(gcf, fullfile(opt.FolderProcDataMat, strcat('MotionRaw_corrected.png')),'Resolution',300)
+close gcf
+
 clear A b Accelerometer Gyroscope Magnetometer
 
-%% Create AHRS filter using matlab tools. Needs the sample rate and the
-% sensor noise levels. The output once the FUSE object is applied will be
-% in 'quaternions' a complex expression of 3D rotations. Not sure if the
-% most useful, but let's see. Could be substituted by 'Rotation matrices'
-% which I think is the translation of the quaternions as point rotations in 
-% a 3D coordinate system.
-FUSE = ahrsfilter('SampleRate',                     fs, ...
-                  'DecimationFactor',               1, ...
-                  'AccelerometerNoise',             Accel_Noise, ...
-                  'GyroscopeNoise',                 Gyro_Noise, ...
-                  'ExpectedMagneticFieldStrength',  Mfield*1000000, ...
-                  'OrientationFormat',              'quaternion');
+%% Create AHRS filter using matlab tools. TO VERIFY.
+% Needs the sample rate and the sensor noise levels. The output once the 
+% FUSE object is applied will be in 'quaternions' a complex expression of 
+% 3D rotations. Not sure if themost useful, but let's see. Could be substituted 
+% by 'Rotation matrices'which I think is the translation of the quaternions as 
+% point rotations in a 3D coordinate system.
 
-% Run the thing for every timepoint. Output is in quaternions
-[orientation, ~] = FUSE(MS_Acc,MS_Gyr,MS_Mag);
-
-clear Gyro_Noise Accel_Noise MField_Bochum
+% FUSE = ahrsfilter('SampleRate',                     fs, ...
+%                   'DecimationFactor',               1, ...
+%                   'AccelerometerNoise',             Accel_Noise, ...
+%                   'GyroscopeNoise',                 Gyro_Noise, ...
+%                   'ExpectedMagneticFieldStrength',  Mfield*1000000, ...
+%                   'OrientationFormat',              'quaternion');
+% 
+% % Run the thing for every timepoint. Output is in quaternions
+% [orientation, ~] = FUSE(MS_Acc,MS_Gyr,MS_Mag);
+% 
+% clear Gyro_Noise Accel_Noise MField_Bochum
 
 %% Plot
-% Select plot stream for only raw data
-plot_ver = 2; % 1 for raw data; 2 for orientation
-
-% Run the plot function
-Deuteron_PlotMotionSensors(data, timestamps, plot_ver, 1, 0);
-Deuteron_PlotMotionSensors(orientation, timestamps, plot_ver, 1, 0)
-
+% Run the plot function, set 3rd input to 2 to plot FUSE data.
+% Deuteron_PlotMotionSensors(orientation, opt, timestamps, 2, 1, 1); % orientation data
+% clear data
 end

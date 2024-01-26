@@ -22,19 +22,23 @@ dates       = {'20231031'}; % char array 'all', or cell array of dates for a sin
 
 % C) OPTIONS.
 opt = struct();
+    % Data Extraction and Pre-processing
     opt.RetrieveEvents          = false;    % Retrieve event log.
-        opt.useexe              = false;    % Use executable software. Eventually, only option for Deuteron recordings (TODO).
-        opt.usepar              = true;     % temporarily use '_par' files from Juan's behavior paradigm to extract events.
+        % opt.eventdef            = [];      % To pass non-standard event descriptions. If missing, use NGL standad.
+        % opt.parsetrial          = false;   % Define and split data into trials. Prob to discontinue as will be assumed true when 'RetrieveEvents' = true
+        % opt.useexe              = false;   % Use Deuteron's executable software. Prob to be discontinued.
+        % opt.usepar              = false;   % temporarily use '_par' files from Juan's behavior paradigm to extract events. Prob to be discontinued.
+    opt.bin                     = true;     % Create a .bin file with the high-pass data, usually to be passed to Kilosort for spike sorting.
+    opt.FieldTrip               = false;    % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
     opt.GetMotionSensors        = false;    % Retrieve data from motion sensors in Deuteron. (TODO)
+    
+    % Data Processing
     opt.kilosort                = true;     % Call to kilosort processing. !! NEEDS configfile saved under 'studyName\analysisCode\'
         opt.spkTh               = -4.5;     % Default (as per SPP): -4.5.
-        opt.KSchanMapFile       = '';       % Empty to use simple non-mapped linear probe, or e.g.'chanMapPoly3Deut', 'chanMapATLASTri'. 
-    opt.bombcell                = true;     % Run bombcell on the KS output, as previous step to manual curation.
-        opt.rerun               = true;     % To overwrite previous runs of BombCell.
-        opt.nRawSpikesToExtract = 1000;     % Number of spikes to extract to draw waveforms.
+        opt.KSchanMapFile       = '';       % Empty to use simple, non-mapped, linear array. Or e.g.'chanMapPoly3Deut', 'chanMapATLASTri' for custom maps saved under 'studyName\analysisCode\'
+    opt.bombcell                = false;    % Run bombcell on the KS output, as previous step to manual curation.
+        opt.rerun               = false;    % To overwrite previous runs of BombCell.
     opt.phy                     = false;    % Open phy for manual inspection or curation. !! It puts MATLAB on HOLD!
-    opt.FieldTrip               = false;    % Create a FieldTrip ready .mat file.
-    opt.parsetrial              = false;    % Define and split data into trials using trial definition tools.
 
 % D) README.TXT
 % It contains details about the project. File can also be modified later.
