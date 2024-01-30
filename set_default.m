@@ -78,6 +78,7 @@ addpath toolboxes\Viewer
 addpath(genpath('toolboxes\Deuteron'))
 addpath(genpath('toolboxes\npy-matlab'))
 addpath(genpath('toolboxes\bombcell'))
+addpath(genpath('toolboxes\spikes'))
 
 % Add Kilosort (external)
 addpath(genpath('C:\KiloSort_2.0\')) % path to kilosort toolbox (Assumes Sorting PC, not local)
