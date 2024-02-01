@@ -11,33 +11,34 @@
 % A) SYSTEM 
 % Specify drive where data is located, Project Name and the toolbox folder.
 % RECOMMENDED to add the toolbox folder to MATLAB folder system, but not necessary.
-datadrive   = 'F';                          % Define the LETTER of the drive where the data structure will be created or already exists.
-studyname   = 'Pilot_SocialLearning';       % Name the Study or Project to be used.
+datadrive   = 'D';                          % Define the LETTER of the drive where the data structure will be created or already exists.
+studyname   = 'MotionSensing';       % Name the Study or Project to be used.
 toolbox     = 'C:\Code\ephys-data-pipeline';% Absolute address to the toolbox.
 
 % B) SUBJECTS AND SESSIONS
 % To run the script on all subjects and sessions, or as session-to-session process.
-subjects    = {'257'};      % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
-dates       = {'20231031'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
+subjects    = {'079'};      % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
+dates       = {'20240123'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
 
 % C) OPTIONS.
 opt = struct();
+    opt.cooking = false;
     % Data Extraction and Pre-processing
     opt.RetrieveEvents          = false;    % Retrieve event log.
         % opt.eventdef            = [];      % To pass non-standard event descriptions. If missing, use NGL standad.
         % opt.parsetrial          = false;   % Define and split data into trials. Prob to discontinue as will be assumed true when 'RetrieveEvents' = true
         % opt.useexe              = false;   % Use Deuteron's executable software. Prob to be discontinued.
         % opt.usepar              = false;   % temporarily use '_par' files from Juan's behavior paradigm to extract events. Prob to be discontinued.
-    opt.bin                     = true;     % Create a .bin file with the high-pass data, usually to be passed to Kilosort for spike sorting.
+    opt.bin                     = false;     % Create a .bin file with the high-pass data, usually to be passed to Kilosort for spike sorting.
     opt.FieldTrip               = false;    % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
     opt.GetMotionSensors        = false;    % Retrieve data from motion sensors in Deuteron. (TODO)
     
     % Data Processing
     opt.kilosort                = true;     % Call to kilosort processing. !! NEEDS configfile saved under 'studyName\analysisCode\'
-        opt.spkTh               = -4.5;     % Default (as per SPP): -4.5.
+        opt.spkTh               = [-4 -5];     % Default (as per SPP): -4.5.
         opt.KSchanMapFile       = '';       % Empty to use simple, non-mapped, linear array. Or e.g.'chanMapPoly3Deut', 'chanMapATLASTri' for custom maps saved under 'studyName\analysisCode\'
     opt.bombcell                = false;    % Run bombcell on the KS output, as previous step to manual curation.
-        opt.rerun               = false;    % To overwrite previous runs of BombCell.
+%         opt.rerun               = false;    % To overwrite previous runs of BombCell.
     opt.phy                     = false;    % Open phy for manual inspection or curation. !! It puts MATLAB on HOLD!
 
 % D) README.TXT
@@ -51,7 +52,7 @@ readmecontent = ["Study name: Pilot_SocialLearning"                 , ...
                  "Short description of study: Bird stuff "          ];
 
 %% 2) RUN
-%% 2.0 Start with project folder system preparation. Commonly to be ran only once,
+%% 2.0 Start with project folder system preparation. Commonly to be ran only ONCE,
 % before any data exists, since the folder for the raw data is created
 % here. If it already exists, nothing will change.
 

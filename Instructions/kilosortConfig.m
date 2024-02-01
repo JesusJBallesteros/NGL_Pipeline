@@ -15,13 +15,13 @@ ops.chanMap = fullfile(opt.KSConfigFile, opt.KSchanMapFile); %changed to find pa
 % Total time and channels to process
 ops.trange      = [0 Inf]; % time range to sort (defaulted to the whole recording)
 try
-    ops.NchanTOT    = input.sessions(input.run(1)).numChannels; % total number of channels in your recording
+    ops.NchanTOT    = input.sessions.info.nChannels; % total number of channels in your recording
 catch
-    ops.NchanTOT    = input.sessions(input.run(1)).info.numChannels; % total number of channels in your recording
+    ops.NchanTOT    = input.sessions.info.numChannels; % total number of channels in your recording
 end
 
 % sample rate (JESUS, can be obtain from session info)
-ops.fs = input.sessions(input.run(1)).info.amplifier_sample_rate;
+ops.fs = input.sessions.info.amplifier_sample_rate;
     
 % frequency for high pass filtering (150) (Not always)
 ops.fshigh = 500;  % (150Hz EXTREMELY LOW, JESUS) 

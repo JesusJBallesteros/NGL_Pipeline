@@ -95,7 +95,7 @@ if opt.bin
 end
 
 %% Low-pass Neural Data Conversion to FT format.
-if opt.FTfile
+if opt.FieldTrip
     % Convert Deuteron files into a FieldTrip formatted .mat file
     disp('Converting Deuteron files into a pseudo-FT file.');
     FT_data = []; % If left empty, proper FT formatting will be skipped.

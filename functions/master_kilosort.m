@@ -12,7 +12,10 @@ function master_kilosort(input, varargin)
 %
 % Winston's script and functions together with Sara's fixes.
 %
-% Version 02.01.2024 (Jesus)
+% Jesus. This function has been modified to allow for more than one run, with
+% different spike thresholds, outputting more than one sortings
+%
+% Version 01.02.2024 (Jesus)
 
 if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
@@ -24,9 +27,19 @@ if ~isfield(opt,'KSConfigFile') || isempty(opt.KSConfigFile),           opt.KSCo
 if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),         opt.KSchanMapFile   = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end 
 if ~isfield(opt,'spkTh') || isempty(opt.spkTh),                         opt.spkTh           = -4; end 
 
-%% Find .bin files (raw and temp) % JESUS, changed the name and left only one.
+%% Several runs requested (more than 1 values of threshold given)
+% Prepare append for output folder
+for i=1:length(opt.spkTh)
+    repeattxt{i} = sprintf('%2.1f',opt.spkTh(i));
+end
+
+%% Find .bin files (raw and temp).
 % I assume it will be always in a SDD for processing.
-rootfolder = opt.FolderProcDataMat; % the raw data binary file is in this folder (for current subject and session)
+rootfolder = opt.FolderProcDataMat; % the raw data binary file is in this folder (for current subject and session)    
+for i=1:length(opt.spkTh)
+    outfolder{i} = [rootfolder, '\' , repeattxt{i}];
+    mkdir(outfolder{i})
+end
 
 %% Set configuration. Will run 'kilosortConfig.m'
 % Added all ops INSIDE config file.
@@ -47,10 +60,20 @@ end
 % Valid file found.
 run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'));
 
-% Override the threshold if user opt are different from config file ops
-if ops.spkTh ~= opt.spkTh
-    ops.spkTh = opt.spkTh;
+%% To override default config must be done after the config file is ran
+% if KSrepeat
+for i=1:length(opt.spkTh)
+        % Create temporal copies of ops
+        ops_r{i} = ops;
+        % The threshold, if user opt are different from defaults
+        ops_r{i}.spkTh = opt.spkTh(i);
+        % temp_wh folder (output folder)
+        ops_r{i}.fproc = fullfile(outfolder{i}, 'temp_wh.dat'); % proc file on a fast SSD   
 end
+
+% Substitute the single original for the new cell struct
+ops = ops_r;
+clear ops_r % remove the temp
 
 %% Check for Channel map file. Will run 'createChannelMapFile.m' if necessary.
 if ~isfile(fullfile(opt.KSConfigFile, opt.KSchanMapFile))
@@ -75,60 +98,49 @@ end
 % end
 
 %% This block runs all the steps of the algorithm
-% 11.05 Jesus adding a way to resume after creation of .rez file, since the
-% option is given.
-fprintf('Looking for data inside %s \n', rootfolder)
+for i=1:length(opt.spkTh)
+    fprintf('Looking for data inside %s \n', rootfolder)
+    fprintf('Kilosort outputs to %s \n', outfolder{i})
 
-if ~isfile(fullfile(rootfolder, 'rez.mat'))
-    % Find the binary file
-    fs          = dir(fullfile(rootfolder, '*.bin'));
-    ops.fbinary = fullfile(rootfolder, fs(1).name);
+    if ~isfile(fullfile(outfolder{i}, 'rez.mat'))
+        % Find the binary file
+        fs          = dir(fullfile(rootfolder, '*.bin'));
+        ops{i}.fbinary = fullfile(rootfolder, fs(1).name);
+        
+        % Preprocess data to create temp_wh.dat
+        rez = preprocessDataSub(ops{i});
+        
+        % Time-reordering as a function of drift
+        rez = clusterSingleBatches(rez);
     
-    % Preprocess data to create temp_wh.dat
-    rez = preprocessDataSub(ops);
+        % Saving here is a good idea, because the rest can be resumed after loading rez
+        save(fullfile(outfolder{i}, 'rez.mat'), 'rez', '-v7.3');
+    else
+        load(fullfile(outfolder{i}, 'rez.mat'), 'rez');
+    end
     
-    % Time-reordering as a function of drift
-    rez = clusterSingleBatches(rez);
+    % Main tracking and template matching algorithm
+    rez = learnAndSolve8b(rez);
+    
+    % Final merges
+    rez = find_merges(rez, 1);
+    
+    % Final splits by SVD
+    rez = splitAllClusters(rez, 1);
+    
+    % Final splits by amplitudes
+    rez = splitAllClusters(rez, 0);
+    
+    % Decide on cutoff
+    rez = set_cutoff(rez);
+    
+    fprintf('Found %d good units \n', sum(rez.good>0))
+    
+    % Write to Phy
+    fprintf('Saving results for Phy. \n')
+    rez2Phy(rez, outfolder{i}); % function has been modified to additionally output template_bestchannels.mat (Winston)
 
-    % Saving here is a good idea, because the rest can be resumed after loading rez
-    save(fullfile(rootfolder, 'rez.mat'), 'rez', '-v7.3');
-else
-    load(fullfile(rootfolder, 'rez.mat'), 'rez');
+    clear rez
 end
-
-% Main tracking and template matching algorithm
-rez = learnAndSolve8b(rez);
-
-% Final merges
-rez = find_merges(rez, 1);
-
-% Final splits by SVD
-rez = splitAllClusters(rez, 1);
-
-% Final splits by amplitudes
-rez = splitAllClusters(rez, 0);
-
-% Decide on cutoff
-rez = set_cutoff(rez);
-
-fprintf('Found %d good units \n', sum(rez.good>0))
-
-% Write to Phy
-fprintf('Saving results to Phy \n')
-rez2Phy(rez, rootfolder); % function has been modified to additionally output template_bestchannels.mat (Winston)
-
-%% If you want to save the results to a Matlab file...
-% % TODO. We can discuss if we want to go this way. We also need to find out
-% exctly which file we need for extracting the data we want afterwards, and
-% keep only those.
-%
-% % discard features in final rez file (too slow to save)
-% rez.cProj = [];
-% rez.cProjPC = [];
-% 
-% % save final results as rez2
-% fprintf('Saving final results in rez2 \n')
-% fname = fullfile(rootZ, 'rez2.mat');
-% save(fname, 'rez', '-v7.3');
 
 end
