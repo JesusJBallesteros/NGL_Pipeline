@@ -11,7 +11,7 @@
 % A) SYSTEM 
 % Specify drive where data is located, Project Name and the toolbox folder.
 % RECOMMENDED to add the toolbox folder to MATLAB folder system, but not necessary.
-datadrive   = 'D';                          % Define the LETTER of the drive where the data structure will be created or already exists.
+datadrive   = 'F';                   % Define the LETTER of the drive where the data structure will be created or already exists.
 studyname   = 'MotionSensing';       % Name the Study or Project to be used.
 toolbox     = 'C:\Code\ephys-data-pipeline';% Absolute address to the toolbox.
 
@@ -22,28 +22,35 @@ dates       = {'20240123'}; % char array 'all', or cell array of dates for a sin
 
 % C) OPTIONS.
 opt = struct();
-    opt.cooking = false;
+    opt.cooking = false;    % Temporary option to run or not things under development
     % Data Extraction and Pre-processing
-    opt.RetrieveEvents          = false;    % Retrieve event log.
+    opt.bin                     = true;    % Create a .bin file with the high-pass data, usually to be passed to Kilosort for spike sorting.
+    opt.FieldTrip               = true;    % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
+    opt.GetMotionSensors        = true;    % Retrieve data from motion sensors in Deuteron. NEEDS IMPROVEMENT on head direction interpretation.
+    opt.RetrieveEvents          = true;    % Retrieve event log. So far, for Deuteron.
         % opt.eventdef            = [];      % To pass non-standard event descriptions. If missing, use NGL standad.
+
         % opt.parsetrial          = false;   % Define and split data into trials. Prob to discontinue as will be assumed true when 'RetrieveEvents' = true
         % opt.useexe              = false;   % Use Deuteron's executable software. Prob to be discontinued.
         % opt.usepar              = false;   % temporarily use '_par' files from Juan's behavior paradigm to extract events. Prob to be discontinued.
-    opt.bin                     = false;     % Create a .bin file with the high-pass data, usually to be passed to Kilosort for spike sorting.
-    opt.FieldTrip               = false;    % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
-    opt.GetMotionSensors        = false;    % Retrieve data from motion sensors in Deuteron. (TODO)
     
     % Data Processing
     opt.kilosort                = true;     % Call to kilosort processing. !! NEEDS configfile saved under 'studyName\analysisCode\'
-        opt.spkTh               = [-4 -5];     % Default (as per SPP): -4.5.
+        opt.spkTh               = -4.5;     % Normally, a single value. Default: -4.5. Possible to introduce [-X -Y -Z] for runs with thresholds -X, -Y and -Z each.
         opt.KSchanMapFile       = '';       % Empty to use simple, non-mapped, linear array. Or e.g.'chanMapPoly3Deut', 'chanMapATLASTri' for custom maps saved under 'studyName\analysisCode\'
-    opt.bombcell                = false;    % Run bombcell on the KS output, as previous step to manual curation.
+    opt.bombcell                = false;    % Run bombcell on the KS output, as previous step to manual curation. TODO: go over several KS outputs if existing.
 %         opt.rerun               = false;    % To overwrite previous runs of BombCell.
     opt.phy                     = false;    % Open phy for manual inspection or curation. !! It puts MATLAB on HOLD!
 
+%    % Post-processing (after manual curation) TODO
+%     opt.postPhy                  = false;     % Would habilitate the postPhy processes. Prob not important.
+%     opt.KS2spkmat                = false;   % We need the KS output, once curated, to be read and saved as MATLAB structure. This could be analyzed independently.
+%     opt.spkmat2FT                = false;   % We can add the spike data to the Fieldtrip LFP data for combined analysis.
+%  
+
 % D) README.TXT
 % It contains details about the project. File can also be modified later.
-readmecontent = ["Study name: Pilot_SocialLearning"                 , ...
+readmecontent = ["Study name: MotionSensing"                 , ...
                  "Readme date: DD/MM/YYYY"                          , ...
                  "Person (1) responsible for data repository: X "   , ...
                  "Person(s) responsible for study: Y, Z "           , ...
