@@ -17,7 +17,7 @@ function [opt] = Deuteron_PipelineWrapper(input, varargin)
 %    opt:      struct. optional inputs to override the defaults:
 %                   h5:     logic. Creation of .h5 file. Normally 'false'
 %                   bin:    logic. Creation of .bin file. Normally 'true'
-%                   FTfile: logic. Creation of Fieltrip-formatted .mat file.
+%                   Fieldtrip: logic. Creation of Fieltrip-formatted .mat file.
 %                   RetrieveEvents:   logic. Retrieve eventlog from Deuteron (and extract eventcodes and timestamps from it).
 %                   GetMotionSensors: logic. Extraction and processing of motion sensor data.
 %                   lowpass:    int array. lower and upper boundaries for lowpass filter. e.g. [  0  300]
@@ -44,7 +44,7 @@ end
 
 %% Default options.
 if ~isfield(opt,'bin'),             opt.bin                 = true;         end
-if ~isfield(opt,'FTfile'),          opt.FieldTrip           = true;         end
+if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
 if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = true;         end
 if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  150];   end

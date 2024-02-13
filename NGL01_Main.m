@@ -66,6 +66,7 @@ if ~exist("input","var")
     input = struct( 'datadrive' , datadrive , ...   % force char array
                     'studyName' , studyname , ...   % force char array
                     'toolbox'   , toolbox   , ...   % force char array
+                    'ksPath'    , ksPath    , ...   % force char array
                     'subjects'  , [], ...           % do NOT force char array
                     'dates'     , []        );      % do NOT force char array
     input.dates     = dates;    % place as it comes

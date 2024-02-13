@@ -9,7 +9,7 @@ end
 
 %% Defaults 
 if ~isfield(opt,'bin'),             opt.bin                 = true;         end
-if ~isfield(opt,'FTfile'),          opt.FTfile              = true;         end
+if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
 if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
 
@@ -21,7 +21,6 @@ input.sessions(input.run(1)) = findSetting(input.sessions(input.run(1)));
 
 %% 02. Create NWB file
 if input.useNWB % We want a .NWB file.
-
   % Run wrapper for the INTAN to NWB functionality:               
     % This NEEDS A PYTHON installation and the tooldbox inside!
     % Detailed explanation:
@@ -48,18 +47,10 @@ if opt.bin && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
 end
 
 %% 04. Run wrapper for the INTAN to FIELDTRIP.
-if opt.FTfile && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '_continous_FT.mat']))
+if opt.FieldTrip && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '_continous_FT.mat']))
     % Includes a mix of INTAN funtions. CREATES and GIVES proper
     % FieldTrip format without trial-parsing. 
     intan2FieldTrip(input.sessions(input.run(1)), opt)
-
-    % 04.1 Plotting. Uses Chronux Multitaper approach to generate fast
-    % single-tappered Spectrograms on a subset of channels for a small chunck
-    % of time. Just to have a preview of how the signal looks like in
-    % the LFP range.
-%     if isfield(input, 'test_ch') && ~isempty(input.test_ch)
-%         plot_testsignal(FT_data, input.test_ch, opt)
-%     end
 end
 
 end
