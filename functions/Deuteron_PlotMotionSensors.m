@@ -44,8 +44,25 @@ if stream == 1
 
 elseif stream == 2
     %% Plot the orientation in Euler angles in degrees over time.
+<<<<<<< HEAD
+    orientation_v = eulerd(data, 'ZYX', 'frame');
+    timeVector = (0:length(timestamps)-1).'/1000;
+
+    f = figure;
+    plot(timeVector, orientation_v);
+        xlim([timeVector(1) timeVector(end)]);
+        xlabel('Time (s)')
+        ylabel('Rotation (degrees)')
+    legend({'X, Roll', 'Y, Yaw', 'Z, Pitch'}, 'Box','off');
+    title('Orientation Estimate');
+    f.Position(3:4) = [1600 600];
+
+    exportgraphics(gcf, fullfile(opt.FolderProcDataMat, strcat('ecomp_OrEstim.png')), 'Resolution', 300)
+    close gcf
+=======
     time = timestamps-(timestamps(1));
     orientation_deg = eulerd(data, 'ZYX', 'frame');
+>>>>>>> d38898a4857c88bbc90db712ff88b029452ef85b
 
     figure,
     plot(time/1000,orientation_deg);
@@ -62,7 +79,15 @@ elseif stream == 2
         framerate = 1/50; % As 1/Hz of pause for next frame. Default to 50Hz.
     
         % Creates a very specific figure object provided by Matlab.
+<<<<<<< HEAD
+        pp = poseplot(data(1));
+            title("Pose, NED");
+            xlabel('North')
+            ylabel('East')
+            zlabel('Down')
+=======
         viewer = HelperOrientationViewer('Title',{'AHRS Filter'});
+>>>>>>> d38898a4857c88bbc90db712ff88b029452ef85b
 
         if record
             % initialize the VideoWriter object.
@@ -76,6 +101,18 @@ elseif stream == 2
         % Run until elapsed time reaches set 'stopTimer' (-1 msec to avoid breaks)
         while(toc(ts) < stopTimer-0.001) 
             t = round(toc(ts)*1000); % takes the approximated msec of the run.
+<<<<<<< HEAD
+            % plot it in the dynamic figure
+            set(pp, "Orientation", data(t))
+            subtitle(sprintf('%0.3f s', t/1000))
+            drawnow limitrate
+            % Get frame and write it to video.
+            if record
+                F = getframe(gcf); % Capture the frame
+                writeVideo(writerObj, F) % add the frame to the movie
+            end
+            % pause(1/50);
+=======
             % Plot it in the dynamic figure
             viewer(data(t));
             % If desired, get the frame and write it to video.
@@ -84,6 +121,7 @@ elseif stream == 2
                 writeVideo(writerObj, F) % add the frame to the movie
             end
             pause(framerate) % pause the run for 1/Hz msec, to an approx framerate.
+>>>>>>> d38898a4857c88bbc90db712ff88b029452ef85b
         end
     
         if record
