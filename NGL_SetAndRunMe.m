@@ -36,7 +36,7 @@ opt = struct();
     
     % Data Processing
     opt.kilosort                = true;     % Call to kilosort processing. !! NEEDS configfile saved under 'studyName\analysisCode\'
-        opt.spkTh               = -4.5;     % A single value. Default: -4.5. Possible to introduce an array of negative values to run several thresholds. Results are saved in subfolders and bin file needs to be copied manually inside to check sorter results.
+        opt.spkTh               = -4.5;     % Normally, a single value. Default: -4.5. Possible to introduce [-X -Y -Z] for runs with thresholds -X, -Y and -Z each.
         opt.KSchanMapFile       = '';       % Empty to use simple, non-mapped, linear array. Or e.g.'chanMapPoly3Deut', 'chanMapATLASTri' for custom maps saved under 'studyName\analysisCode\'
     opt.bombcell                = false;    % Run bombcell on the KS output, as previous step to manual curation. TODO: go over several KS outputs if existing.
 %         opt.rerun               = false;    % To overwrite previous runs of BombCell.
