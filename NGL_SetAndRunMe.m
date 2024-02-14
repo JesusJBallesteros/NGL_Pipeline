@@ -14,6 +14,7 @@
 datadrive   = 'F';                   % Define the LETTER of the drive where the data structure will be created or already exists.
 studyname   = 'MotionSensing';       % Name the Study or Project to be used.
 toolbox     = 'C:\Code\ephys-data-pipeline';% Absolute address to the toolbox.
+KSpath      = 'C:\Kilosort_2.0';    % path to kilosort, as it can change among PCs 
 
 % B) SUBJECTS AND SESSIONS
 % To run the script on all subjects and sessions, or as session-to-session process.
@@ -24,6 +25,7 @@ dates       = {'20240123'}; % char array 'all', or cell array of dates for a sin
 opt = struct();
     opt.cooking = false;    % Temporary option to run or not things under development
     % Data Extraction and Pre-processing
+    % opt.numChannels             = 64;    % For Deuteron, explicit (and change to 32 if not SpikeLog-64C was used). INTAN users can comment this line
     opt.bin                     = true;    % Create a .bin file with the high-pass data, usually to be passed to Kilosort for spike sorting.
     opt.FieldTrip               = true;    % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
     opt.GetMotionSensors        = true;    % Retrieve data from motion sensors in Deuteron. NEEDS IMPROVEMENT on head direction interpretation.

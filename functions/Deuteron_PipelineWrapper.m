@@ -69,13 +69,18 @@ opt.sampleRate  = input.sessions(input.run(1)).info.amplifier_sample_rate;
 % Set ChunkSize of HDF5 file (e.g., 5 minutes: 300s x 30000Hz = 9600000 samples)
 opt.HDF5chunkSize = 300*opt.sampleRate; 
 
-% Get number of channels if not done yet.
-if ~isempty(input.sessions(input.run(1)).info.nChannels)
-    opt.numChannels     = input.sessions(input.run(1)).info.nChannels;
+% Get number and order of channels if not done yet. (ORDER NEEDS TO BE FIXED)
+if isempty(input.sessions(input.run(1)).info.nChannels)
+    opt.numChannels     = 64;
     opt.channelOrder    = 1:1:opt.numChannels; 
 else
-    opt.numChannels     = [];
-    opt.channelOrder    = []; 
+    if(input.sessions(input.run(1)).info.nChannels == opt.numChannels)
+        opt.channelOrder    = 1:1:opt.numChannels; 
+    else
+        opt.numChannels     = input.sessions(input.run(1)).info.nChannels;
+        opt.channelOrder    = 1:1:opt.numChannels; 
+    end
+
 end
 
 % Few specific parameters from Deuteron's log and documentation, to convert bits to physical units.

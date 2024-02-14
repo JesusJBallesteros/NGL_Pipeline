@@ -22,7 +22,7 @@ chanMapName = 'chanMapDefault'; % Keep 'chanMap*' nomenclature.
 Nchannels   = 32;
 connected   = true(Nchannels, 1); % Keep all
 % fs          = input.sessions(input.run(1)).info.amplifier_sample_rate; % sampling frequency (why?)
-fs          = ops.fs;%input.sessions(input.run(1)).info.amplifier_sample_rate; % sampling frequency (why?) %above did not work
+% fs          = ops.fs;%input.sessions(input.run(1)).info.amplifier_sample_rate; % sampling frequency (why?) %above did not work
 
 %% Probe physical layout.
 % Write it as a vector. Write the HEADSTAGE Pins in the order that

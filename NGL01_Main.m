@@ -66,6 +66,7 @@ if ~exist("input","var")
     input = struct( 'datadrive' , datadrive , ...   % force char array
                     'studyName' , studyname , ...   % force char array
                     'toolbox'   , toolbox   , ...   % force char array
+                    'KSpath'    , KSpath    , ...   % force char array
                     'subjects'  , [], ...           % do NOT force char array
                     'dates'     , []        );      % do NOT force char array
     input.dates     = dates;    % place as it comes
@@ -103,7 +104,7 @@ for x = 1:input.nsubjects % Subjects.
             % Kilosort will run without GUI.
             master_kilosort(input, opt)
         end
-    
+    close all
         %% 05. Bombcell
         if opt.bombcell
             % Kilosort will run without GUI.

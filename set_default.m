@@ -81,7 +81,7 @@ addpath(genpath('toolboxes\bombcell'))
 addpath(genpath('toolboxes\spikes'))
 
 % Add Kilosort (external)
-addpath(genpath('C:\KiloSort_2.0\')) % path to kilosort toolbox (Assumes Sorting PC, not local)
+addpath(genpath(input.KSpath)) % path to kilosort toolbox
 
 % Initialize FT
 ft_defaults

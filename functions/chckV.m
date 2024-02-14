@@ -52,7 +52,7 @@ switch formatis
             % Get meta data from Deuteron:
             % Checks which type of logger was used and sets some parameters:
             metaData                = Deuteron_GetMetaData(info);
-            info.nChannels          = 32; % Coded as default here. If necessary, overrided later on.
+            info.nChannels          = metaData.numChannels; % Coded as default here. If necessary, overrided later on.
             info.numADCBits         = metaData.numADCBits;
             info.voltageRes         = metaData.voltageRes;
             info.amplifier_sample_rate         = metaData.fSample;
@@ -69,7 +69,7 @@ switch formatis
         if ~isempty(info.files)
             % Extract metadata
             metaData           = Deuteron_GetMetaData(info);
-            info.nChannels     = 32; %32; %metaData.numChannels;
+            info.nChannels     = metaData.numChannels;
             info.numADCBits    = metaData.numADCBits;
             info.voltageRes    = metaData.voltageRes;
             info.amplifier_sample_rate    = metaData.fSample;
