@@ -27,26 +27,18 @@ if ~isfield(opt,'KSConfigFile') || isempty(opt.KSConfigFile),           opt.KSCo
 if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),         opt.KSchanMapFile   = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end 
 if ~isfield(opt,'spkTh') || isempty(opt.spkTh),                         opt.spkTh           = -4; end 
 
-% Raw data folder
-rootfolder = opt.FolderProcDataMat; % the raw data binary file is in this folder (for current subject and session)    
-
 %% Several runs requested (more than 1 values of threshold given)
 % Prepare append for output folder
-if length(opt.spkTh) > 1
-    for i=1:length(opt.spkTh)
-        repeattxt{i} = sprintf('%2.1f',opt.spkTh(i));
-    end
+for i=1:length(opt.spkTh)
+    repeattxt{i} = sprintf('%2.1f',opt.spkTh(i));
 end
 
 %% Find .bin files (raw and temp).
 % I assume it will be always in a SDD for processing.
-if length(opt.spkTh) > 1
-    for i=1:length(opt.spkTh)
-        outfolder{i} = [rootfolder, '\' , repeattxt{i}]; % Subfolder for each threshold
-        mkdir(outfolder{i})
-    end
-else
-    outfolder{1} = rootfolder; % In this case, output goes directly at raw level
+rootfolder = opt.FolderProcDataMat; % the raw data binary file is in this folder (for current subject and session)    
+for i=1:length(opt.spkTh)
+    outfolder{i} = [rootfolder, '\' , repeattxt{i}];
+    mkdir(outfolder{i})
 end
 
 %% Set configuration. Will run 'kilosortConfig.m'
@@ -69,6 +61,7 @@ end
 run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'));
 
 %% To override default config must be done after the config file is ran
+% if KSrepeat
 for i=1:length(opt.spkTh)
         % Create temporal copies of ops
         ops_r{i} = ops;
