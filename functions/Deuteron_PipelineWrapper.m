@@ -44,7 +44,7 @@ end
 
 %% Default options.
 if ~isfield(opt,'bin'),             opt.bin                 = true;         end
-if ~isfield(opt,'FTfile'),          opt.FieldTrip           = true;         end
+if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
 if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = true;         end
 if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  150];   end
@@ -71,14 +71,15 @@ opt.HDF5chunkSize = 300*opt.sampleRate;
 
 % Get number and order of channels if not done yet. (ORDER NEEDS TO BE FIXED)
 if isempty(input.sessions(input.run(1)).info.nChannels)
-    opt.numChannels     = 64;
-    opt.channelOrder    = 1:1:opt.numChannels; 
+    opt.channelOrder    = load(fullfile(input.analysisCode, opt.KSchanMapFile),'chanMap'); 
+    opt.channelOrder    = opt.channelOrder.chanMap;
 else
-    if(input.sessions(input.run(1)).info.nChannels == opt.numChannels)
-        opt.channelOrder    = 1:1:opt.numChannels; 
+    if (input.sessions(input.run(1)).info.nChannels == opt.numChannels)
+        opt.channelOrder    = load(fullfile(input.analysisCode, opt.KSchanMapFile),'chanMap'); 
+        opt.channelOrder    = opt.channelOrder.chanMap;
     else
-        opt.numChannels     = input.sessions(input.run(1)).info.nChannels;
-        opt.channelOrder    = 1:1:opt.numChannels; 
+%         opt.numChannels     = input.sessions(input.run(1)).info.nChannels;
+        opt.channelOrder    = [];
     end
 
 end

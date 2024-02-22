@@ -142,7 +142,7 @@ if strcmp(opt.ext, 'DF1')
     data_mat = reshape(data_mat, opt.numChannels, []);
 end
 
-%% Let's always filter.
+%% Let's always highpass filter.
 filt_data_mat = int16([]);
 txt = sprintf('Filtering between %d and %d Hz. It may take a moment.\n', opt.highpass(1), opt.highpass(2));
 fprintf(txt);

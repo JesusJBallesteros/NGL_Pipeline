@@ -11,7 +11,7 @@ function metaData = Deuteron_GetMetaData(info)
 
 switch (info.fileformat)
     case 'DF1' % NEW FORMAT, predominant
-        numberOfChannels = 64; % Could be 64 in future
+        numberOfChannels = []; % Could be 32 or 64 
         numberOfADCBits = 16;
         voltageResolution = 1.95e-7;
         fSample = 32000;
