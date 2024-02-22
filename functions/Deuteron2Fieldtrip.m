@@ -127,7 +127,7 @@ disp('- Creating pseudo-FieldTrip structure...')
 
 % Starting with labels as they have been extracted from Deuteron
 for i=1:opt.numChannels
-    nch = sprintf('%03d', opt.channelOrder(i));
+    nch = sprintf('%03d', i);
     data.label{i,1} = nch;
 end
 

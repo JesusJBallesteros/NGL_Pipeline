@@ -7,6 +7,7 @@
 
 %% Often modified options
 ops.spkTh       = -4;   % spike threshold in standard deviations (-6).
+ops.ntbuff      = 32;   % samples of symmetrical buffer for whitening and spike detection
 ops.NT          = 64*1024 + ops.ntbuff; %  must be multiple of 32 + ntbuff. This is the batch size (try decreasing if out of memory).
 ops.CAR         = 1; % Common average referencing (median)
 ops.AUCsplit    = 0.9; % splitting a cluster at the end requires at least this much isolation for each sub-cluster (max = 1)
@@ -28,7 +29,6 @@ ops.ThPre           = 4; % threshold crossings for pre-clustering (in PCA projec
 ops.whiteningRange  = 32;   % number of channels to use for whitening each channel
 ops.reorder         = 1;    % whether to reorder batches for drift correction. 
 ops.nskip           = 2;    % how many batches to skip for determining spike PCs
-ops.ntbuff          = 32;   % samples of symmetrical buffer for whitening and spike detection
 ops.nSkipCov        = 25;    % compute whitening matrix from every N-th batch % was 25
 ops.nPCs            = 3;    % how many PCs to project the spikes into
 ops.scaleproc       = 200;  % int16 scaling of whitened data
