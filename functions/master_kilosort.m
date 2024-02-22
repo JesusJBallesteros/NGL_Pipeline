@@ -22,12 +22,14 @@ elseif nargin == 2, opt = varargin{1};
 end
 
 %% Defaults, if not given.
+single = 1;
+if length(opt.spkTh) > 1, single = 0; end
+
 % Config and Channelmap files are to be found under '\analysisCode'
 if ~isfield(opt,'KSConfigFile') || isempty(opt.KSConfigFile),           opt.KSConfigFile    = input.analysisCode;  end 
 if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),         opt.KSchanMapFile   = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end 
 if ~isfield(opt,'spkTh') || isempty(opt.spkTh),                         opt.spkTh           = -4; end 
-if ~isfield(opt,'CAR') || isempty(opt.CAR),                             opt.CAR             = 1;        end 
-if length(opt.spkTh) > 1, single = 0; end
+if ~isfield(opt,'CAR') || isempty(opt.CAR),                             opt.CAR             = 1;  end 
     
 if single
     %% Single run requested
@@ -52,10 +54,10 @@ if single
             end
         end
 
-        % Valid file found.
+        % Valid file found. Run it.
         run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'));
 
-        % To override default config must be done after the config file is ran
+        % OVERRIDE config file values with user input values here
         ops.spkTh = opt.spkTh;     
         ops.CAR = opt.CAR;
 
@@ -143,7 +145,7 @@ else
         % Valid file found.
         run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'));
     
-        % To override default config must be done after the config file is ran
+        % OVERRIDE config file values with user input values here
         for i=1:length(opt.spkTh)
             % Create temporal copies of ops
             ops_r{i} = ops;

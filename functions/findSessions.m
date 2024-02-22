@@ -6,15 +6,16 @@ function sessions = findSessions(input, varargin)
 % Goes over every subject's folder and reads existing sessions    
 for s = 1:input.nsubjects
     
-    % In NGL02, additional options can be feeded. Working folder may change.
-    if nargin > 1 
-       opt = varargin{1}; % Get options
-        if isfield(opt,'postPhy') % Double check
-            cd(fullfile(input.processed, string(input.subjects(s).name)))
-        end
-    else
-        cd(fullfile(input.datafolder, string(input.subjects(s).name)))
-    end
+%  DEPR.   % In NGL02, additional options can be feeded. Working folder may change.
+%     if nargin > 1 
+%        opt = varargin{1}; % Get options
+%         if isfield(opt,'postPhy') % Double check
+%             cd(fullfile(input.processed, string(input.subjects(s).name)))
+%         end
+%     else
+    cd(fullfile(input.datafolder, string(input.subjects(s).name)))
+%     end
+% DEPR
 
     % Select sessions
     ss = dir(); % List all content in folder

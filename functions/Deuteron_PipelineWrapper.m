@@ -48,16 +48,17 @@ if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
 if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = true;         end
 if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  150];   end
-if ~isfield(opt,'highpass'),        opt.highpass            = [450 5000];   end
+if ~isfield(opt,'highpass'),        opt.highpass            = [450 7000];   end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
 if ~isfield(opt,'useexe'),          opt.useexe              = false;        end
 if ~isfield(opt,'usepar'),          opt.usepar              = false;        end
 if ~isfield(opt,'parsetrial'),      opt.parsetrial          = false;        end
 
 %% Set local options.
-% Explicit exe/dll locations 
-opt.exefile     = input.exefile;
-opt.ReaderDll   = input.ReaderDll;
+% DEPR % Explicit exe/dll locations 
+%       opt.exefile     = input.exefile;
+%       opt.ReaderDll   = input.ReaderDll;
+% DEPR
 
 % Collect parameters to proceed with file creation. List all files.
 opt.myFiles = input.sessions(input.run(1)).info.files;
@@ -66,23 +67,24 @@ opt.ext     = input.sessions(input.run(1)).info.fileformat;
 % Set Sample rate.
 opt.sampleRate  = input.sessions(input.run(1)).info.amplifier_sample_rate;
 
-% Set ChunkSize of HDF5 file (e.g., 5 minutes: 300s x 30000Hz = 9600000 samples)
-opt.HDF5chunkSize = 300*opt.sampleRate; 
+% DEPR% Set ChunkSize of HDF5 file (e.g., 5 minutes: 300s x 30000Hz = 9600000 samples)
+% opt.HDF5chunkSize = 300*opt.sampleRate; 
+% DEPR
 
-% Get number and order of channels if not done yet. (ORDER NEEDS TO BE FIXED)
-if isempty(input.sessions(input.run(1)).info.nChannels)
-    opt.channelOrder    = load(fullfile(input.analysisCode, opt.KSchanMapFile),'chanMap'); 
-    opt.channelOrder    = opt.channelOrder.chanMap;
-else
-    if (input.sessions(input.run(1)).info.nChannels == opt.numChannels)
-        opt.channelOrder    = load(fullfile(input.analysisCode, opt.KSchanMapFile),'chanMap'); 
-        opt.channelOrder    = opt.channelOrder.chanMap;
-    else
-%         opt.numChannels     = input.sessions(input.run(1)).info.nChannels;
-        opt.channelOrder    = [];
-    end
-
-end
+% DEPR % Get number and order of channels if not done yet. (ORDER NEEDS TO BE FIXED)
+% if isempty(input.sessions(input.run(1)).info.nChannels)
+%     opt.channelOrder    = load(fullfile(input.analysisCode, opt.KSchanMapFile),'chanMap'); 
+%     opt.channelOrder    = opt.channelOrder.chanMap;
+% else
+%     if (input.sessions(input.run(1)).info.nChannels == opt.numChannels)
+%         opt.channelOrder    = load(fullfile(input.analysisCode, opt.KSchanMapFile),'chanMap'); 
+%         opt.channelOrder    = opt.channelOrder.chanMap;
+%     else
+% %         opt.numChannels     = input.sessions(input.run(1)).info.nChannels;
+%         opt.channelOrder    = [];
+%     end
+% end
+% DEPR
 
 % Few specific parameters from Deuteron's log and documentation, to convert bits to physical units.
 opt.numberOfAdcBits   = input.sessions(input.run(1)).info.numADCBits;

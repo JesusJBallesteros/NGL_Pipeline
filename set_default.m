@@ -61,10 +61,6 @@ if input.useNWB
     end
 end
 
-% Plots. Normally left empty.
-if ~isfield(input,'plots'),   input.plots     = []; end
-if ~isfield(input,'test_ch'), input.test_ch   = []; end
-
 %% Set Dependencies. Critical to find toolboxes.
 cd(input.toolbox)
 
@@ -87,7 +83,7 @@ addpath(genpath(input.KSpath)) % path to kilosort toolbox
 ft_defaults
 
 % Hardcode Deuteron's exe/dll files location to RetrieveEvents.
-input.ReaderDll   = [input.toolbox, '\toolboxes\Deuteron\software\Event_File_Reader_9_0.dll'];
-input.exefile     = [input.toolbox, '\functions\dlls\EventFileReader\Event_File_Reader_9_0.exe'];
+% input.ReaderDll   = [input.toolbox, '\toolboxes\Deuteron\software\Event_File_Reader_9_0.dll']; % hopefully wont be necessary
+input.exefile     = [input.toolbox, '\toolboxes\Deuteron\software\Event_File_Reader_9_0.exe'];
 
 end

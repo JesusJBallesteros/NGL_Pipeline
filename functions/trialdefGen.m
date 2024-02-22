@@ -32,32 +32,29 @@ function [events, trialdef, eventdef] = trialdefGen(EventRecord, opt)
 % Jesus. 25.01.2024
 
 %% Default event descriptor-decimal value definitions
+%% Default event descriptor-decimal value definitions
 if ~isfield(opt,'eventdef')
     opt.eventdef = struct;
-    % Descriptions        = Decimal value;  % Details.
-    opt.eventdef.preiti1  = 14;  % pre-iti Transition 1.
-    opt.eventdef.preiti2  = 12;  % pre-iti Transition 2.
-    opt.eventdef.preiti3  = 8;   % pre-iti Transition 3. FIRST/LAST denotes SESSION START/END.
-    opt.eventdef.itiOn    = 0;   % iti Start, Trial start.
-    opt.eventdef.stimOn1  = 1;   % Stim1/3/5... presentation.
-    opt.eventdef.stimOn2  = 2;   % Stim2/4/6... presentation.
-    opt.eventdef.bhv      = 3;   % Response registered.
-    opt.eventdef.oms1     = 5;   % No-response to stim1/3/5... registered, omission1.
-    opt.eventdef.oms2     = 6;   % No-response to stim2/4/6... registered, omission2.
-    opt.eventdef.rwd      = 7;   % Correct Response, reward.
-    opt.eventdef.pun      = 11;  % Incorrect Response, punishment.
-    opt.eventdef.end1     = 4;   % omission-related trial-end. Trial ends.
-    opt.eventdef.end2     = 10;  % punishment-related trial-end. Trial ends.
-    opt.eventdef.end3     = 15;  % reward-related trial-end. Trial ends.
-    opt.eventdef.tr1      = 9;   % Treatment1. Outside of trial boundries. 
-                                 % Could sign for 'start' and 'end' if it appears alternatively
-                                 % Or another code (13?) could sign for 'end'
-
-    % NAs
-    opt.eventdef.na2      = 13;  % Undefined ([1 1 0 1]). Could happen after end3, tr1, oms1, preiti2.
-    
-    % Set event to align trial times (event with t=0)
-    opt.eventdef.t0       = opt.eventdef.itiOn;
+        % Descriptions            = Decimal  % Comments
+        opt.eventdef.preIni       = 8;       % FIXED! Last resource to delimit end-trial. Also, start/end-session.
+        opt.eventdef.itiOn        = 0;       % FIXED! Delimits start-trial.
+        opt.eventdef.stimOn1      = 1;       % 
+        opt.eventdef.stimOn2      = 2;       %
+        opt.eventdef.bhv          = 3;       %
+        opt.eventdef.oms1         = 5;       %
+        opt.eventdef.oms2         = 6;       %
+        opt.eventdef.rwd          = 7;       %
+        opt.eventdef.pun          = 11;      %
+        opt.eventdef.end1         = 4 ;      % omsX-end.
+        opt.eventdef.end2         = 10;      % pun-end.
+        opt.eventdef.end3         = 15;      % rwd-end.
+        opt.eventdef.na1          = 12;      % Transition sequence
+        opt.eventdef.na2          = 14;      % Transition sequence
+        opt.eventdef.tr1          = 9;       % Spared. Treatment1?
+        opt.eventdef.na3          = 13;      % Spared.
+  
+        % Set event to align trial times (event with t=0)
+        opt.eventdef.t0           = opt.eventdef.itiOn;
 end
 
 %% 01.1 Relativize timestamps to session start keeping it in msec

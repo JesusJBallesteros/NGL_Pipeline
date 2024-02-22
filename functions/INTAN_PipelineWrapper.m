@@ -1,7 +1,7 @@
 function INTAN_PipelineWrapper(input, varargin)
 %
 %
-% Version 02.01.2024 (Jesus)
+% Version 22.02.2024 (Jesus)
 
 if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
@@ -9,8 +9,8 @@ end
 
 %% Defaults 
 if ~isfield(opt,'bin'),             opt.bin                 = true;         end
-if ~isfield(opt,'FTfile'),          opt.FTfile              = true;         end
-if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
+if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
+if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = false;        end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
 
 %% 01. Find out INTAN settings and header file. Extract info.
@@ -48,18 +48,10 @@ if opt.bin && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
 end
 
 %% 04. Run wrapper for the INTAN to FIELDTRIP.
-if opt.FTfile && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '_continous_FT.mat']))
+if opt.FieldTrip && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '_continous_FT.mat']))
     % Includes a mix of INTAN funtions. CREATES and GIVES proper
     % FieldTrip format without trial-parsing. 
     intan2FieldTrip(input.sessions(input.run(1)), opt)
-
-    % 04.1 Plotting. Uses Chronux Multitaper approach to generate fast
-    % single-tappered Spectrograms on a subset of channels for a small chunck
-    % of time. Just to have a preview of how the signal looks like in
-    % the LFP range.
-%     if isfield(input, 'test_ch') && ~isempty(input.test_ch)
-%         plot_testsignal(FT_data, input.test_ch, opt)
-%     end
 end
 
 end
