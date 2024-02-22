@@ -9,7 +9,7 @@ function Deuteron2Kilosort(opt)
 %  bandFilter: to filter the highpass signal, since signal is intended to
 %                 Kilosort.
 
-% Jesus 05.01.2024
+% Jesus 22.02.2024
 
 % if ~isfield(opt,'h5'),             opt.h5                 = false;         end
 
@@ -39,82 +39,66 @@ end
 %% Create an new .bin file.
 fidDataMat = fopen(fullfile(opt.FolderProcDataMat,[opt.SavFileName + ".bin"]), 'a'); 
 
-%% Proceed with DT2 format conversion (Deprecating)
-% if strcmp(opt.ext, 'DT2')
-%     disp('Format is DT2. Deprecating.')
-% 
-%     % Prepare a cell array with nChannels
-%     data_mat = cell(opt.numChannels,1);
-% 
-%     % Initialize variable to chunk the writting. 
-%     indexPos  = 0;
-% 
-%     % Go over individual files
-%     for i = 1:length(opt.myFiles)
-%         
-%         % Neural data points are unsigned 16 bit words. Read.
-%         fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name));
-%             tempdata = fread(fid, 'uint16');
-%         fclose(fid);
-% 
-%         % Remove trailing zeroes in last file
-%         if i == length(opt.myFiles)
-%             tempdata(tempdata==0) = [];
-%         end
-% 
-%         % Because all channels come concatenated, we need to reshape as
-%         % channels x samples, knowing the nChannels.
-%         tempdata = reshape(tempdata', opt.numChannels, []); 
-% 
-%         % Convert ADC steps into microvolts, so conversion to int16 is
-%         % possible without loss.
-%         tempdata = int16((opt.voltageResolution * (tempdata - opt.offset)) * 1000000);
-%         
-%         % Get nSamples coming from this file. Should stay constant, until
-%         % last file which normally will be smaller.
-%         nSamples = size(tempdata,2);
-% 
-%         % Distribute each channel to its respective slot in new array
-%         for b = 1:opt.numChannels
-%             % if opt.h5
-%             %     h5write(filename,       ... % filename.
-%             %             dataset,        ... % dataset name.
-%             %             tempdata(b,:),  ... % data of a channel stored in the DT2 file (already scaled)
-%             %             [b indexPos+1], ... % Write channel b, from starting sample
-%             %             [1 nSamples]);      %  and this amount of samples.
-%             % end
-%             
-%             % Write channel into general cell array.
-%             data_mat{b,1} = [data_mat{b,1} tempdata(b,:)];
-% 
-%         end
-% 
-%         % Index for next chunk's starting sample
-%         indexPos = indexPos + nSamples;
-% 
-%     end
-%     clear tempdata fid
-% 
-%     % Because this data goes to Kilosort, apply highpass filter to data.
-%     if opt.set_filter
-%         % Proceed in a channel by channels basis (lower memory use)
-%         filt_data_mat = int16([]);
-%         disp('Filtering.')
-%         for b = 1:opt.numChannels
-%             % Proceed with filter
-%             [filt_data_mat{b,1}, ~, ~] = bandFilter(double(data_mat{b,1}), [], opt.highpass, opt.sampleRate);
-%             filt_data_mat{b,1} = int16(filt_data_mat{b,1});
-%         end
-%     else
-%         filt_data_mat = data_mat;
-%     end
-%     clear data_mat
-% 
-%     % Write bin file
-%     fwrite(fidDataMat, cell2mat(filt_data_mat), 'int16');
-%     fclose(fidDataMat);
-% end 
-%% Proceed with DF1 format conversion.
+%% DT2 format conversion.
+if strcmp(opt.ext, 'DT2')
+    disp('Format is DT2. Deprecating.')
+
+    % Prepare a cell array with nChannels
+    data_mat = cell(opt.numChannels,1);
+
+    % Initialize variable to chunk the writting. 
+    indexPos  = 0;
+
+    % Go over individual files
+    for i = 1:length(opt.myFiles)
+        
+        % Neural data points are unsigned 16 bit words. Read.
+        fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name));
+            tempdata = fread(fid, 'uint16');
+        fclose(fid);
+
+        % Remove trailing zeroes in last file
+        if i == length(opt.myFiles)
+            tempdata(tempdata==0) = [];
+        end
+
+        % Because all channels come concatenated, we need to reshape as
+        % channels x samples, knowing the nChannels.
+        tempdata = reshape(tempdata', opt.numChannels, []); 
+
+        % Convert ADC steps into microvolts, so conversion to int16 is
+        % possible without loss.
+        tempdata = int16((opt.voltageResolution * (tempdata - opt.offset)) * 1000000);
+        
+        % Get nSamples coming from this file. Should stay constant, until
+        % last file which normally will be smaller.
+        nSamples = size(tempdata,2);
+
+        % Distribute each channel to its respective slot in new array
+        for b = 1:opt.numChannels
+            % if opt.h5
+            %     h5write(filename,       ... % filename.
+            %             dataset,        ... % dataset name.
+            %             tempdata(b,:),  ... % data of a channel stored in the DT2 file (already scaled)
+            %             [b indexPos+1], ... % Write channel b, from starting sample
+            %             [1 nSamples]);      %  and this amount of samples.
+            % end
+            
+            % Write channel into general cell array.
+            data_mat{b,1} = [data_mat{b,1} tempdata(b,:)];
+        end
+
+        % Index for next chunk's starting sample
+        indexPos = indexPos + nSamples;
+
+    end
+    clear tempdata fid
+
+    % Convert cell to array, and to single
+    data_mat = cell2mat(data_mat);
+
+end 
+%% DF1 format conversion.
 if strcmp(opt.ext, 'DF1')
     data_mat        = [];   % Create empty variable to store all data (do not pre-allocate the whole matrix)
     opt.stream      = 1;    % Pass variable to read continuous neural signals.
@@ -140,9 +124,20 @@ if strcmp(opt.ext, 'DF1')
 
     % Reshape to channels x samples.
     data_mat = reshape(data_mat, opt.numChannels, []);
+
 end
 
-%% Let's always filter.
+%% Common methos of preprocessing. DC substraction, Referencing and filter.
+% Subtract the mean from each channel
+data_mat = single(data_mat);
+data_mat = data_mat - mean(data_mat, 1);
+
+% CAR, common average referencing by median.
+if opt.CAR
+    data_mat = data_mat - median(data_mat, 2); % subtract median across channels
+end
+
+% Highpass filter.
 filt_data_mat = int16([]);
 txt = sprintf('Filtering between %d and %d Hz. It may take a moment.\n', opt.highpass(1), opt.highpass(2));
 fprintf(txt);
@@ -153,7 +148,7 @@ for b = 1:opt.numChannels
     filt_data_mat(b,:) = int16(filt_data_mat(b,:));
 end
 
-% % distribute each row of data to its respective single-channel file
+% %% HDF5 method. Distribute each row of data to its respective single-channel file
 % if opt.h5
 %     for b = 1:opt.numChannels
 %         h5write(filename,         ... % filename.
@@ -167,4 +162,5 @@ end
 %% Write bin file.
 fwrite(fidDataMat, filt_data_mat, 'int16');
 fclose(fidDataMat);
+
 end  

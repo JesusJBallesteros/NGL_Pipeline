@@ -29,9 +29,11 @@ count            = 1; % just a counter for processed files
 %% Set up files to load 
 % if IncludeEventFile % Always included
 listOfFilesToLoad =  cell(maxFileIndex + 1, 1); % cell(maxFileIndex - 1 + 2, 1);
-if opt.useexe,     listOfFilesToLoad{count} = 'EVENT000.DF1';
-else,              listOfFilesToLoad{count} = fullfile(opt.PathRaw, 'EVENT000.DF1');
-end
+% if opt.useexe
+    listOfFilesToLoad{count} = 'EVENT000.DF1';
+% else
+%     listOfFilesToLoad{count} = fullfile(opt.PathRaw, 'EVENT000.DF1');
+% end
 count = count + 1;
 % end
 
@@ -49,24 +51,24 @@ end
 numberOfFiles = length(listOfFilesToLoad);
 
 % Executable requires a list as char array: 'NEUR0001 NEUR0001 ... NEURNNNN'
-if opt.useexe
+% if opt.useexe
     listOfFilesToLoadchar = [];
     for i=1:numberOfFiles
         listOfFilesToLoadchar = [listOfFilesToLoadchar ' ' cell2mat(listOfFilesToLoad(i))];
     end
 
-else % dll requires the use of .NET array, whatever that is...
-    fileNames = NET.createArray('System.String',numberOfFiles);
-    for i = 1:numberOfFiles
-         fileNames.Set(i - 1, listOfFilesToLoad{i});
-    end
-end
+% else % dll requires the use of .NET array, whatever that is...
+%     fileNames = NET.createArray('System.String',numberOfFiles);
+%     for i = 1:numberOfFiles
+%          fileNames.Set(i - 1, listOfFilesToLoad{i});
+%     end
+% end
 
 %% Load events
 % For executable just command system('file.exe, [char array of files], output.csv').
 % Input to system is actually a single one of class char array. The spaces in between 'subinputs' need to be explicited.
 
-if opt.useexe % Preferred way to go, due to simplicity.
+% if opt.useexe % Preferred way to go, due to simplicity.
     s = system([opt.exefile, ...                              % use full path to executable
                 listOfFilesToLoadchar, ' ', ...               % use char vector of full list of files
                 opt.FolderProcDataMat, '\EventRecord.CSV']);  % export to .cvs 
@@ -96,12 +98,12 @@ if opt.useexe % Preferred way to go, due to simplicity.
 %     % Get number of records.
 %     pause(300) % Give some time to the process in the background (used to be necessary without listener)
 %     numberOfRecords = c.GetNumberOfRecords(); % get number of records in event log
-end
+% end
 
 fprintf(['Events extracted. The number of records is: ' num2str(numberOfRecords) '\n']);
 
 %% Loop through records and add them to an EventRecord structure.
-if opt.useexe
+% if opt.useexe
     % Iterates backwards, preallocating array by assigning the final index first.
     for recIdx = numberOfRecords:-1:1 
         EventRecord(recIdx).EventNumber = str2double(char(myRecord(recIdx,1)));         % ?
@@ -122,7 +124,7 @@ if opt.useexe
 %         EventRecord(recIdx).TimeSource = char(myRecord(5));
 %         EventRecord(recIdx).Details = char(myRecord(6));
 %     end
-end
+% end
 fprintf('Successfully created ''EventRecord'' structure.\n');
 
 %% Use EventRecord to determine number of channels.
