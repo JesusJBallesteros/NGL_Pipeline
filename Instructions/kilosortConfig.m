@@ -8,11 +8,13 @@
 %% Often modified options
 ops.spkTh       = -4;   % spike threshold in standard deviations (-6).
 ops.ntbuff      = 32;   % samples of symmetrical buffer for whitening and spike detection
-ops.NT          = 64*1024 + ops.ntbuff; %  must be multiple of 32 + ntbuff. This is the batch size (try decreasing if out of memory).
+ops.NT          = 32*1000 + ops.ntbuff; %  must be multiple of 32 + ntbuff. This is the batch size (try decreasing if out of memory).
 ops.CAR         = 1; % Common average referencing (median)
-ops.AUCsplit    = 0.9; % splitting a cluster at the end requires at least this much isolation for each sub-cluster (max = 1)
-ops.minfr_goodchannels = 0.1; % minimum firing rate on a "good" channel (0 to skip)
+ops.AUCsplit    = 0.85; % splitting a cluster requires at least this much isolation for each sub-cluster (max = 1)
+ops.minfr_goodchannels = 0.5; % minimum firing rate on a "good" channel (0 to skip)
 ops.trange      = [0 Inf]; % Total time and channels to process (defaulted to the whole recording)
+
+% ops.criterionNoiseChannels = 1; % EXPERIMENTAL. allows a fraction of all templates to span more channel groups.
 
 %% Less often modified options
 ops.lam          = 10; % how important is the amplitude penalty (like in Kilosort1, 0 means not used, 10 is average, 50 is a lot) 

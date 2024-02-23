@@ -20,7 +20,7 @@ end
 
 %% Config
 if ~isfield(opt,'rerun') || isempty(opt.rerun),                                     opt.rerun = 1;  end 
-if ~isfield(opt,'nRawSpikesToExtract') || isempty(opt.nRawSpikesToExtract),         opt.nRawSpikesToExtract = 1000; end 
+if ~isfield(opt,'nRawSpikesToExtract') || isempty(opt.nRawSpikesToExtract),         opt.nRawSpikesToExtract = 5000; end 
 if ~isfield(opt,'ephys_sample_rate') || isempty(opt.ephys_sample_rate),             opt.ephys_sample_rate = 32000; end 
 if ~isfield(opt,'gain_to_uV') || isempty(opt.gain_to_uV),                           opt.gain_to_uV = 0.195; end 
 
@@ -53,7 +53,7 @@ path.ephysMetaDir       = ''; % path to your meta file
 path.rawFile = [path.ephysRawDir.folder, filesep, path.ephysRawDir.name]; % Ours is never .cbin, so far.
 
 % Set the rest of quality metric parameters, config file.
-param = bc_qualityParamValues(param, path);
+param = bombcellConfig(param, path);
 
 %% Load data from Kilosort outputs.
 [spikeTimes_samples, spikeTemplates, templateWaveforms, templateAmplitudes, pcFeatures, pcFeatureIdx, channelPositions] ...

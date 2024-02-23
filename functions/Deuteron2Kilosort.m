@@ -127,13 +127,13 @@ if strcmp(opt.ext, 'DF1')
 
 end
 
-%% Common methos of preprocessing. DC substraction, Referencing and filter.
-% Subtract the mean from each channel
-data_mat = single(data_mat);
-data_mat = data_mat - mean(data_mat, 1);
-
-% CAR, common average referencing by median.
+%% Common methods of preprocessing. DC substraction, Referencing and filter.
 if opt.CAR
+    % Subtract the mean from each channel
+    data_mat = single(data_mat);
+    data_mat = data_mat - mean(data_mat, 1);
+
+    % CAR, common average referencing by median.
     data_mat = data_mat - median(data_mat, 2); % subtract median across channels
 end
 

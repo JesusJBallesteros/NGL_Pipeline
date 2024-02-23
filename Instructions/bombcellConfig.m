@@ -1,4 +1,4 @@
-function param = bc_qualityParamValues(param, path)
+function param = bombcellConfig(param, path)
 % JF, Load a parameter structure defining extraction and
 % classification parameters
 % 
@@ -44,12 +44,9 @@ param.recomputeDuplicateSpikes = 0;
 param.detrendWaveform = 1; % If this is set to 1, each raw extracted spike is
     % detrended (we remove the best straight-fit line from the spike)
     % using MATLAB's builtin function detrend.
-% param.detrendWaveforms = 0; repeated?
-param.saveMultipleRaw = 0; % If you wish to save the nRawSpikesToExtract as well, 
-    % currently only to run https://github.com/EnnyvanBeest/UnitMatch
-    % Removed, so it could go.
+param.saveMultipleRaw = 0; % If you wish to save the nRawSpikesToExtract 
 param.decompressData = 0; % whether to decompress .cbin ephys data 
-param.spikeWidth = 82; % width in samples 
+param.spikeWidth = 64; % width in samples. WAS 82
 param.extractRaw = 1; % whether to extract raw waveforms or not 
 param.probeType = []; % if you are using spikeGLX and your meta file does 
     % not contain information about your probe type for some reason
@@ -59,18 +56,18 @@ param.probeType = []; % if you are using spikeGLX and your meta file does
     % type, or if you are using open ephys, this paramater wil be ignored.
 
 % signal to noise ratio
-param.waveformBaselineNoiseWindow = 20; %time in samples at beginning of times
+param.waveformBaselineNoiseWindow = 20; % time in samples at beginning of times
     % extracted to computer the mean raw waveform - this needs to be before the
     % waveform starts 
 
 % refractory period parameters
-param.tauR_valuesMin = 0.0020; % refractory period time (s), usually 0.0020. 
+param.tauR_valuesMin = 0.002; % refractory period time (s), usually 0.0020. 
     % If this value is different than param.tauR_valuesMax, bombcell will
     % estimate the tauR value taking possible values between :
     % param.tauR_valuesMin:param.tauR_valuesStep:param.tauR_valuesMax
 param.tauR_valuesStep = 0.0005; %0.5/1000; % refractory period time (s) steps. Only 
     % used if param.tauR_valuesMin is different from param.tauR_valuesMax
-param.tauR_valuesMax = 0.0020; % refractory period time (s), usually 0.0020
+param.tauR_valuesMax = 0.002; % refractory period time (s), usually 0.0020
 param.tauC = 0.0001; % censored period time (s)
 
 % percentage spikes missing parameters 
@@ -83,7 +80,7 @@ param.presenceRatioBinSize = 60; % in seconds
 
 % drift estimate
 param.driftBinSize = 60; % in seconds
-param.computeDrift = 0; % whether to compute each units drift. this is a 
+param.computeDrift = 1; % whether to compute each units drift. this is a 
     % critically slow step that takes around 2seconds per unit 
 
 % waveform parameters
@@ -98,19 +95,19 @@ param.nChannels = 32; %number of recorded channels recorded in the raw data.
 param.nSyncChannels = 1;
 
 % distance metric parameters
-param.computeDistanceMetrics = 0; % whether to compute distance metrics - this can be time consuming 
+param.computeDistanceMetrics = 1; % whether to compute distance metrics - this can be time consuming 
 param.nChannelsIsoDist = 4; % number of nearby channels to use in distance metric computation 
 
 %% classifying units into good/mua/noise parameters 
 % whether to classify non-somatic units 
-param.splitGoodAndMua_NonSomatic = 0;
+param.splitGoodAndMua_NonSomatic = 1;
 
 % waveform 
 param.maxNPeaks = 2; % maximum number of peaks
 param.maxNTroughs = 1; % maximum number of troughs
 param.somatic = 1; % keep only somatic units, and reject non-somatic ones
 param.minWvDuration = 100; % in us
-param.maxWvDuration = 1000; % in us
+param.maxWvDuration = 1500; % in us
 param.minSpatialDecaySlope = -0.003; % in a.u./um
 param.maxWvBaselineFraction = 0.3; % maximum absolute value in waveform baseline
     % should not exceed this fraction of the waveform's abolute peak value

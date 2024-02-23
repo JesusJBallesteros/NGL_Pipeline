@@ -45,14 +45,15 @@ end
 %% Default options.
 if ~isfield(opt,'bin'),             opt.bin                 = true;         end
 if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
-if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
-if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = true;         end
+if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = false;        end
+if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
 if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  150];   end
 if ~isfield(opt,'highpass'),        opt.highpass            = [450 7000];   end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
 if ~isfield(opt,'useexe'),          opt.useexe              = false;        end
 if ~isfield(opt,'usepar'),          opt.usepar              = false;        end
 if ~isfield(opt,'parsetrial'),      opt.parsetrial          = false;        end
+if ~isfield(opt,'CAR'),             opt.CAR                 = true;         end
 
 %% Set local options.
 % DEPR % Explicit exe/dll locations 
