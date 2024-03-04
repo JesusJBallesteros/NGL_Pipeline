@@ -112,6 +112,7 @@ end
 function [hex,name] = getcolors()
   css = {
     %White colors
+    'FF','FF','FF', 'w'
     'FF','FF','FF', 'White'
     'FF','FA','FA', 'Snow'
     'F0','FF','F0', 'Honeydew'

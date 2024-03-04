@@ -202,8 +202,10 @@ for iAx = 1:size(all_axes, 2)
         for thisLine = childLines'
             % if any lines/points become the same as background, change
             % these.
-            if sum(thisLine.Color == options.FigureColor) == 3
-                thisLine.Color = options.TextColor;
+            if ~strcmp(thisLine.Color,'none')
+                if sum(thisLine.Color == options.FigureColor) == 3
+                    thisLine.Color = options.TextColor;
+                end
             end
             % adjust markersize
             if sum(get(thisLine, 'Marker') == 'none') < 4
@@ -234,7 +236,7 @@ for iAx = 1:size(all_axes, 2)
             % adjust markersize
             if sum(get(thisPoint, 'Marker') == 'none') < 4
                 set(thisPoint, 'SizeData', options.PointSize);
-                set(thisPoint, 'MarkerFaceColor', thisPoint.CData);
+%                 set(thisPoint, 'MarkerFaceColor', thisPoint.CData);
             end
         end
 

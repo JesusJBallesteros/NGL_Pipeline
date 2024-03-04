@@ -15,7 +15,7 @@ for iColorBar = 1:length(colorbars)
     if ChangeColormaps && currColorbar.Limits(1) < 0 && currColorbar.Limits(2) > 0 % equalize, and use a diverging colormap
         colormap(currColorbar.Parent, brewermap(100, DivergingColormap))
     elseif ChangeColormaps %use a sequential colormap 
-        colormap(currColorbar.Parent, brewermap(100, SequentialColormap))
+        colormap(currColorbar.Parent, brewermap(100, ['-' SequentialColormap]))
     end
     colorbarProperties(iColorBar).Limits = currColorbar.Limits;
     colorbarProperties(iColorBar).Parent = currColorbar.Parent;
@@ -44,7 +44,7 @@ for iColorBar = 1:length(colorbars)
     %currColorbar.Position = [colorbarProperties(iColorBar).Position_ori(1)+35, colorbarProperties(iColorBar).Position_ori(2:4)]; % QQ hardcoded
     currColorbar.Label.String = colorbarProperties(iColorBar).Label;%QQ error - this doesn't work with XLabel. 
     currColorbar.Label.Rotation = 270; % Rotate the label to be horizontal
-    currColorbar.Label.Position = [3, 0.5, 0]; % You might need to adjust these values
+    currColorbar.Label.Position = [3, currColorbar.Limits(2)/2, 0]; % You might need to adjust these values
 
     currColorbar.Limits = colorbarProperties(iColorBar).Limits;
     %currColorbar.Units = 'Normalized'; % set back to normalized so it scales with figure

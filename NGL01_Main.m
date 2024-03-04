@@ -108,7 +108,7 @@ for x = 1:input.nsubjects % Subjects.
         %% 05. Bombcell
         if opt.bombcell
             % Kilosort will run without GUI.
-            Bombcell_Main(opt) 
+            Bombcell_Main(input, opt) 
         end
 
         %% 06. Open Phy to manual curation or just inspection

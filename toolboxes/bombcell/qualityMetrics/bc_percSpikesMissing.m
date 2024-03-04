@@ -142,7 +142,7 @@ end
 
 if plotThis 
     if exist('prettify_plot', 'file')
-        prettify_plot('FigureColor', 'w', 'XLimits', 'keep', 'YLimits', 'all')
+        prettify_plot('FigureColor', 'white', 'XLimits', 'keep', 'YLimits', 'all')
     else
         warning('https://github.com/Julie-Fabre/prettify-matlab repo missing - download it and add it to your matlab path to make plots pretty')
         makepretty('none')
@@ -160,7 +160,7 @@ if plotThis
     xlabel('time (s)')
     ylabel(['amplitude scaling', newline, 'factor'])
     if exist('prettify_plot', 'file')
-        prettify_plot('FigureColor', 'w', 'XLimits', 'keep', 'YLimits', 'keep', 'TickLength', 0.01)
+        prettify_plot('FigureColor', 'white', 'XLimits', 'keep', 'YLimits', 'keep', 'TickLength', 0.01)
     else
         warning('https://github.com/Julie-Fabre/prettify-matlab repo missing - download it and add it to your matlab path to make plots pretty')
         makepretty('none')

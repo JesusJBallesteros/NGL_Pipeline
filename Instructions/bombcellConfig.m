@@ -1,25 +1,34 @@
-function param = bombcellConfig(param, path)
-% JF, Load a parameter structure defining extraction and
-% classification parameters
-% 
-% Inputs
-% ephysMetaDir: dir() structure of the path to your .meta or .oebin meta
-%   file
-% rawFile: character array defining the path where your uncompressed raw
-%   ephys data is
-% 
-% Outputs
-% param: matlab structure defining extraction and
-% classification parameters (see bc_qualityParamValues for required fields
-% and suggested starting values)
-% 
-% Modified by Jesus 29/11/2023
+% Creates parameter ans paths structures, defining extraction and classification parameters
+%  
+% Modified by Jesus 29/02/2024
 
-% pre-Existing metrics?
+%% Set paths
+% Find .bin files.
+path.ephysKilosortPath  = opt.FolderProcDataMat; % the raw data binary file is in this folder (for current subject and session)
+path.ephysRawDir        = dir([opt.FolderProcDataMat, '\*.*bin']); % your raw .bin data
+path.savePath           = opt.FolderProcDataMat; % where you want to save the quality metrics
+
+% We don't need this. Deprecating
+% path.decompressDataLocal = fullfile(path.ephysKilosortPath, 'decompressedData'); % where to save raw decompressed ephys data 
+% path.ephysMetaDir       = ''; % path to your meta file
+
+% Detect whether data is compressed. Decompress locally, if necessary.
+path.rawFile = [path.ephysRawDir.folder, filesep, path.ephysRawDir.name]; % Ours is never .cbin, so far.
+
+%% Pre-Existing metrics?
 param.qMetricsExist = ~isempty(dir(fullfile(path.savePath, 'qMetric*.mat'))) || ~isempty(dir(fullfile(path.savePath, 'templates._bc_qMetrics.parquet')));
 
-%% calculating quality metrics parameters 
-param.plotDetails = 0; % lot of plots to check, debug or for a presentation
+%% Calculating quality metrics parameters 
+param.plotDetails = 1; % lot of plots to check, debug or for a presentation
+
+% mods
+param.rerun = 1;
+param.nRawSpikesToExtract = 2500;
+param.ephys_sample_rate = 32000;
+param.gain_to_uV = 0.195;
+
+param.duplicateSpikeWindow_s = 0.0001; % in seconds (was 0.00001)
+param.spikeWidth = 64; % width in samples. (was 82)
 
 % plotting parameters 
 param.plotGlobal    = 1; % plot summary of quality metrics 
@@ -36,24 +45,17 @@ param.saveMatFileForGUI = 1; % save certain outputs at .mat file - useful for GU
 
 % duplicate spikes parameters 
 param.removeDuplicateSpikes = 1;
-param.duplicateSpikeWindow_s = 0.00001; % in seconds 
 param.saveSpikes_withoutDuplicates = 1;
+% param.duplicateSpikeWindow_s = 0.0001; % in seconds (was 0.00001)
 param.recomputeDuplicateSpikes = 0;
 
 % amplitude / raw waveform parameters
-param.detrendWaveform = 1; % If this is set to 1, each raw extracted spike is
-    % detrended (we remove the best straight-fit line from the spike)
-    % using MATLAB's builtin function detrend.
+param.detrendWaveform = 1; % If this is set to 1, each raw extracted spike is detrended
 param.saveMultipleRaw = 0; % If you wish to save the nRawSpikesToExtract 
 param.decompressData = 0; % whether to decompress .cbin ephys data 
-param.spikeWidth = 64; % width in samples. WAS 82
+% param.spikeWidth = 64; % width in samples. (was 82
 param.extractRaw = 1; % whether to extract raw waveforms or not 
-param.probeType = []; % if you are using spikeGLX and your meta file does 
-    % not contain information about your probe type for some reason
-    % specify it here: '1' for 1.0 (3Bs) and '2' for 2.0 (single or 4-shanks)
-    % For additional probe types, make a pull request with more
-    % information.  If your spikeGLX meta file contains information about your probe
-    % type, or if you are using open ephys, this paramater wil be ignored.
+param.probeType = []; % For additional probe types. Not valid yet.
 
 % signal to noise ratio
 param.waveformBaselineNoiseWindow = 20; % time in samples at beginning of times
@@ -126,5 +128,3 @@ param.minNumSpikes = 1000; % number of spikes
 param.maxDrift = 100;
 param.minPresenceRatio = 0.7;
 param.minSNR = 0.1;
-
-end

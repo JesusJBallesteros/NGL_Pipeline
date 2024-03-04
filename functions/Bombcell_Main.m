@@ -1,4 +1,4 @@
-function Bombcell_Main(varargin)
+function Bombcell_Main(input, opt)
 % Adapted Bombcell pipeline 
 % Set the paths here and the parameters in 'bc_qualityParamValues'
 % This pipeline will:
@@ -12,24 +12,34 @@ function Bombcell_Main(varargin)
 % quality metric thresholds depending on the summary plots (histograms 
 % of the distributions of quality metrics for each unit) and GUI. 
 %
-% Jesus 21.12.2023
+% Jesus 29.02.2023
 
-if nargin < 1, opt = struct();
-elseif nargin == 1, opt = varargin{1};
+param = struct; % initialize bombcell param structure.
+path = struct; % initialize bombcell path structure.
+
+%% Non-existing config file in adequate folder.
+if ~isfile(fullfile(input.analysisCode, 'bombcellConfig.m'))
+    warning('Config File not found under expected folder ''analysisCode''. Using a default version.')
+    % If exists, use the standard one stored within the toolbox.
+    if isfile(fullfile(input.toolbox, '\Instructions\bombcellConfig.m'))
+        copyfile(fullfile(input.toolbox, '\Instructions\bombcellConfig.m'), input.analysisCode);
+    else
+        % It does not exist for some reason.
+        error('Could not find the default configuration file for Kilosort. Skipped.')
+    end
 end
 
-%% Config
-if ~isfield(opt,'rerun') || isempty(opt.rerun),                                     opt.rerun = 1;  end 
-if ~isfield(opt,'nRawSpikesToExtract') || isempty(opt.nRawSpikesToExtract),         opt.nRawSpikesToExtract = 5000; end 
-if ~isfield(opt,'ephys_sample_rate') || isempty(opt.ephys_sample_rate),             opt.ephys_sample_rate = 32000; end 
-if ~isfield(opt,'gain_to_uV') || isempty(opt.gain_to_uV),                           opt.gain_to_uV = 0.195; end 
+% Valid file found. Run it.
+run(fullfile(input.analysisCode, 'bombcellConfig.m'));
 
-%% Defaults, if not given.
-param = struct; % initialize bombcell param structure. Get opts 
-    param.rerun = opt.rerun;
-    param.nRawSpikesToExtract = opt.nRawSpikesToExtract; % how many raw spikes to extract for each unit 
-    param.ephys_sample_rate = opt.ephys_sample_rate; % samples per second. 32KHz Deuteron, 30KHz Intan
-    param.gain_to_uV = opt.gain_to_uV; % Same for Deuteron and Intan. (vs their openephys stuff)
+%% Override params based on opts
+if isfield(opt,'rerun'),                param.rerun = opt.rerun;  end 
+if isfield(opt,'nRawSpikesToExtract'),  param.nRawSpikesToExtract = opt.nRawSpikesToExtract; end 
+if isfield(opt,'ephys_sample_rate'),    param.ephys_sample_rate = opt.ephys_sample_rate; end 
+if isfield(opt,'gain_to_uV'),           param.gain_to_uV = opt.gain_to_uV; end 
+
+% %% Set the rest of quality metric parameters, config function.
+% [param, path] = bombcellConfig(param, opt);
 
 %% Faster compute. Compile .mex file only if not done yet
 if ~isfile('C:\Code\ephys-data-pipeline\toolboxes\bombcell\ephysProperties\helpers\CCGHeart.mexw64')
@@ -38,22 +48,6 @@ if ~isfile('C:\Code\ephys-data-pipeline\toolboxes\bombcell\ephysProperties\helpe
     mex -O CCGHeart.c 
     cd(orig); clear orig
 end
-
-%% Set paths - EDIT THESE
-% Find .bin files. I assume it will be always in a SDD for processing.
-path.ephysKilosortPath  = opt.FolderProcDataMat; % the raw data binary file is in this folder (for current subject and session)
-path.ephysRawDir        = dir([opt.FolderProcDataMat, '\*.*bin']); % your raw .bin data
-path.savePath           = opt.FolderProcDataMat; % where you want to save the quality metrics
-
-% We don't need this. Deprecating
-path.decompressDataLocal = fullfile(path.ephysKilosortPath, 'decompressedData'); % where to save raw decompressed ephys data 
-path.ephysMetaDir       = ''; % path to your meta file
-
-% Detect whether data is compressed. Decompress locally, if necessary.
-path.rawFile = [path.ephysRawDir.folder, filesep, path.ephysRawDir.name]; % Ours is never .cbin, so far.
-
-% Set the rest of quality metric parameters, config file.
-param = bombcellConfig(param, path);
 
 %% Load data from Kilosort outputs.
 [spikeTimes_samples, spikeTemplates, templateWaveforms, templateAmplitudes, pcFeatures, pcFeatureIdx, channelPositions] ...
@@ -65,8 +59,7 @@ if ~param.qMetricsExist || param.rerun
     [qMetric, unitType] = bc_runAllQualityMetrics(param, spikeTimes_samples, spikeTemplates, ...
                                                   templateWaveforms, templateAmplitudes, pcFeatures, ...
                                                   pcFeatureIdx, channelPositions, path);
-% If previous metrics exist
-else
+else % If previous metrics exist
     [param, qMetric] = bc_loadSavedMetrics(path);
     unitType = bc_getQualityUnitType(param, qMetric, savePath);
 end

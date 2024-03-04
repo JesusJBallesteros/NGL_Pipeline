@@ -100,11 +100,24 @@ for iUnit = 1:size(uniqueTemplates, 1)
     [percentageSpikesMissing_gaussian, percentageSpikesMissing_symmetric, ksTest_pValue, ~, ~, ~] = ...
         bc_percSpikesMissing(theseAmplis, theseSpikeTimes, timeChunks, param);
 
+    if param.plotDetails
+        mkdir(fullfile(path.savePath,"singleplots"))
+        txt = [int2str(thisUnit) + "perc_spk_miss"];
+        saveas(gcf, fullfile(path.savePath,"singleplots", txt), 'png');
+        close(gcf);
+    end
+
     % Fraction contamination (false positives)
     tauR_window = param.tauR_valuesMin:param.tauR_valuesStep:param.tauR_valuesMax;
 
     [fractionRPVs, ~, ~] = ...
         bc_fractionRPviolations(theseSpikeTimes, theseAmplis, tauR_window, timeChunks, param);
+
+    if param.plotDetails
+        txt = [int2str(thisUnit) + "_fract_RP_viol"];
+        saveas(gcf, fullfile(path.savePath,"singleplots", txt), 'png');
+        close(gcf);
+    end
 
     % Define timechunks to keep: keep times with low percentage spikes missing and low fraction contamination
     [theseSpikeTimes, theseAmplis, theseSpikeTemplates, qMetric.useTheseTimesStart(iUnit), qMetric.useTheseTimesStop(iUnit), ...
@@ -120,13 +133,31 @@ for iUnit = 1:size(uniqueTemplates, 1)
      forGUI.ampliGaussianFit{iUnit}] = ...
         bc_percSpikesMissing(theseAmplis, theseSpikeTimes, thisUnits_timesToUse, param);
 
+    if param.plotDetails
+        txt = [int2str(thisUnit) + "miss_spk"];
+        saveas(gcf, fullfile(path.savePath,"singleplots", txt), 'png');
+        close(gcf);
+    end
+
     [qMetric.fractionRPVs(iUnit, :), ~, ~] = ...
         bc_fractionRPviolations(theseSpikeTimes, theseAmplis, tauR_window, thisUnits_timesToUse, param); %qMetric.RPV_tauR_estimate(iUnit),
+
+    if param.plotDetails
+        txt = [int2str(thisUnit) + "_fract_viol"];
+        saveas(gcf, fullfile(path.savePath,"singleplots", txt), 'png');
+        close(gcf);
+    end
 
     % Presence ratio (potential false negatives)
     [qMetric.presenceRatio(iUnit)] = ...
         bc_presenceRatio(theseSpikeTimes, theseAmplis, qMetric.useTheseTimesStart(iUnit), ...
                          qMetric.useTheseTimesStop(iUnit), param);
+
+    if param.plotDetails
+        txt = [int2str(thisUnit) + "_pres_ratio"];
+        saveas(gcf, fullfile(path.savePath,"singleplots", txt), 'png');
+        close(gcf);
+    end    
 
     % Maximum cumulative drift estimate
     [qMetric.maxDriftEstimate(iUnit), qMetric.cumDriftEstimate(iUnit)] = ...
@@ -142,6 +173,12 @@ for iUnit = 1:size(uniqueTemplates, 1)
      qMetric.spatialDecaySlope(iUnit), qMetric.waveformBaselineFlatness(iUnit), forGUI.tempWv(iUnit, :)] = ...
         bc_waveformShape(templateWaveforms, thisUnit, qMetric.maxChannels(thisUnit), channelPositions, param);
 
+    if param.plotDetails
+        txt = [int2str(thisUnit) + "_wavf_shape"];
+        saveas(gcf, fullfile(path.savePath,"singleplots", txt), 'png');
+        close(gcf);
+    end
+    
     % Amplitude
     if param.extractRaw
         rawWaveformsThisUnit = rawWaveformsFull(iUnit, rawWaveformsPeakChan(iUnit), :);
@@ -159,6 +196,12 @@ for iUnit = 1:size(uniqueTemplates, 1)
             bc_getDistanceMetrics(pcFeatures, pcFeatureIdx, thisUnit, sum(spikeTemplates == thisUnit), spikeTemplates == thisUnit, ...
                                   theseSpikeTemplates, param);            
     end
+
+    if param.plotDetails
+        txt = [int2str(thisUnit) + "_dist_metr"];
+        saveas(gcf, fullfile(path.savePath,"singleplots", txt), 'png');
+        close(gcf);
+    end    
 
     %% Progress
     if ((mod(iUnit, 50) == 0) || iUnit == length(uniqueTemplates)) && param.verbose
