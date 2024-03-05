@@ -5,7 +5,7 @@ function [opt] = Deuteron_PipelineWrapper(input, varargin)
 % expanded to extract audio as well.
 %
 % DEPENDENCIES
-%   Deuteron_EventFileReaderDll: To extract Event Record from Deuteron Block format.
+%   % Deuteron_EventFileReaderDll: To extract Event Record from Deuteron Block format.
 %   Deuteron2Kilosort: To compile recorded data in a single file per channel.
 %                      Can also split the data based on event codes. 
 %   Deuteron_GetMotionSensors: To extract data from motion sensors.
@@ -50,16 +50,14 @@ if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
 if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  150];   end
 if ~isfield(opt,'highpass'),        opt.highpass            = [450 7000];   end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
-if ~isfield(opt,'useexe'),          opt.useexe              = false;        end
-if ~isfield(opt,'usepar'),          opt.usepar              = false;        end
 if ~isfield(opt,'parsetrial'),      opt.parsetrial          = false;        end
 if ~isfield(opt,'CAR'),             opt.CAR                 = true;         end
 
 %% Set local options.
-% DEPR % Explicit exe/dll locations 
+% % DEPR % Explicit exe/dll locations
 %       opt.exefile     = input.exefile;
 %       opt.ReaderDll   = input.ReaderDll;
-% DEPR
+% % DEPR
 
 % Collect parameters to proceed with file creation. List all files.
 opt.myFiles = input.sessions(input.run(1)).info.files;
@@ -68,11 +66,11 @@ opt.ext     = input.sessions(input.run(1)).info.fileformat;
 % Set Sample rate.
 opt.sampleRate  = input.sessions(input.run(1)).info.amplifier_sample_rate;
 
-% DEPR% Set ChunkSize of HDF5 file (e.g., 5 minutes: 300s x 30000Hz = 9600000 samples)
+% % DEPR% Set ChunkSize of HDF5 file (e.g., 5 minutes: 300s x 30000Hz = 9600000 samples)
 % opt.HDF5chunkSize = 300*opt.sampleRate; 
-% DEPR
+% % DEPR
 
-% DEPR % Get number and order of channels if not done yet. (ORDER NEEDS TO BE FIXED)
+% % DEPR % Get number and order of channels if not done yet. (ORDER NEEDS TO BE FIXED)
 % if isempty(input.sessions(input.run(1)).info.nChannels)
 %     opt.channelOrder    = load(fullfile(input.analysisCode, opt.KSchanMapFile),'chanMap'); 
 %     opt.channelOrder    = opt.channelOrder.chanMap;
@@ -85,7 +83,7 @@ opt.sampleRate  = input.sessions(input.run(1)).info.amplifier_sample_rate;
 %         opt.channelOrder    = [];
 %     end
 % end
-% DEPR
+% % DEPR
 
 % Few specific parameters from Deuteron's log and documentation, to convert bits to physical units.
 opt.numberOfAdcBits   = input.sessions(input.run(1)).info.numADCBits;
@@ -93,8 +91,9 @@ opt.voltageResolution = input.sessions(input.run(1)).info.voltageRes;
 opt.offset            = 2^(opt.numberOfAdcBits-1);
 
 %% Event data retrieval and trial definition.
+% 'trialdef' outputted for later feed into fieldtrip transf.
+[~, trialdef, ~] = Deuteron_EventProcess(opt);
 % An empty 'events'/'trialdef' would tell that data shall be treated as continuous.
-[~, trialdef, ~] = Deuteron_EventProcess(opt); % 'trialdef' outputted for later feed into fieldtrip transf.
 
 %% High-pass Neural Data Conversion to .bin
 if opt.bin

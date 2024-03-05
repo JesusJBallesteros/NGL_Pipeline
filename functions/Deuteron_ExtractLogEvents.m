@@ -56,7 +56,7 @@ for i=2:length(stateLog)
     newState(pinChange(i-1)) = pinStatus(i-1);
     stateLog(i,:) = newState;
 end
-stateLog(1,:) = []; % remove initial state
+% stateLog(1,:) = []; % remove initial state
 stateLog = int2str(stateLog);
 
 % %% As a final account for active channels, we use the explicit log about it

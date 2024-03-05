@@ -29,7 +29,7 @@ function [events, trialdef, eventdef] = trialdefGen(EventRecord, opt)
 %         eventdef: the event definitions used to create trials, 
 %                   either defaulted or the ones given by the user.
 
-% Jesus. 25.01.2024
+% Jesus. 05.03.2024
 
 %% Default event descriptor-decimal value definitions
 %% Default event descriptor-decimal value definitions
@@ -65,14 +65,17 @@ EventRecord.TimeMsFromMidnight = (EventRecord.TimeMsFromMidnight - EventRecord.T
 idx = find(EventRecord.EventType==opt.eventdef.itiOn); 
 trialstarts = EventRecord.TimeMsFromMidnight(idx); % get corresponding timestamps.
 
-% use this as a reliable marker for number of trials
-ntrials = length(trialstarts); % count trial starts.
-
 % Now index the end of the trials
 idx = find(EventRecord.EventType==opt.eventdef.end1 | ...
            EventRecord.EventType==opt.eventdef.end2 | ...
            EventRecord.EventType==opt.eventdef.end3);
 trialends = EventRecord.TimeMsFromMidnight(idx); % get corresponding timestamps.
+
+% Safety check, are trialstarts and trialends equal?
+assert(length(trialstarts)==length(trialends),'Mismatch found between number of trialStatrt and trialEnd events!')
+
+% I OK, use either as a reliable count for number of trials
+ntrials = length(trialstarts); % count trial starts.
 
 % Now index the events we want to align the trials as t0
 idx = find(EventRecord.EventType==opt.eventdef.t0); 

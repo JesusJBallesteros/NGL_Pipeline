@@ -14,29 +14,9 @@
 % I suggest to include the 'mainfolder' in Matlab's permanent path system.
 % The function 'set_default' will take care of the rest of folders on each run.
 %
-% INPUTS:
-%       input.datadrive, char array with the drive where data is located. As 'D:\'
-%       input.studyName, char array with the project name, matching the
-%                          folder name where all data will be stored. As 'studyName'
-%       input.subjects,  char array with either 'all' OR a single subject name e.g. 'DOE'
-%       input.dates,     char array with either 'all' OR a cell array of dates 
-%                          for a SINGLE subject e.g. {'YYYYMMDD' 'yyyymmdd' ...)
-%
-% OPTIONS: is a struct with many possible fields. All should have a
-% corresponding default inside whatever function is being called. Main ones
-% are:     
-%     opt.bin,              Creation of .bin file, input to Kilosort 2/4.
-%     opt.FTfile,           Creation of .mat file with FieldTrip format.
-%     opt.RetrieveEvents,   Retrieve event log from Deuteron system.
-%     opt.GetMotionSensors, Retrieve data from motion sensors in Deuteron.
-%     opt.kilosort,         Asks to proceed with KS processing and waits to retrieve its results.
-%     opt.set_filter,       If Deuteron data was adquired with a wideband.
-%     opt.lowpass,          Lowpass band to extract LFP from wideband.
-%     opt.highpass,         Highpass band to extract spike activity.
-%
 % OUTPUTS:
 % For one single session or for a batch of sessions, from one single animal:
-%       Fieldtrip (.mat), binary (.bin), HDF5 (.h5) and/or .nwb files from
+%       Fieldtrip (.mat), binary (.bin) and/or HDF5 (.h5) and .nwb files from
 %           1. Deuteron .DT2 or .DF1 data.
 %           2. INTAN file-per-type and file-per-channel format data.
 %           3. (ALLEGO data?)
@@ -44,7 +24,7 @@
 %       MotionData.mat file, From Deuteron sensors.
 %       Plots snippets of time- and frequency-domain data, from FieldTrip
 %       
-% Last modified 26.04.2023 (Jesus)
+% Last modified 05.03.2024 (Jesus)
 
 % TODO LIST
 % Order channels as incremental ordinals. (in 'Deuteron_ExtractEvents' ~136)
