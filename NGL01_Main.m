@@ -73,7 +73,7 @@ for x = 1:input.nsubjects % Subjects.
     
             case {'fileperch', 'filepertype'}
                % 03.2 INTAN Pipeline
-               INTAN_PipelineWrapper(input, opt);
+               input = INTAN_PipelineWrapper(input, opt);
     
             otherwise
                warning('Something went wrong during format verification. Skipping Session');

@@ -9,7 +9,7 @@ function Intan2Kilosort_fileperch(opt)
 % Author:         Aylin, Lukas & Sara
 % Version:        1
 %
-% Version 14.04.2023 Jesus
+% Version 13.03.2024 Jesus
  
 % TODO 
 % Downsampling highpass data to perhaps 15kHz?
@@ -51,7 +51,7 @@ for i = 1:opt.numChannels
     % Each sample of neural data is a 16 bit word. Read as int16,
     % and keep it that way. 
     fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name));
-    data = fread(fid, [1 opt.num_samples], 'int16=>int16');
+        data = fread(fid, [1 opt.num_samples], 'int16=>int16');
     fclose(fid);
   
     % Data comes as channels x samples from INTAN. Convert to microvolts.
@@ -72,9 +72,6 @@ for i = 1:opt.numChannels
         data = int16(tmp);
         clear tmp
 
-        % No downsampling needed for highpass bands. 
-        % (However, since we highpass only up to 7500 Hz, we could, in theory,
-        % reduce the data to a half by downsampling to 15000 Hz.
     end
        
     % write each channel as a whole into the matrix (hdf5)
@@ -108,6 +105,16 @@ for j = chunks
                                 [k j],        ... % chunk and channel to write    
                                 [1 lastchunk]);   % samples to write
         end
+    end
+    
+    if opt.CAR
+        % Subtract the mean from each channel
+        Chunk = single(Chunk);
+        Chunk = Chunk - mean(Chunk, 1);
+    
+        % CAR, common average referencing by median.
+        Chunk = Chunk - median(Chunk, 2); % subtract median across channels
+        Chunk = int16(Chunk);
     end
 
     fwrite(fidDataMat, Chunk, 'int16');

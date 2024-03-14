@@ -1,7 +1,7 @@
-function INTAN_PipelineWrapper(input, varargin)
+function input = INTAN_PipelineWrapper(input, varargin)
 %
 %
-% Version 22.02.2024 (Jesus)
+% Version 13.03.2024 (Jesus)
 
 if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
@@ -10,6 +10,7 @@ end
 %% Defaults 
 if ~isfield(opt,'bin'),             opt.bin                 = true;         end
 if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
+if ~isfield(opt,'useNWB'),          opt.useNWB              = false;        end
 if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = false;        end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
 

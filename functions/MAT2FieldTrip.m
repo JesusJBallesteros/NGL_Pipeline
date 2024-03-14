@@ -23,6 +23,7 @@ end
 if nargin < 3
    cont = true; % do not trial parse
    disp('No trial definition was given. Data treated as continuous.');
+   trialdef = [];
 elseif nargin == 3
     trialdef = varargin{1};
     if isempty(trialdef)
