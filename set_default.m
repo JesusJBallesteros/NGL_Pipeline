@@ -1,4 +1,4 @@
-function input = set_default(input)
+function input = set_default(input, opt)
 % 'set_default' adds the dependencies, included under the main folder.
 %
 % It reads the inputs, if any, and validates them.
@@ -9,7 +9,7 @@ function input = set_default(input)
 % 
 % For missing optionals, it uses defaults.
 %
-% Jesus. 21.12.2023
+% Jesus. 22.03.2024
 
 %% Set default to extract data without NWB file creation.
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
@@ -53,13 +53,33 @@ end
 % Get final number of subjects added
 input.nsubjects = length(input.subjects);
 
-%% Optional Inputs    
-% If NWB requested, Python-based toolbox needed. 
+%% If NWB requested, Python-based toolbox needed. 
 if input.useNWB 
     if ~isfield(input,'pyfolder') || isempty(input.pyfolder)
         input.pyfolder = [input.toolbox '\toolboxes\IntanToNWB']; % Add it
     end
 end
+
+%% Kilosort-related
+if opt.kilosort == 2
+   input.KSpath = 'C:\Kilosort_2.0'; % Absolute path to kilosort, it can change among PCs
+   
+   % Add Kilosort (external)
+   addpath(genpath(input.KSpath)) % path to kilosort toolbox
+
+elseif opt.kilosort == 4
+   input.KSpyfolder = 'C:\code\miniconda3\envs\kilosort'; % Path to the conda installation. This can change among PCs
+   input.KSpyenv_NGL = [input.KSpyfolder, '\Lib\site-packages\kilosort']; % Kilosort package for the python enviroment. This can change among PC's
+   
+   % Copy NGL customized py files to kilosort enviroment's library
+   orig_dir = pwd; % where we come from
+   cd(input.analysisCode) % go to where customized py files are, \analysisCode
+        copyfile("*.py", input.KSpyenv_NGL); % copy the customized py files to the working directory
+   cd(orig_dir) % back to previous folder
+
+   % No need to add to matlab path
+end
+
 
 %% Set Dependencies. Critical to find toolboxes.
 cd(input.toolbox)
@@ -75,9 +95,6 @@ addpath(genpath('toolboxes\Deuteron'))
 addpath(genpath('toolboxes\npy-matlab'))
 addpath(genpath('toolboxes\bombcell'))
 addpath(genpath('toolboxes\spikes'))
-
-% Add Kilosort (external)
-addpath(genpath(input.KSpath)) % path to kilosort toolbox
 
 % Initialize FT
 ft_defaults

@@ -38,7 +38,7 @@
 % There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 
-% Version 01.02.2024 (Jesus)
+% Version 22.03.2024 (Jesus)
 
 %% 00. Check current inputs.
 % Check if input variable exist already. Parse values.
@@ -46,7 +46,6 @@ if ~exist("input","var")
     input = struct( 'datadrive' , datadrive , ...   % force char array
                     'studyName' , studyname , ...   % force char array
                     'toolbox'   , toolbox   , ...   % force char array
-                    'KSpath'    , KSpath    , ...   % force char array
                     'subjects'  , [], ...           % do NOT force char array
                     'dates'     , []        );      % do NOT force char array
     input.dates     = dates;    % place as it comes
@@ -54,7 +53,7 @@ if ~exist("input","var")
 end
 
 % Set default inputs and dependencies.
-input = set_default(input);
+input = set_default(input, opt);
 
 %% 01. Find and list requested sessions and subjects.
 input.sessions = findSessions(input);
@@ -80,9 +79,12 @@ for x = 1:input.nsubjects % Subjects.
                continue
         end 
         %% 04. Kilosort
-        if opt.kilosort
-            % Kilosort will run without GUI.
+        if opt.kilosort == 2
+            % Kilosort 2 will run without GUI.
             master_kilosort(input, opt)
+        elseif opt.kilosort == 4
+            % Kilosort 4 will run without GUI.
+            master_kilosort4(input, opt)
         end
     close all
         %% 05. Bombcell
