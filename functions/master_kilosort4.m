@@ -1,6 +1,13 @@
 function master_kilosort4(input, varargin)
-% General documentation:
-% https://kilosort.readthedocs.io/en/latest/
+% Implementation of a MATLAB wrapper to the newly developed Kilosort4, which runs
+% completely under python. To be used with the API version, programatically, 
+% during a regular session processing.
+%
+% Fundamental algorithm from MOUSELAND KILOSORT GITHUB. Cite the toolbox and paper:
+% https://github.com/MouseLand/Kilosort
+% General documentation: https://kilosort.readthedocs.io/en/latest/
+%
+% This function and the python wrapper by Jesus J. Ballesteros 03.2024
 
 %% INSTALL Python requirements and kilosort4
 %  1. To be able to use Kilosort4 at all. This will be setup once per
@@ -21,19 +28,20 @@ function master_kilosort4(input, varargin)
 %       'pip uninstall torch'
 %       'conda install pytorch pytorch-cuda=11.7 -c pytorch -c nvidia'
 
-
 %% USE
-% We have created a python script, containing all necessary instructions
-% to be ran. It looks basically as:
-%
+% We have created a python script, containing all necessary instructions to run 'kilosort_run'. Basically:
+% >>
+%   import sys, os
+%   move to working directory (enviroment)
 %   from kilosort import run_kilosort, DEFAULT_SETTINGS
 %   settings = DEFAULT_SETTINGS
 %   settings['data_dir'] = 'project/data/preprocessed/animal/session/binfile.bin'
-%   settings['n_chan_bin'] = 32
-%   ...
-%   ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate = run_kilosort(settings=settings, probe_name='chanMap.mat')
-%
-% Where 'run_kilosort' is the main function. From documentation:
+%   settings['n_chan_bin'] = numChannels
+%   ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate = run_kilosort(settings=settings, probe_name='chanMap*.mat')
+% <<
+
+%% DESCRIPTION 
+% 'run_kilosort' is the main function. From KS documentation:
 %  kilosort.run_kilosort.run_kilosort(
 %   settings, (dic) Specifies a number of configurable parameters used throughout the spike sorting pipeline. See kilosort/parameters.py for a full list of available parameters. 
 %       'n_chan_bin': def 385. MUST be specified here (all other settings are optional).
@@ -85,24 +93,26 @@ if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
 end
 
-%% Defaults, if not given.
-% Config and Channelmap files are to be found under '\analysisCode'
-if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),         opt.KSchanMapFile   = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end 
-if ~isfield(opt,'spkTh') || isempty(opt.spkTh),                         opt.spkTh           = 6; end 
-    if opt.spkTh < 0; opt.spkTh = abs(opt.spkTh); end
-if ~isfield(opt,'CAR') || isempty(opt.CAR),                             opt.CAR             = 1;  end 
+%% Defaults
+% Config and channelmap files are to be found under '\analysisCode' !!!
+% TODO: implement override of 'test' settings (i.e. threshold)? Prob easy enough to modify parameters.py
+if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),         opt.KSchanMapFile   = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end % load the map in the folder if option is missing
+
+% if ~isfield(opt,'spkTh') || isempty(opt.spkTh),                         opt.spkTh           = 6; end 
+%     if opt.spkTh < 0; opt.spkTh = abs(opt.spkTh); end
     
 %% Set up Kilosort enviroment
 % Call enviroment status
 pe = pyenv;
 
-% Kill any running process
+% Check if pyenv is set, or kill any residual process running
 if pe.ExecutionMode && pe.Status > 0
     terminate(pyenv) % Terminate process
     pe = pyenv; % Recall enviroment status
 
-    % Check for correct termination
+    % Proceed to start enviroment
     if pe.Status == "Terminated"
+        % And only if properly terminated, reset it
         pe = pyenv('Version', [input.KSpyfolder,'\python.exe'], 'ExecutionMode', 'OutOfProcess');
         py.list; % a call to restart the Interpreter
         pe = pyenv; % Recall enviroment status
@@ -115,28 +125,36 @@ end
 if pe.Status == "Loaded"
     disp(append('Python enviroment set as version: ', pe.Version))
 else
-    disp('Something went wrong with the Python enviroment setup.')    
+    error('Something went wrong with the Python enviroment setup.')    
 end
 
-%% Prepare command
-command.script = "master_kilosort4.py";
-command.s1 = " '";
-command.s2 = "'";
-command.var1 = string(input.KSpyenv_NGL);
-command.var2 = string(opt.FolderProcDataMat);
-command.var3 = string(opt.numChannels);
-command.var4 = append(input.analysisCode,opt.KSchanMapFile);
+%% Prepare argument to send to the python script
+% The argument is given as a single string, so we can prepare the pieces to
+% put them all together at the end.
+command.script = "master_kilosort4.py"; % Our script that wraps the call to kilosort_run
+command.s1 = " '"; % To introduce the necessary 's before the argument.
+command.s2 = "'"; % To introduce the necessary 's after the argument.
+command.var1 = string(input.KSpyenv_NGL); % var1 is the absolute path to the kilosort library in the python enviroment
+command.var2 = string(opt.FolderProcDataMat); % var2 is the absolute path where the .bin file has been created
+command.var3 = string(opt.numChannels); % Give number of channels as string Will convert to int within python script)
+command.var4 = append(input.analysisCode, opt.KSchanMapFile); % Absolute path to the probe map.
 % command.var5 = string();
 
+% Put all strings together for a full argument
 command.full = append(command.script, ...
     command.s1, command.var1, command.s2, ...
     command.s1, command.var2, command.s2, ...
     command.s1, command.var3, command.s2, ...
-    command.s1, command.var4, command.s2 ...
+    command.s1, command.var4, command.s2 ... % If you add more varX, this one needs a comma at the end, before the '...'
+    ... % Add more 'command.s1, command.varX, command.s2 ...' for new variables, and make sure you collect them in the python script
     );
 
-%% 02 RUN
+%% RUN
+% Move to the kilosort enviroment working directory
 cd(input.KSpyenv_NGL)
+
+% Run the wrapper script with the given arguments
 pyrunfile(command.full)
 
-terminate(pyenv) % Terminate process
+% Terminate python process
+terminate(pyenv)
