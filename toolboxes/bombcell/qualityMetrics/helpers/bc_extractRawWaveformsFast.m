@@ -49,7 +49,7 @@ else
     rawFileInfo     = dir(path.rawFile);
 %     BatchSize       = 5000;
 
-    if param.saveMultipleRaw && ~isfolder(fullfile(savePath,'RawWaveforms'))
+    if param.saveMultipleRaw && ~isfolder(fullfile(path.savePath,'RawWaveforms'))
         mkdir(fullfile(path.savePath,'RawWaveforms'))
     end
 

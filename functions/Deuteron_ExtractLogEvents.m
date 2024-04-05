@@ -23,7 +23,8 @@ if ~isfield(opt,'iniPins'),     opt.iniPins     = [1 1 0 0];    end
 %% Read the text file containing the Deuteron log and output a matrix using
 % the given delimiters. By default it should output a matrix where columns are:
 % [local time, msec after midnight, SpikeLog SN, local HH:MM:SS.MSEC, InputCh, InputState, Port]
-logevents = readmatrix('logevents.txt', 'OutputType', opt.outputas, 'Delimiter', opt.delimiters);
+logfile = "logevents.txt";
+logevents = readmatrix(logfile, 'OutputType', opt.outputas, 'Delimiter', opt.delimiters);
 
 %% Retrive all msec after midnight (column 2)
 tsmsec = str2double(logevents(:,2));

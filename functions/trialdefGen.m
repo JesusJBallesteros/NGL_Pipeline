@@ -31,32 +31,6 @@ function [events, trialdef, eventdef] = trialdefGen(EventRecord, opt)
 
 % Jesus. 05.03.2024
 
-%% Default event descriptor-decimal value definitions
-%% Default event descriptor-decimal value definitions
-if ~isfield(opt,'eventdef')
-    opt.eventdef = struct;
-        % Descriptions            = Decimal  % Comments
-        opt.eventdef.preIni       = 8;       % FIXED! Last resource to delimit end-trial. Also, start/end-session.
-        opt.eventdef.itiOn        = 0;       % FIXED! Delimits start-trial.
-        opt.eventdef.stimOn1      = 1;       % 
-        opt.eventdef.stimOn2      = 2;       %
-        opt.eventdef.bhv          = 3;       %
-        opt.eventdef.oms1         = 5;       %
-        opt.eventdef.oms2         = 6;       %
-        opt.eventdef.rwd          = 7;       %
-        opt.eventdef.pun          = 11;      %
-        opt.eventdef.end1         = 4 ;      % omsX-end.
-        opt.eventdef.end2         = 10;      % pun-end.
-        opt.eventdef.end3         = 15;      % rwd-end.
-        opt.eventdef.na1          = 12;      % Transition sequence
-        opt.eventdef.na2          = 14;      % Transition sequence
-        opt.eventdef.tr1          = 9;       % Spared. Treatment1?
-        opt.eventdef.na3          = 13;      % Spared.
-  
-        % Set event to align trial times (event with t=0)
-        opt.eventdef.t0           = opt.eventdef.itiOn;
-end
-
 %% 01.1 Relativize timestamps to session start keeping it in msec
 EventRecord.TimeMsFromMidnight = (EventRecord.TimeMsFromMidnight - EventRecord.TimeMsFromMidnight(1));
 

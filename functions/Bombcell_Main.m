@@ -29,7 +29,7 @@ if ~isfile(fullfile(input.analysisCode, 'bombcellConfig.m'))
     end
 end
 
-% Valid file found. Run it.
+% Valid file found. Run it. Set the quality metric parameters, config function.
 run(fullfile(input.analysisCode, 'bombcellConfig.m'));
 
 %% Override params based on opts
@@ -37,9 +37,6 @@ if isfield(opt,'rerun'),                param.rerun = opt.rerun;  end
 if isfield(opt,'nRawSpikesToExtract'),  param.nRawSpikesToExtract = opt.nRawSpikesToExtract; end 
 if isfield(opt,'ephys_sample_rate'),    param.ephys_sample_rate = opt.ephys_sample_rate; end 
 if isfield(opt,'gain_to_uV'),           param.gain_to_uV = opt.gain_to_uV; end 
-
-% %% Set the rest of quality metric parameters, config function.
-% [param, path] = bombcellConfig(param, opt);
 
 %% Faster compute. Compile .mex file only if not done yet
 if ~isfile('C:\Code\ephys-data-pipeline\toolboxes\bombcell\ephysProperties\helpers\CCGHeart.mexw64')

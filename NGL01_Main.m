@@ -86,7 +86,8 @@ for x = 1:input.nsubjects % Subjects.
             % Kilosort 4 will run without GUI.
             master_kilosort4(input, opt)
         end
-    close all
+        close all
+        
         %% 05. Bombcell
         if opt.bombcell
             % Kilosort will run without GUI.
