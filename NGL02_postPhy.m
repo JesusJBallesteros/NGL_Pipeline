@@ -4,19 +4,21 @@
 %
 % Jesus 03.01.20024
 
+
+
 %% Additional/default options
 opt.plotgeneral    = false; % plot in NGL03 script. General data about #clusters, units per animal/session, etc.
                             % Useful only if extracting results from several animals and sessions
                              
-opt.plotrasters    = true;  % plot in NGL03 script. Rasters of activity aligned to a selected t0
+opt.plotrasters    = false;  % plot in NGL03 script. Rasters of activity aligned to a selected t0
 opt.plotfrs        = false; % plot in NGL03 script. Firing rates calculated from the above.
 
 % % To obtain waveforms
-% opt.getwF          = false;
-%     gwfparams.dataType = 'int16';  % Data type of .dat file
-%     gwfparams.nCh = 32;            % Number of channels that were streamed in .dat file
-%     gwfparams.wfWin = [-20 41];    % Number of samples around spiketime to include in waveform
-%     gwfparams.nWf = 1;             % Proportion of total waveforms per unit to extract
+opt.getwF          = false;
+    gwfparams.dataType = 'int16';  % Data type of .dat file
+    gwfparams.nCh = 32;            % Number of channels that were streamed in .dat file
+    gwfparams.wfWin = [-20 41];    % Number of samples around spiketime to include in waveform
+    gwfparams.nWf = 1;             % Proportion of total waveforms per unit to extract
     
 if opt.postPhy
 %% 00. Check inputs, set defaults and dependencies.

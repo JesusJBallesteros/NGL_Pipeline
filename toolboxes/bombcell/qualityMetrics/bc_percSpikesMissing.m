@@ -86,10 +86,13 @@ for iTimeChunk = 1:numel(timeChunks) - 1
         ampliBin_gaussian = [add_points, ampliBin_gaussian];
         spikeCountsPerAmpliBin_gaussian = [zeros(size(add_points, 2), 1)', spikeCountsPerAmpliBin];
 
-        p0 = [max(spikeCountsPerAmpliBin_gaussian), mode_seed, 2 * nanstd(theseAmplitudes), prctile(theseAmplitudes, 1)]; % seed
-
+        p0 = [max(spikeCountsPerAmpliBin_gaussian), mode_seed, 2 * nanstd(theseAmplitudes), prctile(theseAmplitudes, 1)]; % seed        
 
         f = @(x, xdata)gaussian_cut(x, xdata); % get anonymous function handle
+        
+        % Jesus force double
+        p0 = double(p0); 
+        ampliBin_gaussian = double(ampliBin_gaussian);
 
         options = optimoptions('lsqcurvefit', 'OptimalityTolerance', 1e-32, 'FunctionTolerance', 1e-32, 'Display', 'off'); %,'StepTolerance', 1e-20,...
         %'MaxFunctionEvaluations', 5000);%'MaxFunctionEvaluations', 10000, 'MaxIterations', 1000);

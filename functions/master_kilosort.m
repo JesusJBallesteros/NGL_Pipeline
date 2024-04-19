@@ -28,7 +28,7 @@ if length(opt.spkTh) > 1, single = 0; end
 % Config and Channelmap files are to be found under '\analysisCode'
 if ~isfield(opt,'KSConfigFile') || isempty(opt.KSConfigFile),           opt.KSConfigFile    = input.analysisCode;  end 
 if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),         opt.KSchanMapFile   = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end 
-if ~isfield(opt,'spkTh') || isempty(opt.spkTh),                         opt.spkTh           = -4; end 
+if ~isfield(opt,'spkTh') || isempty(opt.spkTh),                         opt.spkTh           = -6; end 
 if ~isfield(opt,'CAR') || isempty(opt.CAR),                             opt.CAR             = 1;  end 
     
 if single
@@ -36,7 +36,10 @@ if single
         % Find .bin files (raw and temp).
         % I assume it will be always in a SDD for processing.
         rootfolder = opt.FolderProcDataMat; % the raw data binary file is in this folder (for current subject and session)    
-        outfolder = rootfolder;
+        outfolder = [rootfolder, '\kilosort2'];
+        if ~isfolder(outfolder)
+            mkdir(outfolder)
+        end
 
         % Set configuration. Will run 'kilosortConfig.m'
         % Added all ops INSIDE config file.

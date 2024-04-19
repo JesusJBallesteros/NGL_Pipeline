@@ -93,6 +93,12 @@ if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
 end
 
+% Check existence of KS4 results
+if isfolder(fullfile(opt.FolderProcDataMat, 'kilosort4'))
+    disp('It seems like KS4 was already ran in this session. To re-run, delete the folder under preprocessing.')
+    return
+end
+
 %% Defaults
 % Config and channelmap files are to be found under '\analysisCode' !!!
 % TODO: implement override of 'test' settings (i.e. threshold)? Prob easy enough to modify parameters.py
@@ -135,7 +141,7 @@ command.script = "master_kilosort4.py"; % Our script that wraps the call to kilo
 command.s1 = " '"; % To introduce the necessary 's before the argument.
 command.s2 = "'"; % To introduce the necessary 's after the argument.
 command.var1 = string(input.KSpyenv_NGL); % var1 is the absolute path to the kilosort library in the python enviroment
-command.var2 = string(opt.FolderProcDataMat); % var2 is the absolute path where the .bin file has been created
+command.var2 = string(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '.bin'])); %,  % var2 is the absolute path to the .bin file has been created
 command.var3 = string(opt.numChannels); % Give number of channels as string Will convert to int within python script)
 command.var4 = append(input.analysisCode, opt.KSchanMapFile); % Absolute path to the probe map.
 % command.var5 = string();
@@ -145,13 +151,23 @@ command.full = append(command.script, ...
     command.s1, command.var1, command.s2, ...
     command.s1, command.var2, command.s2, ...
     command.s1, command.var3, command.s2, ...
-    command.s1, command.var4, command.s2 ... % If you add more varX, this one needs a comma at the end, before the '...'
-    ... % Add more 'command.s1, command.varX, command.s2 ...' for new variables, and make sure you collect them in the python script
-    );
+    command.s1, command.var4, command.s2 ... % If you add more varX, this one needs a comma at the end, before '...'
+    ); % Add more 'command.s1, command.varX, command.s2 ...' for new variables, and make sure you collect them in the python script
 
 %% RUN
+% Make sure we use the project's parameters
+cd(input.analysisCode)
+projfiles = string(ls("*.py"));
+copyfile(projfiles{1},input.KSpyenv_NGL,'f');
+copyfile(projfiles{2},input.KSpyenv_NGL,'f');
+
 % Move to the kilosort enviroment working directory
 cd(input.KSpyenv_NGL)
+
+% Clear cache
+if isfolder("__pycache__")
+    rmdir __pycache__ s
+end
 
 % Run the wrapper script with the given arguments
 pyrunfile(command.full)
