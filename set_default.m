@@ -68,13 +68,13 @@ if opt.kilosort == 2
    addpath(genpath(input.KSpath)) % path to kilosort toolbox
 
 elseif opt.kilosort == 4
-   input.KSpyfolder = 'C:\code\miniconda3\envs\kilosort'; % Path to the conda installation. This can change among PCs
-   input.KSpyenv_NGL = [input.KSpyfolder, '\Lib\site-packages\kilosort']; % Kilosort package for the python enviroment. This can change among PC's
+   input.KSpyfolder = 'C:\code\kilosort\kilosort'; % Path to the kilosort git-code. This can change among PCs
+   input.KSpyenv_NGL = 'C:\Code\miniconda3\envs\kilosort'; % Kilosort enviroment under python installation. This can change among PC's
    
    % Copy NGL customized py files to kilosort enviroment's library
    orig_dir = pwd; % where we come from
    cd(input.analysisCode) % go to where customized py files are, \analysisCode
-        copyfile("*.py", input.KSpyenv_NGL); % copy the customized py files to the working directory
+        copyfile("*.py", input.KSpyfolder); % copy the customized py files to the working directory
    cd(orig_dir) % back to previous folder
 
    % No need to add to matlab path

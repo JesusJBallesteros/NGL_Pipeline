@@ -103,9 +103,6 @@ end
 % Config and channelmap files are to be found under '\analysisCode' !!!
 % TODO: implement override of 'test' settings (i.e. threshold)? Prob easy enough to modify parameters.py
 if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),         opt.KSchanMapFile   = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end % load the map in the folder if option is missing
-
-% if ~isfield(opt,'spkTh') || isempty(opt.spkTh),                         opt.spkTh           = 6; end 
-%     if opt.spkTh < 0; opt.spkTh = abs(opt.spkTh); end
     
 %% Set up Kilosort enviroment
 % Call enviroment status
@@ -119,7 +116,7 @@ if pe.ExecutionMode && pe.Status > 0
     % Proceed to start enviroment
     if pe.Status == "Terminated"
         % And only if properly terminated, reset it
-        pe = pyenv('Version', [input.KSpyfolder,'\python.exe'], 'ExecutionMode', 'OutOfProcess');
+        pe = pyenv('Version', [input.KSpyenv_NGL,'\python.exe'], 'ExecutionMode', 'OutOfProcess');
         py.list; % a call to restart the Interpreter
         pe = pyenv; % Recall enviroment status
     else
@@ -140,7 +137,7 @@ end
 command.script = "master_kilosort4.py"; % Our script that wraps the call to kilosort_run
 command.s1 = " '"; % To introduce the necessary 's before the argument.
 command.s2 = "'"; % To introduce the necessary 's after the argument.
-command.var1 = string(input.KSpyenv_NGL); % var1 is the absolute path to the kilosort library in the python enviroment
+command.var1 = string(input.KSpyfolder); % var1 is the absolute path to the kilosort library in the python enviroment
 command.var2 = string(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '.bin'])); %,  % var2 is the absolute path to the .bin file has been created
 command.var3 = string(opt.numChannels); % Give number of channels as string Will convert to int within python script)
 command.var4 = append(input.analysisCode, opt.KSchanMapFile); % Absolute path to the probe map.
@@ -158,11 +155,11 @@ command.full = append(command.script, ...
 % Make sure we use the project's parameters
 cd(input.analysisCode)
 projfiles = string(ls("*.py"));
-copyfile(projfiles{1},input.KSpyenv_NGL,'f');
-copyfile(projfiles{2},input.KSpyenv_NGL,'f');
+copyfile(projfiles{1},input.KSpyfolder,'f');
+copyfile(projfiles{2},input.KSpyfolder,'f');
 
 % Move to the kilosort enviroment working directory
-cd(input.KSpyenv_NGL)
+cd(input.KSpyfolder)
 
 % Clear cache
 if isfolder("__pycache__")
