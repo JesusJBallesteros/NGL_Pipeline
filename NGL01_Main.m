@@ -38,7 +38,7 @@
 % There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 
-% Version 22.03.2024 (Jesus)
+% Version 28.05.2024 (Jesus)
 
 %% 00. Check current inputs.
 % Check if input variable exist already. Parse values.
@@ -63,7 +63,7 @@ for x = 1:input.nsubjects % Subjects.
         input.run = [x y]; % Current run, to pass to functions.
         %% 02. Prepare to proceed with a single session.
         [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);
-    
+
         %% 03. Proceed to appropiated pipeline.
         switch input.sessions(input.run(1)).info.fileformat
             case {'DT2', 'DF1'} 

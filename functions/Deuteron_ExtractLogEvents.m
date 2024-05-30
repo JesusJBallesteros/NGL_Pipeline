@@ -14,7 +14,7 @@ function EventRecord = Deuteron_ExtractLogEvents(opt)
 %           TimeSource (NaN)
 %           Details (NaN)
 
-% Jesus. 24.01.2024
+% Jesus. 30.05.2024
 
 if ~isfield(opt,'delimiters'),  opt.delimiters  = {',','='};    end
 if ~isfield(opt,'outputas'),    opt.outputas    = 'string';     end
@@ -57,7 +57,11 @@ for i=2:length(stateLog)
     newState(pinChange(i-1)) = pinStatus(i-1);
     stateLog(i,:) = newState;
 end
-% stateLog(1,:) = []; % remove initial state
+stateLog(1,:) = []; % remove initial state, 
+% added artificially (as it IS the exisiting initial pinState but it IS NOT sent by the paradigm 
+% in the current session as part of it, but set by Deuteron as default when the system
+% boots up. Also we send it at the end of any previous session, to replicate this fact.
+
 stateLog = int2str(stateLog);
 
 % %% As a final account for active channels, we use the explicit log about it
@@ -71,11 +75,11 @@ stateLog = int2str(stateLog);
 % end
 
 %% Place extracted information into a proper EventRecord
-EventRecord.EventNumber = double(1:1:length(stateLog))';
-EventRecord.EventType = single(bin2dec(stateLog));
-EventRecord.TimeStamp = string(ts); % Convert to string array
-EventRecord.TimeMsFromMidnight = tsmsec;
-EventRecord.TimeSource = nan(length(stateLog),1);
-EventRecord.Details = nan(length(stateLog),1);
+EventRecord.EventNumber         = double(1:1:length(stateLog))';
+EventRecord.EventType           = single(bin2dec(stateLog));
+EventRecord.TimeStamp           = string(ts); % Convert to string array
+EventRecord.TimeMsFromMidnight  = tsmsec;
+EventRecord.TimeSource          = nan(length(stateLog),1);
+EventRecord.Details             = nan(length(stateLog),1);
 
 end

@@ -54,10 +54,6 @@ if ~isfield(opt,'parsetrial'),      opt.parsetrial          = false;        end
 if ~isfield(opt,'CAR'),             opt.CAR                 = true;         end
 
 %% Set local options.
-% % DEPR % Explicit exe/dll locations
-%       opt.exefile     = input.exefile;
-%       opt.ReaderDll   = input.ReaderDll;
-% % DEPR
 
 % Collect parameters to proceed with file creation. List all files.
 opt.myFiles = input.sessions(input.run(1)).info.files;

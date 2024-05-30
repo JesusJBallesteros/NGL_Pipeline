@@ -1,17 +1,22 @@
-function trialCounter = plotRaster(spikes,trialCounter,plotCol,varargin)
-%%function trialCounter = plotRaster(spikes,trialCounter,plotCol,varargin)
+function trialCounter = plotRaster(spikes,trialCounter,varargin)
+%%function trialCounter = plotRaster(spikes,trialCounter,varargin)
 %
 % This function creates a raster plot for the given spike train.
 %
 %INPUTS
 %  * 'spikes'          : cell containing aligned spike times per trial
 %  * 'trialCounter'    : arbitrary trial number to start plotting at
-%  * 'plotCol'         : RGB color triplet for plot color
 %
 %OPTIONAL INPUTS
-%  * 'spkWidth'        : size of the marker for plotting (default is 5)
+%  * 'plotCol'         : RGB color triplet for plot color, single row
+%                        vector (results in all spike indicators having the
+%                        same color, default), or a matrix of RGB triplets
+%                        (with each triplet corresponding to a trial,
+%                        resulting in trial unique colors)
+%  * 'spkWidth'        : size of the marker for plotting (default is 3)
 %  * 'plotStyle'       : string of marker style for plotting (default is
 %                        'lines')
+%  * 'lineLength'      : vertical length of line indicator (default is 1)
 %
 %OUTPUTS
 %   * 'trialCounter'   : arbitrary trial number until which spikes were
@@ -19,40 +24,76 @@ function trialCounter = plotRaster(spikes,trialCounter,plotCol,varargin)
 
 % VERSION HISTORY:
 % Author:         Lukas Hahn
-% Version:        1.1.1
-% Last Change:    11.12.2023
+% Version:        1.2.0
+% Last Change:    15.04.2024
 %
 % 15.07.2019, Lukas: v1.0.0 release version
 % 28.11.2023, Lukas: v1.1.0 added plot as square markers option
 % 11.12.2023, Lukas: v1.1.1 updated documentation
+% 15.04.2023, Lukas: v1.2.0 updated function to allow trial unique colors,
+%                           added line length option for use with line
+%                           markers, adjusted default spikeWidth to 3
 %%
-plotColBkp = plotCol;
-if nargin==3
-    spkWidth = 5;
-    plotStyle = 'lines';
-else
-    spkWidth = varargin{1};
-    plotStyle = varargin{2};
+%default values
+plotCol = zeros(1,3);
+spkWidth = 3;
+plotStyle = 'lines';
+lineLength = 1;
+
+%user specified values
+if nargin>2
+    if nargin==5 %ensures backward compatibility to use as
+        % plotRaster(spikes,trialCounter,plotColor,spikeWidth,'plotStyle')
+        plotCol = varargin{1};
+        spkWidth = varargin{2};
+        plotStyle = varargin{3};
+    else
+        for i=1:length(varargin)
+            if isa(varargin{i},'char') || isa(varargin{i},'string')
+                switch lower(varargin{i})
+                    case 'plotcol'
+                        plotCol = varargin{i+1};
+                    case 'spkwidth'
+                        spkWidth = varargin{i+1};
+                    case 'plotstyle'
+                        plotStyle = varargin{i+1};
+                    case 'linelength'
+                        lineLength = varargin{i+1};
+                    otherwise
+                        %next input
+                end
+            else
+                %next input
+            end
+        end
+    end
 end
+%%
+%ensure that every trial has a corresponding color
+if size(plotCol,1)<size(spikes,1)
+    plotCol = repmat(plotCol(1,:),size(spikes,1),1);
+end
+%%
 for trial=1:size(spikes,1) %for all trials
     if numel(spikes{trial,1})<4
         plotCorrection = [NaN; NaN; NaN; NaN]; %to correct for line bugs
     else
         plotCorrection = [];
-        plotCol = plotColBkp;
     end
-    trialCounter = trialCounter+2;
+    trialCounter = trialCounter+1;
     spikeTrains = [plotCorrection; spikes{trial,1}];
 
     %helper = randperm(size(spikeTrains,1));
     %reduces raster to 20 %
     %spikeTrains = spikeTrains(helper(1:ceil(size(helper,1)/5)+2));
     if strcmp(plotStyle,'lines')
-        line([spikeTrains spikeTrains],[trialCounter trialCounter+2],...
-            'Color',plotCol,'LineWidth',spkWidth)
+        line([spikeTrains spikeTrains],...
+            [trialCounter trialCounter+lineLength],...
+            'Color',plotCol(trial,:),'LineWidth',spkWidth)
     else
-        plot(spikeTrains,trialCounter,'s','MarkerEdgeColor',plotCol,...
-            'MarkerFaceColor',plotCol,'MarkerSize',spkWidth)
+        plot(spikeTrains,trialCounter,'s','MarkerEdgeColor',...
+            plotCol(trial,:),'MarkerFaceColor',plotCol(trial,:),...
+            'MarkerSize',spkWidth)
         hold on
     end
 end

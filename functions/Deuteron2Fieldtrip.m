@@ -9,8 +9,7 @@ function [data] = Deuteron2Fieldtrip(opt)
 
 %% Check existence of a FieldTrip file.
 % If existing, load it instead and return to main script
-if isfile(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_continous_FT.mat'))) || ...
-   isfile(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_tparsed_FT.mat')))
+if isfile(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_cont.mat')))
     disp('A Fieldtrip-formatted file found in this directory, skipping.')
 % 
 %     try     data = load(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_continous_FT.mat')));

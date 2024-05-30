@@ -36,7 +36,7 @@ if single
         % Find .bin files (raw and temp).
         % I assume it will be always in a SDD for processing.
         rootfolder = opt.FolderProcDataMat; % the raw data binary file is in this folder (for current subject and session)    
-        outfolder = [rootfolder, '\kilosort2'];
+        outfolder = opt.KSfolder; % [rootfolder, '\kilosort2'];
         if ~isfolder(outfolder)
             mkdir(outfolder)
         end

@@ -58,26 +58,32 @@ if cont
     
     % Save this session data. Generates a file with continous data for a
     % SINGLE session only into the session folder.
-    save(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_continous_FT.mat')), 'FT_data', '-v7.3')
+    save(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_cont.mat')), 'FT_data', '-v7.3')
 end
 
 %% Trial-parsed treatment 
 if ~isempty(trialdef)
     % Check that Fieldtrip likes what we have (if not forced before).
     if ~exist('FT_data',"var")
-        FT_data = ft_checkdata(data);
+        FT_data_cont = ft_checkdata(data);
+    else
+        FT_data_cont = FT_data;
+        FT_data = [];
     end
 
-    % Then proceed to trial-parse the FT_data. Use 'ft_redefinetrial'
-    cfg = [];
-    cfg.trl = trialdef;
-    FT_data = ft_redefinetrial(cfg, FT_data);
-
-    % Update FT header info manually
-    FT_data.hdr.nTrials = length(FT_data.trial);
-
-    % Save this session data. Generates a FT file with trialparsed data.
-    save(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_tparsed_FT.mat')), 'FT_data', '-v7.3')
+    % We may have more than one event to align thing to.
+    for i=1:size(trialdef,2)
+        % Then proceed to trial-parse the FT_data. Use 'ft_redefinetrial'
+        cfg = [];
+        cfg.trl = trialdef{2,i};
+        FT_data = ft_redefinetrial(cfg, FT_data_cont);
+    
+        % Update FT header info manually
+        FT_data.hdr.nTrials = length(FT_data.trial);
+    
+        % Save this session data. Generates a FT file with trialparsed data.
+        save(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName, '_', trialdef{1,i} ,'.mat')), 'FT_data', '-v7.3')
+    end
 
 end
 

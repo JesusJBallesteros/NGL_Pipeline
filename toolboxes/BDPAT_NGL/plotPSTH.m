@@ -28,8 +28,8 @@ function upperY = plotPSTH(spikes,stepSz,binSize,interval,smpRate,varargin)
 
 % VERSION HISTORY:
 % Author:         Lukas Hahn
-% Version:        1.1.3
-% Last Change:    25.01.2024
+% Version:        1.1.4
+% Last Change:    15.04.2024
 %
 % 15.07.2019, Lukas: v1.0.0 release version
 % 12.08.2019, Lukas: v1.1.0 added handling for no spikes (returns a
@@ -39,6 +39,9 @@ function upperY = plotPSTH(spikes,stepSz,binSize,interval,smpRate,varargin)
 % 11.12.2023, Lukas: v1.1.2 updated documentation
 % 25.01.2024, Lukas: v1.1.3 added smooth option to input, made plotCol,
 %                           meanline and smoothplot optional inputs
+% 15.04.2024, Lukas: v1.1.4 bug fix, function should now work properly
+%                           irrespective of the amount of optional 
+%                           input arguments
 %% check inputs
 %set defaults
 plotCol = [0 0 0];
@@ -61,6 +64,9 @@ if nargin>5
         else
             error(['unknown input parameter: ' varargin{i+1}])
         end
+    end
+    else
+        %use defaults
     end
     %%
     fireRate = calcFireRate(spikes,stepSz,binSize,interval,smpRate);

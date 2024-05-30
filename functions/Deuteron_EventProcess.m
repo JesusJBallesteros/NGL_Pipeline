@@ -5,34 +5,9 @@ function [events, trialdef, EventRecord] = Deuteron_EventProcess(opt)
 % Jesus 05.03.2024
 
 % As far as they exist as options, we need them to exist
-if ~isfield(opt,'useexe'),          opt.useexe              = false;        end
-if ~isfield(opt,'useRes'),          opt.useRes              = false;        end
-if ~isfield(opt,'eventdef')
-    opt.eventdef = struct;
-        % Descriptions            = Decimal  % Comments
-        opt.eventdef.preIni       = 8;       % FIXED! Last resource to delimit end-trial. Also, start/end-session.
-        opt.eventdef.itiOn        = 0;       % FIXED! Delimits start-trial.
-        opt.eventdef.stimOn1      = 1;       % 
-        opt.eventdef.stimOn2      = 2;       %
-        opt.eventdef.bhv          = 3;       %
-        opt.eventdef.oms1         = 5;       %
-        opt.eventdef.oms2         = 6;       %
-        opt.eventdef.rwd          = 7;       %
-        opt.eventdef.pun          = 11;      %
-        opt.eventdef.end1         = 4 ;      % omsX-end.
-        opt.eventdef.end2         = 10;      % pun-end.
-        opt.eventdef.end3         = 15;      % rwd-end.
-        opt.eventdef.na1          = 12;      % Transition sequence
-        opt.eventdef.na2          = 14;      % Transition sequence
-        opt.eventdef.tr1          = 9;       % Treatment1?
-        opt.eventdef.na3          = 13;      % 
-  
-        % Set event to align trial times (event with t=0)
-        opt.eventdef.t0           = opt.eventdef.itiOn;
-end
-
-%% Asess existence of trialdefinitions
-if ~isfile(fullfile(opt.FolderProcDataMat, strcat('trialdef.mat')))
+if ~isfield(opt,'useexe'),          opt.useexe              = false;                end
+if ~isfield(opt,'useRes'),          opt.useRes              = false;                end
+if ~isfield(opt,'eventdef'),        opt.eventdef = eventDefinitions();              end
 
     % Make sure we create empty outputs
     events      = []; % If remains empty, data shall be treated as continuous.
@@ -89,11 +64,5 @@ if ~isfile(fullfile(opt.FolderProcDataMat, strcat('trialdef.mat')))
     save(fullfile(opt.FolderProcDataMat, strcat('events.mat')), 'events', '-v7.3')
     save(fullfile(opt.FolderProcDataMat, strcat('trialdef.mat')), 'trialdef', '-v7.3')
     save(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')), 'EventRecord', '-v7.3')
-else
-    disp('Event codes and Trial definitions already existing. Skipping.')
-    load(fullfile(opt.FolderProcDataMat, strcat('events.mat'))); % If remains empty, data shall be treated as continuous.
-    load(fullfile(opt.FolderProcDataMat, strcat('trialdef.mat')));
-    load(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')));
-end
 
 end

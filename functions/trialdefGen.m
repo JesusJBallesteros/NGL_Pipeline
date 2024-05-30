@@ -13,7 +13,7 @@ function [events, trialdef, eventdef] = trialdefGen(EventRecord, opt)
 %           EventNumber (double)
 %           EventType (string)  
 %           TimeStamp (string)
-%           TimeMsFromMidnight (double)
+%           TimeMsFromMidnight (double) --> Converted to SECONDS
 %           TimeSource (string)
 %           Details (string)
 %        opt: struct with optional field 'eventdef' and all necessary
@@ -29,83 +29,112 @@ function [events, trialdef, eventdef] = trialdefGen(EventRecord, opt)
 %         eventdef: the event definitions used to create trials, 
 %                   either defaulted or the ones given by the user.
 
-% Jesus. 05.03.2024
+% Jesus 30.05.2024
 
-%% 01.1 Relativize timestamps to session start keeping it in msec
+%% 00. Sanity check for matchinfg start/end events
+% Index of events equal to the defined trial start and trial end events.
+idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 
+idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
+                    EventRecord.EventType==opt.eventdef.end2 | ...
+                    EventRecord.EventType==opt.eventdef.end3);
+
+if ~(length(idx.start)==length(idx.end)) % matching start-end events
+    warning('A mismatch between number of start/end trials found. Trying to fix it.')
+    % Possible sources of start-end mismatch:
+    if any(idx.end(idx.end<idx.start(1)))
+        % trialend events BEFORE first trialstart. Possible error ending
+        % a previous session, leaving the pins in a different state than 
+        % the expected [1 1 0 0], generating succesive arbitrary events 
+        % until a point where the preIni state is enforced. 
+        % Solution, remove all events before first star trial event.
+        EventRecord.EventNumber(1:idx.start(1)-1)   = [];
+        EventRecord.EventType(1:idx.start(1)-1)     = [];
+        EventRecord.TimeStamp(1:idx.start(1)-1)     = [];
+        EventRecord.TimeMsFromMidnight(1:idx.start(1)-1) = [];
+        EventRecord.TimeSource(1:idx.start(1)-1)    = [];
+        EventRecord.Details(1:idx.start(1)-1)       = [];
+        % Possible FIX to recover these initial trials? Assume firs sent event
+        % is start trial. MANUAL CHECK!
+    	warning('Events before first start trial removed. Check if these trials are recoverable.')
+
+        % re-run idexing due to the changes
+        idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 
+        idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
+                    EventRecord.EventType==opt.eventdef.end2 | ...
+                    EventRecord.EventType==opt.eventdef.end3);
+    end
+end
+
+%% 01 Relativize timestamps to session start keeping it in msec
 EventRecord.TimeMsFromMidnight = (EventRecord.TimeMsFromMidnight - EventRecord.TimeMsFromMidnight(1));
 
-%% 01.2 Find trial start/end times using given definitions, count number of trials found.
-% Index of events equal to the defined trial start event.
-idx = find(EventRecord.EventType==opt.eventdef.itiOn); 
-trialstarts = EventRecord.TimeMsFromMidnight(idx); % get corresponding timestamps.
-
-% Now index the end of the trials
-idx = find(EventRecord.EventType==opt.eventdef.end1 | ...
-           EventRecord.EventType==opt.eventdef.end2 | ...
-           EventRecord.EventType==opt.eventdef.end3);
-trialends = EventRecord.TimeMsFromMidnight(idx); % get corresponding timestamps.
-
-% Safety check, are trialstarts and trialends equal?
-assert(length(trialstarts)==length(trialends),'Mismatch found between number of trialStatrt and trialEnd events!')
-
-% I OK, use either as a reliable count for number of trials
-ntrials = length(trialstarts); % count trial starts.
-
-% Now index the events we want to align the trials as t0
-idx = find(EventRecord.EventType==opt.eventdef.t0); 
-trialt0 = EventRecord.TimeMsFromMidnight(idx); % get corresponding timestamps.
-
-%% 01.3 Create a trial array  for Fieldtrip.
-% Create a trial array 'trialdef' for FielTrip (Nx3, where columns are:
-% 'trial start time', 'trial end time' and 'offset to zero').
-trialdef      = nan(ntrials,3);
-    trialdef(:,1) = trialstarts;
-    trialdef(:,2) = trialends; 
-    trialdef(:,3) = trialt0;
-
-%% 02.1 Convert relativized timestamps to SECONDS
+%% 02 Convert relativized timestamps to SECONDS
 EventRecord.TimeSecFromMidnight = EventRecord.TimeMsFromMidnight/1000;
 
-%% 02.2 Find trial start/end times using given definitions, count number of trials found.
-% Index of events equal to the defined trial start event.
-idx = find(EventRecord.EventType==opt.eventdef.itiOn); 
-trialstarts = EventRecord.TimeSecFromMidnight(idx); % get corresponding timestamps IN SEC.
+%% 03 Find trial start/end times using given definitions, count number of trials found.
+% Index of events equal to the defined trial start and trial end events.
+idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 
+idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
+                    EventRecord.EventType==opt.eventdef.end2 | ...
+                    EventRecord.EventType==opt.eventdef.end3);
 
-% use this as a reliable marker for number of trials
-ntrials = length(trialstarts); % count trial starts.
+% Now take those index time values
+trialstarts = EventRecord.TimeMsFromMidnight(idx.start); % get corresponding timestamps.
+trialends = EventRecord.TimeMsFromMidnight(idx.end); % get corresponding timestamps.
 
-% Now index the end of the trials
-idx = find(EventRecord.EventType==opt.eventdef.end1 | ...
-           EventRecord.EventType==opt.eventdef.end2 | ...
-           EventRecord.EventType==opt.eventdef.end3);
-trialends = EventRecord.TimeSecFromMidnight(idx); % get corresponding timestamps, IN SEC.
+%% 04 Safety check, in case of unsolved problem.
+assert(length(trialstarts)==length(trialends),'Mismatch between number of start/end events unsolved!')
 
-% Now index the events we want to align the trials as t0
-idx = find(EventRecord.EventType==opt.eventdef.t0); 
-trialt0 = EventRecord.TimeSecFromMidnight(idx); % get corresponding timestamps, in SEC.
+% If OK, use either as a reliable count for number of trials
+ntrials = length(idx.start); % count trial starts.
 
-%% 02.3 Create an NGl-standard event structure. With fields:
+%% 05 Create trialdef variables for FieldTrip. In MILISECONDS
+% Check options and prepare given events to align trial times to.
+opt.alignto = events2align(opt);
+
+% the field 't0' is an cell array of decimal values and their char arrays.
+% Then, create a 'trialdef' xxx array where 
+% Nx3, where columns are 'trial start time', 'trial end time' and 'offset to zero'.
+trialdef = cell(2,size(opt.alignto,1));
+
+% Go over every event and create the required trialdef aligned for that event
+for i=1:size(opt.alignto,1)
+    trialdef{1,i} = opt.alignto{i,1};
+    
+    idx = find(EventRecord.EventType==opt.alignto{i,2}); 
+    trialdef{2,i}(:,1) = trialstarts;
+    trialdef{2,i}(:,2) = trialends; 
+    trialdef{2,i}(:,3) = EventRecord.TimeMsFromMidnight(idx); % get corresponding timestamps.
+end
+
+%% 06 Create an NGl-standard event structure. IN SECONDS
+% For each requested time alignment, an 'events.(event_align)' structure with fields
 %   .code {numtrials,1}, in decimal values as the standard from first event belonging to the trial t to the last one.
 %   .time {numtrials,1}, in SECONDS, aligned to a cero time fixed to an specific event (normally, itiOn).
-events = struct('code',[],'time',[]);
-for t = 1:ntrials
-    % Grab all timestamps between time of start and time of end (both inclusive)
-    trialstamps = EventRecord.TimeSecFromMidnight(EventRecord.TimeSecFromMidnight>=trialstarts(t) & ...
-                                                 EventRecord.TimeSecFromMidnight<=trialends(t));
-    % Relativize trial timestamps to t0
-    trialstamps = trialstamps - trialt0(t); 
-
-    % Grab all events ocurring between time of start and time of end (both inclusive)
-    trialevents = EventRecord.EventType(EventRecord.TimeSecFromMidnight>=trialstarts(t) & ...
-                                        EventRecord.TimeSecFromMidnight<=trialends(t));
-
-    % Insert into the proper structure to be output.
-    events.code{t,1} = trialevents; 
-    events.time{t,1} = trialstamps; 
+for i=1:size(opt.alignto,1)
+    events.(opt.alignto{i,1}) = [];
+    
+    for t = 1:ntrials
+        % Grab all timestamps between time of start and time of end (both inclusive)
+        trialstamps = EventRecord.TimeSecFromMidnight(EventRecord.TimeSecFromMidnight>=trialdef{2,i}(t,1)/1000 & ...
+                                                     EventRecord.TimeSecFromMidnight<=trialdef{2,i}(t,2)/1000);
+        % Relativize trial timestamps to t0
+        trialstamps = trialstamps - trialdef{2,i}(t,3)/1000; 
+    
+        % Grab all events ocurring between time of start and time of end (both inclusive)
+        trialevents = EventRecord.EventType(EventRecord.TimeSecFromMidnight>=trialdef{2,i}(t,1)/1000 & ...
+                                            EventRecord.TimeSecFromMidnight<=trialdef{2,i}(t,2)/1000);
+    
+        % Insert into the proper structure to be output.
+        events.(opt.alignto{i,1}).code{t,1} = trialevents; 
+        events.(opt.alignto{i,1}).time{t,1} = trialstamps; 
+    end
 end
 
 %% 03. Outputs
+opt.eventdef.t0 = opt.alignto;
 eventdef = opt.eventdef; % To keep track of definitions used
+
 % trialdef % trial definition array for FieldTrip
 % events % Event structure as NGL standard for spike processing
 

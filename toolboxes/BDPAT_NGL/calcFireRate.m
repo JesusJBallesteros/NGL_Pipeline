@@ -25,11 +25,13 @@ function fireRate = calcFireRate(alignedSpikes,stepSz,binSize,interval,...
 
 % VERSION HISTORY:
 % Author:         Lukas Hahn
-% Version:        1.0.1
-% Last Change:    12.12.2023
+% Version:        1.0.2
+% Last Change:    10.04.2024
 %
 % 15.07.2019, Lukas: v1.0.0 release version
 % 12.12.2023, Lukas: v1.0.1 updated documentation
+% 10.04.2024, Lukas: v1.0.2 bug fix: loop index 'int' is now based on 
+%                           size of correct windowBorder dimension (2)
 %%
 windowBorder = cell(1,size(interval,1));
 for i=1:size(interval,1) %for all intervals
@@ -37,7 +39,7 @@ for i=1:size(interval,1) %for all intervals
 end
 %firing rate during the selected interval
 fireRate = cell(size(alignedSpikes,2),1);
-for int=1:size(windowBorder,1)
+for int=1:size(windowBorder,2)
     for trl=1:size(alignedSpikes,1) %for all trials
         %for all steps within the borders of the selected interval
         for bin=1:length(windowBorder{1,int})-1
