@@ -11,9 +11,6 @@ function Intan2Kilosort_fileperch(opt)
 %
 % Version 13.03.2024 Jesus
  
-% TODO 
-% Downsampling highpass data to perhaps 15kHz?
-
 %% Pre-define .h5 and .bin files
 % Create a complete HDF5 file matching the size needs.
 opt.filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName + ".h5"]); 

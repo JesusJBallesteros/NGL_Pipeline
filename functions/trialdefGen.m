@@ -29,9 +29,9 @@ function [events, trialdef, eventdef] = trialdefGen(EventRecord, opt)
 %         eventdef: the event definitions used to create trials, 
 %                   either defaulted or the ones given by the user.
 
-% Jesus 30.05.2024
+% Jesus 04.06.2024
 
-%% 00. Sanity check for matchinfg start/end events
+%% 00 Sanity check for matchinfg start/end events
 % Index of events equal to the defined trial start and trial end events.
 idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 
 idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
@@ -107,31 +107,56 @@ for i=1:size(opt.alignto,1)
     trialdef{2,i}(:,3) = EventRecord.TimeMsFromMidnight(idx); % get corresponding timestamps.
 end
 
+% Find special events (ITI events as treatments, tutors, etc), if any.
+% Find the time of occurrence, as that should be enought to stablish them
+% in any further analisys (trials < t=x vs. trials > t=x)
+if ~isempty(opt.trEvents)
+    for i=1:length(opt.trEvents)
+        tr_idx.(opt.trEvents{i}) = find(EventRecord.EventType==opt.eventdef.(opt.trEvents{i}));
+        tr_idx.(opt.trEvents{i}) = EventRecord.TimeMsFromMidnight(tr_idx.(opt.trEvents{i}));
+    end
+end
+
 %% 06 Create an NGl-standard event structure. IN SECONDS
 % For each requested time alignment, an 'events.(event_align)' structure with fields
 %   .code {numtrials,1}, in decimal values as the standard from first event belonging to the trial t to the last one.
 %   .time {numtrials,1}, in SECONDS, aligned to a cero time fixed to an specific event (normally, itiOn).
 for i=1:size(opt.alignto,1)
     events.(opt.alignto{i,1}) = [];
-    
+
     for t = 1:ntrials
-        % Grab all timestamps between time of start and time of end (both inclusive)
-        trialstamps = EventRecord.TimeSecFromMidnight(EventRecord.TimeSecFromMidnight>=trialdef{2,i}(t,1)/1000 & ...
-                                                     EventRecord.TimeSecFromMidnight<=trialdef{2,i}(t,2)/1000);
-        % Relativize trial timestamps to t0
+        % Grab all timestamps between time of start and time of end (inclusive)
+        trialstamps = EventRecord.TimeSecFromMidnight(EventRecord.TimeSecFromMidnight >= trialdef{2,i}(t,1)/1000 & ...
+                                                     EventRecord.TimeSecFromMidnight <= trialdef{2,i}(t,2)/1000);
+        % Relativize trial timestamps to alignment offset
         trialstamps = trialstamps - trialdef{2,i}(t,3)/1000; 
     
-        % Grab all events ocurring between time of start and time of end (both inclusive)
-        trialevents = EventRecord.EventType(EventRecord.TimeSecFromMidnight>=trialdef{2,i}(t,1)/1000 & ...
-                                            EventRecord.TimeSecFromMidnight<=trialdef{2,i}(t,2)/1000);
-    
+        % Grab all events ocurring between time of start and time of end (inclusive)
+        trialevents = EventRecord.EventType(EventRecord.TimeSecFromMidnight >= trialdef{2,i}(t,1)/1000 & ...
+                                            EventRecord.TimeSecFromMidnight <= trialdef{2,i}(t,2)/1000);
+
         % Insert into the proper structure to be output.
         events.(opt.alignto{i,1}).code{t,1} = trialevents; 
         events.(opt.alignto{i,1}).time{t,1} = trialstamps; 
     end
 end
 
-%% 03. Outputs
+% We can add here the special events for ITI treatments, if any. This
+% special case will be simply coded as a single event code and the 
+% timestamps when it appears, in seconds.
+if ~isempty(opt.trEvents)
+    for i=1:length(opt.trEvents)
+        events.(opt.trEvents{i}).code{1} = opt.eventdef.(opt.trEvents{i});
+        events.(opt.trEvents{i}).time{1} = tr_idx.(opt.trEvents{i})/1000;
+
+        % add special .trial field for easy indexing at e.g. plotting
+        for j=1:length(events.(opt.trEvents{i}).time{1})
+            events.(opt.trEvents{i}).trial{1}(j) = sum(tr_idx.(opt.trEvents{i})(j) > trialdef{2,1}(:,2));
+        end
+    end
+end
+
+%% 07 Outputs
 opt.eventdef.t0 = opt.alignto;
 eventdef = opt.eventdef; % To keep track of definitions used
 

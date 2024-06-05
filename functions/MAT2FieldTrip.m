@@ -58,7 +58,8 @@ if cont
     
     % Save this session data. Generates a file with continous data for a
     % SINGLE session only into the session folder.
-    save(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_cont.mat')), 'FT_data', '-v7.3')
+    mkdir(opt.trialSorted)
+    save(fullfile(opt.trialSorted, strcat(opt.SavFileName,'_cont.mat')), 'FT_data', '-v7.3')
 end
 
 %% Trial-parsed treatment 
@@ -82,7 +83,8 @@ if ~isempty(trialdef)
         FT_data.hdr.nTrials = length(FT_data.trial);
     
         % Save this session data. Generates a FT file with trialparsed data.
-        save(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName, '_', trialdef{1,i} ,'.mat')), 'FT_data', '-v7.3')
+        mkdir(opt.trialSorted)
+        save(fullfile(opt.trialSorted, strcat(opt.SavFileName, '_', trialdef{1,i} ,'.mat')), 'FT_data', '-v7.3')
     end
 
 end

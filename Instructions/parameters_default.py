@@ -1,5 +1,6 @@
 import numpy as np
 
+
 # Format for parameter specification:
 # parameter: {
 #     'gui_name': text displayed next to edit box in GUI
@@ -19,7 +20,7 @@ MAIN_PARAMETERS = {
     # NOTE: n_chan_bin must be specified by user when running through API
     'n_chan_bin': {  
         'gui_name': 'number of channels', 'type': int, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 32, 'step': 'data',
+        'exclude': [0], 'default': 385, 'step': 'data',
         'description':
             """
             Total number of channels in the binary file, which may be different
@@ -31,7 +32,7 @@ MAIN_PARAMETERS = {
 
     'fs': {
         'gui_name': 'sampling frequency', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 32000, 'step': 'data',
+        'exclude': [0], 'default': 30000, 'step': 'data',
         'description':
             """
             Sampling frequency of probe.
@@ -40,7 +41,7 @@ MAIN_PARAMETERS = {
 
     'batch_size': {
         'gui_name': 'batch size', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 128000, 'step': 'data',
+        'exclude': [], 'default': 60000, 'step': 'data',
         'description':
             """
             Number of samples included in each batch of data.
@@ -49,7 +50,7 @@ MAIN_PARAMETERS = {
 
     'nblocks': {
         'gui_name': 'nblocks', 'type': int, 'min': 0, 'max': np.inf,
-        'exclude': [], 'default': 0, 'step': 'preprocessing',
+        'exclude': [], 'default': 1, 'step': 'preprocessing',
         'description':
             """
             Number of non-overlapping blocks for drift correction
@@ -170,7 +171,8 @@ EXTRA_PARAMETERS = {
         'description': 
             """
             Sample index for aligning waveforms, so that their minimum 
-            or maximum value happens here. Default of 20.
+            or maximum value happens here. Defaults to 
+            `int(20 * settings['nt']/61)`.
             """
     },
 
@@ -218,7 +220,7 @@ EXTRA_PARAMETERS = {
 
     'nearest_chans': {
         'gui_name': 'nearest chans', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 4, 'step': 'spike detection',
+        'exclude': [], 'default': 10, 'step': 'spike detection',
         'description':
             """
             Number of nearest channels to consider when finding local maxima
@@ -233,6 +235,17 @@ EXTRA_PARAMETERS = {
             """
             Number of nearest spike template locations to consider when finding
             local maxima during spike detection.
+            """
+    },
+
+    'max_channel_distance': {
+        'gui_name': 'max channel distance', 'type': float, 'min': 1,
+        'max': np.inf, 'exclude': [], 'default': None, 'step': 'spike detection',
+        'description':
+            """
+            Templates farther away than this from their nearest channel will
+            not be used. Also limits distance between compared channels during
+            clustering.
             """
     },
 
@@ -308,12 +321,16 @@ EXTRA_PARAMETERS = {
             """
     },
 
-    'cluster_pcs': {
-        'gui_name': 'cluster pcs', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 64, 'step': 'clustering',
+    'x_centers': {
+        'gui_name': 'x centers', 'type': int, 'min': 1,
+        'max': np.inf, 'exclude': [], 'default': None, 'step': 'clustering',
         'description':
             """
-            Maximum number of spatiotemporal PC features used for clustering.
+            Number of x-positions to use when determining center points for
+            template groupings. If None, this will be determined automatically
+            by finding peaks in channel density. For 2D array type probes, we
+            recommend specifying this so that centers are placed every few
+            hundred microns.
             """
     },
 
@@ -321,7 +338,7 @@ EXTRA_PARAMETERS = {
     ### POSTPROCESSING
     'duplicate_spike_bins': {
         'gui_name': 'duplicate spike bins', 'type': int, 'min': 0, 'max': np.inf,
-        'exclude': [], 'default': 15, 'step': 'postprocessing',
+        'exclude': [], 'default': 7, 'step': 'postprocessing',
         'description':
             """
             Number of bins for which subsequent spikes from the same cluster are
@@ -332,9 +349,19 @@ EXTRA_PARAMETERS = {
 
 # Add default values to descriptions
 for k, v in MAIN_PARAMETERS.items():
-    v['description'] += f'Default value: {str(v["default"])}.'
+    s = f"""
+        Default value: {str(v["default"])}   
+        Min, max: ({str(v['min'])}, {str(v['max'])})   
+        Type: {v['type'].__name__}
+        """
+    v['description'] += s
 for k, v in EXTRA_PARAMETERS.items():
-    v['description'] += f'Default value: {str(v["default"])}.'
+    s = f"""
+        Default value: {str(v["default"])}   
+        Min, max: ({str(v['min'])}, {str(v['max'])})   
+        Type: {v['type'].__name__}
+        """
+    v['description'] += s
 
 main_defaults = {k: v['default'] for k, v in MAIN_PARAMETERS.items()}
 extra_defaults = {k: v['default'] for k, v in EXTRA_PARAMETERS.items()}

@@ -17,6 +17,8 @@ function trialCounter = plotRaster(spikes,trialCounter,varargin)
 %  * 'plotStyle'       : string of marker style for plotting (default is
 %                        'lines')
 %  * 'lineLength'      : vertical length of line indicator (default is 1)
+%  * 'timelim'         : int array, plot spikes only between [-timelim(1),
+%                        timelim(2)]. Default is empty.
 %
 %OUTPUTS
 %   * 'trialCounter'   : arbitrary trial number until which spikes were
@@ -24,8 +26,8 @@ function trialCounter = plotRaster(spikes,trialCounter,varargin)
 
 % VERSION HISTORY:
 % Author:         Lukas Hahn
-% Version:        1.2.0
-% Last Change:    15.04.2024
+% Version:        1.3.0
+% Last Change:    04.06.2024
 %
 % 15.07.2019, Lukas: v1.0.0 release version
 % 28.11.2023, Lukas: v1.1.0 added plot as square markers option
@@ -33,12 +35,16 @@ function trialCounter = plotRaster(spikes,trialCounter,varargin)
 % 15.04.2023, Lukas: v1.2.0 updated function to allow trial unique colors,
 %                           added line length option for use with line
 %                           markers, adjusted default spikeWidth to 3
+% 04.06.2024, Jesus: v1.3.0 added 'timelim' optional input to plot only a
+%                           subset of spikes between [-timelim(1) timelim(2)] 
+
 %%
 %default values
 plotCol = zeros(1,3);
 spkWidth = 3;
 plotStyle = 'lines';
 lineLength = 1;
+timelim = [];
 
 %user specified values
 if nargin>2
@@ -59,6 +65,8 @@ if nargin>2
                         plotStyle = varargin{i+1};
                     case 'linelength'
                         lineLength = varargin{i+1};
+                    case 'timelim' % Jesus, added on 04.06.2024
+                        timelim = varargin{i+1};
                     otherwise
                         %next input
                 end
@@ -75,13 +83,20 @@ if size(plotCol,1)<size(spikes,1)
 end
 %%
 for trial=1:size(spikes,1) %for all trials
-    if numel(spikes{trial,1})<4
+    % Jesus, added timelim optional input, used here
+    if ~isempty(timelim)
+        spikestoplot = spikes{trial,1}(spikes{trial,1}>(timelim(1)) & spikes{trial,1}<(timelim(2)));
+    else
+        spikestoplot = spikes{trial,1};
+    end
+
+    if numel(spikestoplot)<4
         plotCorrection = [NaN; NaN; NaN; NaN]; %to correct for line bugs
     else
         plotCorrection = [];
     end
     trialCounter = trialCounter+1;
-    spikeTrains = [plotCorrection; spikes{trial,1}];
+    spikeTrains = [plotCorrection; spikestoplot];
 
     %helper = randperm(size(spikeTrains,1));
     %reduces raster to 20 %

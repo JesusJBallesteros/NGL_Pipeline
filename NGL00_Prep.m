@@ -44,6 +44,7 @@ if ~exist(projectfolder,"dir")
     mkdir('raw');
     mkdir('spikesorted');
     mkdir('trialsorted');
+    mkdir('behaviour');
     
     % Update result
     txt = sprintf('Folder system for project "%s" created. Done. \n', studyname);    

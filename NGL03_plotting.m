@@ -1,6 +1,8 @@
-%% NGL02_postPhy (in progress)
-% To run after manual curation of desired sessions is completed. Will read
-% the resulting KS results after manual curation.
+%% NGL03_plotting
+% To run after all standard data have been sorted, curated and saved. In
+% principle, different tyoes of plots could be selected to be done or not,
+% and new plots could be added for personalization. Parameters are taken
+% from main script or from an additional one.
 %
 % Jesus 05.06.2024
 
@@ -30,26 +32,21 @@ for x = 1:input.nsubjects % Subjects.
             
             %% 02. Prepare to proceed with a single session.
             [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);           
-            mkdir(opt.spikeSorted)
-            mkdir(opt.trialSorted)
+            mkdir(fullfile(opt.trialSorted,'genplots'))
 
-            %% 03. Extract preprocessed spikes and recover event data
-            % Spike clusters after sorting and curation
-            spike = loadSpikes(opt); % Also saves the result to \spikesorted
-            if isfield(spike,"spike")
-                spike = spike.spike; % Simplify loaded structure if needed
-            end
-            
+            %% 03. Rrecover event data if not in workspace yet
             % Recover trial definitions created after event extraction and processing. 
             % Will have as many variations as requested at that time. Needs to be ran 
             % again to create new alignments.
+            if ~exist('spike','var'),     load(fullfile(opt.spikeSorted, "spike.mat")),       end
             if ~exist('trialdef','var'),  load(fullfile(opt.trialSorted, "trialdef.mat")),    end
+            if ~exist('events','var'),    load(fullfile(opt.trialSorted, "events.mat")),      end
+            if ~exist('condition','var'), load(fullfile(opt.trialSorted, "condition.mat")),   end 
+            if ~exist('neurons','var'),   load(fullfile(opt.trialSorted, "neurons.mat")),     end
             
-            %% 04. Iterate trough all units and sorts them into their trials
-            % TODO fix Fieldtrip extraction
-            [neurons, neurons_FT] = sort2trials(spike, trialdef, opt);
-        
-            %% ...
+            %% 04.1 Plotting rasters (per alignment, and per cluster or pooled)
 
+            % 0X.1 Rasters, aligned to requested events
+            plot_rasters(neurons, events, spike, opt, param)
     end
 end

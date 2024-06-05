@@ -18,8 +18,8 @@ toolbox     = 'C:\Code\ephys-data-pipeline'; % Absolute path to the toolbox.
 
 % B) SUBJECTS AND SESSIONS
 % To run the script on all subjects and sessions, or as session-to-session process.
-subjects    = {'913'};%'all'; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
-dates       = {'20240325'};%'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
+subjects    = 'all'; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
+dates       = 'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
 
 % C) OPTIONS.
 opt = struct();
@@ -30,7 +30,6 @@ opt = struct();
         opt.CAR                 = 1;        % Default: 1. Common Average Referencing (median) to remove fast-ample transients and other noise. 
     opt.FieldTrip               = false;     % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
         opt.lowpass             = [0 250];  % Give as [low high] frequency values.
-        opt.linefilter          = 50;       % If given, to filter line noise, can be 50/60 Hz
     opt.GetMotionSensors        = false;    % Retrieve data from motion sensors in Deuteron. NEEDS IMPROVEMENT on head direction interpretation.
     opt.RetrieveEvents          = true;    % Retrieve event log. If not further options defaulted to Deuteron txt log extraction.
         opt.alignto             = {'itiOn', 'stimOn1', 'rwd'};  % single char array e.g. 'itiOn', or cell array e.g. {'itiOn', 'rwd'}. 'itiON' should be the very least to align to.

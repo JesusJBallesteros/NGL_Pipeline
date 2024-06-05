@@ -83,7 +83,9 @@ elseif nfiles > 1
             % Proceed with filter. Likes double precision, check function
             % for more about it.
             [tmp, ~, ~] = bandFilter(tmp, [], opt.lowpass, opt.sampleRate);
-
+            
+            % FT_preproc_dtfilter
+             
             % Proceed with downsampling
             [volt(b,:), ~, ~] = downsampleVolt(tmp, opt.sampleRate, opt.dwnsmplRate);
 

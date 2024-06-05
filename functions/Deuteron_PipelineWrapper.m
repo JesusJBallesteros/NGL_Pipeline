@@ -65,7 +65,7 @@ opt.sampleRate  = input.sessions(input.run(1)).info.amplifier_sample_rate;
 % % DEPR% Set ChunkSize of HDF5 file (e.g., 5 minutes: 300s x 30000Hz = 9600000 samples)
 % opt.HDF5chunkSize = 300*opt.sampleRate; 
 % % DEPR
-
+%
 % % DEPR % Get number and order of channels if not done yet. (ORDER NEEDS TO BE FIXED)
 % if isempty(input.sessions(input.run(1)).info.nChannels)
 %     opt.channelOrder    = load(fullfile(input.analysisCode, opt.KSchanMapFile),'chanMap'); 

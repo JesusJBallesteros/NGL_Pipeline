@@ -1,7 +1,6 @@
 function [spike] = loadSpikes(opt)
-% Based on Juan's script for his own piloting
 
-if ~exist(fullfile(opt.spikeSorted, [opt.SavFileName, '.mat']), "file")
+if ~exist(fullfile(opt.spikeSorted, 'spike.mat'), "file")
     % Extract data from python files into a matlab friendly matrix
     spikes = loadKSdir(opt.KSfolder);
     
@@ -38,9 +37,9 @@ if ~exist(fullfile(opt.spikeSorted, [opt.SavFileName, '.mat']), "file")
     
     end
     
-    save(fullfile(opt.spikeSorted, [opt.SavFileName, '.mat']), "spike", '-mat');
+    save(fullfile(opt.spikeSorted, "spike.mat"), 'spike', '-mat');
 else
     disp('Already existing Spike-sorted data for this session. Loading instead.')
-    spike = load(fullfile(opt.spikeSorted, [opt.SavFileName, '.mat']));
+    spike = load(fullfile(opt.spikeSorted, ['spike.mat']));
 end
 end
