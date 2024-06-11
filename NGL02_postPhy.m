@@ -39,7 +39,7 @@ for x = 1:input.nsubjects % Subjects.
             if isfield(spike,"spike")
                 spike = spike.spike; % Simplify loaded structure if needed
             end
-            
+
             % Recover trial definitions created after event extraction and processing. 
             % Will have as many variations as requested at that time. Needs to be ran 
             % again to create new alignments.

@@ -1,7 +1,7 @@
 function input = INTAN_PipelineWrapper(input, varargin)
 %
 %
-% Version 13.03.2024 (Jesus)
+% Version 07.06.2024 (Jesus)
 
 if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
@@ -13,6 +13,7 @@ if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
 if ~isfield(opt,'useNWB'),          opt.useNWB              = false;        end
 if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = false;        end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
+if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  400];   end
 
 %% 01. Find out INTAN settings and header file. Extract info.
 %  Uses a modified Intan function, to make the basic information
@@ -20,9 +21,22 @@ if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
 %  the '.INTAN_hdr' sub-structure.
 input.sessions(input.run(1)) = findSetting(input.sessions(input.run(1)));
 
-%% 02. Create NWB file
-if input.useNWB % We want a .NWB file.
+%% 02. Event data retrieval and trial definition. INTAN version
+if isfile(fullfile(opt.trialSorted, "trialdef.mat"))
+    load(fullfile(opt.trialSorted, "trialdef.mat"))
+    if ~exist("trialdef","var") && exist("trialDefinition","var")
+        trialdef = trialDefinition.trl; clear trialDefinition
+    end
+else
+    % TODO
+    % 'trialdef' outputted for later feed into fieldtrip transf.
+    % [~, trialdef, ~] = Deuteron_EventProcess(opt);
+    % With an empty 'events'/'trialdef', data shall be treated as continuous.
+    trialdef = [];
+end
 
+%% 03. Create NWB file
+if input.useNWB % We want a .NWB file.
   % Run wrapper for the INTAN to NWB functionality:               
     % This NEEDS A PYTHON installation and the tooldbox inside!
     % Detailed explanation:
@@ -42,17 +56,21 @@ if input.useNWB % We want a .NWB file.
   intan2NWB_wrapper(input, opt);
 end 
 
-%% 03. Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
+%% 04. Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
 if opt.bin && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
     % Based on Sara, Aylin and Lukas' scripts.
     Intan2Kilosort_wrapper(input.sessions(input.run(1)), opt);
 end
 
-%% 04. Run wrapper for the INTAN to FIELDTRIP.
-if opt.FieldTrip && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '_continous_FT.mat']))
+%% 05. Run functions to convert INTAN dat to FIELDTRIP structure.
+if opt.FieldTrip && ~isfile(fullfile(opt.trialSorted,[opt.SavFileName '_continous_FT.mat']))
     % Includes a mix of INTAN funtions. CREATES and GIVES proper
     % FieldTrip format without trial-parsing. 
-    intan2FieldTrip(input.sessions(input.run(1)), opt)
+%     intan2FieldTrip(input.sessions(input.run(1)), opt) % DEPR
+
+    % Proceed with the main functions
+    INTANdata = intan2MAT_wrapper(input.sessions(input.run(1)), opt);
+    MAT2FieldTrip(INTANdata, opt, trialdef, 1); %(data, options, trialdefinitions, do continuous)
 end
 
 end

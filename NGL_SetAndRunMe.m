@@ -13,38 +13,37 @@ clear all
 % A) SYSTEM
 % RECOMMENDED to add the toolbox folder to MATLAB folder system, but not necessary.
 datadrive   = 'F';                   % The LETTER of the drive where the data structure is/will be created.
-studyname   = 'SocialLearning';  % Name of the study to be used (main folder for the data)
+studyname   = 'ProjectName';  % Name of the study to be used (main folder for the data)
 toolbox     = 'C:\Code\ephys-data-pipeline'; % Absolute path to the toolbox.
 
 % B) SUBJECTS AND SESSIONS
 % To run the script on all subjects and sessions, or as session-to-session process.
-subjects    = {'913'};%'all'; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
-dates       = {'20240325'};%'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
+subjects    = {'DOE', 'POE'}; % 'all'; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
+dates       = {'YYYYMMDD', 'YYYYMMDD'}; % 'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
 
 % C) OPTIONS.
 opt = struct();
     % General options for NGL01_Main
     opt.numChannels             = 32;       % For now, explicit 32 if not SpikeLog-64C was used (Deuteron). INTAN: comment.
     opt.bin                     = true;     % Create a .bin file with the high-pass data, to be passed to Kilosort for spike sorting.
-        opt.highpass            = [450 7000]; % Give as [low high] frequency values.
-        opt.CAR                 = 1;        % Default: 1. Common Average Referencing (median) to remove fast-ample transients and other noise. 
-    opt.FieldTrip               = false;     % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
+        opt.highpass            = [450 9000]; % Give as [low high] frequency values.
+        opt.CAR                 = 0;        % Default: 1. Common Average Referencing (median) to remove fast-ample transients and other noise. 
+    opt.FieldTrip               = true;     % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
         opt.lowpass             = [0 250];  % Give as [low high] frequency values.
         opt.linefilter          = 50;       % If given, to filter line noise, can be 50/60 Hz
     opt.GetMotionSensors        = false;    % Retrieve data from motion sensors in Deuteron. NEEDS IMPROVEMENT on head direction interpretation.
-    opt.RetrieveEvents          = true;    % Retrieve event log. If not further options defaulted to Deuteron txt log extraction.
-        opt.alignto             = {'itiOn', 'stimOn1', 'rwd'};  % single char array e.g. 'itiOn', or cell array e.g. {'itiOn', 'rwd'}. 'itiON' should be the very least to align to.
-        opt.trEvents            = {'na3'};  % Event definition of 'special events' i.e. events at the ITI like treatments, tutors, etc...
-        % opt.useexe              = false;   % Use Deuteron's executable software. Prob to be discontinued.
-        % opt.usepar              = false;   % temporarily use '_par' files from Juan's behavior paradigm to extract events. Prob to be discontinued.
-    opt.kilosort                = 4;        % Kilosort processing. == 2 for KS2, == 4 for KS4 !! KS2 NEEDS configfile saved under 'studyName\analysisCode\'
-        opt.KSchanMapFile       = 'chanMapE32-S2_linearized_DeutSN11.mat';  % Empty '' to use non-mapped, linear array. Or e.g.'chanMapXXX.mat' for custom maps saved under 'studyName\analysisCode\'
+    opt.RetrieveEvents          = true;     % Retrieve event log. If not further options defaulted to Deuteron txt log extraction.
+        opt.alignto             = {'itiOn', 'stimOn1', 'bhv'}; % single char array e.g. 'itiOn', or cell array e.g. {'itiOn', 'rwd'}. 'itiON' should be the very least to align to.
+        opt.trEvents            = {};       % Event definition of 'special events' i.e. events at the ITI like treatments, tutors ('na3'), etc...
+    opt.kilosort                = 2;        % Kilosort processing. == 2 for KS2, == 4 for KS4 !! KS2 NEEDS configfile saved under 'studyName\analysisCode\'
+        opt.KSchanMapFile       = 'chanMapE32-S2_DeutSN11.mat';  % Empty '' to use non-mapped, linear array. Or e.g.'chanMapXXX.mat' for custom maps saved under 'studyName\analysisCode\'
         opt.spkTh               = -4.5;     % Only for KS2. Usually a single value. If multiple [-X -Y ... -Z], cycle runs with thresholds -X, -Y ... -Z each.
     opt.bombcell                = false;     % Run bombcell on the KS output, as previous step to manual curation. TODO: go over several KS outputs if existing.
          opt.rerun              = false;    % To overwrite previous runs of BombCell.
     opt.phy                     = false;    % Open phy for manual inspection or curation. !! It puts MATLAB on HOLD! Needs bin file in same folder.
                         
     % General options for NGL02_postPhy
+    % TODO figure out HOW to get wF!
     opt.getwF                   = false;    % To obtain waveforms or not
         opt.gwfparams.dataType      = 'int16';  % Data type of .dat file
         opt.gwfparams.nCh           = 32;       % Number of channels that were streamed in .dat file
@@ -53,7 +52,7 @@ opt = struct();
 
     % These parameters could live in an independent m-file under analysisCode, so they don't crowd here
     param = struct('res',           1, ... % load 'res' variable from Juan's
-                   'visible',       'on', ... % figure visibility (saves time when 'off')
+                   'visible',       'off', ... % figure visibility at plotting
                    'treatment',     true, ... % plot different levels due to treatment/s
                    'genstats',      true, ... % do raster plots
                    'pooledstats',   true, ... % Pool all clusters
@@ -66,19 +65,26 @@ opt = struct();
                    ... % PSH plotting
                    'binSize',       100, ... % binning window, msec
                    'stepSz',        10, ... % window running step, msec
-                   'smpRate',       1000); ... % samples per second in 'neurons'
-                  %  ... %
-
+                   'smpRate',       1000, ... % samples per second in 'neurons'
+                   'interval',      [0 2500]); % time interval to calculate histogram bins
+%                     ... %
+%                     'raster', struct(), ...
+%                     ... %
+%                     'psh', struct(), ...
+%                     ... %
+%                     'poolraster', struct() ...
+%                     );
+%                   %  ... %
 
 % D) README.TXT
 % It contains details about the project. File can also be modified later.
-readmecontent = ["Study name: Preparation for social learning paradigms", ...
-                 "Readme date: 22/02/2024"                          , ...
+readmecontent = ["Study name: Testing line noise removal and others", ...
+                 "Readme date: 06/06/2024"                          , ...
                  "Person (1) responsible for data repository: Jesus", ...
-                 "Person(s) responsible for study: Juan, Jesus "    , ...
-                 "Hardware used: Deuteron. E32-S2"                  , ...
+                 "Person(s) responsible for study: Lukas, Jesus "    , ...
+                 "Hardware used: Deuteron. 2x NNx-32ch"                  , ...
                  "Related Publication(s): None."                    , ...
-                 "Short description of study: Autoshaping with social learning." ];
+                 "Short description of study: ." ];
 
 %% 2) RUN.
 %% 2.0 Start with project folder system preparation. Commonly to be ran only ONCE,
@@ -92,12 +98,20 @@ NGL00_Prep
 % Additionally it can launch Phy for manual curation after each sessions, or first
 % run Bombcell to semi-automatize this porcess (only once appropiate
 % parameters are known) and then launch Phy.
+
+% TODO add linefilter from FT at raw processing step
+%       figure out possible CAR for Intan data
+%       related: separate data from different ports at this level to
+%                   effective CAR use on different brain regions
+
 NGL01_Main
 
 %% 2.2 Proceed with post-Phy processing. Once data is curated.
 % Includes steps towards spike/trial sorting of the curated data. Uses
 % events and trial definitions obtained before to trial-parse the spike or
 % LFP data, creating the variables into the lab standard.
+
+% TODO
 NGL02_postPhy
 
 %% 2.3 Plotting.
@@ -109,7 +123,10 @@ NGL02_postPhy
 % plotting, to obtain examples of clusters, effects, etc.)
 % Othert elaborated or dedicated plots could be added on a personal basis,
 % or implemented as default if decided as standard.
-NGL03_plotting
+
+% TODO fix time axes for PHS! funky fucker
+%      add ISI, autocorr, waveform, drift plot, ... to genstats
+NGL03_plotting 
 
 %% 2.X Statistics?
 % NGLXX_something

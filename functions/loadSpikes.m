@@ -18,10 +18,13 @@ if ~exist(fullfile(opt.spikeSorted, 'spike.mat'), "file")
         spike.label{cl}           = num2str(clusters(cl));
         spike.timestamp{cl}       = spikes.st(spikes.clu==clusters(cl))*1000; % from ms to sec
         
+        % Extract waveforms
         if opt.getwF
             % a few more params for 'getWaveForms' dep on cluster
-            gwfparams.spikeTimes = ceil(extract.st(extract.clu==clusters(cl))*32000); % Vector of cluster spike times (in samples) same length as .spikeClusters
-            gwfparams.spikeClusters = extract.clu(extract.clu==clusters(cl));
+            gwfparams.dataDir = fullfile(opt.FolderProcDataMat, 'kilosort4'); % KiloSort/Phy output folder
+            gwfparams.fileName = fullfile(opt.FolderProcDataMat, [opt.SavFileName, '.bin']); % .dat file containing the raw 
+            gwfparams.spikeTimes = ceil(spike.st(spike.clu==clusters(cl))*opt.sampleRate); % Vector of cluster spike times (in samples) same length as .spikeClusters
+            gwfparams.spikeClusters = spike.clu(spike.clu==clusters(cl));
             
             % Get waveform
             wF = getWaveForms(gwfparams);

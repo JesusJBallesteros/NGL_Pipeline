@@ -5,17 +5,12 @@ function [data] = Deuteron2Fieldtrip(opt)
 % the amount of data. We convert this into a flat .mat file that will be
 % feeded into 'mat2FieldTrip'.
 
-% Jesus 25.01.2024
+% Jesus 11.06.2024
 
 %% Check existence of a FieldTrip file.
 % If existing, load it instead and return to main script
-if isfile(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_cont.mat')))
+if isfile(fullfile(opt.trialSorted, strcat(opt.SavFileName,'_FTcont.mat')))
     disp('A Fieldtrip-formatted file found in this directory, skipping.')
-% 
-%     try     data = load(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_continous_FT.mat')));
-%     catch,  data = load(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_tparsed_FT.mat')));
-%     end
-% 
     data = [];
     return
 end
@@ -29,7 +24,7 @@ if strcmp(opt.ext, 'DT2')
     disp('Converting DT2 files to pseudo-FieldTrip.')
     
     % Initiate matrix and sample index.
-    data_tmp = int16([]);
+    tmp = int16([]);
     indexPos  = 0;
 
     disp('Obtaining data from Deuteron files.')
@@ -55,7 +50,7 @@ if strcmp(opt.ext, 'DT2')
         nSamples = size(tempdata,2);
 
         % Collect chunks into full matrix for further treatment.
-        data_tmp(:,indexPos+1:indexPos+nSamples) = tempdata;
+        tmp(:,indexPos+1:indexPos+nSamples) = tempdata;
        
         % Get to next starting sample
         indexPos = indexPos+nSamples;
@@ -63,7 +58,7 @@ if strcmp(opt.ext, 'DT2')
 end
 %% Proceed for DF1 Format.
 if strcmp(opt.ext, 'DF1') % opt.ext = DF1
-    data_tmp = int16([]); % Create empty variable to store all data (do not pre-allocate the whole matrix)
+    tmp = int16([]); % Create empty variable to store all data (do not pre-allocate the whole matrix)
     opt.stream   = 1;     % Pass variable to read continuous neural signals.
 
     % Open each channel file and read it, resize data to fit Kilosort expectations,
@@ -77,38 +72,76 @@ if strcmp(opt.ext, 'DF1') % opt.ext = DF1
         % Convert ADC bit steps into microvolts to convert to int16 without loss.
         tempdata = int16((opt.voltageResolution * (tempdata - opt.offset)) * 1000000);
 
-        data_tmp = [data_tmp; tempdata];
+        tmp = [tmp; tempdata];
     end
     clear tempdata fid
 
     % Reshape to sort as channels x samples.
-    data_tmp = reshape(data_tmp, opt.numChannels, []);
+    tmp = reshape(tmp, opt.numChannels, []);
 end 
 
-%% Let's always filter
-data_mat = int16([]);
-txt = sprintf('Filtering between %d and %d Hz. It may take a moment.\n', opt.lowpass(1), opt.lowpass(2));
-fprintf(txt);
+%% Re-reference channels
+if opt.CAR == 2
+    % In principle, data from a single HS on a single region.
+    disp('Re-referencing by Common Average Referencing (CARing).')
+    tmp = ft_preproc_rereference(tmp, 'all', 'median');
 
-% To keep memory usage low, we proceed in a channel by channels basis
-for i=1:opt.numChannels
-    % Proceed with filter
-    [tmp, ~, ~] = bandFilter(double(data_tmp(i,:)), [], opt.lowpass, opt.sampleRate);
-    
-    % Proceed with downsampling
-    [data_mat(i,:), ~, ~] = downsampleVolt(tmp, opt.sampleRate, opt.dwnsmplRate);
+%     disp('Saving CARed file, will take a while.')
+%     save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CARed.mat']), 'data_tmp', '-v7.3');
 end
-clear data_temp
+
+%% Let's always filter
+% data_mat = int16([]);
+% txt = sprintf('Filtering between %d and %d Hz. It may take a moment.\n', opt.lowpass(1), opt.lowpass(2));
+% fprintf(txt);
+% 
+% % To keep memory usage low, we proceed in a channel by channels basis
+% for i=1:opt.numChannels
+%     % Proceed with filter
+%     [tmp, ~, ~] = bandFilter(double(data_tmp(i,:)), [], opt.lowpass, opt.sampleRate);
+%     
+%     % Proceed with downsampling
+%     [data_mat(i,:), ~, ~] = downsampleVolt(tmp, opt.sampleRate, opt.dwnsmplRate);
+% end
+% clear data_temp
+
+% Now, channel by channel to keep memory usage low
+% TODO: paralellize?
+for b = 1:opt.numChannels
+    fprintf('Channel %d of %d.\n', b, opt.numChannels);
+    
+    % Detrend channel (remove DC)
+    disp('Detrending...')
+    tmp(b,:) = ft_preproc_detrend(tmp(b,:));
+
+    % Lowpass filter channel (Butterwort, 6th order, back&forth)
+    disp('Lowpassing...')
+    [tmp(b,:), ~, ~] = ft_preproc_lowpassfilter(tmp(b,:), opt.sampleRate, opt.lowpass, 6, 'but', 'twopass');
+                
+    % FT's bandstop filter (btw 50 +-2 Hz, Butterwort, 2nd order, back&forth)
+    if opt.linefilter > 0
+        disp('Line denoising...')
+        [tmp(b,:), ~, ~] = ft_preproc_bandstopfilter(tmp(b,:), opt.sampleRate, [opt.linefilter-2 opt.linefilter+2], 2, 'but', 'twopass', 'split');
+    end
+end
+
+% % Save depending on previous treatment
+% if opt.CAR
+%     disp('Saving CARed&Filtered file, will take a while.')
+%     save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CARed&filtered.mat']), 'data_tmp', '-v7.3');
+% else
+%     disp('Saving Filtered file, will take a while.')
+%     save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_filtered.mat']), 'data_tmp', '-v7.3');
+% end
 
 %% Get time series
-% For LFP, having the voltage series already, we are going to use the number
-% of samples there to create our own time-series. 
+disp('Downsampling.')
+[volt, ~, ~] = downsampleVolt(tmp, opt.sampleRate, opt.dwnsmplRate, 2);
+clear tmp
 
-% Number of samples of resulting downsampled data
-nSamples = length(data_mat);
-
-% We create a time-vector in samples and divide it by the sampling rate.
-time = (1:nSamples) / opt.dwnsmplRate; % results in sec.
+% Get time series
+% We simply create a time-vector from samples and divide it by the sampling rate.
+time = (1:length(volt)) / opt.dwnsmplRate; % in Seconds
         
 %% Convert to pseudo-FieldTrip
 % It's only pseudo until we run the proper FT tool to check for format and
@@ -131,13 +164,13 @@ for i=1:opt.numChannels
 end
 
 % The only trial contains all channels*time info                
-data.trial{1}        = data_mat;
+data.trial{1}        = volt;
 
 % The only trial is the whole time-series
 data.time{1}         = time;
 
-% The trial starts at 0 and ends at last sample
-data.sampleinfo(1,:) = [1 nSamples];
+% The trial starts at t=0 and ends at t=t(end)
+data.sampleinfo(1,:) = [1 length(time)];
 
 disp('- Done.')
 end

@@ -15,7 +15,8 @@ if ~isfield(param,'plotStyle'),     param.plotStyle      = 'square';     end
 if ~isfield(param,'spkWidth'),      param.spkWidth       = 3;            end
 if ~isfield(param,'lineLength'),    param.lineLength     = 1;            end
 if ~isfield(param,'timelim'),       param.timelim        = [-500 2000];  end
-if ~isfield(param,'timelimItiOn'),  param.timelimItiOn   = [0 2500];    end
+if ~isfield(param,'timelimItiOn'),  param.timelimItiOn   = [0 2500];     end
+if ~isfield(param,'timelimRwd'),    param.timelimRwd     = [-2000 500];  end
 if ~isfield(param,'binSize'),       param.binSize        = 100;  end
 if ~isfield(param,'stepSz'),        param.stepSz         = 10;  end
 if ~isfield(param,'smpRate'),       param.smpRate        = 1000;  end
@@ -98,9 +99,10 @@ for a = 1:nalign
             param.raster.title = ['Aligned to: ', opt.alignto{a}];
             param.raster.subtitle = ['cluster: ', spike.label{c}];
             
-            % Special case for itiON, since there is no -time
-            if a == 1, tlim = param.timelimItiOn;
-            else,      tlim = param.timelim;
+            % Special cases for itiON and Rwd, as fringe events
+            if strcmp(opt.alignto{a},'itiOn'),      tlim = param.timelimItiOn;
+            elseif strcmp(opt.alignto{a},'rwd'),    tlim = param.timelimRwd;
+            else, tlim = param.timelim;
             end
 
             % Initialize figure
@@ -149,11 +151,11 @@ for a = 1:nalign
 
     %% For ALL clusters
     if param.pooledstats
-        % Trick the params to change color every cluster
-        param.levels = length(neurons.(opt.alignto{a})); % number clusters
+        % Special params to change color every cluster, only for this specific plot
+        param.pooled_levels = length(neurons.(opt.alignto{a})); % number clusters
         trialperclus = length(neurons.(opt.alignto{a}){1}); % trials per cluster
-        param.trial_change = (1:trialperclus:(param.levels*trialperclus)+1);
-        param.plotcol = [0 0 0; 0.6350 0.0780 0.1840]; % two colors to alternate
+        param.pooled_trial_change = (1:trialperclus:(param.pooled_levels*trialperclus)+1);
+        param.pooled_plotcol = [0 0 0; 0.6350 0.0780 0.1840]; % two colors to alternate
 
         % Allocate and concatenate all cells from neurons cell array (pile
         % up all trials along all clusters)
@@ -170,10 +172,10 @@ for a = 1:nalign
             
         % Event-aligned Spike Raster
         trialCounter = 1;
-        for lvl=1:param.levels
-            trialCounter = plotRaster(poolneurons(param.trial_change(lvl):param.trial_change(lvl+1)-1), ... % spikes
+        for lvl=1:param.pooled_levels
+            trialCounter = plotRaster(poolneurons(param.pooled_trial_change(lvl):param.pooled_trial_change(lvl+1)-1), ... % spikes
                                       trialCounter,               ... % trialCounter
-                                      'plotcol',    param.plotcol(mod(lvl,2)+1,:), ... % alternate color per cluster
+                                      'plotcol',    param.pooled_plotcol(mod(lvl,2)+1,:), ... % alternate color per cluster
                                       'spkwidth',   2,       ...
                                       'linelength', 1,     ...
                                       'plotstyle',  param.plotStyle,      ...

@@ -9,7 +9,7 @@ function Deuteron2Kilosort(opt)
 %  bandFilter: to filter the highpass signal, since signal is intended to
 %                 Kilosort.
 
-% Jesus 22.02.2024
+% Jesus 11.06.2024
 
 % if ~isfield(opt,'h5'),             opt.h5                 = false;         end
 
@@ -127,25 +127,31 @@ if strcmp(opt.ext, 'DF1')
 
 end
 
-%% Common methods of preprocessing. DC substraction, Referencing and filter.
-if opt.CAR
-    % Subtract the mean from each channel
-    data_mat = single(data_mat);
-    data_mat = data_mat - mean(data_mat, 1);
-
-    % CAR, common average referencing by median.
-    data_mat = data_mat - median(data_mat, 2); % subtract median across channels
+%% Common methods of preprocessing. Re-Referencing, DC substraction and filter.
+if opt.CAR == 1
+    % In principle, data from a single HS on a single region.
+    disp('Re-referencing by Common Average Referencing (CARing).')
+    data_mat = ft_preproc_rereference(data_mat, 'all', 'median');
 end
 
-% Highpass filter.
+% Enforce int16
 filt_data_mat = int16([]);
-txt = sprintf('Filtering between %d and %d Hz. It may take a moment.\n', opt.highpass(1), opt.highpass(2));
+
+txt = sprintf('Highpass filter set at %d Hz. It may take a moment.\n', opt.highpass(1));
 fprintf(txt);
 
 % Keep memory usage low doing one channel at a time.
 for b = 1:opt.numChannels
-    [filt_data_mat(b,:), ~, ~] = bandFilter(double(data_mat(b,:)), [], opt.highpass, opt.sampleRate);
-    filt_data_mat(b,:) = int16(filt_data_mat(b,:));
+    fprintf('- Filtering channel %d of %d.\n', b, opt.numChannels);
+    
+    % Detrend channel (remove DC)
+    disp('Detrending...')
+    filt_data_mat(b,:) = ft_preproc_detrend(data_mat(b,:));
+
+    % Highpass channel (Butterwort, 6th order, back&forth)
+    disp('Filtering...')
+    [filt_data_mat(b,:), ~, ~] = ft_preproc_highpassfilter(data_mat(b,:), opt.sampleRate, opt.highpass, 6, 'but', 'twopass');
+                
 end
 
 % %% HDF5 method. Distribute each row of data to its respective single-channel file

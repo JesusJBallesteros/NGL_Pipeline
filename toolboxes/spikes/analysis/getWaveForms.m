@@ -28,22 +28,26 @@ function wf = getWaveForms(gwfparams)
 % wf = getWaveForms(gwfparams);
 
 % Load .dat and KiloSort/Phy output
-fileName = fullfile(gwfparams.dataDir,gwfparams.fileName);           
-filenamestruct = dir(fileName);
-dataTypeNBytes = numel(typecast(cast(0, gwfparams.dataType), 'uint8')); % determine number of bytes per sample
-nSamp = filenamestruct.bytes/(gwfparams.nCh*dataTypeNBytes);  % Number of samples per channel
-wfNSamples = length(gwfparams.wfWin(1):gwfparams.wfWin(end));
+fileName        = fullfile(gwfparams.dataDir,gwfparams.fileName);           
+filenamestruct  = dir(fileName);
+
+% determine number of bytes per sample
+dataTypeNBytes  = numel(typecast(cast(0, gwfparams.dataType), 'uint8')); 
+
+% Number of samples per channel
+nSamp           = filenamestruct.bytes/(gwfparams.nCh*dataTypeNBytes);  
+wfNSamples      = length(gwfparams.wfWin(1):gwfparams.wfWin(end));
 mmf = memmapfile(fileName, 'Format', {gwfparams.dataType, [gwfparams.nCh nSamp], 'x'});
-chMap = readNPY(fullfile(gwfparams.dataDir, 'channel_map.npy'))+1;               % Order in which data was streamed to disk; must be 1-indexed for Matlab
-nChInMap = numel(chMap);
+
+% Order in which data was streamed to disk; must be 1-indexed for Matlab
+chMap       = readNPY(fullfile(gwfparams.dataDir, 'channel_map.npy'))+1;
+nChInMap    = numel(chMap);
 
 % Read spike time-centered waveforms
 unitIDs = unique(gwfparams.spikeClusters);
 numUnits = size(unitIDs,1);
-% % MOD Jesus: originally takes a fix nWf, I modified to take a proportion of
-% % the total, or a minimum of 1000. Not easy to pre-allocate anymore
-%spikeTimeKeeps = nan(numUnits,gwfparams.nWf);
-%waveForms = nan(numUnits,gwfparams.nWf,nChInMap,wfNSamples);
+spikeTimeKeeps = nan(numUnits,gwfparams.nWf);
+waveForms = nan(numUnits,gwfparams.nWf,nChInMap,wfNSamples);
 waveFormsMean = nan(numUnits,nChInMap,wfNSamples);
 
 for curUnitInd=1:numUnits
@@ -52,22 +56,20 @@ for curUnitInd=1:numUnits
     curUnitnSpikes = size(curSpikeTimes,1);
     spikeTimesRP = curSpikeTimes(randperm(curUnitnSpikes));
     
-    % MOD Jesus: originally takes a fix nWf, I modified to take a
-    % proportion of the total, or a minimum of 1000.
-%     spikeTimeKeeps(curUnitInd,1:min([gwfparams.nWf curUnitnSpikes])) = sort(spikeTimesRP(1:min([gwfparams.nWf curUnitnSpikes])));
-    fractspikes = round(gwfparams.nWf*curUnitnSpikes);
-    if fractspikes < 1000 && curUnitnSpikes > 999
-        fractspikes = 1000;
-    end
+    spikeTimeKeeps(curUnitInd,1:min([gwfparams.nWf curUnitnSpikes])) = sort(spikeTimesRP(1:min([gwfparams.nWf curUnitnSpikes])));
+%     fractspikes = round(gwfparams.nWf*curUnitnSpikes);
+%     if fractspikes < 1000 && curUnitnSpikes > 999
+%         fractspikes = 1000;
+%     end
 
-    spikeTimeKeeps(curUnitInd,1:fractspikes) = sort(spikeTimesRP(1:fractspikes));
-%     for curSpikeTime = 1:min([gwfparams.nWf curUnitnSpikes])
-    for curSpikeTime = 1:fractspikes
+%     spikeTimeKeeps(curUnitInd,1:fractspikes) = sort(spikeTimesRP(1:fractspikes));
+    for curSpikeTime = 1:min([gwfparams.nWf curUnitnSpikes])
+%     for curSpikeTime = 1:fractspikes
         tmpWf = mmf.Data.x(1:gwfparams.nCh,spikeTimeKeeps(curUnitInd,curSpikeTime)+gwfparams.wfWin(1):spikeTimeKeeps(curUnitInd,curSpikeTime)+gwfparams.wfWin(end));
         waveForms(curUnitInd,curSpikeTime,:,:) = tmpWf(chMap,:);
     end
     waveFormsMean(curUnitInd,:,:) = squeeze(nanmean(waveForms(curUnitInd,:,:,:),2));
-    disp(['Extracted ', int2str(fractspikes), ' waveforms from this cluster.']);
+%      disp(['Extracted ', int2str(gwfparams.nWf), ' waveforms from this cluster.']);
 end
 
 % Package in wf struct
