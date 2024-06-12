@@ -20,8 +20,8 @@ function [opt] = Deuteron_PipelineWrapper(input, varargin)
 %                   FTfile: logic. Creation of Fieltrip-formatted .mat file.
 %                   RetrieveEvents:   logic. Retrieve eventlog from Deuteron (and extract eventcodes and timestamps from it).
 %                   GetMotionSensors: logic. Extraction and processing of motion sensor data.
-%                   lowpass:    int array. lower and upper boundaries for lowpass filter. e.g. [  0  300]
-%                   highpass:   int array. lower and upper boundaries for highpass filter. e.g. [300 7500]
+%                   lowpass:    int array. upper boundary for lowpass filter. e.g. 200
+%                   highpass:   int array. lower boundary for highpass filter. e.g. 450
 %                   DllFolder:  string. Location of the .dll file to process events in Deuteron.
 %                   set_filter: logic. Filtering (and downsampling) request.
 %                   StpSz:      int. Number of samples to be written per chunck.
@@ -36,7 +36,7 @@ function [opt] = Deuteron_PipelineWrapper(input, varargin)
 %       a 'rotators' variable, containing the quaternions to create the
 %       rotation matrices and other transformations.
 
-% Version 26.01.2024 (Jesus)
+% Version 12.06.2024 (Jesus)
 
 if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
@@ -45,10 +45,10 @@ end
 %% Default options.
 if ~isfield(opt,'bin'),             opt.bin                 = true;         end
 if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
-if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = false;        end
+if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
-if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  150];   end
-if ~isfield(opt,'highpass'),        opt.highpass            = [450 7000];   end
+if ~isfield(opt,'lowpass'),         opt.lowpass             = 250;          end
+if ~isfield(opt,'highpass'),        opt.highpass            = 450;          end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
 if ~isfield(opt,'parsetrial'),      opt.parsetrial          = false;        end
 if ~isfield(opt,'CAR'),             opt.CAR                 = true;         end
@@ -88,8 +88,8 @@ opt.offset            = 2^(opt.numberOfAdcBits-1);
 
 %% Event data retrieval and trial definition.
 % 'trialdef' outputted for later feed into fieldtrip transf.
+% An empty output means that data shall be treated as continuous.
 [~, trialdef, ~] = Deuteron_EventProcess(opt);
-% An empty 'events'/'trialdef' would tell that data shall be treated as continuous.
 
 %% High-pass Neural Data Conversion to .bin
 if opt.bin

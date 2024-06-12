@@ -31,7 +31,7 @@ input.processed     = fullfile(input.datadrive, input.studyName, '\data\preproce
 input.analysisCode  = fullfile(input.datadrive, input.studyName, '\analysisCode\');
 input.spikeSorted   = fullfile(input.datadrive, input.studyName, '\data\spikeSorted\');
 input.trialSorted   = fullfile(input.datadrive, input.studyName, '\data\trialSorted\');
-input.analysisData  = fullfile(input.datadrive, input.studyName, '\data\analysis\');
+input.analysis      = fullfile(input.datadrive, input.studyName, '\data\analysis\');
 input.bhvfolder     = fullfile(input.datadrive, input.studyName, '\data\behaviour\');
 
 %% Find requested subjects.

@@ -1,10 +1,10 @@
 function [spike] = loadSpikes(opt)
 
 if ~exist(fullfile(opt.spikeSorted, 'spike.mat'), "file")
-    % Extract data from python files into a matlab friendly matrix
+    %% Extract data from python files into a matlab friendly matrix
     spikes = loadKSdir(opt.KSfolder);
     
-    % get relevant info
+    %% Get relevant info
     clusters        = sort(unique(spikes.cids)); % get and sort clusters by id
     nclust          = numel(clusters); % number of clusters
     
@@ -12,16 +12,16 @@ if ~exist(fullfile(opt.spikeSorted, 'spike.mat'), "file")
     spike.label     = cell(1,nclust); % for clusters IDs
     spike.timestamp = cell(1,nclust); % spikes timestamps
     
-    % Proceed to extract timestamps for each cluster
+    %% Proceed to extract timestamps for each cluster
     disp('Extracting curated clusters from Phy files. If many waveforms are requested, it may take a while.')
     for cl = 1:nclust
         spike.label{cl}           = num2str(clusters(cl));
         spike.timestamp{cl}       = spikes.st(spikes.clu==clusters(cl))*1000; % from ms to sec
         
-        % Extract waveforms
+        %% Extract waveforms
         if opt.getwF
             % a few more params for 'getWaveForms' dep on cluster
-            gwfparams.dataDir = fullfile(opt.FolderProcDataMat, 'kilosort4'); % KiloSort/Phy output folder
+            gwfparams.dataDir = fullfile(opt.KSfolder); % KiloSort/Phy output folder
             gwfparams.fileName = fullfile(opt.FolderProcDataMat, [opt.SavFileName, '.bin']); % .dat file containing the raw 
             gwfparams.spikeTimes = ceil(spike.st(spike.clu==clusters(cl))*opt.sampleRate); % Vector of cluster spike times (in samples) same length as .spikeClusters
             gwfparams.spikeClusters = spike.clu(spike.clu==clusters(cl));
@@ -39,9 +39,12 @@ if ~exist(fullfile(opt.spikeSorted, 'spike.mat'), "file")
          end
     
     end
-    
+
+    %% Save output
     save(fullfile(opt.spikeSorted, "spike.mat"), 'spike', '-mat');
+
 else
+    %% Load if existing    
     disp('Already existing Spike-sorted data for this session. Loading instead.')
     spike = load(fullfile(opt.spikeSorted, ['spike.mat']));
 end

@@ -26,7 +26,7 @@ for c=1:nclus
 end
 
 % Save output
-save(fullfile(opt.trialSorted, "neurons.mat"), 'neurons', '-mat')
+save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
 
 % %% With purpouse of putting them togehter with the LFP for i.e.
 % % spike-field analisys. Do as many rounds as existing trial alignments
@@ -42,6 +42,6 @@ save(fullfile(opt.trialSorted, "neurons.mat"), 'neurons', '-mat')
 % end
 % 
 % % Save output
-% save(fullfile(opt.trialSorted, "neurons_FT.mat"), 'neurons_FT', '-mat')
+% save(fullfile(opt.analysis, "neurons_FT.mat"), 'neurons_FT', '-mat')
 % 
 end

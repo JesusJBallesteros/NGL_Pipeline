@@ -13,7 +13,7 @@ if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
 if ~isfield(opt,'useNWB'),          opt.useNWB              = false;        end
 if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = false;        end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
-if ~isfield(opt,'lowpass'),         opt.lowpass             = [  0  400];   end
+if ~isfield(opt,'lowpass'),         opt.lowpass             = 250;          end
 
 %% 01. Find out INTAN settings and header file. Extract info.
 %  Uses a modified Intan function, to make the basic information

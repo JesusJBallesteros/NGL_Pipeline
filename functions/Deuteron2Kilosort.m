@@ -9,7 +9,7 @@ function Deuteron2Kilosort(opt)
 %  bandFilter: to filter the highpass signal, since signal is intended to
 %                 Kilosort.
 
-% Jesus 11.06.2024
+% Jesus 12.06.2024
 
 % if ~isfield(opt,'h5'),             opt.h5                 = false;         end
 
@@ -128,7 +128,7 @@ if strcmp(opt.ext, 'DF1')
 end
 
 %% Common methods of preprocessing. Re-Referencing, DC substraction and filter.
-if opt.CAR == 1
+if opt.CAR
     % In principle, data from a single HS on a single region.
     disp('Re-referencing by Common Average Referencing (CARing).')
     data_mat = ft_preproc_rereference(data_mat, 'all', 'median');
@@ -137,7 +137,7 @@ end
 % Enforce int16
 filt_data_mat = int16([]);
 
-txt = sprintf('Highpass filter set at %d Hz. It may take a moment.\n', opt.highpass(1));
+txt = sprintf('Highpass filter set at %d Hz. It may take a moment.\n', opt.highpass);
 fprintf(txt);
 
 % Keep memory usage low doing one channel at a time.

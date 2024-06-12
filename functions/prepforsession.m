@@ -1,7 +1,7 @@
 function [info, opt] = prepforsession(input, opt)
 % Check system and version. Determine where processed session data will be saved.
 
-% Version 28.05.2024 (Jesus)
+% Version 12.06.2024 (Jesus)
 
 % Extract subject and session 
 subject = input.subjects(input.run(1)).name;
@@ -18,16 +18,23 @@ fprintf(txt);
 % Check system and version.
 info = chckV();
 
-% Determine where processed session data will be saved.
+% Collect data to create paths.
 opt.PathRaw             = pwd;
 opt.SavFileName         = session; 
+
+% Create paths to session-specific folders
 opt.FolderProcDataMat   = fullfile(input.processed, subject, session);
-opt.behavFiles          = fullfile(input.bhvfolder, subject, session);
 opt.KSfolder            = [opt.FolderProcDataMat, '\kilosort', int2str(opt.kilosort)];
+opt.behavFiles          = fullfile(input.bhvfolder, subject, session);
 opt.spikeSorted         = fullfile(input.spikeSorted, subject, session);
 opt.trialSorted         = fullfile(input.trialSorted, subject, session);
+opt.analysis            = fullfile(input.analysis, subject, session);
 
-% Create folder.
+% Create session-specific folders.
 mkdir(opt.FolderProcDataMat);
+mkdir(opt.behavFiles);
+mkdir(opt.spikeSorted);
+mkdir(opt.trialSorted);
+mkdir(opt.analysis);
 
 end

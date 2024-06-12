@@ -67,8 +67,8 @@ if opt.CAR
         tmp = ft_preproc_rereference(tmp, 'all', 'median');
     end
 
-    disp('Saving CARed file, will take a while.')
-    save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CARed.mat']), 'tmp', '-v7.3');
+%     disp('Saving CARed file, will take a while.')
+%     save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CARed.mat']), 'tmp', '-v7.3');
 end
 
 %% Filtering, if required (preprocessing raw)
@@ -84,7 +84,7 @@ if opt.set_filter
 
         % Lowpass filter channel (Butterwort, 6th order, back&forth)
         disp('Lowpassing...')
-        [tmp(b,:), ~, ~] = ft_preproc_lowpassfilter(tmp(b,:), opt.sampleRate, opt.lowpass(2), 6, 'but', 'twopass');
+        [tmp(b,:), ~, ~] = ft_preproc_lowpassfilter(tmp(b,:), opt.sampleRate, opt.lowpass, 6, 'but', 'twopass');
                     
         % FT's bandstop filter (btw 50 +-2 Hz, Butterwort, 2nd order, back&forth)
         if opt.linefilter > 0
@@ -94,13 +94,13 @@ if opt.set_filter
     end
 
     % Save depending on previous treatment
-    if opt.CAR
-        disp('Saving CARed&Filtered file, will take a while.')
-        save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CARed&filtered.mat']), 'tmp', '-v7.3');
-    else
-        disp('Saving Filtered file, will take a while.')
-        save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_filtered.mat']), 'tmp', '-v7.3');
-    end
+%     if opt.CAR
+%         disp('Saving CARed&Filtered file, will take a while.')
+%         save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CARed&filtered.mat']), 'tmp', '-v7.3');
+%     else
+%         disp('Saving Filtered file, will take a while.')
+%         save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_filtered.mat']), 'tmp', '-v7.3');
+%     end
 end
 
 %% Downsample. Get new time vector.

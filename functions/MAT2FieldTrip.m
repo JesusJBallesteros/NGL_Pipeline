@@ -11,7 +11,7 @@ function MAT2FieldTrip(data, opt, varargin)
 %
 % OUTPUT: 
 
-% Jesus 10.06.2024
+% Jesus 12.06.2024
 
 %% Check existence of FT files
 if isempty(data)
@@ -56,10 +56,8 @@ if cont
     FT_data = ft_redefinetrial(cfg, FT_data);
     clear cfg
     
-    % Save this session data. Generates a file with continous data for a
-    % SINGLE session only into the session folder.
-    mkdir(opt.trialSorted)
-    save(fullfile(opt.trialSorted, strcat(opt.SavFileName,'_FTcont.mat')), 'FT_data', '-v7.3');
+    % Save this session data.
+    save(fullfile(opt.analysis, strcat(opt.SavFileName,'_FTcont.mat')), 'FT_data', '-v7.3');
 end
 
 %% Trial-parsed treatment 
@@ -82,9 +80,8 @@ if ~isempty(trialdef)
         % Update FT header info manually
         FT_data.hdr.nTrials = length(FT_data.trial);
     
-        % Save this session data. Generates a FT file with trialparsed data.
-        mkdir(opt.trialSorted)
-        save(fullfile(opt.trialSorted, strcat(opt.SavFileName, '_', trialdef{1,i} ,'.mat')), 'FT_data', '-v7.3')
+        % Save this session data.
+        save(fullfile(opt.analysis, strcat(opt.SavFileName, '_', trialdef{1,i} ,'.mat')), 'FT_data', '-v7.3')
     end
 
 end

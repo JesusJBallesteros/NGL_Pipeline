@@ -38,7 +38,7 @@ if opt.RetrieveEvents
     % retrieved from the txt lof file created by deuteron, which is timestamped as 
     % the logger clock.
 
-%     if opt.useexe % When extracting events from SD using EXE. Very easy to use vs dll
+%    DEPR if opt.useexe % When extracting events from SD using EXE. Very easy to use vs dll
 %         
 %         % Proceed to extract all events captured by Deuteron acquisition system,
 %         % stored along with the data and synchronized with it (proper timestamped).
@@ -74,7 +74,7 @@ if opt.RetrieveEvents
     % an 'events' struct fitting the NGL convention
     disp('Creating trial definitions based on extracted EventRecord and Eventcodes descriptions.')
     [events, trialdef, opt.eventdef] = trialdefGen(EventRecord, opt);
-%     end
+%   DEPR  end
 
     %% Create the conditions variable for trial indexing
     % Initialize all fields with zeros
@@ -97,12 +97,13 @@ if opt.RetrieveEvents
         if any(ismember(trialvect, [opt.eventdef.oms1 opt.eventdef.oms2]))
             condition.omission(i) = 1;
         end
-%         if ismember(trialvect, [opt.eventdef.oms1 opt.eventdef.oms2])
-%             condition.aborted(i) = 1;
-%         end
-%         if ismember(trialvect, [opt.eventdef.oms1 opt.eventdef.oms2])
-%             condition.stimulus(i) = 1;
-%         end
+        % FOR MORE add as (with corresponding logical index): 
+        % if ismember(trialvect, [opt.eventdef.xxx opt.eventdef.yyy])
+        %     condition.xxxyyy(i) = 1;
+        % end
+        % if ismember(trialvect, [opt.eventdef.xxx opt.eventdef.yyy])
+        %     condition.xxxyyy(i) = 1;
+        % end
     end
 
 else
@@ -110,10 +111,9 @@ else
 end
 
 %% Save this session events, trialdef and conditions variables.
-mkdir(opt.trialSorted)
-save(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')), 'EventRecord', '-v7.3')
-save(fullfile(opt.trialSorted, strcat('events.mat')), 'events', '-v7.3')
-save(fullfile(opt.trialSorted, strcat('trialdef.mat')), 'trialdef', '-v7.3')
-save(fullfile(opt.trialSorted, strcat('condition.mat')), 'condition', '-v7.3')
+save(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')), 'EventRecord', '-v7.3');
+save(fullfile(opt.trialSorted, strcat('trialdef.mat')), 'trialdef', '-v7.3');
+save(fullfile(opt.analysis, strcat('events.mat')), 'events', '-v7.3');
+save(fullfile(opt.analysis, strcat('condition.mat')), 'condition', '-v7.3');
 
 end

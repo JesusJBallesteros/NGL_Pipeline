@@ -91,20 +91,6 @@ if opt.CAR == 2
 end
 
 %% Let's always filter
-% data_mat = int16([]);
-% txt = sprintf('Filtering between %d and %d Hz. It may take a moment.\n', opt.lowpass(1), opt.lowpass(2));
-% fprintf(txt);
-% 
-% % To keep memory usage low, we proceed in a channel by channels basis
-% for i=1:opt.numChannels
-%     % Proceed with filter
-%     [tmp, ~, ~] = bandFilter(double(data_tmp(i,:)), [], opt.lowpass, opt.sampleRate);
-%     
-%     % Proceed with downsampling
-%     [data_mat(i,:), ~, ~] = downsampleVolt(tmp, opt.sampleRate, opt.dwnsmplRate);
-% end
-% clear data_temp
-
 % Now, channel by channel to keep memory usage low
 % TODO: paralellize?
 for b = 1:opt.numChannels
