@@ -82,6 +82,10 @@ temps = readNPY(fullfile(ksDir, 'templates.npy'));
 % Load whitening matrix 
 winv = readNPY(fullfile(ksDir, 'whitening_mat_inv.npy'));
 
+% Extract and process further info
+[spikeAmps, spikeDepths, ~, ~, ~, templateDuration, ~] = ...
+    templatePositionsAmplitudes(temps, winv, ycoords, spikeTemplates, tempScalingAmps);
+
 % Collect for output structure
 spikeStruct.st = st;
 spikeStruct.spikeTemplates = spikeTemplates;
@@ -95,5 +99,9 @@ spikeStruct.temps = temps;
 spikeStruct.winv = winv;
 spikeStruct.pcFeat = pcFeat;
 spikeStruct.pcFeatInd = pcFeatInd;
+
+spikeStruct.spikeAmps = spikeAmps;
+spikeStruct.spikeDepths = spikeDepths;
+spikeStruct.templateDuration = templateDuration;
 
 end

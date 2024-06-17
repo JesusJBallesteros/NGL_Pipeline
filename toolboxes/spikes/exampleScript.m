@@ -32,11 +32,12 @@ sp = loadKSdir(myKsDir)
 
 %% Plotting a driftmap
 
-[spikeTimes, spikeAmps, spikeDepths, spikeSites] = ksDriftmap(myKsDir);
-figure; plotDriftmap(spikeTimes, spikeAmps, spikeDepths);
+[~, spikeAmps, spikeDepths, spikeSites] = ksDriftmap(myKsDir);
+
+figure; 
+    plotDriftmap(sp.st, spikeAmps, spikeDepths);
 
 %% basic quantification of spiking plot
-
 depthBins = 0:40:3840;
 ampBins = 0:30:min(max(spikeAmps),800);
 recordingDur = sp.st(end);
@@ -46,7 +47,6 @@ plotWFampCDFs(pdfs, cdfs, ampBins, depthBins);
 
 
 %% Plotting some basics about LFPs
-
 lfpD = dir(fullfile(myKsDir, '*.lf.bin')); % LFP file from spikeGLX specifically
 lfpFilename = fullfile(myKsDir, lfpD(1).name);
 
@@ -69,7 +69,6 @@ freqBands = {[1.5 4], [4 10], [10 30], [30 80], [80 200]};
 plotLFPpower(F, allPowerEst, dispRange, marginalChans, freqBands);
 
 %% Computing some useful details about spikes/neurons (like depths)
-
 [spikeAmps, spikeDepths, templateYpos, tempAmps, tempsUnW, tempDur, tempPeakWF] = ...
     templatePositionsAmplitudes(sp.temps, sp.winv, sp.ycoords, sp.spikeTemplates, sp.tempScalingAmps);
 

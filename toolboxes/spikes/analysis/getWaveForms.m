@@ -28,7 +28,7 @@ function wf = getWaveForms(gwfparams)
 % wf = getWaveForms(gwfparams);
 
 % Load .dat and KiloSort/Phy output
-fileName        = fullfile(gwfparams.dataDir,gwfparams.fileName);           
+fileName        = gwfparams.fileName;           
 filenamestruct  = dir(fileName);
 
 % determine number of bytes per sample

@@ -32,21 +32,23 @@ for x = 1:input.nsubjects % Subjects.
             
             %% 02. Prepare to proceed with a single session.
             [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);           
-            mkdir(fullfile(opt.trialSorted,'genplots'))
+            mkdir(fullfile(opt.analysis,'genplots'))
 
             %% 03. Rrecover event data if not in workspace yet
             % Recover trial definitions created after event extraction and processing. 
             % Will have as many variations as requested at that time. Needs to be ran 
             % again to create new alignments.
-            if ~exist('spike','var'),     load(fullfile(opt.spikeSorted, "spike.mat")),       end
-            if ~exist('trialdef','var'),  load(fullfile(opt.trialSorted, "trialdef.mat")),    end
-            if ~exist('events','var'),    load(fullfile(opt.trialSorted, "events.mat")),      end
-            if ~exist('condition','var'), load(fullfile(opt.trialSorted, "condition.mat")),   end 
-            if ~exist('neurons','var'),   load(fullfile(opt.trialSorted, "neurons.mat")),     end
+            if ~exist('spike','var'),     load(fullfile(opt.spikeSorted, "spike.mat")),    end
+            if ~exist('trialdef','var'),  load(fullfile(opt.trialSorted, "trialdef.mat")), end
+            if ~exist('events','var'),    load(fullfile(opt.analysis, "events.mat")),      end
+            if ~exist('condition','var'), load(fullfile(opt.analysis, "condition.mat")),   end 
+            if ~exist('neurons','var'),   load(fullfile(opt.analysis, "neurons.mat")),     end
             
-            %% 04.1 Plotting rasters (per alignment, and per cluster or pooled)
-
+            %% 04.1 Plotting rasters (per alignment and cluster)
             % 0X.1 Rasters, aligned to requested events
             plot_rasters(neurons, events, spike, opt, param)
+
+            %% 2
+            plot_pooledstats(neurons, opt, param)
     end
 end

@@ -24,7 +24,7 @@ input = set_default(input, opt);
 %% 01. Find and list requested sessions and subjects.
 input.sessions = findSessions(input);
 
-%% 03. Proceed
+%% 03. Proceed with data per session
 for x = 1:input.nsubjects % Subjects.
     for y = 1:input.sessions(x).nsessions % Sessions.
             input.run = [x y]; % Current run, to pass to functions.
@@ -36,7 +36,10 @@ for x = 1:input.nsubjects % Subjects.
             % Spike clusters after sorting and curation.
             spike = loadSpikes(opt); % Also saves the result to \spikesorted
             if isfield(spike,"spike"), spike = spike.spike; end % Simplify loaded structure if needed
-
+            
+            %% 04. Calculate the ISI histogram for all clusters
+            [spike.isihist] = calc_isihist(spike);
+            
             % Recover trial definitions created after event extraction and processing. 
             % Will have as many variations as requested at that time. Needs to be ran 
             % again to create new alignments.
@@ -50,4 +53,8 @@ for x = 1:input.nsubjects % Subjects.
             %% ...
 
     end
+
+%% 04. Proceed with data as whole
+% TODO    
+
 end
