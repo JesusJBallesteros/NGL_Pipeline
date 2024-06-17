@@ -6,24 +6,26 @@ function [data] = intan2MAT_wrapper(sessions, opt)
 % to get a 'continuous', 'trial-parsed' or both treatments in the next
 % step.
 %
-% Version 10.06.2023 Jesus
+% Version 16.06.2023 Jesus
 
 %% Collect parameters to proceed with file creation
 % List all files (multiple or single depending on type). If No lowpass
 % files found, we will use the raw data, and filtering will be applied.
-disp('Will convert session to pseudo-FT format.');
-opt.myFiles = dir('low*.dat');
+disp('Will convert raw data to preprocessed pseudo-FT format.');
+% opt.myFiles = dir('low*.dat');
+opt.myFiles = dir('amp*.dat');
 
-if isempty(opt.myFiles)
-    opt.myFiles = dir('amp*.dat');
+if ~isempty(opt.myFiles)
     opt.set_filter = 1; % it's raw, needs lowpassing and downsampling
 
     % Gather info to create and apply the lowpass filter
     opt.sampleRate  = sessions.info.amplifier_sample_rate;
     opt.dwnsmplRate = 937.5; % would match the INTAN lowpass files
+
 else
-    opt.set_filter = 0; % If the files are already lowpassed and downsampled
-    opt.dwnsmplRate = sessions.info.amplifier_sample_rate / sessions.info.lowpass_downsample;
+    error('No raw data to process found')
+%     opt.set_filter = 0; % If the files are already lowpassed and downsampled
+%     opt.dwnsmplRate = sessions.info.amplifier_sample_rate / sessions.info.lowpass_downsample;
 end
 
 nfiles = length(opt.myFiles);
@@ -31,87 +33,76 @@ nfiles = length(opt.myFiles);
 %% Open INTAn file/s and brint to matlab temporal array
 % Either at once 
 if nfiles == 1
-    disp('All channels are being readed from single file.')
+    disp('All channels are being read from single file.')
     % Read voltage data according to INTAN
     % Open file, read as 'int16' but store as double.
     fid = fopen(sessions.info.files.name, 'r');
         tmp = fread(fid, [sessions.info.nChannels inf], 'int16');
     fclose(fid);
-else  
-% or channel by channel
-    disp('Multiple files will be opened and readed, one by one.')
-    % Open file by file
-    for b = 1:nfiles
-        % Read voltage as 'int16', store as double.
-        fid = fopen(sessions.info.files(b).name, 'r');
-            tmp(b,:) = fread(fid, [1 inf], 'int16');
-        fclose(fid);
-    end
-end
 
-clear fid
-%% Convert to microvolts
-tmp = tmp * 0.195;
+    % Scale
+    tmp = doScale(tmp);
 
-%% Re-reference channels
-if opt.CAR
-    if sessions.info.nChannels > 32 % Two banks, from two different regions. Hardcoded for 'chgDet' specific case
-        % TODO generalize
-        disp('Re-referencing by Common Average Referencing (CARing) 1/2.')
-        [tmp(1:32,:), ~] = ft_preproc_rereference(tmp(1:32,:), 'all', 'median');
-        disp('Re-referencing by Common Average Referencing (CARing) 2/2.')
-        [tmp(33:64,:), ~] = ft_preproc_rereference(tmp(33:64,:), 'all', 'median');
-    else
-        % In principle, data from a single HS on a single region.
-        disp('Re-referencing by Common Average Referencing (CARing).')
-        tmp = ft_preproc_rereference(tmp, 'all', 'median');
-    end
+    % Common Median referencing
+    if opt.CAR, tmp = doCar(tmp);  end
 
-%     disp('Saving CARed file, will take a while.')
-%     save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CARed.mat']), 'tmp', '-v7.3');
-end
+    % Filtering
+    if opt.set_filter, tmp = doFilters(tmp, opt); end
+    
+    % Downsample
+    volt = doDownsample(tmp, opt);
 
-%% Filtering, if required (preprocessing raw)
-if opt.set_filter
-    % Now, channel by channel to keep memory usage low
-    % TODO: paralellize?
-    for b = 1:sessions.info.nChannels
-        fprintf('- Filtering channel %d of %d.\n', b, opt.numChannels);
-        
-        % Detrend channel (remove DC)
-        disp('Detrending...')
-        tmp(b,:) = ft_preproc_detrend(tmp(b,:));
+else  % or channel by channel
+    if opt.CAR % All channels needed
+        disp('Because CAR, all files will be opened one by one but treated at once.')
 
-        % Lowpass filter channel (Butterwort, 6th order, back&forth)
-        disp('Lowpassing...')
-        [tmp(b,:), ~, ~] = ft_preproc_lowpassfilter(tmp(b,:), opt.sampleRate, opt.lowpass, 6, 'but', 'twopass');
-                    
-        % FT's bandstop filter (btw 50 +-2 Hz, Butterwort, 2nd order, back&forth)
-        if opt.linefilter > 0
-            disp('Line denoising...')
-            [tmp(b,:), ~, ~] = ft_preproc_bandstopfilter(tmp(b,:), opt.sampleRate, [opt.linefilter-2 opt.linefilter+2], 2, 'but', 'twopass', 'split');
+        % Open file by file
+        for b = 1:nfiles
+            % Read voltage as 'int16', store as double.
+            fprintf('- Opening file %d.\n', b);
+            fid = fopen(sessions.info.files(b).name, 'r');
+                tmp(b,:) = fread(fid, [1 inf], 'int16');
+            fclose(fid);
         end
-    end
 
-    % Save depending on previous treatment
-%     if opt.CAR
-%         disp('Saving CARed&Filtered file, will take a while.')
-%         save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CARed&filtered.mat']), 'tmp', '-v7.3');
-%     else
-%         disp('Saving Filtered file, will take a while.')
-%         save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_filtered.mat']), 'tmp', '-v7.3');
-%     end
+        % Scale
+        tmp = doScale(tmp);
+
+        % Common Median referencing
+        tmp = doCar(tmp);
+
+        % Filtering
+        if opt.set_filter, tmp = doFilters(tmp, opt); end
+
+        % Downsample
+        volt = doDownsample(tmp, opt);
+
+    else
+        disp('All files will be opened and treated one by one.')
+        for b = 1:nfiles
+            % Read voltage as 'int16', store as double.
+            fprintf('- Opening file %d.\n', b);
+            fid = fopen(sessions.info.files(b).name, 'r');
+                tmp = fread(fid, [1 inf], 'int16');
+            fclose(fid);
+
+            % Scale
+            tmp = doScale(tmp);
+
+            % Filtering
+            if opt.set_filter
+                fprintf('- Filtering channel %d.\n', b);
+                tmp = doFilters(tmp, opt);
+            end
+
+            % Downsample
+            volt(b,:) = doDownsample(tmp, opt);
+        end
+        clear tmp
+
+    end
 end
 
-%% Downsample. Get new time vector.
-disp('Downsampling.')
-[volt, ~, ~] = downsampleVolt(tmp, opt.sampleRate, opt.dwnsmplRate, 2);
-clear tmp
-
-% Get time series
-% We simply create a time-vector from samples and divide it by the sampling rate.
-time = (1:length(volt)) / opt.dwnsmplRate; % in Seconds
-        
 %% Convert to pseudo-FieldTrip
 % It's only pseudo until we run the proper FT tool to check for format and
 % header info. Because we have not given any trial info so far, the data
@@ -135,15 +126,70 @@ for i = 1:sessions.info.nChannels
 end
 
 % The only trial contains all channels*time info                
-data.trial{1}        = volt;
+data.trial{1} = volt;
 
-% The only trial is the whole time-series
-data.time{1}         = time;
+% The only trial is the whole time-series.
+% We simply create a time-vector from samples and divide it by the sampling rate.
+data.time{1} = (1:length(volt)) / opt.dwnsmplRate; % in Seconds
 
-% The trial starts at 0 and ends at last sample
+% Therefore, trial starts at first sample and ends at last sample
 data.sampleinfo(1,:) = [1 length(volt)];
 
 disp('Done.')
-
 clear time volt
+end
+
+% Scale to uvolt
+function tmp = doScale(tmp)
+    tmp = tmp * 0.195;
+end
+
+% Re-reference channels
+function tmp = doCar(tmp)
+    if sessions.info.nChannels > 32 % Two banks, from two different regions. Hardcoded for 'chgDet' specific case
+        % TODO generalize
+        disp('Re-referencing by Common Average Referencing (CARing) 1/2.')
+        [tmp(1:32,:), ~] = ft_preproc_rereference(tmp(1:32,:), 'all', 'median');
+        disp('Re-referencing by Common Average Referencing (CARing) 2/2.')
+        [tmp(33:64,:), ~] = ft_preproc_rereference(tmp(33:64,:), 'all', 'median');
+    else
+        % In principle, data from a single HS on a single region.
+        disp('Re-referencing by Common Average Referencing (CARing).')
+        tmp = ft_preproc_rereference(tmp, 'all', 'median');
+    end
+
+%     disp('Saving CARed file, will take a while.')
+%     save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CARed.mat']), 'tmp', '-v7.3');
+end
+
+% Filtering, if required (preprocessing raw)
+function tmp = doFilters(tmp, opt)  
+    % Now, channel by channel
+    for i = 1:size(tmp,1)    
+        % if more than one
+        if size(tmp,1) > 1
+            fprintf('- Filtering channel %d of %d.\n', i, opt.numChannels);
+        end
+
+        % Detrend channel (remove DC)
+        disp('Detrending...')
+        tmp(i,:) = ft_preproc_detrend(tmp(i,:));
+
+        % Lowpass filter channel (Butterwort, 6th order, back&forth)
+        disp('Lowpassing...')
+        [tmp(i,:), ~, ~] = ft_preproc_lowpassfilter(tmp(i,:), opt.sampleRate, opt.lowpass, 6, 'but', 'twopass');
+                    
+        % FT's bandstop filter (btw 50 +-2 Hz, Butterwort, 2nd order, back&forth)
+        if opt.linefilter > 0
+            disp('Line denoising...')
+            [tmp(i,:), ~, ~] = ft_preproc_bandstopfilter(tmp(i,:), opt.sampleRate, [opt.linefilter-2 opt.linefilter+2], 2, 'but', 'twopass', 'split');
+        end
+    end
+end
+
+% Downsample. Get new time vector.
+function volt = doDownsample(tmp, opt)
+    disp('Downsampling.')
+    [volt, ~, ~] = downsampleVolt(tmp, opt.sampleRate, opt.dwnsmplRate, 2);
+    
 end
