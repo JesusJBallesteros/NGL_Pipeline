@@ -44,11 +44,16 @@ for x = 1:input.nsubjects % Subjects.
             if ~exist('condition','var'), load(fullfile(opt.analysis, "condition.mat")),   end 
             if ~exist('neurons','var'),   load(fullfile(opt.analysis, "neurons.mat")),     end
             
-            %% 04.1 Plotting rasters (per alignment and cluster)
-            % 0X.1 Rasters, aligned to requested events
-            plot_rasters(neurons, events, spike, opt, param)
+            %% 04.1 Rasters, PSHs, ISIs, 'drift'
+            % aligned to requested events, per cluster
+            if opt.genstats
+                plot_rasters(neurons, events, spike, opt, param)
+            end
 
-            %% 2
-            plot_pooledstats(neurons, opt, param)
+            %% 04.2 Rasters, ...
+            % aligned to requested events, for all clusters
+            if opt.pooledstats
+                plot_pooledstats(neurons, opt, param)
+            end
     end
 end

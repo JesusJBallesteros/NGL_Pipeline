@@ -24,32 +24,37 @@ input = set_default(input, opt);
 %% 01. Find and list requested sessions and subjects.
 input.sessions = findSessions(input);
 
-%% 03. Proceed with data per session
+%% 02. Proceed with data per session
 for x = 1:input.nsubjects % Subjects.
     for y = 1:input.sessions(x).nsessions % Sessions.
             input.run = [x y]; % Current run, to pass to functions.
             
-            %% 04. Prepare to proceed with a single session.
+            %% 03 Prepare to proceed with a single session.
             [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);           
 
-            %% 03. Extract preprocessed spikes and recover event data.
+            %% 04 Extract preprocessed spikes and recover event data.
             % Spike clusters after sorting and curation.
             spike = loadSpikes(opt); % Also saves the result to \spikesorted
             if isfield(spike,"spike"), spike = spike.spike; end % Simplify loaded structure if needed
             
-            %% 04. Calculate the ISI histogram for all clusters
+            % Calculate the ISI histogram for all clusters
             [spike.isihist] = calc_isihist(spike);
             
+            % Save output
+            save(fullfile(opt.spikeSorted, "spike.mat"), 'spike', '-mat');
+            
+            %% 05 Iterate trough all units and sort them into trials.
             % Recover trial definitions created after event extraction and processing. 
-            % Will have as many variations as requested at that time. Needs to be ran 
-            % again to create new alignments.
+            % Can have as many variations as requested at that time.
+            % To create new alignments, it would have to be ran again.
             if ~exist('trialdef','var'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
             
-            %% 04. Iterate trough all units and sorts them into their trials.
-            % Outputs are saved to data\analysis.
-            % TODO fix Fieldtrip extraction
+            % Outputs are saved to data\analysis. %% TODO fix Fieldtrip extraction
             [neurons, ~] = sort2trials(spike, trialdef, opt);
         
+            % Save output
+            save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
+
             %% ...
 
     end

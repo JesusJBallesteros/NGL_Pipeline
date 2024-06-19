@@ -10,7 +10,7 @@ if ~isfield(opt,'getwF'),       opt.getwF = false;                              
 
 % Waveform extraction option defaults
 gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
-                   'wfWin',    [-40 41], ... % Number of samples around spiketime to include in waveform.
+                   'wfWin',    [-32 63], ... % Number of samples around spiketime to include in waveform.
                    'nWf',      opt.gwfparams.nWf,     ... % N waveforms to extrac tper unit.
                    'dataDir',  fullfile(opt.KSfolder), ... % KiloSort/Phy output folder
                    'fileName', fullfile(opt.FolderProcDataMat, [opt.SavFileName, '.bin']), ... % .dat file containing the raw 
@@ -36,7 +36,7 @@ gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
     disp('Extracting curated clusters from Phy files. If many waveforms are requested, it may take a while.')
     for cl = 1:nclust
         spike.label{cl}         = num2str(clusters(cl));
-        spike.timestamp{cl}     = spikes.st(spikes.clu==clusters(cl))*1000; % from ms to sec
+        spike.timestamp{cl}     = spikes.st(spikes.clu==clusters(cl)); % in seconds
         spike.depth{cl}         = spikes.spikeDepths(spikes.clu==clusters(cl));
         spike.ampl{cl}          = spikes.spikeAmps(spikes.clu==clusters(cl));
         spike.templampl{cl}     = spikes.tempScalingAmps(spikes.clu==clusters(cl));
@@ -44,7 +44,7 @@ gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
         %% Extract waveforms
         if opt.getwF
             % a few more params for 'getWaveForms' dep on cluster
-            gwfparams.spikeTimes = ceil(spike.timestamp{cl})*(spikes.sample_rate/1000); % Vector of cluster spike times (in samples) same length as .spikeClusters
+            gwfparams.spikeTimes = ceil(spike.timestamp{cl}*spikes.sample_rate); % Vector of cluster spike times (in samples) same length as .spikeClusters
             gwfparams.spikeClusters = spikes.clu(spikes.clu==clusters(cl));
                        
             % Get waveforms
@@ -62,9 +62,6 @@ gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
          end
     
     end
-
-    %% Save output
-    save(fullfile(opt.spikeSorted, "spike.mat"), 'spike', '-mat');
 
 % else
 %     %% Load if existing    
