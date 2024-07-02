@@ -7,6 +7,7 @@ function [spike] = loadSpikes(opt)
 %% Default parameters
 if ~isfield(opt,'spparams'),    opt.spparams = struct('excludeNoise', true, 'loadPCs', false);  end % For cluster loading
 if ~isfield(opt,'getwF'),       opt.getwF = false;                                              end % For waveform loading
+if ~isfield(opt,'isibins'),     opt.isibins = 0:0.5:200;                                        end % For ISI binning, msec
 
 % Waveform extraction option defaults
 gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
@@ -28,7 +29,7 @@ gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
     % for waveforms
     gwfparams.nCh = spikes.n_channels_dat;
 
-    % Alocate memory
+    % Allocate memory
     spike.label     = cell(1,nclust); % for clusters IDs
     spike.timestamp = cell(1,nclust); % spikes timestamps
     
@@ -63,9 +64,7 @@ gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
     
     end
 
-% else
-%     %% Load if existing    
-%     disp('Already existing Spike-sorted data for this session. Loading instead.')
-%     spike = load(fullfile(opt.spikeSorted, ['spike.mat']));
-% end
+% Calculate the ISI histogram for all clusters
+[spike.isihist] = calc_isihist(spike, opt);
+
 end

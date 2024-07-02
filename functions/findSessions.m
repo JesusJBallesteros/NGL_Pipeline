@@ -6,8 +6,12 @@ function sessions = findSessions(input, varargin)
 if ~exist("sessions","var")
     % Goes over every subject's folder and reads existing sessions
     for s = 1:input.nsubjects
-        cd(fullfile(input.datafolder, string(input.subjects(s).name)))
-    
+        if exist(fullfile(input.datafolder, string(input.subjects(s).name)),"dir")
+            cd(fullfile(input.datafolder, string(input.subjects(s).name)))
+        else
+            cd(fullfile(input.analysis, string(input.subjects(s).name)))
+        end
+        
         % Select sessions
         ss = dir(); % List all content in folder
         dirFlags = [ss.isdir]; % Set to keep only directories

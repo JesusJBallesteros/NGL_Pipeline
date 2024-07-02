@@ -1,11 +1,12 @@
-function [isihist] = calc_isihist(spike)
+function [isihist] = calc_isihist(spike, opt)
 % TODO description
+if ~isfield(opt,'isibins'),     opt.isibins = 0:0.5:200;                                        end % For ISI binning, msec
 
 %% Get relevant info
 nclust          = numel(spike.label); % number of clusters
 
 % Set bins for histograms
-bins  = [0:0.5:200]; % in miliseconds
+bins  = opt.isibins; % in miliseconds
 
 %% Run per cluster
 for cl = 1:nclust

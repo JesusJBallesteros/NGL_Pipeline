@@ -34,13 +34,10 @@ for x = 1:input.nsubjects % Subjects.
 
             %% 04 Extract preprocessed spikes and recover event data.
             % Spike clusters after sorting and curation.
-            spike = loadSpikes(opt); % Also saves the result to \spikesorted
+            spike = loadSpikes(opt);
             if isfield(spike,"spike"), spike = spike.spike; end % Simplify loaded structure if needed
-            
-            % Calculate the ISI histogram for all clusters
-            [spike.isihist] = calc_isihist(spike);
-            
-            % Save output
+                        
+            % Save output to \spikesorted
             save(fullfile(opt.spikeSorted, "spike.mat"), 'spike', '-mat');
             
             %% 05 Iterate trough all units and sort them into trials.
@@ -49,10 +46,11 @@ for x = 1:input.nsubjects % Subjects.
             % To create new alignments, it would have to be ran again.
             if ~exist('trialdef','var'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
             
-            % Outputs are saved to data\analysis. %% TODO fix Fieldtrip extraction
+            % Outputs are saved to data\analysis. 
+            % TODO fix Fieldtrip extraction
             [neurons, ~] = sort2trials(spike, trialdef, opt);
         
-            % Save output
+            % Save output to \analysis
             save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
 
             %% ...

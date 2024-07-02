@@ -43,14 +43,11 @@ for x = 1:input.nsubjects % Subjects.
             if ~exist('events','var'),    load(fullfile(opt.analysis, "events.mat")),      end
             if ~exist('condition','var'), load(fullfile(opt.analysis, "condition.mat")),   end 
             if ~exist('neurons','var'),   load(fullfile(opt.analysis, "neurons.mat")),     end
-                       
+            
             %% 04.1 Raster, trace, PSH, ISI, drift
+            % aligned to requested events, per cluster
             if opt.genstats
-                % whole trial
-                plot_trialclusters(neurons, events, spike, opt, param)
-
-                % aligned to requested events, per cluster
-                plot_alignedclusters(neurons, events, spike, opt, param)
+                plot_gen(neurons, events, spike, opt, param)
             end
 
             %% 04.2 Rasters, ...

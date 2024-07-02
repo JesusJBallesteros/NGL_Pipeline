@@ -17,7 +17,7 @@ elseif nargin == 2
     isitiON = varargin{2};
 end
 
-% Grab current graphic
+% Get Current Figure
 gcf;
 
 % Modify attributes

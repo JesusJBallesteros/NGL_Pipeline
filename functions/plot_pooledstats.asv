@@ -37,10 +37,6 @@ end
 %% For ALL clusters
 % For each alignment
 for a = 1:nalign
-    if a == 1, timelim = param.timelimItiOn; 
-    else,      timelim = param.timelim;
-    end
-
     % Special params to change color every cluster, only for this specific plot
     param.pooled_levels = length(neurons.(opt.alignto{a})); % number clusters
     trialperclus = length(neurons.(opt.alignto{a}){1}); % trials per cluster
@@ -68,7 +64,7 @@ for a = 1:nalign
                                   'spkwidth',   2,       ...
                                   'linelength', 1,     ...
                                   'plotstyle',  param.plotStyle,      ...
-                                  'timelim',    timelim);
+                                  'timelim',    param.timelim);
     end
     % Prettify
     prettify(param.poolraster)

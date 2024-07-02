@@ -1,6 +1,4 @@
 function wf = getWaveForms(gwfparams)
-% function wf = getWaveForms(gwfparams)
-%
 % Extracts individual spike waveforms from the raw datafile, for multiple
 % clusters. Returns the waveforms and their means within clusters.
 %
@@ -57,19 +55,11 @@ for curUnitInd=1:numUnits
     spikeTimesRP = curSpikeTimes(randperm(curUnitnSpikes));
     
     spikeTimeKeeps(curUnitInd,1:min([gwfparams.nWf curUnitnSpikes])) = sort(spikeTimesRP(1:min([gwfparams.nWf curUnitnSpikes])));
-%     fractspikes = round(gwfparams.nWf*curUnitnSpikes);
-%     if fractspikes < 1000 && curUnitnSpikes > 999
-%         fractspikes = 1000;
-%     end
-
-%     spikeTimeKeeps(curUnitInd,1:fractspikes) = sort(spikeTimesRP(1:fractspikes));
     for curSpikeTime = 1:min([gwfparams.nWf curUnitnSpikes])
-%     for curSpikeTime = 1:fractspikes
         tmpWf = mmf.Data.x(1:gwfparams.nCh,spikeTimeKeeps(curUnitInd,curSpikeTime)+gwfparams.wfWin(1):spikeTimeKeeps(curUnitInd,curSpikeTime)+gwfparams.wfWin(end));
         waveForms(curUnitInd,curSpikeTime,:,:) = tmpWf(chMap,:);
     end
-    waveFormsMean(curUnitInd,:,:) = squeeze(nanmean(waveForms(curUnitInd,:,:,:),2));
-%      disp(['Extracted ', int2str(gwfparams.nWf), ' waveforms from this cluster.']);
+    waveFormsMean(curUnitInd,:,:) = squeeze(mean(waveForms(curUnitInd,:,:,:),2,'omitnan'));
 end
 
 % Package in wf struct

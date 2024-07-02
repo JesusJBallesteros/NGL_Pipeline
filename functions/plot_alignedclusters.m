@@ -1,4 +1,4 @@
-function plot_rasters(neurons, events, spike, opt, param)
+function plot_alignedclusters(neurons, events, spike, opt, param)
 % Will take neuron-trial data and plot a series of basic rasters,
 % histograms and other statistics to inspect clusters in relation to task
 % events. A variable number of options can be given to modify plots without
@@ -8,22 +8,19 @@ function plot_rasters(neurons, events, spike, opt, param)
 if ~isfield(param,'visible'),       param.visible        = 'off';        end
 if ~isfield(param,'size'),          param.size           = [600 1000];   end
 if ~isfield(param,'treatment'),     param.treatment      = false;        end
-if ~isfield(param,'plotcol'),       param.plotcol        = [0.4 0.4 0.4;
-                                                            0.6 0.1 0.2;
-                                                            0.0 0.0 0.0];
-end
+if ~isfield(param,'plotcol'),       param.plotcol        = [0.4 0.4 0.4; 0.6 0.1 0.2; 0.0 0.0 0.0]; end
 % Rasters
 if ~isfield(param,'plotStyle'),     param.plotStyle      = 'square';     end
 if ~isfield(param,'spkWidth'),      param.spkWidth       = 1;            end
 if ~isfield(param,'lineLength'),    param.lineLength     = 1;            end
-if ~isfield(param,'timelim'),       param.timelim        = [-500 2000];  end
-if ~isfield(param,'timelimItiOn'),  param.timelimItiOn   = [0 2500];     end % Fringe case (no/short time before 0)
-if ~isfield(param,'timelimRwd'),    param.timelimRwd     = [-2000 500];  end % Fringe case (no/short time after 0)
+if ~isfield(param,'timelim'),       param.timelim        = [ -500 1500]; end
+if ~isfield(param,'timelimItiOn'),  param.timelimItiOn   = [    0 2000]; end % Fringe case (no time before 0)
+if ~isfield(param,'timelimRwd'),    param.timelimRwd     = [-2000    0]; end % Fringe case (no time after 0)
 % PSH
 if ~isfield(param,'binSize'),       param.binSize        = 100;          end
 if ~isfield(param,'stepSz'),        param.stepSz         = 10;           end
 if ~isfield(param,'smpRate'),       param.smpRate        = 1000;         end
-if ~isfield(param,'interval'),      param.interval       = [0 2500];     end
+if ~isfield(param,'interval'),      param.interval       = [0 2000];     end
 
 %% Default figure attributes. 
 % Raster plot
@@ -51,10 +48,10 @@ param.psh.yticklabels = {mat2cell(param.psh.ytick,1)}; % rate labels
 param.psh.xticklabels = {mat2cell(param.psh.xtick*param.stepSz-500,1)}; % time labels
 
 % ISI Hist
-param.isihist.ylabel = {'P (pdf est.)'}; % probability label
+param.isihist.ylabel = {'Rel. prob.'}; % probability label
 param.isihist.xlabel = {'ISI (ms)'};   % ISI time label
 param.isihist.ytick  = 'auto'; % prob. ticks
-param.isihist.xtick  = 0:10:400; % time ticks
+param.isihist.xtick  = 0:20:400; % time ticks
 param.isihist.yticklabels = {'auto'}; % prob label
 param.isihist.xticklabels = {mat2cell(param.isihist.xtick/2,1)}; % time label
 
@@ -112,8 +109,11 @@ for a = 1:nalign
         param.raster.subtitle = ['cluster: ', spike.label{c}];
         
         % Special cases for itiON and Rwd, as fringe events
-        if strcmp(opt.alignto{a},'itiOn'),      tlim = param.timelimItiOn;
-        elseif strcmp(opt.alignto{a},'rwd'),    tlim = param.timelimRwd;
+        if strcmp(opt.alignto{a},'itiOn')     
+            tlim = param.timelimItiOn; 
+            param.psh.xticklabels = {mat2cell(param.psh.xtick*param.stepSz,1)}; % time labels
+        elseif strcmp(opt.alignto{a},'rwd')  
+            tlim = param.timelimRwd;
         else, tlim = param.timelim;
         end
 
@@ -142,12 +142,11 @@ for a = 1:nalign
             plot(mean(spike.waveform{c}, 2, "omitnan"), ...
                 'LineWidth', 2, 'Color', 'b', 'LineStyle', '-');
             prettify(param.wf)
-                ylim('auto')
 
         % Event-aligned PSH
         subplot(3,2,3)
             for lvl=1:param.levels
-                plotPSTH(neurons.(opt.alignto{a}){c}(param.trial_change(lvl):param.trial_change(lvl+1)), ... % spikes
+                upperY = plotPSTH(neurons.(opt.alignto{a}){c}(param.trial_change(lvl):param.trial_change(lvl+1)), ... % spikes
                                 param.stepSz,   ... % stepSz
                                 param.binSize,  ...  % binSize
                                 param.interval,  ... % interval
@@ -158,15 +157,15 @@ for a = 1:nalign
             end
             % Prettify
             prettify(param.psh)
-             xline(50,'--k');
+            if upperY < 5, ylim([0 5]); end
 
         % Plot ISI
         subplot(3,2,4)
-            histogram(spike.isihist{c}, 400,'EdgeColor','none', 'FaceColor', 'k', ...
-                    'BinWidth', 1, 'Normalization','pdf');
+            histogram('BinEdges',0:400,'BinCounts',spike.isihist{c}, 'EdgeColor', 'none', 'FaceColor', 'k', ...
+                    'Normalization','probability');
             % Prettify
             prettify(param.isihist); 
-                xlim([-5 100])
+                xlim([-5 200])
 
         % Plot a single 'driftmap'
         subplot(3,2,[5,6])
@@ -174,13 +173,13 @@ for a = 1:nalign
             % Prettify
             prettify(param.driftmap);
                 ylim([min(spike.templampl{c})*0.9 max(spike.templampl{c})*1.1]);
-                xlim([-.2 spike.timestamp{c}(end)/60+.2]);
+                xlim([0 spike.timestamp{c}(end)/60+.2]);
 
             % treatment window 
             if param.treatment == true
                 for i = 1:ntreatments
                     if isfield(events,(opt.trEvents{i})) % If there is a na3 treatment field
-                        xy = [events.(opt.trEvents{i}).time{1}(1)/60, min(spike.templampl{c})*0.9];
+                        xy = [events.(opt.trEvents{i}).time{1}(1)/60, 0];
                         w = (events.(opt.trEvents{i}).time{1}(2)-events.(opt.trEvents{i}).time{1}(1))/60; 
                         h = (max(spike.templampl{c})*1.1-min(spike.templampl{c})*0.9);
                         
