@@ -1,5 +1,5 @@
-function trialCounter = plotRaster(spikes,trialCounter,varargin)
-%%function trialCounter = plotRaster(spikes,trialCounter,varargin)
+function trialCounter = plotHeatmap(spikes,trialCounter,varargin)
+%% Under development
 %
 % This function creates a raster plot for the given spike train.
 %
@@ -8,15 +8,15 @@ function trialCounter = plotRaster(spikes,trialCounter,varargin)
 %  * 'trialCounter'    : arbitrary trial number to start plotting at
 %
 %OPTIONAL INPUTS
-%  * 'plotCol'         : RGB color triplet for plot color, single row
-%                        vector (results in all spike indicators having the
-%                        same color, default), or a matrix of RGB triplets
-%                        (with each triplet corresponding to a trial,
-%                        resulting in trial unique colors)
-%  * 'spkWidth'        : size of the marker for plotting (default is 3)
+% %  * 'plotCol'         : RGB color triplet for plot color, single row
+% %                        vector (results in all spike indicators having the
+% %                        same color, default), or a matrix of RGB triplets
+% %                        (with each triplet corresponding to a trial,
+% %                        resulting in trial unique colors)
+% %  * 'spkWidth'        : size of the marker for plotting (default is 3)
 %  * 'plotStyle'       : string of marker style for plotting (default is
 %                        'lines')
-%  * 'lineLength'      : vertical length of line indicator (default is 1)
+% %  * 'lineLength'      : vertical length of line indicator (default is 1)
 %  * 'timelim'         : int array, plot spikes only between [-timelim(1),
 %                        timelim(2)]. Default is empty.
 %
@@ -25,33 +25,26 @@ function trialCounter = plotRaster(spikes,trialCounter,varargin)
 %                        plotted
 
 % VERSION HISTORY:
-% Author:         Lukas Hahn
-% Version:        1.3.0
-% Last Change:    04.06.2024
+% Author:         Jesus Ballesteros
+% Version:        0.1
+% Last Change:    08.07.2024
 %
-% 15.07.2019, Lukas: v1.0.0 release version
-% 28.11.2023, Lukas: v1.1.0 added plot as square markers option
-% 11.12.2023, Lukas: v1.1.1 updated documentation
-% 15.04.2023, Lukas: v1.2.0 updated function to allow trial unique colors,
-%                           added line length option for use with line
-%                           markers, adjusted default spikeWidth to 3
-% 04.06.2024, Jesus: v1.3.0 added 'timelim' optional input to plot only a
-%                           subset of spikes between [-timelim(1) timelim(2)] 
+% 08.07.2024, Jesus: 
 
 %%
 %default values
-plotCol = zeros(1,3);
-spkWidth = 3;
+% plotCol = zeros(1,3);
+% spkWidth = 3;
 plotStyle = 'lines';
-lineLength = 1;
+% lineLength = 1;
 timelim = [];
 
 %user specified values
 if nargin>2
     if nargin==5 %ensures backward compatibility to use as
         % plotRaster(spikes,trialCounter,plotColor,spikeWidth,'plotStyle')
-        plotCol = varargin{1};
-        spkWidth = varargin{2};
+%         plotCol = varargin{1};
+%         spkWidth = varargin{2};
         plotStyle = varargin{3};
     else
         for i=1:length(varargin)

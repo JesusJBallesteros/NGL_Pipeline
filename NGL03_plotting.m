@@ -4,7 +4,7 @@
 % and new plots could be added for personalization. Parameters are taken
 % from main script or from an additional one.
 %
-% Jesus 05.06.2024
+% Jesus 04.07.2024
 
 %% 00. Check current inputs.
 % Check if input variable exist already. Parse values.
@@ -28,35 +28,41 @@ input.sessions = findSessions(input);
 
 for x = 1:input.nsubjects % Subjects.
     for y = 1:input.sessions(x).nsessions % Sessions.
-            input.run = [x y]; % Current run, to pass to functions.
-            
-            %% 02. Prepare to proceed with a single session.
-            [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);           
-            mkdir(fullfile(opt.analysis,'genplots'))
+        input.run = [x y]; % Current run, to pass to functions.
+        
+        %% 02. Prepare to proceed with a single session.
+        [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);           
+        mkdir(fullfile(opt.analysis,'genplots'))
 
-            %% 03. Recover event data if not in workspace yet
-            % Recover trial definitions created after event extraction and processing. 
-            % Will have as many variations as requested at that time. Needs to be ran 
-            % again to create new alignments.
+        %% 03. Recover event data if not in workspace yet
+        % Recover trial definitions created after event extraction and processing. 
+        % Will have as many variations as requested at that time. Needs to be ran 
+        % again to create new alignments.
+
+        if ~exist('events','var'),    load(fullfile(opt.analysis, "events.mat")),      end
+        if ~exist('neurons','var'),   load(fullfile(opt.analysis, "neurons.mat")),     end
+%         if ~exist('trialdef','var'),  load(fullfile(opt.trialSorted, "trialdef.mat")), end
+%         if ~exist('condition','var'), load(fullfile(opt.analysis, "condition.mat")),   end 
+        
+        %% 04.1 All clusters piled, ...
+        % aligned to requested events, for all clusters
+        if opt.pooledstats
+            plot_pooledstats(neurons, opt, param)
+        end
+                   
+        %% 04.2 Raster, trace, PSH, ISI
+        % whole trial
+        if opt.plot_trial
             if ~exist('spike','var'),     load(fullfile(opt.spikeSorted, "spike.mat")),    end
-            if ~exist('trialdef','var'),  load(fullfile(opt.trialSorted, "trialdef.mat")), end
-            if ~exist('events','var'),    load(fullfile(opt.analysis, "events.mat")),      end
-            if ~exist('condition','var'), load(fullfile(opt.analysis, "condition.mat")),   end 
-            if ~exist('neurons','var'),   load(fullfile(opt.analysis, "neurons.mat")),     end
-                       
-            %% 04.1 Raster, trace, PSH, ISI, drift
-            if opt.genstats
-                % whole trial
-                plot_trialclusters(neurons, events, spike, opt, param)
+            plot_trialclusters(neurons, events, spike, opt, param)
+        end
 
-                % aligned to requested events, per cluster
-                plot_alignedclusters(neurons, events, spike, opt, param)
-            end
+        % aligned to requested events, per cluster
+        if opt.plot_align && numel(opt.alignto) > 1
+            if ~exist('spike','var'),     load(fullfile(opt.spikeSorted, "spike.mat")),    end
+            plot_alignedclusters(neurons, events, spike, opt, param)
+        end
 
-            %% 04.2 Rasters, ...
-            % aligned to requested events, for all clusters
-            if opt.pooledstats
-                plot_pooledstats(neurons, opt, param)
-            end
+        clear events neurons spike
     end
 end

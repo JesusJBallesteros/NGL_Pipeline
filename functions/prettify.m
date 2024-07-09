@@ -2,8 +2,9 @@ function prettify(varargin)
 % A few common instructions to prettify basic plots.
 % INPUT:    plotops, struct with a number of fields related to figure attributes,
 %                    of which the very basic are defaulted here.
+%           loop variable, integer to differentiate itiOn vs other alignments
 
-%% Default
+% Default
 if nargin == 0
     plotops = struct('xlabel', {'time'}, 'ylabel', {'metric'}, ...
                      'xticks', [],      'yticks', [], ...
@@ -20,28 +21,41 @@ end
 % Get Current Figure
 gcf;
 
-% Modify attributes
+% Modify/add attributes
 box("off");
 xline(0,'--k');
 ylabel(plotops.ylabel);
 xlabel(plotops.xlabel);
 yticks(plotops.ytick);
 
-% X axis, special cases
-if isitiON == 1, xticks('auto');        xticklabels('auto');
-else,            xticks(plotops.xtick); xticklabels(plotops.xticklabels{1}); end
+% X axis
+if isitiON == 1 % iti alignment
+    xticks('auto'); 
+    xticklabels('auto');
+    xlim([plotops.xtickiti(1) plotops.xtickiti(end)])
+else
+    xticks(plotops.xtick);      
+    xticklabels(plotops.xticklabels{1});
+    if ~strcmp(plotops.xtick, 'auto')    
+        xlim([plotops.xtick(1) plotops.xtick(end)])
+    end
+end
 
-% Y axis
+%  % driftmap
+%     xlim([plotops.xtick(1) plotops.xtick(end)])
+% end        
+
+% Y axis, normally defined
 yticklabels(plotops.yticklabels{1});
 
-% Title
+% Title, obtained dynamically
 if isfield(plotops, 'title')
     title(plotops.title);
     subtitle(plotops.subtitle);
     set(get(gca, 'Title'), 'FontSize', 18);
 end
 
-% Fonts
+% Fonts, for all
 set(gca, 'FontSize', 8);
 set(get(gca, 'XLabel'), 'FontSize', 10);
 set(get(gca, 'YLabel'), 'FontSize', 10);

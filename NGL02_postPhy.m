@@ -55,6 +55,7 @@ for x = 1:input.nsubjects % Subjects.
 
             %% ...
 
+            clear neurons spike trialdef 
     end
 
 %% 04. Proceed with data as whole
