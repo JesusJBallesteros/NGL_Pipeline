@@ -3,6 +3,11 @@
 % the resulting KS results after manual curation.
 %
 % Jesus 12.06.2024
+if ~isfield(opt, 'doSpikething') || isempty(opt.doSpikething),  opt.doSpikething = true;    end
+if ~isfield(opt, 'doLFPthing') || isempty(opt.doLFPthing),      opt.doLFPthing   = true;    end
+if ~isfield(opt, 'FLIP') || isempty(opt.FLIP),                  opt.FLIP         = false;   end
+
+% if exist('regions','var'),                                      opt.multregion   = true;    end
 
 %% 00. Check current inputs.
 % Check if input variable exist already. Parse values.
@@ -29,36 +34,103 @@ for x = 1:input.nsubjects % Subjects.
     for y = 1:input.sessions(x).nsessions % Sessions.
             input.run = [x y]; % Current run, to pass to functions.
             
-            %% 03 Prepare to proceed with a single session.
+            %% 03. Prepare to proceed with a single session.
             [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);           
 
-            %% 04 Extract preprocessed spikes and recover event data.
-            % Spike clusters after sorting and curation.
-            spike = loadSpikes(opt);
-            if isfield(spike,"spike"), spike = spike.spike; end % Simplify loaded structure if needed
-                        
-            % Save output to \spikesorted
-            save(fullfile(opt.spikeSorted, "spike.mat"), 'spike', '-mat');
-            
-            %% 05 Iterate trough all units and sort them into trials.
-            % Recover trial definitions created after event extraction and processing. 
-            % Can have as many variations as requested at that time.
-            % To create new alignments, it would have to be ran again.
-            if ~exist('trialdef','var'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
-            
-            % Outputs are saved to data\analysis. 
-            % TODO fix Fieldtrip extraction
-            [neurons, ~] = sort2trials(spike, trialdef, opt);
-        
-            % Save output to \analysis
-            save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
+            %% 04. Offline Video blob detector
+            % Very specific for Social learning videos from central cenital camera. 
+            if opt.offlineTrack
+                [blob] = processAndTrack_video(opt);
+                save(fullfile(opt.behavFiles, "blob.mat"), 'blob');
+            end
 
-            %% ...
+            %% 05. SPIKE DATA
+            if opt.doSpikething
+                % 04.1 Extract preprocessed spikes and recover event data.
+                % Spike clusters after sorting and curation.
+                spike = loadSpikes(opt);
+                if isfield(spike,"spike"), spike = spike.spike; end % Simplify loaded structure if needed
+                            
+                % Save output to \spikesorted
+                save(fullfile(opt.spikeSorted, "spike.mat"), 'spike', '-mat');
+                
+                % 04.2 Iterate trough all units and sort them into trials.
+                % Recover trial definitions created after event extraction and processing. 
+                % Can have as many variations as requested at that time.
+                % To create new alignments, it would have to be ran again.
+                if ~exist('trialdef','var'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
+                
+                % Outputs are saved to data\analysis. 
+                % TODO fix Fieldtrip extraction
+                [neurons, ~] = sort2trials(spike, trialdef, opt);
+            
+                % 04.3 Save output to \analysis
+                save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
+            end
 
-            clear neurons spike trialdef 
+            %% 06. Continuous LFP DATA. UNDER DEVELOPMENT
+            if opt.doLFPthing
+                % 05.1 Extract preprocessed FTcont file.
+                disp('Loading FT continuous file...')
+                load(fullfile(opt.analysis, input.sessions(input.run(1)).info.files.name));
+                if isfield(FT_data,"FT_data"), FT_data = FT_data.FT_data; end   % Simplify loaded structure if needed
+
+                % 05.2 Obtain or create trial definition to pass to FT
+                if isfile('trialdef.mat'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
+                
+                if ~exist('trialdef','var')
+                    load(fullfile(opt.analysis, "events.mat"));
+
+                    if exist('events','var')
+                        [~, trialdef, ~] = trialdefGen(events, opt, 1);
+                        save(fullfile(opt.trialSorted, "trialdef.mat"), 'trialdef');
+                    else, warning('Neither trial definitions or events found for this session.')
+                    end
+                end
+
+                % Specific for chgDtctPCue
+                trialdef{2,1} = ceil(trialdef{2,1}/32);                
+                % Outputs are saved to data\analysis. 
+                MAT2FieldTrip(FT_data, opt, trialdef); 
+                clear FT_data events trialdef
+
+                % Artifact detection and rejection
+                load(fullfile(opt.analysis, [input.sessions(input.run(1)).list{input.run(2)}, '_startON.mat']), "-mat", 'FT_data');
+                
+                cfg = [];
+                cfg.trl         = FT_data.cfg.trl;
+                cfg.continuous  = 'no';
+                cfg.artfctdef.zvalue.channel    = 'all';
+                cfg.artfctdef.zvalue.cutoff     = 20;
+                cfg.artfctdef.zvalue.trlpadding = 0;
+                cfg.artfctdef.zvalue.fltpadding = 0;
+                cfg.artfctdef.zvalue.artpadding = 0;                
+                
+                % The optional configuration settings (see below) are:
+                  cfg.artfctdef.zvalue.artfctpeak       = 'no';
+                  cfg.artfctdef.zvalue.interactive      = 'no';
+                  cfg.artfctdef.zvalue.zscore           = 'yes';
+                
+                [~, artifact] = ft_artifact_zvalue(cfg, FT_data);
+    
+                % The following configuration options are supported
+                cfg = [];
+                  cfg.artfctdef.reject          = 'partial';
+                  cfg.artfctdef.zvalue.artifact = artifact;
+    %               cfg.artfctdef.minaccepttim    = when using partial rejection, minimum length
+    %                                               in seconds of remaining trial (default = 0.1)
+                [FT_data_art] = ft_rejectartifact(cfg, FT_data);
+    
+                % vFLIP Analysis
+                if opt.FLIP
+                     laminaraxis = 0:0.05:1.55;
+                     freqaxis = 1:150;
+    
+                    % Specific for chgDtctPCue
+                    [FLIP, relpow, ~] = vFLIP_NGL(FT_data, laminaraxis, freqaxis, 0);
+    
+                end
+            end
+            
     end
-
-%% 04. Proceed with data as whole
-% TODO    
-
 end

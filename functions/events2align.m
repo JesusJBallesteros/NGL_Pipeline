@@ -24,7 +24,7 @@ function [t0] = events2align(opt)
         case 'cell'
             % multiple events given as a cell array of characters
             t0       = {};
-            for i=1:length(opt.alignto)
+            for i=1:size(opt.alignto,1)
                 t0(i,:)  = {opt.alignto{i}, opt.eventdef.(opt.alignto{i})};
             end
     end

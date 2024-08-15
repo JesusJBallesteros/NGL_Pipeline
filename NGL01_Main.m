@@ -73,7 +73,17 @@ for x = 1:input.nsubjects % Subjects.
             case {'fileperch', 'filepertype'}
                % 03.2 INTAN Pipeline
                input = INTAN_PipelineWrapper(input, opt);
-    
+
+            case {'FieldTrip'}   
+               % 03.3 FT Pipeline
+               % TODO. Anything to do?
+               % so far, reaching this point means there was no raw data,
+               % and under analysis there is FT formatted data, so prob
+               % this has already been preprocessed but we only have the
+               % minimal data here for analysis.
+               disp('Session skipped because continuous FT file was found')
+               continue
+                
             otherwise
                warning('Something went wrong during format verification. Skipping Session');
                continue

@@ -14,22 +14,22 @@ function [info] = chckV(varargin)
 %
 % 07.11.2023. Jesus
 
-err = 1;
+err = 0;
 % Evaluate if file exist with full name and assign case.
 if isfile('EVENTLOG.NLE') 
-    formatis = 1; err = 0;
+    formatis = 1;
 elseif isfile('EVENT000.DF1') 
-    formatis = 2;  err = 0;
+    formatis = 2; 
 elseif isfile('info.rhd') 
-    formatis = 3;  err = 0;
+    formatis = 3; 
 else
-    info.files = dir('*xdat.json'); % list files matching Allego's
+    info.files = dir('*FTcont.mat'); % list files matching Allego's
     if ~isempty(info.files)
-        formatis = 4;  err = 0;
+        formatis = 4; 
     else
         formatis = 0;
+        err = 1; 
     end
-
 end
 
 switch formatis
@@ -101,7 +101,7 @@ switch formatis
        if info.nfiles > 1, info.fileformat = 'fileperch';
        else,               info.fileformat = 'filepertype';  end
     case 4
-        info.fileformat = 'Allego';
+        info.fileformat = 'FieldTrip';
         % TODO: Figure out how to work with this files.
         % (most likely, after Allego's self preprocessing tool?)
     

@@ -63,7 +63,7 @@ if opt.bin && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
 end
 
 %% 05. Run functions to convert INTAN dat to FIELDTRIP structure.
-if opt.FieldTrip && ~isfile(fullfile(opt.trialSorted,[opt.SavFileName '_continous_FT.mat']))
+if opt.FieldTrip && ~isfile(fullfile(opt.trialSorted,[opt.SavFileName '_FTcont.mat']))
     % Includes a mix of INTAN funtions. CREATES and GIVES proper
     % FieldTrip format without trial-parsing. 
 %     intan2FieldTrip(input.sessions(input.run(1)), opt) % DEPR
