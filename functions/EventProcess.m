@@ -7,7 +7,7 @@ function [events, trialdef, EventRecord] = EventProcess(opt)
 %% Defaults.
 if ~isfield(opt,'useexe'),          opt.useexe              = true;                 end
 if ~isfield(opt,'ext'),             opt.ext                 = 'fileperch';          end
-if ~isfield(opt,'eventdef'),        opt.eventdef            = eventDefinitions();   end
+if ~isfield(opt,'eventdef'),        opt.eventdef            = eventDefinitions(opt.ext);   end
 if ~isfield(opt,'trEvents'),        opt.trEvents            = [];                   end
 
 opt.exefile = 'C:\Code\ephys-data-pipeline\toolboxes\Deuteron\software\Event_File_Reader_9_0.exe';
@@ -17,20 +17,20 @@ events      = []; % If remains empty, data shall be treated as continuous.
 trialdef    = [];
 EventRecord = [];
 
-%% Check for alredy collected events
-if isfile(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')))
-    disp('EventRecord found. Loading.')
-    load(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')), 'EventRecord');
-
-    if isfile(fullfile(opt.trialSorted, strcat('trialdef.mat')))
-        disp('Trial definition file found. Assuming events have been collected. Loading both.')
-        load(fullfile(opt.analysis, strcat('events.mat')), 'events');
-        load(fullfile(opt.trialSorted, strcat('trialdef.mat')), 'trialdef');
-
-        % Done here
-        return
-    end
-end
+% %% Check for alredy collected events
+% if isfile(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')))
+%     disp('EventRecord found. Loading.')
+%     load(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')), 'EventRecord');
+% 
+%     if isfile(fullfile(opt.trialSorted, strcat('trialdef.mat')))
+%         disp('Trial definition file found. Assuming events have been collected. Loading both.')
+%         load(fullfile(opt.analysis, strcat('events.mat')), 'events');
+%         load(fullfile(opt.trialSorted, strcat('trialdef.mat')), 'trialdef');
+% 
+%         % Done here
+%         return
+%     end
+% end
 
 %% Retrieve Events and generate needed variables
 if opt.RetrieveEvents

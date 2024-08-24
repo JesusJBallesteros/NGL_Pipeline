@@ -1,8 +1,4 @@
 function [events, trialdef, eventdef] = trialdefGen(EventRecord, opt, varargin)
-% Testing in experiments with Deuteron block format with a text file
-% generated from the software log. This log NEEDS to be saved and placed
-% with the raw session data manually (for now).
-%
 % The Event system and descritipions are based on a probably-to-be standard, as
 % Deuteron current capabilities include reading single pin changes, limited
 % to four input pins only. Therefore we are restricted to a sucession of
@@ -92,7 +88,10 @@ switch useevents
         EventRecord.TimeMsFromMidnight = (EventRecord.TimeMsFromMidnight - EventRecord.TimeMsFromMidnight(1));
         
         % 02 Convert relativized timestamps to SECONDS
-        EventRecord.TimeSecFromMidnight = EventRecord.TimeMsFromMidnight/1000;
+        if strcmp(opt.ext,'fileperch'), fs=30000;
+        elseif strcmp(opt.ext,'DF1'), fs=32000;
+        end
+        EventRecord.TimeSecFromMidnight = EventRecord.TimeMsFromMidnight/fs;
         
         % 03 Find trial start/end times using given definitions
         % Index of events equal to the defined trial start and trial end events.
@@ -106,7 +105,7 @@ switch useevents
         trialends = EventRecord.TimeMsFromMidnight(idx.end); % get corresponding timestamps.
 
     case 1
-        % 00 Find trials with specific event combinations
+        %% 00 Find trials with specific event combinations
         % Index of events equal to the defined trial start and trial end events.
         idx.start   = cellfun(@(x) any(x==opt.eventdef.startON), EventRecord.code, 'UniformOutput', 1);
         idx.end     = cellfun(@(x) any(x==opt.eventdef.chc),   EventRecord.code, 'UniformOutput', 1);
@@ -125,10 +124,10 @@ switch useevents
 
 end
 
-%% 04 Safety check, in case of unsolved problem.
+% Safety check, in case of unsolved problem.
 assert(length(trialstarts)==length(trialends),'Mismatch between number of start/end events unsolved!')
 
-% If OK, use either as a reliable count for number of trials
+%% 04 If OK, use either as a reliable count for number of trials
 ntrials = length(idx.start); % count trial starts.
 
 %% 05 Create trialdef variables for FieldTrip. In MILISECONDS
@@ -198,14 +197,14 @@ if ~useevents
     
         for t = 1:ntrials
             % Grab all timestamps between time of start and time of end (inclusive)
-            trialstamps = EventRecord.TimeSecFromMidnight(EventRecord.TimeSecFromMidnight >= trialdef{2,i}(t,1)/1000 & ...
-                                                         EventRecord.TimeSecFromMidnight <= trialdef{2,i}(t,2)/1000);
+            trialstamps = EventRecord.TimeSecFromMidnight(EventRecord.TimeSecFromMidnight >= trialdef{2,i}(t,1)/fs & ...
+                                                         EventRecord.TimeSecFromMidnight <= trialdef{2,i}(t,2)/fs);
             % Relativize trial timestamps to alignment offset
-            trialstamps = trialstamps - trialdef{2,i}(t,3)/1000; 
+            trialstamps = trialstamps - trialdef{2,i}(t,3)/fs; 
         
             % Grab all events ocurring between time of start and time of end (inclusive)
-            trialevents = EventRecord.EventType(EventRecord.TimeSecFromMidnight >= trialdef{2,i}(t,1)/1000 & ...
-                                                EventRecord.TimeSecFromMidnight <= trialdef{2,i}(t,2)/1000);
+            trialevents = EventRecord.EventType(EventRecord.TimeSecFromMidnight >= trialdef{2,i}(t,1)/fs & ...
+                                                EventRecord.TimeSecFromMidnight <= trialdef{2,i}(t,2)/fs);
     
             % Insert into the proper structure to be output.
             events.(opt.alignto{i,1}).code{t,1} = trialevents; 
@@ -219,7 +218,7 @@ if ~useevents
     if ~isempty(opt.trEvents)
         for i=1:length(opt.trEvents)
             events.(opt.trEvents{i}).code{1} = opt.eventdef.(opt.trEvents{i});
-            events.(opt.trEvents{i}).time{1} = tr_idx.(opt.trEvents{i})/1000;
+            events.(opt.trEvents{i}).time{1} = tr_idx.(opt.trEvents{i})/fs;
     
             % add special .trial field for easy indexing at e.g. plotting
             for j=1:length(events.(opt.trEvents{i}).time{1})

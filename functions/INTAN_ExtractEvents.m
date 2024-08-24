@@ -55,16 +55,16 @@ clear tmp i fid
 %% Convert to sample # and event-code
 % remove samples during which pin 1 and 2 are up (per default before reset of all pins,
 % necessary in order to correctly extract all relevant events).
-pinsOff = find(dIn(:, 1:npins) == zeros(1, npins), 1, "first");  % find first sample with all 0
+pinsOff = find(dIn(:, 1:npins) ~= [1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0], 1, "first");  % find first sample with all 0
 if pinsOff ~= 1 % Only if is not already the first sample
-    dIn(1:pinsOff-1, :) = []; % remove all previous samples
+    dIn(1:pinsOff+1, :) = []; % remove all samples umtil then
 end
 clear pinsOff
 
 % Find samples at which any pin changes (total sum ~= from previous
 % sample)
 checksum = single(sum(dIn,2));
-ts = find(diff([0; checksum]~=0));
+ts = find(diff([0; checksum])~=0);
 
 %% CONVERT all events
 % convert each binary word to its corresponding decimal using the 16 bits
@@ -75,14 +75,11 @@ for i = 1:size(ts,1)
     EventType(i) = binvec2dec(sum(dIn(ts(i):ts(i)+smpDel,:))); % binary vector to decimal integer
 end
 
-% Relativize ts to first timestamp
-ts = ts-ts(1);
-
 %% Place extracted information into a proper EventRecord
 EventRecord.EventNumber         = double(1:1:length(EventType))';
 EventRecord.EventType           = double(EventType);
-EventRecord.TimeStamp           = ts;
-EventRecord.TimeMsFromMidnight  = nan(length(EventType),1);
+EventRecord.TimeStamp           = nan(length(EventType),1);
+EventRecord.TimeMsFromMidnight  = ts;
 EventRecord.TimeSource          = nan(length(EventType),1);
 EventRecord.Details             = nan(length(EventType),1);
 end

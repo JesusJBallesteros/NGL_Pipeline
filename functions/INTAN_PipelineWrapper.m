@@ -22,17 +22,16 @@ if ~isfield(opt,'lowpass'),         opt.lowpass             = 150;          end
 input.sessions(input.run(1)) = findSetting(input.sessions(input.run(1)));
 
 %% 02. Event data retrieval and trial definition. INTAN version
-if isfile(fullfile(opt.trialSorted, "trialdef.mat"))
-    load(fullfile(opt.trialSorted, "trialdef.mat"))
-    if ~exist("trialdef","var") && exist("trialDefinition","var")
-        trialdef = trialDefinition.trl; clear trialDefinition
-    end
-else
-    % TODO
-    % 'trialdef' outputted for later feed into fieldtrip transf.
+% if isfile(fullfile(opt.trialSorted, "trialdef.mat"))
+%     load(fullfile(opt.trialSorted, "trialdef.mat"))
+%     if ~exist("trialdef","var") && exist("trialDefinition","var")
+%         trialdef = trialDefinition.trl; clear trialDefinition
+%     end
+% else
+%     % 'trialdef' outputted for later feed into fieldtrip transf.
     [~, trialdef, ~] = EventProcess(opt);
-
-end
+% 
+% end
 
 %% 03. Create NWB file
 if input.useNWB % We want a .NWB file.

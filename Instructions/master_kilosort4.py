@@ -14,7 +14,7 @@ settings = DEFAULT_SETTINGS
 settings['n_chan_bin'] = int(sys.argv[3])
 
 # Run
-ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate = \
+ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate, kept_spikes = \
     run_kilosort(settings=settings, \
                  probe_name=sys.argv[4], \
                  filename=sys.argv[2] \

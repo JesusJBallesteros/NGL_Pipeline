@@ -70,7 +70,7 @@ else
         tmp = doScale(tmp);
 
         % Common Median referencing
-        tmp = doCar(tmp);
+        tmp = doCar(tmp, sessions);
 
         % Filtering
         if opt.set_filter, tmp = doFilters(tmp, opt); end
@@ -147,7 +147,7 @@ function tmp = doScale(tmp)
 end
 
 % Re-reference channels
-function tmp = doCar(tmp)
+function tmp = doCar(tmp, sessions)
     if sessions.info.nChannels > 32 % Two banks, from two different regions. Hardcoded for 'chgDet' specific case
         % TODO generalize
         disp('Re-referencing by Common Average Referencing (CARing) 1/2.')
