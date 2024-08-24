@@ -8,9 +8,13 @@ function [blob] = processAndTrack_video(opt)
 %
 % Subject to improvement and modification.
 % % TODO work (01) initial processing of video chunks into single video. 
-%
-% Jesus 25.07.2024
+%        work on individual distances to feeders (only tutee? single ID not possible yet)
+%        
+
+% Jesus 20.08.2024
+
 if ~isfield(opt,'visualize') || isempty(opt.visualize),     opt.visualize = false; end
+loaddata = false;
 
 %% 00. Default/Custom Parameters
 % Inputs
@@ -67,7 +71,7 @@ end
 % Proceed with processed video and parameters 
 if isfile(fullfile(opt.behavFiles, "blob.mat"))
     disp('Blob tracked data already exists. Delete it to reprocess.')
-    % loaddata = 1; % To reload data for debugging. Comment next line
+    loaddata = true; % To reload data for debugging. Comment next line
     return % if we reach this point, nothing else happens
 end
 

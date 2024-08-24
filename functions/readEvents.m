@@ -1,7 +1,5 @@
-function [ev, numSmp, dIn] = readEvents(varargin)
-
-% function [ev, numSmp, dIn] = readEvents(pth)
-%
+% function [ev, numSmp, dIn] = readEvents(varargin)
+function [ev, dIn] = readEvents(opt)
 % Use this function to read event-codes saved in Intan (one file per channel).
 %   Current version looks for the first change in a digitla pin, then
 %   averages over 2 samples 0.5 ms later to make sure that all pins are set.
@@ -27,96 +25,98 @@ function [ev, numSmp, dIn] = readEvents(varargin)
 % VERSION HISTORY:
 % Author:        Jonas Rose
 % Version:       1.1
-% Last Change:   11.10.2022 (Jesus Ballesteros)
-
-% BUGS/ TODO:
-
+% Last Change:
 % 08.05.2016, Jonas: Release version
 % 17.05.2016, Jonas: sampling rate is picked up from header file or input
 % 17.05.2016, Jonas: bugfix, read events as uint16
 % 05.05.2022, Aylin: corrected code for new Intan System
 % 25.05.2022, Aylin: corrected code for standard and extra event codes
 % 11.10.2022, Jesus: Testing old format compatibility (Does not affect new format)
+% 19.08.2024, Jesus: Removed numSmp output. Modified input system
 
-%% initializations
-pins    = 2:16;     % 16 pins to read in new Intan System, 15 in old version (start with 2 due to code in line 90ff) 
+%% Defaults
+pth     = opt.PathRaw; % folder for reading events
+smpRate = 30000; % sampling rate
 smpSum  = 2;        % an event code is sums over n samples (to catch instabilities)
 skipDur = .5;       % look 0.5 ms after the first change to assume all pins are there.    
-pth     = [];       % folder for reading events
-smpRate = nan;      % sampling rate
+
+%% initializations
+% PINS can be obtained from files
+INfiles = string(ls(fullfile(pth,"board-DIGITAL-IN*")));
+pins = 1:numel(INfiles);
+
+% number of samples to skip - convert from ms to smpInd
+% (look for first pin that changes then read the code n samples later)
+smpSkip = smpRate*skipDur/1000;
 
 %% get optional inputs
 % for downwards-compatibility
-if nargin==1
-    pth = varargin{1};
-else
-    i=1;
-    while i<=length(varargin)
-        switch lower(varargin{i})
-            case 'path'
-                i = i+1;
-                pth         = varargin{i};
-            case 'smprate'
-                i = i+1;
-                smpRate     = varargin{i};
-            case 'pins'
-                i = i+1;
-                pins = varargin{i};
-        end
-        i=i+1;
-    end
-end
-
-% let the user select the path
-if isempty(pth)
-    pth = uigetdir;
-end
-
+% if nargin==1
+%     pth = varargin{1};
+% else
+%     i=1;
+%     while i<=length(varargin)
+%         switch lower(varargin{i})
+%             case 'path'
+%                 i = i+1;
+%                 pth         = varargin{i};
+%             case 'smprate'
+%                 i = i+1;
+%                 smpRate     = varargin{i};
+%             case 'pins'
+%                 i = i+1;
+%                 pins = varargin{i};
+%         end
+%         i=i+1;
+%     end
+% end
+% 
+% % let the user select the path
+% if isempty(pth)
+%     pth = uigetdir;
+% end
 % read sampling rate from header file
-if isnan(smpRate)
-    nfo = readHeader('path',pth,'verbose',0,'noTime');
-    smpRate = nfo.ampSmpRate;
-end
-% number of samples to skip - convert from ms to smpInd
-%   (look for first pin that changes then read the code n samples later)
-smpSkip = smpRate*skipDur/1000;
+% if isnan(smpRate)
+%     nfo = readHeader('path',pth,'verbose',0,'noTime');
+%     smpRate = nfo.ampSmpRate;
+% end
 
 %% read all digital IN
 % read the first digital channel
-if isfile('board-DIN-00.dat') % If is old data, 
-    oldsystem = 1;            % Tag it
-    fid = fopen(fullfile(pth,'board-DIN-00.dat')); % Use the old 00 as first ch
-else
-    fid = fopen(fullfile(pth,'board-DIGITAL-IN-01.dat')); % Corrected for new Intan System, previous: fopen(fullfile(pth,'board-DIN-00.dat'));
-end
+% if isfile('board-DIN-00.dat') % If is old data, 
+%     oldsystem = 1;            % Tag it
+%     fid = fopen(fullfile(pth,'board-DIN-00.dat')); % Use the old 00 as first ch
+% else
+fid = fopen(fullfile(pth,'board-DIGITAL-IN-01.dat')); % Corrected for new Intan System, previous: fopen(fullfile(pth,'board-DIN-00.dat'));
+% end
 tmp = fread(fid,inf,'uint16');
+fclose(fid);
 % number of samples
 numSmp = size(tmp,1);
-
-if oldsystem
-    pins = 1:15; % Redo pins to 0:1:15
-end
-
+% if oldsystem
+%     pins = 1:15; % Redo pins to 0:1:15
+% end
 % preallocate for every pin/ channel
-if oldsystem
-   dIn = zeros(numSmp,15,'uint8'); % fix old system to 16
-else
-   dIn = zeros(numSmp,length(pins),'uint8');   % Corrected for new Intan System, previous: zeros(numSmp,16,'uint8');
-end
-dIn = [tmp dIn];                            % Corrected for new Intan System
+% if oldsystem
+%    dIn = zeros(numSmp,15,'uint8'); % fix old system to 16
+% else
+dIn = zeros(numSmp, length(pins), 'uint8');   % Corrected for new Intan System, previous: zeros(numSmp,16,'uint8');
+% end
+
+dIn(:,1) = tmp;                            % Corrected for new Intan System
 clear tmp;
 
 % read the remaining pins
-for i=pins
-    if oldsystem % here it will go from 1:15
-        fid = fopen(fullfile(pth,['board-DIN-' sprintf('%02d',i) '.dat']));
-        dIn(:,i+1) = fread(fid,numSmp,'uint16');
-        fclose(fid);
-    else % here it will go from 2:16
-        fid = fopen(fullfile(pth,['board-DIGITAL-IN-' sprintf('%02d',i) '.dat'])); % Corrected for new Intan System, previous: fopen(fullfile(pth,['board-DIN-' sprintf('%02d',i) '.dat']));
-        dIn(:,i) = fread(fid,numSmp,'uint16');
-        fclose(fid);    
-    end
+for i= pins(2:end)
+%     if oldsystem % here it will go from 1:15
+%         fid = fopen(fullfile(pth,['board-DIN-' sprintf('%02d',i) '.dat']));
+%         dIn(:,i+1) = fread(fid,numSmp,'uint16');
+%         fclose(fid);
+%     else % here it will go from 2:16
+    fid = fopen(fullfile(pth,['board-DIGITAL-IN-' sprintf('%02d',i) '.dat'])); % Corrected for new Intan System, previous: fopen(fullfile(pth,['board-DIN-' sprintf('%02d',i) '.dat']));
+    dIn(:,i) = fread(fid,numSmp,'uint16');
+    fclose(fid);    
+%     end
 end
 
 %% convert to sample # and event-code

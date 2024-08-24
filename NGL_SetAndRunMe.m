@@ -13,29 +13,29 @@ clear all
 % A) SYSTEM
 % RECOMMENDED to add the toolbox folder to MATLAB folder system, but not necessary.
 datadrive   = 'F';                   % The LETTER of the drive where the data structure is/will be created.
-studyname   = 'ProjectName';  % Name of the study to be used (main folder for the data)
+studyname   = 'DeutTest';  % Name of the study to be used (main folder for the data)
 toolbox     = 'C:\Code\ephys-data-pipeline'; % Absolute path to the toolbox.
 
 % B) SUBJECTS AND SESSIONS
 % To run the script on all subjects and sessions, or as session-to-session process.
-subjects    = {'DOE', 'POE'}; % 'all'; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
-dates       = {'YYYYMMDD', 'YYYYMMDD'}; % 'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
+subjects    = {'257'}; % 'all'; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
+dates       = {'20240820'}; % 'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
 
 % C) OPTIONS.
 opt = struct();
     % General options for NGL01_Main
     opt.numChannels             = 32;       % For now, explicit 32 if not SpikeLog-64C was used (Deuteron). INTAN: comment.
+    opt.CAR                     = 1;        % Default: 1. CAR to remove fast-ample transients and other noise for .bin file. If == 2 also CAR for lowpass (not recommended)
+    opt.linefilter              = 0;        % If not 0, filter line noise at given value +-2 (Hz)
     opt.bin                     = true;     % Create a .bin file with the high-pass data, to be passed to Kilosort for spike sorting.
-        opt.highpass            = [450 9000]; % Give as [low high] frequency values.
-        opt.CAR                 = 0;        % Default: 1. Common Average Referencing (median) to remove fast-ample transients and other noise. 
+        opt.highpass            = 400;      % Give as low boundary frequency value. (High boundary is set at recording time)
     opt.FieldTrip               = true;     % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
-        opt.lowpass             = [0 250];  % Give as [low high] frequency values.
-        opt.linefilter          = 50;       % If given, to filter line noise, can be 50/60 Hz
-    opt.GetMotionSensors        = false;    % Retrieve data from motion sensors in Deuteron. NEEDS IMPROVEMENT on head direction interpretation.
+        opt.lowpass             = 150;      % Give as high boundary frequency value.
+    opt.GetMotionSensors        = true;    % Retrieve data from motion sensors in Deuteron. NEEDS IMPROVEMENT on head direction interpretation.
     opt.RetrieveEvents          = true;     % Retrieve event log. If not further options defaulted to Deuteron txt log extraction.
-        opt.alignto             = {'itiOn', 'stimOn1', 'bhv'}; % single char array e.g. 'itiOn', or cell array e.g. {'itiOn', 'rwd'}. 'itiON' should be the very least to align to.
-        opt.trEvents            = {};       % Event definition of 'special events' i.e. events at the ITI like treatments, tutors ('na3'), etc...
-    opt.kilosort                = 2;        % Kilosort processing. == 2 for KS2, == 4 for KS4 !! KS2 NEEDS configfile saved under 'studyName\analysisCode\'
+        opt.alignto             = {'itiOn', 'stimOn1'}; % single char array e.g. 'itiOn', or cell array e.g. {'itiOn', 'rwd'}. 'itiON' should be the very least to align to.
+        opt.trEvents            = {'tr1'};  % Event definition of 'special events' i.e. events at the ITI like treatments, tutors ('na3'), etc...
+    opt.kilosort                = 4;        % Kilosort processing. == 2 for KS2, == 4 for KS4 !! KS2 NEEDS configfile saved under 'studyName\analysisCode\'
         opt.KSchanMapFile       = 'chanMapE32-S2_DeutSN11.mat';  % Empty '' to use non-mapped, linear array. Or e.g.'chanMapXXX.mat' for custom maps saved under 'studyName\analysisCode\'
         opt.spkTh               = -4.5;     % Only for KS2. Usually a single value. If multiple [-X -Y ... -Z], cycle runs with thresholds -X, -Y ... -Z each.
     opt.bombcell                = false;     % Run bombcell on the KS output, as previous step to manual curation. TODO: go over several KS outputs if existing.
@@ -44,13 +44,13 @@ opt = struct();
                         
     % General options for NGL02_postPhy
     % TODO figure out HOW to get wF!
-    opt.getwF                   = false;    % To obtain waveforms or not
+    opt.getwF                   = true;    % To obtain waveforms or not
         opt.gwfparams.dataType      = 'int16';  % Data type of .dat file
         opt.gwfparams.nCh           = 32;       % Number of channels that were streamed in .dat file
         opt.gwfparams.wfWin         = [-20 41]; % Number of samples around spiketime to include in waveform
         opt.gwfparams.nWf           = 1;        % Proportion of total waveforms per unit to extract
 
-    % These parameters could live in an independent m-file under analysisCode, so they don't crowd here
+    % TODO: These parameters could live in an independent m-file under analysisCode, so they don't crowd here
     param = struct('res',           1, ... % load 'res' variable from Juan's
                    'visible',       'off', ... % figure visibility at plotting
                    'treatment',     true, ... % plot different levels due to treatment/s

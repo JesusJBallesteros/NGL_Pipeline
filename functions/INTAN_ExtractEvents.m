@@ -1,0 +1,88 @@
+function EventRecord = INTAN_ExtractEvents(opt)
+% Based on original function readEvents()
+% Use this function to read event-codes saved in Intan (one file per channel).
+%   Current version looks for any change in a digital pin, using that time
+%   as event start. It controls for inconsistencies by considering 15
+%   samples after this time (0.5ms). Unit of time is sample index (not
+%   seconds) and it is relativized to the first event (start of session).
+%   This version is NOT backwards compatible.
+%
+% INPUTS-OPTIONAL
+%  * opt           : struct with options and parameter for the current run
+%
+% OUTPUTS
+%  * EventRecord   : Vector containing all event-codes.
+
+% VERSION HISTORY:
+% Author:        Jonas Rose
+% Version:       2.0
+% Last Change:
+% 08.05.2016, Jonas: Release version
+% 17.05.2016, Jonas: sampling rate is picked up from header file or input
+% 17.05.2016, Jonas: bugfix, read events as uint16
+% 05.05.2022, Aylin: corrected code for new Intan System
+% 25.05.2022, Aylin: corrected code for standard and extra event codes
+% 11.10.2022, Jesus: Testing old format compatibility (Does not affect new format)
+% 23.08.2024, Jesus: V 2.0 Reduced input/output to basics. General modification
+%                   of digital pins reading to accomodate the unification of standard and
+%                   extra events into just events, as we will use whole 16 bit words. This
+%                   unifies the standard coding between Deuteron and Intan. Implies that the
+%                   decimal integer 0 now has a meaning, and it is not just a reset.
+
+%% Defaults
+pth     = opt.PathRaw; % folder for reading events
+smpDel  = 14;       % an event code is the sum over n samples (to catch instabilities)
+
+%% Initialize
+INfiles = string(ls(fullfile(pth,"board-DIGITAL-IN*")));
+npins = numel(INfiles);
+pins = 1:1:npins;
+
+%% Read all digital IN
+for i = pins
+    fid = fopen(fullfile(pth, ['board-DIGITAL-IN-' sprintf('%02d',i) '.dat'])); % Point to file
+    tmp = fread(fid, inf, 'uint16'); % Get file data into tmp
+    fclose(fid); % Close pointer
+    if i == 1 % Using the first file, allocate memory
+        nsampl = length(tmp);
+        dIn = zeros(nsampl, npins, 'uint8');
+    end
+    % Add the data to dIn
+    dIn(1:nsampl, i) = tmp; 
+end
+clear tmp i fid
+
+%% Convert to sample # and event-code
+% remove samples during which pin 1 and 2 are up (per default before reset of all pins,
+% necessary in order to correctly extract all relevant events).
+pinsOff = find(dIn(:, 1:npins) == zeros(1, npins), 1, "first");  % find first sample with all 0
+if pinsOff ~= 1 % Only if is not already the first sample
+    dIn(1:pinsOff-1, :) = []; % remove all previous samples
+end
+clear pinsOff
+
+% Find samples at which any pin changes (total sum ~= from previous
+% sample)
+checksum = single(sum(dIn,2));
+ts = find(diff([0; checksum]~=0));
+
+%% CONVERT all events
+% convert each binary word to its corresponding decimal using the 16 bits
+EventType = nan(size(ts,1),1);
+
+for i = 1:size(ts,1)
+    % Convert binary pins to decimal, sum over n samples to catch inconsitencies
+    EventType(i) = binvec2dec(sum(dIn(ts(i):ts(i)+smpDel,:))); % binary vector to decimal integer
+end
+
+% Relativize ts to first timestamp
+ts = ts-ts(1);
+
+%% Place extracted information into a proper EventRecord
+EventRecord.EventNumber         = double(1:1:length(EventType))';
+EventRecord.EventType           = double(EventType);
+EventRecord.TimeStamp           = ts;
+EventRecord.TimeMsFromMidnight  = nan(length(EventType),1);
+EventRecord.TimeSource          = nan(length(EventType),1);
+EventRecord.Details             = nan(length(EventType),1);
+end

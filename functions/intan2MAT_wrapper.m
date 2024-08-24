@@ -30,7 +30,7 @@ end
 
 nfiles = length(opt.myFiles);
 
-%% Open INTAn file/s and brint to matlab temporal array
+%% Open INTAn file/s and bring to matlab temporal array
 % Either at once 
 if nfiles == 1
     disp('All channels are being read from single file.')
@@ -52,7 +52,8 @@ if nfiles == 1
     % Downsample
     volt = doDownsample(tmp, opt);
 
-else  % or channel by channel
+% or channel by channel
+else  
     if opt.CAR % All channels needed
         disp('Because CAR, all files will be opened one by one but treated at once.')
 
@@ -139,6 +140,7 @@ disp('Done.')
 clear time volt
 end
 
+%% Helper functions
 % Scale to uvolt
 function tmp = doScale(tmp)
     tmp = tmp * 0.195;

@@ -64,16 +64,6 @@ stateLog(1,:) = []; % remove initial state,
 
 stateLog = int2str(stateLog);
 
-% %% As a final account for active channels, we use the explicit log about it
-% % that Deuteron provides with every new file created while recording.
-% filestarted = find(strcmp({EventRecord.EventType}, 'File started')==1); % Find the log for a new file started.
-% geninfo = split(EventRecord(filestarted(1)).Details, ";"); % Split the text contained in Details using semicolons.
-% geninfo = regexp(geninfo,'\d*','Match'); % Match the general expression '\d*'.
-% opt.numChannels = str2double(geninfo{3}); % Transform the 3rd field (hardcoded) into double.
-% if isempty(opt.channelOrder)
-%     opt.channelOrder = 1:1:opt.numChannels; % Order channels as incremental ordinals. (TODO: this? perhaps match the Deuteron map?)
-% end
-
 %% Place extracted information into a proper EventRecord
 EventRecord.EventNumber         = double(1:1:length(stateLog))';
 EventRecord.EventType           = single(bin2dec(stateLog));

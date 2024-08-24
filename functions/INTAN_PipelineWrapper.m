@@ -11,9 +11,9 @@ end
 if ~isfield(opt,'bin'),             opt.bin                 = true;         end
 if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
 if ~isfield(opt,'useNWB'),          opt.useNWB              = false;        end
-if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = false;        end
-if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
-if ~isfield(opt,'lowpass'),         opt.lowpass             = 250;          end
+if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
+if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = true;         end
+if ~isfield(opt,'lowpass'),         opt.lowpass             = 150;          end
 
 %% 01. Find out INTAN settings and header file. Extract info.
 %  Uses a modified Intan function, to make the basic information
@@ -30,9 +30,8 @@ if isfile(fullfile(opt.trialSorted, "trialdef.mat"))
 else
     % TODO
     % 'trialdef' outputted for later feed into fieldtrip transf.
-    % [~, trialdef, ~] = Deuteron_EventProcess(opt);
-    % With an empty 'events'/'trialdef', data shall be treated as continuous.
-    trialdef = [];
+    [~, trialdef, ~] = EventProcess(opt);
+
 end
 
 %% 03. Create NWB file

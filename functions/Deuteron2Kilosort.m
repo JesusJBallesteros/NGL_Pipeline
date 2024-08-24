@@ -11,20 +11,6 @@ function Deuteron2Kilosort(opt)
 
 % Jesus 12.06.2024
 
-% if ~isfield(opt,'h5'),             opt.h5                 = false;         end
-
-%% Pre-define .h5 (Deprecated)
-% filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName '.h5']); 
-% dataset = '/allChnMat'; % Name dataset to an useful denomination?
-% if opt.h5
-%     % Create complete HDF5 file matching size needs.
-%     h5create(filename,                          ... % filename.
-%              dataset,                           ... % dataset name.
-%              [opt.numChannels Inf],              ... % prepare data dimensions (nCh x samples).
-%              'ChunkSize', [1 opt.HDF5chunkSize], ... % prepare to write chunks in time dimension.
-%              'Datatype', 'int16');                   % data precision.
-% end
-
 %% Check bin file existence and completion.
 % If an error happens during processing, the bin file persists created but with zero size
 if isfile(fullfile(opt.FolderProcDataMat, [opt.SavFileName + ".bin"]))
@@ -75,15 +61,7 @@ if strcmp(opt.ext, 'DT2')
         nSamples = size(tempdata,2);
 
         % Distribute each channel to its respective slot in new array
-        for b = 1:opt.numChannels
-            % if opt.h5
-            %     h5write(filename,       ... % filename.
-            %             dataset,        ... % dataset name.
-            %             tempdata(b,:),  ... % data of a channel stored in the DT2 file (already scaled)
-            %             [b indexPos+1], ... % Write channel b, from starting sample
-            %             [1 nSamples]);      %  and this amount of samples.
-            % end
-            
+        for b = 1:opt.numChannels            
             % Write channel into general cell array.
             data_mat{b,1} = [data_mat{b,1} tempdata(b,:)];
         end
@@ -153,17 +131,6 @@ for b = 1:opt.numChannels
     [filt_data_mat(b,:), ~, ~] = ft_preproc_highpassfilter(data_mat(b,:), opt.sampleRate, opt.highpass, 6, 'but', 'twopass');
                 
 end
-
-% %% HDF5 method. Distribute each row of data to its respective single-channel file
-% if opt.h5
-%     for b = 1:opt.numChannels
-%         h5write(filename,         ... % filename.
-%                 dataset,          ... % dataset name.
-%                 data_mat(b,:),        ... % channel b, complete
-%                 [b b],                ... %   into slot b
-%                 [1 size(data_mat,2)]);    %   as long as it is.
-%     end
-% end
 
 %% Write bin file.
 fwrite(fidDataMat, filt_data_mat, 'int16');

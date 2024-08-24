@@ -60,49 +60,49 @@ elseif stream == 2
     close gcf
     
     %% Plot the helper viewer example from MATLAB
-    % Initialize objects and set timer.
-    if visual
-        stopTimer = (timestamps(end)-timestamps(1))/1000; % seconds to run simulation
-%         framerate = 1/50; % As 1/Hz of pause for next frame. Default to 50Hz.
-    
-        % Creates a very specific figure object provided by Matlab.
-        pp = poseplot(data(1));
-            title("Pose, NED");
-            xlabel('North')
-            ylabel('East')
-            zlabel('Down')
-
-        if record
-            % initialize the VideoWriter object.
-            writerObj = VideoWriter(fullfile(opt.FolderProcDataMat, strcat('Magnetometer_rotations.avi')),'Motion JPEG AVI'); 
-            open(writerObj); % Opens the file.
-        end
-    
-        % Timer
-        ts = tic; % start timer
-        pause(0.0009) % Let clock tic to a first milisecond
-        % Run until elapsed time reaches set 'stopTimer' (-1 sec to avoid breaks)
-        while(toc(ts) < stopTimer-1) 
-            t = round(toc(ts)*1000); % takes the approximated msec of the run.
-            % plot it in the dynamic figure
-            set(pp, "Orientation", data(t))
-            subtitle(sprintf('%0.3f s', t/1000))
-            drawnow limitrate
-            % Get frame and write it to video.
-            if record
-                F = getframe(gcf); % Capture the frame
-                writeVideo(writerObj, F) % add the frame to the movie
-            end
-            % pause(1/50);
-        end
-    
-        if record
-            % Close video file.
-            close(writerObj);
-        end
-    end
+%     % Initialize objects and set timer.
+%     if visual
+%         stopTimer = (timestamps(end)-timestamps(1))/1000; % seconds to run simulation
+% %         framerate = 1/50; % As 1/Hz of pause for next frame. Default to 50Hz.
+%     
+%         % Creates a very specific figure object provided by Matlab.
+%         pp = poseplot(data(1));
+%             title("Pose, NED");
+%             xlabel('North')
+%             ylabel('East')
+%             zlabel('Down')
+% 
+%         if record
+%             % initialize the VideoWriter object.
+%             writerObj = VideoWriter(fullfile(opt.FolderProcDataMat, strcat('Magnetometer_rotations.avi')),'Motion JPEG AVI'); 
+%             open(writerObj); % Opens the file.
+%         end
+%     
+%         % Timer
+%         ts = tic; % start timer
+%         pause(0.0009) % Let clock tic to a first milisecond
+%         % Run until elapsed time reaches set 'stopTimer' (-1 sec to avoid breaks)
+%         while(toc(ts) < stopTimer-1) 
+%             t = round(toc(ts)*1000); % takes the approximated msec of the run.
+%             % plot it in the dynamic figure
+%             set(pp, "Orientation", data(t))
+%             subtitle(sprintf('%0.3f s', t/1000))
+%             drawnow limitrate
+%             % Get frame and write it to video.
+%             if record
+%                 F = getframe(gcf); % Capture the frame
+%                 writeVideo(writerObj, F) % add the frame to the movie
+%             end
+%             % pause(1/50);
+%         end
+%     
+%         if record
+%             % Close video file.
+%             close(writerObj);
+%         end
+%     end
         
-%     %% Plot Dynamic figure where the heading vector moves as the rotation happens
+     %% Plot Dynamic figure where the heading vector moves as the rotation happens
 %     % Assuming you have an array of quaternions "rotators" with dimensions (n, 4)
 %     % where n is the number of time points. Convert the quaternions to rotation matrices
 % %     rotMat = quat2rotm(data);

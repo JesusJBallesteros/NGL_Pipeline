@@ -47,7 +47,7 @@ if ~isfield(opt,'bin'),             opt.bin                 = true;         end
 if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
 if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
-if ~isfield(opt,'lowpass'),         opt.lowpass             = 250;          end
+if ~isfield(opt,'lowpass'),         opt.lowpass             = 150;          end
 if ~isfield(opt,'highpass'),        opt.highpass            = 450;          end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
 if ~isfield(opt,'parsetrial'),      opt.parsetrial          = false;        end
@@ -62,25 +62,6 @@ opt.ext     = input.sessions(input.run(1)).info.fileformat;
 % Set Sample rate.
 opt.sampleRate  = input.sessions(input.run(1)).info.amplifier_sample_rate;
 
-% % DEPR% Set ChunkSize of HDF5 file (e.g., 5 minutes: 300s x 30000Hz = 9600000 samples)
-% opt.HDF5chunkSize = 300*opt.sampleRate; 
-% % DEPR
-%
-% % DEPR % Get number and order of channels if not done yet. (ORDER NEEDS TO BE FIXED)
-% if isempty(input.sessions(input.run(1)).info.nChannels)
-%     opt.channelOrder    = load(fullfile(input.analysisCode, opt.KSchanMapFile),'chanMap'); 
-%     opt.channelOrder    = opt.channelOrder.chanMap;
-% else
-%     if (input.sessions(input.run(1)).info.nChannels == opt.numChannels)
-%         opt.channelOrder    = load(fullfile(input.analysisCode, opt.KSchanMapFile),'chanMap'); 
-%         opt.channelOrder    = opt.channelOrder.chanMap;
-%     else
-% %         opt.numChannels     = input.sessions(input.run(1)).info.nChannels;
-%         opt.channelOrder    = [];
-%     end
-% end
-% % DEPR
-
 % Few specific parameters from Deuteron's log and documentation, to convert bits to physical units.
 opt.numberOfAdcBits   = input.sessions(input.run(1)).info.numADCBits;
 opt.voltageResolution = input.sessions(input.run(1)).info.voltageRes;
@@ -89,7 +70,7 @@ opt.offset            = 2^(opt.numberOfAdcBits-1);
 %% Event data retrieval and trial definition.
 % 'trialdef' outputted for later feed into fieldtrip transf.
 % An empty output means that data shall be treated as continuous.
-[~, trialdef, ~] = Deuteron_EventProcess(opt);
+[~, trialdef, ~] = EventProcess(opt);
 
 %% High-pass Neural Data Conversion to .bin
 if opt.bin

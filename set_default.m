@@ -78,7 +78,7 @@ if isfield(opt,'kilosort')
     
     elseif opt.kilosort == 4
        input.KSpyfolder = 'C:\code\Kilosort\kilosort'; % Path to the kilosort git-code. It could change among PCs
-       input.KSpyenv_NGL = 'C:\Code\miniconda3\envs\kilosort'; % Kilosort enviroment under python installation. It could change among PCs
+       input.KSpyenv_NGL = 'C:\Users\ballejd4\AppData\Local\miniconda3\envs\kilosort'; % Kilosort enviroment under python installation. It could change among PCs
        
        % Copy NGL customized py files to kilosort enviroment's library
        orig_dir = pwd; % where we come from
@@ -112,7 +112,7 @@ addpath(genpath('toolboxes\spikes'))
 ft_defaults
 
 % Hardcode Deuteron's exe/dll files location to RetrieveEvents.
-% input.ReaderDll   = [input.toolbox, '\toolboxes\Deuteron\software\Event_File_Reader_9_0.dll']; % hopefully wont be necessary
-% input.exefile     = [input.toolbox, '\toolboxes\Deuteron\software\Event_File_Reader_9_0.exe'];
+input.ReaderDll   = [input.toolbox, '\toolboxes\Deuteron\software\Event_File_Reader_9_0.dll']; % hopefully wont be necessary
+input.exefile     = [input.toolbox, '\toolboxes\Deuteron\software\Event_File_Reader_9_0.exe'];
 
 end

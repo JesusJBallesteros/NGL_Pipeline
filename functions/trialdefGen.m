@@ -7,7 +7,7 @@ function [events, trialdef, eventdef] = trialdefGen(EventRecord, opt, varargin)
 % Deuteron current capabilities include reading single pin changes, limited
 % to four input pins only. Therefore we are restricted to a sucession of
 % 4-pin states achieved by single-bit changes at a time. This makes for a
-% total of 16 possible states (decimal values 0-15).
+% total of 16 possible states (decimal integers 0:15).
 %
 % INPUT: EventRecords: struct with all events recorded during session.
 %           EventNumber (double)
@@ -45,10 +45,10 @@ switch useevents
     case 0
         %% 00 Sanity check for matching start/end events
         % Index of events equal to the defined trial start and trial end events.
-        idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 
-        idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
-                            EventRecord.EventType==opt.eventdef.end2 | ...
-                            EventRecord.EventType==opt.eventdef.end3);
+        idx.start   = find(EventRecord.EventType == opt.eventdef.itiOn); 
+        idx.end     = find(EventRecord.EventType == opt.eventdef.end1 | ...
+                            EventRecord.EventType == opt.eventdef.end2 | ...
+                            EventRecord.EventType == opt.eventdef.end3);
         
         if ~(length(idx.start)==length(idx.end)) % matching start-end events
             warning('A mismatch between number of start/end trials found. Trying to fix it.')
@@ -69,12 +69,23 @@ switch useevents
                 % is start trial. MANUAL CHECK!
     	        warning('Events before first start trial removed. Check if these trials are recoverable.')
         
-                % re-run idexing due to the changes
-                idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 
-                idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
-                            EventRecord.EventType==opt.eventdef.end2 | ...
-                            EventRecord.EventType==opt.eventdef.end3);
+            elseif any(idx.start(idx.start>idx.end(end)))
+                % This is a lonely trial start with no apparent end. Error
+                % at session level or at event reading? Get rid of this
+                % lonely last trial.
+                EventRecord.EventNumber(idx.start(end):end)   = [];
+                EventRecord.EventType(idx.start(end):end)     = [];
+                EventRecord.TimeStamp(idx.start(end):end)     = [];
+                EventRecord.TimeMsFromMidnight(idx.start(end):end) = [];
+                EventRecord.TimeSource(idx.start(end):end)    = [];
+                EventRecord.Details(idx.start(end):end)       = [];
             end
+            
+            % re-run idexing due to cover the changes
+            idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 
+            idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
+                        EventRecord.EventType==opt.eventdef.end2 | ...
+                        EventRecord.EventType==opt.eventdef.end3);
         end
         
         % 01 Relativize timestamps to session start keeping it in msec
