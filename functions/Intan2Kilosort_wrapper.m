@@ -32,7 +32,7 @@ elseif nargin == 2, opt = varargin{1};
 end
 
 %% Defaults
-if ~isfield(opt,'highpass'),       opt.highpass       = [450 9000]; end
+if ~isfield(opt,'highpass'),       opt.highpass      = 400; end
 if ~isfield(opt,'StpSz'),          opt.StpSz          = 1000000;    end
 
 %% Collect parameters that not need to necessarily defaulted to a given value. 
