@@ -7,7 +7,7 @@ function master_kilosort4(input, varargin)
 % https://github.com/MouseLand/Kilosort
 % General documentation: https://kilosort.readthedocs.io/en/latest/
 %
-% This function and the python wrapper by Jesus J. Ballesteros 03.2024
+% This function and the python wrapper by Jesus J. Ballesteros 08.2024
 
 %% INSTALL Python requirements and kilosort4
 %  1. To be able to use Kilosort4 at all. This will be setup once per
@@ -88,22 +88,26 @@ function master_kilosort4(input, varargin)
 %   save_extra_vars = False, (bool; default=False.) – If True, save tF and Wall to disk after sorting.
 % )
 
-%% Input arguments check
+%% Defaults
 if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
 end
 
-% Check existence of KS4 results
-if isfolder(fullfile(opt.FolderProcDataMat, 'kilosort4'))
-    disp('It seems like KS4 was already ran in this session. To re-run, delete the folder under preprocessing.')
-    return
-end
-
-%% Defaults
-% Config and channelmap files are to be found under '\analysisCode' !!!
-% TODO: implement override of 'test' settings (i.e. threshold)? Prob easy enough to modify parameters.py
-if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile),         opt.KSchanMapFile   = ls(fullfile(input.analysisCode, 'chanMap*.mat')); end % load the map in the folder if option is missing
+% Channelmap files are to be found under '\analysisCode' !!!
+if ~isfield(opt,'KSchanMapFile') || isempty(opt.KSchanMapFile)
+    opt.KSchanMapFile   = ls(fullfile(input.analysisCode, 'chanMap*.mat')); % load the map in this folder if not defined
+end 
     
+%% Check existence of previous KS4 results
+if isfolder(fullfile(opt.FolderProcDataMat, 'kilosort4'))
+    content = dir(fullfile(opt.FolderProcDataMat, 'kilosort4'));
+    if length(content)>10
+        disp('It seems like KS4 was already ran in this session. To re-run, delete the folder under preprocessing.')
+        return
+    end
+end
+clear content
+
 %% Set up Kilosort enviroment
 % Call enviroment status
 pe = pyenv;
@@ -155,8 +159,23 @@ command.full = append(command.script, ...
 % Make sure we use the project's parameters
 cd(input.analysisCode)
 projfiles = string(ls("*.py"));
-copyfile(projfiles{1},input.KSpyfolder,'f');
-copyfile(projfiles{2},input.KSpyfolder,'f');
+
+% Some projects might use more than one probe. CAREFUL!
+if length(projfiles)>3 % if project uses only one probe, there should be no more than 3 .py files
+    if contains(opt.KSchanMapFile, 'S2') % This would depend on the specific probes used
+        copyfile(string(fullfile(input.analysisCode,projfiles{3})), string(fullfile(input.KSpyfolder, 'parameters.py')),'f');
+    elseif contains(opt.KSchanMapFile, 'Poly3') % This would depend on the specific probes used
+        copyfile(projfiles{2}, [input.KSpyfolder '\parameters.py'],'f');
+    else
+        error('Your specific configuration for Kilosort4 does not seem to be listed.')
+    end
+else
+    % One single probe would mean there is three files, being the
+    % parameters' the second one.
+    copyfile(projfiles{2}, input.KSpyfolder,'f');
+end
+
+copyfile(projfiles{1},input.KSpyfolder,'f'); 
 
 % Move to the kilosort enviroment working directory
 cd(input.KSpyfolder)

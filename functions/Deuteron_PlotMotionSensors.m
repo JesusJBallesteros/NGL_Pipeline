@@ -35,7 +35,7 @@ if stream == 1
             xlim([timestamps(1) timestamps(end)]);
             ylabel(units);
             if i<3, ylim([-MSData.max*1.1 MSData.max*1.1]);  
-            else,   ylim([-1e-4 1e-4]); xlabel('ms');
+            else,   ylim([-1e-4 1e-4]); xlabel('s');
                     legend({'X' 'Y' 'Z'}, 'Box', 'off');
             end
             title(tit);

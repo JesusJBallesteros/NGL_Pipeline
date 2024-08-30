@@ -38,7 +38,7 @@
 % There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 
-% Version 28.05.2024 (Jesus)
+% Version 30.08.2024 (Jesus)
 
 %% 00. Check current inputs.
 % Check if input variable exist already. Parse values.

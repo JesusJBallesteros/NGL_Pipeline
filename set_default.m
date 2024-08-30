@@ -26,13 +26,13 @@ end
 cd(input.toolbox)
 
 %% Set default paths. IKN Standard recommended.
-input.datafolder    = fullfile(input.datadrive, input.studyName, '\data\raw\');              % Default: '\data\raw'
-input.processed     = fullfile(input.datadrive, input.studyName, '\data\preprocessing\');    % Default: '\data\preprocessing'
 input.analysisCode  = fullfile(input.datadrive, input.studyName, '\analysisCode\');
-input.spikeSorted   = fullfile(input.datadrive, input.studyName, '\data\spikeSorted\');
-input.trialSorted   = fullfile(input.datadrive, input.studyName, '\data\trialSorted\');
+input.datafolder    = fullfile(input.datadrive, input.studyName, '\data\raw\');              % Default: '\data\raw'
 input.analysis      = fullfile(input.datadrive, input.studyName, '\data\analysis\');
 input.bhvfolder     = fullfile(input.datadrive, input.studyName, '\data\behaviour\'); % deprecate?
+input.spikeSorted   = fullfile(input.datadrive, input.studyName, '\data\spikeSorted\');
+input.trialSorted   = fullfile(input.datadrive, input.studyName, '\data\trialSorted\');
+input.processed     = fullfile(input.datadrive, input.studyName, '\data\preprocessing\');    % Default: '\data\preprocessing'
 
 %% Find requested subjects.
 % In case is left empty or deleted, default to 'all'
@@ -42,7 +42,7 @@ end
 
 % Get available subjects. Read all existing content under datafolder
 cd(fullfile(input.datafolder))
-if isfile("_findatserver"), cd(fullfile(input.analysis)), end
+    if isfile("_findatserver"), cd(fullfile(input.analysis)), end
 subjects = dir('???*');
 
 if strcmp(input.subjects, 'all') % request is 'all'

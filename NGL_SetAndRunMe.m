@@ -13,78 +13,44 @@ clear all
 % A) SYSTEM
 % RECOMMENDED to add the toolbox folder to MATLAB folder system, but not necessary.
 datadrive   = 'F';                   % The LETTER of the drive where the data structure is/will be created.
-studyname   = 'DeutTest';  % Name of the study to be used (main folder for the data)
+studyname   = 'projectName';  % Name of the study to be used (main folder for the data)
 toolbox     = 'C:\Code\ephys-data-pipeline'; % Absolute path to the toolbox.
 
 % B) SUBJECTS AND SESSIONS
 % To run the script on all subjects and sessions, or as session-to-session process.
-subjects    = {'257'}; % 'all'; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
-dates       = {'20240820'}; % 'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
+subjects    = {'123'}; % 'all';      % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
+dates       = {'YYYYMMDD'}; % 'all'; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
 
 % C) OPTIONS.
 opt = struct();
     % General options for NGL01_Main
-    opt.numChannels             = 32;       % For now, explicit 32 if not SpikeLog-64C was used (Deuteron). INTAN: comment.
-    opt.CAR                     = 1;        % Default: 1. CAR to remove fast-ample transients and other noise for .bin file. If == 2 also CAR for lowpass (not recommended)
-    opt.linefilter              = 0;        % If not 0, filter line noise at given value +-2 (Hz)
-    opt.bin                     = true;     % Create a .bin file with the high-pass data, to be passed to Kilosort for spike sorting.
-        opt.highpass            = 400;      % Give as low boundary frequency value. (High boundary is set at recording time)
+    opt.numChannels             = 32;       % For now, explicit 32. (Deprecate?)
+    opt.CAR                     = 1;        % Default: 1. To remove fast-ample transients and other noise for .bin file. If == 2 also CAR for lowpass (not recommended)
+    opt.linefilter              = 0;        % If > 0, filter noise at given value +-2 (Hz)
+    opt.bin                     = true;     % Create a .bin file with the high-pass data, input to Kilosort for spike sorting.
+        opt.highpass            = 400;      % Low frequency boundary (Hz)
     opt.FieldTrip               = true;     % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
-        opt.lowpass             = 150;      % Give as high boundary frequency value.
-    opt.GetMotionSensors        = true;    % Retrieve data from motion sensors in Deuteron. NEEDS IMPROVEMENT on head direction interpretation.
-    opt.RetrieveEvents          = true;     % Retrieve event log. If not further options defaulted to Deuteron txt log extraction.
-        opt.alignto             = {'itiOn', 'stimOn1'}; % single char array e.g. 'itiOn', or cell array e.g. {'itiOn', 'rwd'}. 'itiON' should be the very least to align to.
-        opt.trEvents            = {'tr1'};  % Event definition of 'special events' i.e. events at the ITI like treatments, tutors ('na3'), etc...
-    opt.kilosort                = 4;        % Kilosort processing. == 2 for KS2, == 4 for KS4 !! KS2 NEEDS configfile saved under 'studyName\analysisCode\'
-        opt.KSchanMapFile       = 'chanMapE32-S2_DeutSN11.mat';  % Empty '' to use non-mapped, linear array. Or e.g.'chanMapXXX.mat' for custom maps saved under 'studyName\analysisCode\'
-        opt.spkTh               = -4.5;     % Only for KS2. Usually a single value. If multiple [-X -Y ... -Z], cycle runs with thresholds -X, -Y ... -Z each.
-    opt.bombcell                = false;     % Run bombcell on the KS output, as previous step to manual curation. TODO: go over several KS outputs if existing.
-         opt.rerun              = false;    % To overwrite previous runs of BombCell.
-    opt.phy                     = false;    % Open phy for manual inspection or curation. !! It puts MATLAB on HOLD! Needs bin file in same folder.
-                        
-    % General options for NGL02_postPhy
-    % TODO figure out HOW to get wF!
-    opt.getwF                   = true;    % To obtain waveforms or not
-        opt.gwfparams.dataType      = 'int16';  % Data type of .dat file
-        opt.gwfparams.nCh           = 32;       % Number of channels that were streamed in .dat file
-        opt.gwfparams.wfWin         = [-20 41]; % Number of samples around spiketime to include in waveform
-        opt.gwfparams.nWf           = 1;        % Proportion of total waveforms per unit to extract
-
-    % TODO: These parameters could live in an independent m-file under analysisCode, so they don't crowd here
-    param = struct('res',           1, ... % load 'res' variable from Juan's
-                   'visible',       'off', ... % figure visibility at plotting
-                   'treatment',     true, ... % plot different levels due to treatment/s
-                   'genstats',      true, ... % do raster plots
-                   'pooledstats',   true, ... % Pool all clusters
-                   ... % raster plotting
-                   'plotcol',       [.4 .4 .4; 0.6350 0.0780 0.1840; 0 0 0], ... % levels coloring
-                   'plotStyle',     'square', ...  % plot marker
-                   'spkWidth',      3, ... % marker size
-                   'lineLength',    1, ...  % trial line width
-                   'timelim',       [-500 2000], ... % limits on msec around cero, to plot
-                   ... % PSH plotting
-                   'binSize',       100, ... % binning window, msec
-                   'stepSz',        10, ... % window running step, msec
-                   'smpRate',       1000, ... % samples per second in 'neurons'
-                   'interval',      [0 2500]); % time interval to calculate histogram bins
-%                     ... %
-%                     'raster', struct(), ...
-%                     ... %
-%                     'psh', struct(), ...
-%                     ... %
-%                     'poolraster', struct() ...
-%                     );
-%                   %  ... %
+        opt.lowpass             = 150;      % High frequency boundary (Hz)
+    opt.GetMotionSensors        = true;     % Retrieve data from motion sensors in Deuteron. NEEDS IMPROVEMENT. Not yet for Intan's accelerometer
+    opt.RetrieveEvents          = true;     % Retrieve events.
+        opt.alignto             = {'itiOn', 'stimOn1'}; % cell array e.g. {'itiOn', 'rwd'}. 'itiON' should be the very minimum to align to.
+        opt.trEvents            = {'tr1'};  % Explicit Out-trial events, i.e. events at ITI like treatments, tutors, block or phase changes.
+    opt.kilosort                = 4;        % 2/4 for KS2/KS4 !! NEEDS corresponding config files saved under 'studyName\analysisCode\'
+        opt.KSchanMapFile       = 'chanMapE32-S2_DeutSN11.mat';  % Empty '' to use linearly increasing array. Or e.g. 'chanMapXXX.mat' for maps saved under 'studyName\analysisCode\'
+        opt.spkTh               = -4.5;     % For KS2, usually a single value. If array, it runs iterations with threshold -X, -Y ... -Z.
+    opt.bombcell                = false;    % Run bombcell on the KS output, as previous step to manual curation. !! NEEDS revision after KS updates.
+%          opt.rerun              = false;    % To overwrite previous runs of BombCell.
+    opt.phy                     = false;    % Open phy for manual inspection or curation. !! It puts MATLAB on HOLD!
 
 % D) README.TXT
 % It contains details about the project. File can also be modified later.
-readmecontent = ["Study name: Testing line noise removal and others", ...
-                 "Readme date: 06/06/2024"                          , ...
-                 "Person (1) responsible for data repository: Jesus", ...
-                 "Person(s) responsible for study: Lukas, Jesus "    , ...
-                 "Hardware used: Deuteron. 2x NNx-32ch"                  , ...
+readmecontent = ["Study name: Generic Readme project", ...
+                 "Readme date: 06/06/0006"                          , ...
+                 "Person (1) responsible for data repository: J DOE", ...
+                 "Person(s) responsible for study: Mr. White"    , ...
+                 "Hardware used: Deuteron. 2x ATLAS E-32-S2"                  , ...
                  "Related Publication(s): None."                    , ...
-                 "Short description of study: ." ];
+                 "Short description of study: Template" ];
 
 %% 2) RUN.
 %% 2.0 Start with project folder system preparation. Commonly to be ran only ONCE,
@@ -98,35 +64,20 @@ NGL00_Prep
 % Additionally it can launch Phy for manual curation after each sessions, or first
 % run Bombcell to semi-automatize this porcess (only once appropiate
 % parameters are known) and then launch Phy.
-
-% TODO add linefilter from FT at raw processing step
-%       figure out possible CAR for Intan data
-%       related: separate data from different ports at this level to
-%                   effective CAR use on different brain regions
-
 NGL01_Main
 
 %% 2.2 Proceed with post-Phy processing. Once data is curated.
-% Includes steps towards spike/trial sorting of the curated data. Uses
-% events and trial definitions obtained before to trial-parse the spike or
+% Uses events and trial definitions obtained before to trial-parse the spike or
 % LFP data, creating the variables into the lab standard.
-
-% TODO
 NGL02_postPhy
 
-%% 2.3 Plotting.
-% Having all necessary variables ('neurons', 'events', 'conditions',
-% 'spike', 'trialdef', etc...) proceed to plot data. 
-%
+%% 2.3 Plotting. (Some plotting happens before this. Rearrange?)
 % Some basic plots are provided for exploratory-descriptive plotting, 
 % either for the day-to-day data check or for the whole of sessions
 % plotting, to obtain examples of clusters, effects, etc.)
 % Othert elaborated or dedicated plots could be added on a personal basis,
 % or implemented as default if decided as standard.
-
-% TODO fix time axes for PHS! funky fucker
-%      add ISI, autocorr, waveform, drift plot, ... to genstats
 NGL03_plotting 
 
-%% 2.X Statistics?
-% NGLXX_something
+%% 2.etc Statistics?
+% etc

@@ -22,16 +22,16 @@ if ~isfield(opt,'lowpass'),         opt.lowpass             = 150;          end
 input.sessions(input.run(1)) = findSetting(input.sessions(input.run(1)));
 
 %% 02. Event data retrieval and trial definition. INTAN version
-% if isfile(fullfile(opt.trialSorted, "trialdef.mat"))
-%     load(fullfile(opt.trialSorted, "trialdef.mat"))
-%     if ~exist("trialdef","var") && exist("trialDefinition","var")
-%         trialdef = trialDefinition.trl; clear trialDefinition
-%     end
-% else
-%     % 'trialdef' outputted for later feed into fieldtrip transf.
+if isfile(fullfile(opt.trialSorted, "trialdef.mat"))
+    load(fullfile(opt.trialSorted, "trialdef.mat"))
+    if ~exist("trialdef","var") && exist("trialDefinition","var")
+        trialdef = trialDefinition.trl; clear trialDefinition
+    end
+else
+    % 'trialdef' outputted for later feed into fieldtrip transf.
     [~, trialdef, ~] = EventProcess(opt);
-% 
-% end
+
+end
 
 %% 03. Create NWB file
 if input.useNWB % We want a .NWB file.
@@ -61,10 +61,9 @@ if opt.bin && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
 end
 
 %% 05. Run functions to convert INTAN dat to FIELDTRIP structure.
-if opt.FieldTrip && ~isfile(fullfile(opt.trialSorted,[opt.SavFileName '_FTcont.mat']))
+if opt.FieldTrip && ~isfile(fullfile(opt.analysis,[opt.SavFileName '_FTcont.mat']))
     % Includes a mix of INTAN funtions. CREATES and GIVES proper
-    % FieldTrip format without trial-parsing. 
-%     intan2FieldTrip(input.sessions(input.run(1)), opt) % DEPR
+    % FieldTrip format without trial-parsing.
 
     % Proceed with the main functions
     INTANdata = intan2MAT_wrapper(input.sessions(input.run(1)), opt);

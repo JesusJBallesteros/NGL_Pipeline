@@ -16,14 +16,14 @@ function [EventRecord, opt] = Deuteron_ExtractEvents(opt)
 
 % Jesus. 23.08.2024
     
-% Case
+%% Case
 if opt.useexe,  [EventRecord, opt] = extractFromExe(opt);
 else,           EventRecord = extractFromLog(opt);
 end
 
 end
 
-% Actual functions
+%% Actual functions
 function [EventRecord, opt] = extractFromExe(opt)
     % Use the Event_File_Reader_X_X or the .exe application without invoking the GUI
     % from a Deuteron recording with Block Format.
@@ -81,82 +81,57 @@ function [EventRecord, opt] = extractFromExe(opt)
         
     myRecord = readmatrix(fullfile(opt.FolderProcDataMat, '\EventRecord.csv'), 'OutputType', 'string'); % Read the output cvs
     
-    %% Loop through records and add them to an EventRecord structure.
-    if ~opt.useexe
-        numberOfRecords = length(myRecord); % Extract number of records
-        fprintf(['Events extracted. The number of records is: ' num2str(numberOfRecords) '\n']);
+    % Find those logs with Digital-IN info.
+    edgeDect = contains(myRecord(:,8), 'Digital in');
+    bitRecord = myRecord(edgeDect, 1:8); % Keep fields 1:8
+
+    % Number of remainer records
+    numberOfRecords = length(bitRecord); 
+    fprintf(['Events extracted. The number of records is: ' num2str(numberOfRecords) '\n']);
+
+    %% Translate edge detections into binary words. 
+    % Every detected edge is a change of pin to either 1 (rising) 
+    % or 0 (falling).
     
-        % Iterates backwards, preallocating array by assigning the final index first.
-        for recIdx = numberOfRecords:-1:1 
-            EventRecord(recIdx).EventNumber = str2double(char(myRecord(recIdx,1)));         % ?
-            EventRecord(recIdx).TimeStamp = char(myRecord(recIdx,2));                       % Time stamp ?
-            EventRecord(recIdx).TimeMsFromMidnight = str2double(char(myRecord(recIdx,3)));  % milisecs from midnight
-            EventRecord(recIdx).TimeSource = char(myRecord(recIdx,4));                      % Source of time stamp.
-            EventRecord(recIdx).EventType = char(myRecord(recIdx,5));                       % ?
-            EventRecord(recIdx).Details = char(myRecord(recIdx,6));                         % Extra details
-        end
+    % Prepare a variable with all 4 pins, all set to zero
+    words = zeros(numberOfRecords+1, 4);
     
-        % Use EventRecord to determine number of channels.
-        % As a final account for active channels, we use the explicit log about it
-        % that Deuteron provides with every new file created while recording.
-        filestarted = find(strcmp({EventRecord.EventType}, 'File started')==1); % Find the log for a new file started.
-        geninfo = split(EventRecord(filestarted(1)).Details, ";"); % Split the text contained in Details using semicolons.
-        geninfo = regexp(geninfo,'\d*','Match'); % Match the general expression '\d*'.
-        opt.numChannels = str2double(geninfo{3}); % Transform the 3rd field (hardcoded) into double.
-        if isempty(opt.channelOrder)
-            opt.channelOrder = 1:1:opt.numChannels; % Order channels as incremental ordinals. (TODO: this? perhaps match the Deuteron map?)
-        end
+    % By default, recordings starts as [1 1 0 0], but this is not recorded.
+    words(1,:) = [1 1 0 0];
     
-    else 
-        edgeDect = contains(myRecord(:,8), 'Digital'); % Find those elements with bit info.
-        bitRecord = myRecord(edgeDect, 1:8);
+    % Get change direction from log description (8th column) (raising == 1, falling == 0)
+    edgeDirection = contains(bitRecord(:,8), 'rising'); % categorize rising and falling edges.
     
-        numberOfRecords = length(bitRecord); % Extract number of bit change records
-        fprintf(['Events extracted. The number of records is: ' num2str(numberOfRecords) '\n']);
-    
-        % Translate edge detections into binary word meaning, so every
-        % detected edge will change a pin to 1 (rising) or 0 (falling).
-        % Prepare a variable with all 4 pins set to zeros
-        words = zeros(numberOfRecords+1, 4);
+    % Get changed Pin from the same description. (8th column)
+    pin = regexp(bitRecord(:,8),'\d*','Match', 'once'); % Match the general expression '\d*', only once.
+    pin = single(str2double(pin)); % make it single array
+
+    % Place corresponding rising changes into corresponding pins
+    for i = 1:numberOfRecords
+        words(i+1,:) = words(i,:); % get bits current status
+        words(i+1,pin(i)) = edgeDirection(i); % set to 1 or 0 as coded
         
-        % By default, recordings starts as [1 1 0 0], but this is not recorded
-        words(1,:) = [1 0 0 0];
-        
-        % Get change direction (edge, raising => 1, falling => 0)
-        edgeDirection = contains(bitRecord(:,8), 'rising'); % categorize rising and falling edges.
-        
-        % Get changing bit
-        pin = regexp(bitRecord(:,8),'\d*','Match'); % Match the general expression '\d*'.
-            pin = cellfun(@str2double, pin, 'UniformOutput', false); % make them doubles
-            pin = cell2mat(pin); % make it array
-            pin(:,2) = []; % they are redundant, keep first column
-    
-        % Place corresponding rising changes into corresponding pins
-        for i = 1:numberOfRecords
-            words(i+1,:) = words(i,:); % get bits current status
-            words(i+1,pin(i)) = edgeDirection(i); % set to 1 or 0 as coded
-            
-            % translate the resulting word to decimal
-            EventType(i) = binvec2dec(words(i+1,:)); 
-        end
-    
-        % Use EventRecord to determine number of channels.
-        % As a final account for active channels, we use the explicit log about it
-        % that Deuteron provides with every new file created while recording.
-        mapDetc = find(contains(myRecord(:,8), 'Channel'), 1, "first"); % Find the log for a new file started. % Find the log for a new file started.
-        geninfo = split(myRecord(mapDetc,8), "="); % Split the text contained in Details using semicolons.
-        geninfo = regexp(geninfo,'\d*','Match'); % Match the general expression '\d*'.
-        opt.channelOrder = str2double(geninfo{2});
-        opt.numChannels = numel(opt.channelOrder); % Transform the 3rd field (hardcoded) into double.
-    
-        % Place extracted information into a proper EventRecord
-        EventRecord.EventNumber         = double(1:1:length(EventType))';
-        EventRecord.EventType           = single(EventType)';
-        EventRecord.TimeStamp           = string(bitRecord(:,3)); % Convert to string array
-        EventRecord.TimeMsFromMidnight  = str2double(bitRecord(:,4));
-        EventRecord.TimeSource          = nan(length(bitRecord(:,6)),1);
-        EventRecord.Details             = nan(length(bitRecord(:,8)),1);
+        % translate the resulting word to decimal
+        EventType(i) = binvec2dec(flip(words(i+1,:))); 
     end
+
+    % Use EventRecord to determine number of channels.
+    % As a final account for active channels, we use the explicit log about it
+    % that Deuteron provides with every new file created while recording.
+    mapDetc = find(contains(myRecord(:,8), 'Channel'), 1, "first"); % Find the log for a new file started. % Find the log for a new file started.
+    geninfo = split(myRecord(mapDetc,8), "="); % Split the text contained in Details using semicolons.
+    geninfo = regexp(geninfo,'\d*','Match'); % Match the general expression '\d*'.
+    opt.channelOrder = str2double(geninfo{2});
+    opt.numChannels = numel(opt.channelOrder); % Transform the 3rd field (hardcoded) into double.
+
+    % Place extracted information into a proper EventRecord
+    EventRecord.EventNumber         = double(1:1:length(EventType))';
+    EventRecord.EventType           = single(EventType)';
+    EventRecord.TimeStamp           = string(bitRecord(:,3)); % Convert to string array
+    EventRecord.TimeMsFromMidnight  = str2double(bitRecord(:,4));
+    EventRecord.TimeSource          = nan(length(bitRecord(:,6)),1);
+    EventRecord.Details             = nan(length(bitRecord(:,8)),1);
+
     fprintf('Successfully created ''EventRecord'' structure.\n');
     
     %% Save event record and DigIn events (TODO) at session folder

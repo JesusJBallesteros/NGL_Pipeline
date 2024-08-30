@@ -1,5 +1,6 @@
 import numpy as np
 
+
 # Format for parameter specification:
 # parameter: {
 #     'gui_name': text displayed next to edit box in GUI
@@ -40,7 +41,7 @@ MAIN_PARAMETERS = {
 
     'batch_size': {
         'gui_name': 'batch size', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 320000, 'step': 'data',
+        'exclude': [], 'default': 160000, 'step': 'data',
         'description':
             """
             Number of samples included in each batch of data.
@@ -49,7 +50,7 @@ MAIN_PARAMETERS = {
 
     'nblocks': {
         'gui_name': 'nblocks', 'type': int, 'min': 0, 'max': np.inf,
-        'exclude': [], 'default': 1, 'step': 'preprocessing',
+        'exclude': [], 'default': 0, 'step': 'preprocessing',
         'description':
             """
             Number of non-overlapping blocks for drift correction
@@ -69,7 +70,7 @@ MAIN_PARAMETERS = {
 
     'Th_learned': {
         'gui_name': 'Th (learned)', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 10, 'step': 'spike detection',
+        'exclude': [0], 'default': 11, 'step': 'spike detection',
         'description':
             """
             Spike detection threshold for learned templates.
@@ -97,6 +98,7 @@ MAIN_PARAMETERS = {
             """
     },
 }
+
 
 EXTRA_PARAMETERS = {
     ### DATA
@@ -137,7 +139,7 @@ EXTRA_PARAMETERS = {
             If set, data will be `data = data*scale + shift`.
             """
     },
-    
+
     ### PREPROCESSING
     'artifact_threshold': {
         'gui_name': 'artifact threshold', 'type': float, 'min': 0, 'max': np.inf,
@@ -161,10 +163,19 @@ EXTRA_PARAMETERS = {
 
     'whitening_range': {
         'gui_name': 'whitening range', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 32, 'step': 'preprocessing',
+        'exclude': [], 'default': 6, 'step': 'preprocessing',
         'description':
             """
             Number of nearby channels used to estimate the whitening matrix.
+            """
+    },
+
+    'highpass_cutoff': {
+        'gui_name': 'highpass cutoff', 'type': float, 'min': 0, 'max': np.inf,
+        'exclude': [], 'default': 400, 'step': 'preprocessing',
+        'description':
+            """
+            Critical frequency for highpass Butterworth filter applied to data.
             """
     },
 
@@ -183,22 +194,23 @@ EXTRA_PARAMETERS = {
         'exclude': [0], 'default': 20, 'step': 'preprocessing',
         'description':
             """
-            For drift correction, sigma for interpolation (spatial standard
-            deviation). Approximate smoothness scale in units of microns.
+            Approximate spatial smoothness scale in units of microns.
             """
     },
-    
+
     'drift_smoothing': {
         'gui_name': 'drift smoothing', 'type': list, 'min': None, 'max': None,
         'exclude': [], 'default': [0.5, 0.5, 0.5], 'step': 'preprocessing',
         'description':
             """
             Amount of gaussian smoothing to apply to the spatiotemporal drift
-            estimation, for x,y,time axes in units of registration blocks
-            (for x,y axes) and batch size (for time axis). The x,y smoothing has
-            no effect for `nblocks = 1`.
+            estimation, for correlation, time (units of registration blocks),
+            and y (units of batches) axes. The y smoothing has no effect
+            for `nblocks = 1`. Adjusting smoothing for the correlation axis
+            is not recommended.
             """
     },
+
 
     ### SPIKE DETECTION
     # NOTE: if left as None, will be set to `int(20 * settings['nt']/61)`
@@ -225,7 +237,7 @@ EXTRA_PARAMETERS = {
 
     'dminx': {
         'gui_name': 'dminx', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 200, 'step': 'spike detection',
+        'exclude': [0], 'default': 32, 'step': 'spike detection',
         'description':
             """
             Horizontal spacing of template centers used for spike detection,
@@ -237,7 +249,7 @@ EXTRA_PARAMETERS = {
 
     'min_template_size': {
         'gui_name': 'min template size', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 20, 'step': 'spike detection',
+        'exclude': [0], 'default': 15, 'step': 'spike detection',
         'description':
             """
             Standard deviation of the smallest, spatial envelope Gaussian used
@@ -247,7 +259,7 @@ EXTRA_PARAMETERS = {
 
     'template_sizes': {
         'gui_name': 'template sizes', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 4, 'step': 'spike detection',
+        'exclude': [], 'default': 5, 'step': 'spike detection',
         'description':
             """
             Number of sizes for universal spike templates (multiples of the
@@ -257,7 +269,7 @@ EXTRA_PARAMETERS = {
 
     'nearest_chans': {
         'gui_name': 'nearest chans', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 4, 'step': 'spike detection',
+        'exclude': [], 'default': 5, 'step': 'spike detection',
         'description':
             """
             Number of nearest channels to consider when finding local maxima
@@ -267,7 +279,7 @@ EXTRA_PARAMETERS = {
 
     'nearest_templates': {
         'gui_name': 'nearest templates', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 32, 'step': 'spike detection',
+        'exclude': [], 'default': 50, 'step': 'spike detection',
         'description':
             """
             Number of nearest spike template locations to consider when finding
@@ -277,7 +289,7 @@ EXTRA_PARAMETERS = {
 
     'max_channel_distance': {
         'gui_name': 'max channel distance', 'type': float, 'min': 1,
-        'max': np.inf, 'exclude': [], 'default': 101, 'step': 'spike detection',
+        'max': np.inf, 'exclude': [], 'default': 151, 'step': 'spike detection',
         'description':
             """
             Templates farther away than this from their nearest channel will
@@ -326,10 +338,11 @@ EXTRA_PARAMETERS = {
             """
     },
 
+
     ### CLUSTERING
     'acg_threshold': {
         'gui_name': 'acg threshold', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 0.1, 'step': 'clustering',
+        'exclude': [0], 'default': 0.2, 'step': 'clustering',
         'description':
             """
             Fraction of refractory period violations that are allowed in the ACG 
@@ -339,7 +352,7 @@ EXTRA_PARAMETERS = {
 
     'ccg_threshold': {
         'gui_name': 'ccg threshold', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 0.15, 'step': 'clustering',
+        'exclude': [0], 'default': 0.25, 'step': 'clustering',
         'description':
             """
             Fraction of refractory period violations that are allowed in the CCG
@@ -349,7 +362,7 @@ EXTRA_PARAMETERS = {
 
     'cluster_downsampling': {
         'gui_name': 'cluster downsampling', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 10, 'step': 'clustering',
+        'exclude': [], 'default': 20, 'step': 'clustering',
         'description':
             """
             Inverse fraction of nodes used as landmarks during clustering
@@ -372,13 +385,17 @@ EXTRA_PARAMETERS = {
 
 
     ### POSTPROCESSING
-    'duplicate_spike_bins': {
-        'gui_name': 'duplicate spike bins', 'type': int, 'min': 0, 'max': np.inf,
-        'exclude': [], 'default': 8, 'step': 'postprocessing',
+    'duplicate_spike_ms': {
+        'gui_name': 'duplicate spike ms', 'type': float, 'min': 0, 'max': np.inf,
+        'exclude': [], 'default': 0.25, 'step': 'postprocessing',
         'description':
             """
-            Number of bins for which subsequent spikes from the same cluster are
+            Time in ms for which subsequent spikes from the same cluster are
             assumed to be artifacts. A value of 0 disables this step.
+
+            NOTE: this was formerly handled by `duplicate_spike_bins`, which has
+            been deprecated. The new default of 0.25ms is equivalent to the old
+            default of 7 bins for a 30kHz sampling rate.
             """
     },
 }

@@ -29,22 +29,27 @@ input = set_default(input, opt);
 %% 01. Find and list requested sessions and subjects.
 input.sessions = findSessions(input);
 
-%% 02. Proceed with data per session
+%% 02. Load Post_Phy parameter file (under '/analysisCode')
+try run(fullfile(input.analysisCode, 'postPhy_param.m'));
+catch, error('No script found with parameters for the Post-phy pipeline. Find it and locate it into your analysisCode folder.')
+end
+
+%% 03. Proceed with data per session
 for x = 1:input.nsubjects % Subjects.
     for y = 1:input.sessions(x).nsessions % Sessions.
             input.run = [x y]; % Current run, to pass to functions.
             
-            %% 03. Prepare to proceed with a single session.
+            %% 04. Prepare to proceed with a single session.
             [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);           
 
-            %% 04. Offline Video blob detector
+            %% 05. Offline Video blob detector
             % Very specific for Social learning videos from central cenital camera. 
             if opt.offlineTrack
                 [blob] = processAndTrack_video(opt);
                 save(fullfile(opt.behavFiles, "blob.mat"), 'blob');
             end
 
-            %% 05. SPIKE DATA
+            %% 06. SPIKE DATA
             if opt.doSpikething
                 % 04.1 Extract preprocessed spikes and recover event data.
                 % Spike clusters after sorting and curation.
@@ -68,7 +73,7 @@ for x = 1:input.nsubjects % Subjects.
                 save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
             end
 
-            %% 06. Continuous LFP DATA. UNDER DEVELOPMENT
+            %% 07. Continuous LFP DATA. UNDER DEVELOPMENT
             if opt.doLFPthing
                 % 05.1 Extract preprocessed FTcont file.
                 disp('Loading FT continuous file...')

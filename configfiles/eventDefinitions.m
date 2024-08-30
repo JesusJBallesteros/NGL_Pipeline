@@ -89,10 +89,35 @@ function [eventdef] = eventDefinitions(format)
 %% DO NOT MODIFY. Function
 eventdef = reservedEvents(); % hic sunt dracones. DO NOT MODIFY!
 
+% THis is a DESCRIPTION of the events. DO NOT uncomment/change anything without explicit consent.
+
+% % % WITHIN TRIAL
+% % % itiOn   = 0  [0 0 0 0]  Trial start.
+% % % stimOn1 = 1  [0 0 0 1]  Stim1 presentation (INI, Sample, etc).
+% % % stimOn2 = 2  [0 0 1 0]  Stim2 presentation (Match, choice, cue, etc) .
+% % % oms1    = 5  [0 1 0 1]  Omission to Stim1.
+% % % oms2    = 6  [0 1 1 0]  Omission to Stim2.
+% % % bhv     = 3  [0 0 1 1]  A response, or behaviour of intertest, is detected.
+% % % rwd     = 7  [0 1 1 1]  A reward is given.
+% % % pun     = 11 [1 0 1 1]  A punishment is presented
+% % % end1    = 4  [0 1 0 0]  End of trial after any omission.
+% % % end2    = 10 [1 0 1 0]  End of trial after punishment.
+% % % end3    = 15 [1 1 1 1]  End of trial after reward.
+
+% % % OUT TRIAL
+% % % tr1     = 9  [1 0 0 1]  Treatment/block/phase 1. Or odd blocks/phases/... Or block/phase/treatment start.
+% % % tr2     = 13 [1 1 0 1]  Treatment/block/phase 2. Or even blocks/phases/... Or block/phase/treatment end.
+% % % na2     = 14 [1 1 1 0]  Transition sequence. (meaningless to Intan).
+% % % na1     = 12 [1 1 0 0]  Transition sequence. (meaningless to Intan).
+% % % preIni  = 8  [1 0 0 0]  Transition sequence. (meaningless to Intan).
+
 %% ONLY MODIFY THIS TWO BLOCKS.
 if strcmpi(format,'DF1') 
     % Deuteron should accept specific events in a near future, stay tuned.
-    
+    % % Future use
+    % % Future use
+    % % Future use
+
 elseif strcmpi(format,'fileperch')
     % PROJECT-SPECIFIC EVENTS. INTAN allows for it. 
     % With 16 bits you can represent 65536 different values, when taken 
@@ -122,21 +147,21 @@ end
 
 %% hic sunt dracones. ALL RESERVED. DO NOT MODIFY
 function [eventdef] = reservedEvents()
-% Descriptions        = Decimal; % [binary]; % Comments
-eventdef.preIni       = 8;      % [1 0 0 0]; % Last resource to delimit end-trial. Also, start/end-session.
-eventdef.itiOn        = 0;      % [0 0 0 0]; % Delimits start-trial.
-eventdef.na1          = 12;     % [1 1 0 0]; % Transition sequence. (meaningless to Intan)
-eventdef.na2          = 14;     % [1 1 1 0]; % Transition sequence. (meaningless to Intan)
-eventdef.stimOn1      = 1;      % [0 0 0 1]; % stim 1 on
-eventdef.stimOn2      = 2;      % [0 0 1 0]; % stim 2 on
-eventdef.bhv          = 3;      % [0 0 1 1]; % any bhv or contingent response
-eventdef.oms1         = 5;      % [0 1 0 1]; % oms from stim 1
-eventdef.oms2         = 6;      % [0 1 1 0]; % oms from stim 2
-eventdef.rwd          = 7;      % [0 1 1 1]; % reward
-eventdef.pun          = 11;     % [1 0 1 1]; % punishment
-eventdef.end1         = 4;      % [0 1 0 0]; % omsX-end.
-eventdef.end2         = 10;     % [1 0 1 0]; % pun-end.
-eventdef.end3         = 15;     % [1 1 1 1]; % rwd-end.
-eventdef.tr1          = 9;      % [1 0 0 1]; % Treatment/block/phase 1
-eventdef.tr2          = 13;     % [1 1 0 1]; % Treatment/block/phase 2
+% Event struct        = Decimal;
+eventdef.itiOn        = 0;
+eventdef.stimOn1      = 1;
+eventdef.stimOn2      = 2;
+eventdef.bhv          = 3;
+eventdef.end1         = 4;
+eventdef.oms1         = 5;
+eventdef.oms2         = 6;
+eventdef.rwd          = 7;
+eventdef.preIni       = 8;
+eventdef.tr1          = 9;
+eventdef.end2         = 10;
+eventdef.pun          = 11;
+eventdef.na1          = 12;
+eventdef.tr2          = 13;
+eventdef.na2          = 14;
+eventdef.end3         = 15;
 end

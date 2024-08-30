@@ -49,8 +49,8 @@ if single
         if ~isfile(fullfile(opt.KSConfigFile, 'kilosortConfig.m'))
             warning('Config File not found under expected folder ''analysisCode''. Using a default version.')
             % If exists, use the standard one stored within the toolbox.
-            if isfile(fullfile(input.toolbox, '\Instructions\kilosortConfig.m'))
-                copyfile(fullfile(input.toolbox, '\Instructions\kilosortConfig.m'), input.analysisCode);
+            if isfile(fullfile(input.toolbox, '\configfiles\kilosortConfig.m'))
+                copyfile(fullfile(input.toolbox, '\configfiles\kilosortConfig.m'), input.analysisCode);
             else
                 % It does not exist for some reason.
                 error('Could not find the default configuration file for Kilosort. Skipped.')

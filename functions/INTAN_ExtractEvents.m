@@ -55,9 +55,10 @@ clear tmp i fid
 %% Convert to sample # and event-code
 % remove samples during which pin 1 and 2 are up (per default before reset of all pins,
 % necessary in order to correctly extract all relevant events).
-pinsOff = find(dIn(:, 1:npins) ~= [1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0], 1, "first");  % find first sample with all 0
+startState = dIn(1,:); % Read pins states as recording starts 
+pinsOff = find(any(dIn(:,1:16)~=startState,2), 1, "first");  % find first pin change
 if pinsOff ~= 1 % Only if is not already the first sample
-    dIn(1:pinsOff+1, :) = []; % remove all samples umtil then
+    dIn(1:pinsOff, :) = []; % remove all samples until then
 end
 clear pinsOff
 
@@ -65,6 +66,7 @@ clear pinsOff
 % sample)
 checksum = single(sum(dIn,2));
 ts = find(diff([0; checksum])~=0);
+clear checksum 
 
 %% CONVERT all events
 % convert each binary word to its corresponding decimal using the 16 bits
@@ -74,6 +76,7 @@ for i = 1:size(ts,1)
     % Convert binary pins to decimal, sum over n samples to catch inconsitencies
     EventType(i) = binvec2dec(sum(dIn(ts(i):ts(i)+smpDel,:))); % binary vector to decimal integer
 end
+clear dIn
 
 %% Place extracted information into a proper EventRecord
 EventRecord.EventNumber         = double(1:1:length(EventType))';

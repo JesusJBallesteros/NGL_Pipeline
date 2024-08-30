@@ -8,7 +8,7 @@ function Deuteron_GetMotionSensors(opt)
 % can be used to predict/estimate the animal's position/heading.
 % 
 % WORK IN PROGRESS
-% Jesus 22.02.2024
+% Jesus 29.08.2024
 
 %% Some local Parameters
 numFiles        = length(opt.myFiles);
@@ -19,7 +19,7 @@ opt.stream      = 2;
 MField_Bochum = 19.7; % uTesla.
 
 % Sample rate for motion sensors is 1000Hz. 
-%fs          = 1000;         % Sample Rate of the feeded data (Hz)
+fsmot          = 1000;         % Sample Rate of the feeded data (Hz)
 
 % Gyro/Accel_Noise are determined from the hardware datasheets.
 %Gyro_Noise  = 1.7453e-04;   % Gyroscope Noise (variance value) in units of rad/s. (MPU-9250: 0.01 deg/sec)
@@ -94,13 +94,17 @@ if ~isfile(fullfile(opt.FolderProcDataMat, strcat('MotionData.mat')))
     data.mag.Z(idx0) = [];
     timestamps(idx0) = [];
     
+    % Calculate timestamps in seconds
+    tsec = timestamps/16000 + 12/fsmot; % since midnight
+    tsec = tsec - tsec(1); % relativize to recording
+
     % Plot sensors readings. RAW.
     % Run the plot function. 
-    Deuteron_PlotMotionSensors(data, timestamps, opt, 1); % 3r input == 1 (raw data)
+    Deuteron_PlotMotionSensors(data, tsec, opt, 1); % 3r input == 1 (raw data)
     exportgraphics(gcf, fullfile(opt.FolderProcDataMat, strcat('motion_raw.png')), 'Resolution', 300)
     close gcf
 
-    clear fid mot numFiles idx0
+    clear fid mot numFiles idx0 timestamps
 
     %% Use the magcal function to obtain the correction coefficients for the
     % magnetometer. This helps with the typical soft/hard iron effect on the
@@ -129,63 +133,63 @@ if ~isfile(fullfile(opt.FolderProcDataMat, strcat('MotionData.mat')))
     
     % Plot sensors readings. MAG CORRECTED.
     % Run the plot function, set 3rd input to 1 to plot corrected data.
-    Deuteron_PlotMotionSensors(data, timestamps, opt, 1);
+    Deuteron_PlotMotionSensors(data, tsec, opt, 1);
     exportgraphics(gcf, fullfile(opt.FolderProcDataMat, strcat('motion_magcorr.png')), 'Resolution', 300)
     close gcf
 
     clear A b i
 
     %% Save data to matfile
-    save(fullfile(opt.FolderProcDataMat, strcat('MotionData.mat')), "data", "timestamps", '-mat');
+    save(fullfile(opt.FolderProcDataMat, strcat('MotionData.mat')), "data", "tsec", '-mat');
     disp('Magnetic-Corrected motion data saved.')
 else
     load(fullfile(opt.FolderProcDataMat, strcat('MotionData.mat')));
 end
 
-%% Use ecompass to merge Acc and Mag only, for the first 500 samples. Average to
-% % get an estimate of initial heading. Output is in quaternions as 'rotators.ecomp'
-% rotators.ecomp = ecompass(MS_Acc(1:500,:), MS_Mag(1:500,:), "rotmat");
-% rotators.ecomp = mean(rotators.ecomp,3); 
-% % poseplot(rotators.ecomp(1:3,:)); % to check
-MS_Acc = [data.acc.X; data.acc.Y; data.acc.Z]';
-MS_Mag = [data.mag.X; data.mag.Y; data.mag.Z]';
-
-% use ecompass to fuse acc and mag (corrected)
-rotators = ecompass(MS_Acc, MS_Mag, 'quaternion');
-
-% The slerp function is used to steer the filter state towards the current input. 
-% It is steered more towards the input when the difference between the input and current
-% filter state has a large dist, and less toward the input when dist gives a small value.
-% The interpolation parameter to slerp is in the closed-interval [0,1], so the output
-% of dist must be re-normalized to this range. However, the full range of [0,1] for the
-% interpolation parameter gives poor performance, so it is limited to a smaller range
-% hrange centered at hbias.
-slerpf.hrange = 0.2;
-slerpf.hbias = 0.4;
-
-% Limit low and high to the interval [0, 1].
-slerpf.low  = max(min(slerpf.hbias - (slerpf.hrange./2), 1), 0);
-slerpf.high = max(min(slerpf.hbias + (slerpf.hrange./2), 1), 0);
-slerpf.hrangeLimited = slerpf.high - slerpf.low;
-
-% Initialize the filter and preallocate outputs.
-y = rotators(1); % initial filter state
-rot_filt = zeros(size(y), 'like', y); % preallocate filter output
-rot_filt(1) = y;
-
-% Filter the noisy trajectory, sample-by-sample.
-for ii=2:numel(rotators)
-    x = rotators(ii);
-    d = dist(y, rotators(ii));
-
-    % Renormalize dist output to the range [low, high]
-    hlpf = (d./pi).*slerpf.hrangeLimited + slerpf.low;
-    y = slerp(y, x, hlpf);
-    rot_filt(ii) = y;
-end
-clear x d y hlpf
-
-%% Plot
-% Run the plot function.
-Deuteron_PlotMotionSensors(rot_filt, timestamps, opt, 2, 1, 1); % rotators data
+% %% Use ecompass to merge Acc and Mag only, for the first 500 samples. Average to
+% % % get an estimate of initial heading. Output is in quaternions as 'rotators.ecomp'
+% % rotators.ecomp = ecompass(MS_Acc(1:500,:), MS_Mag(1:500,:), "rotmat");
+% % rotators.ecomp = mean(rotators.ecomp,3); 
+% % % poseplot(rotators.ecomp(1:3,:)); % to check
+% MS_Acc = [data.acc.X; data.acc.Y; data.acc.Z]';
+% MS_Mag = [data.mag.X; data.mag.Y; data.mag.Z]';
+% 
+% % use ecompass to fuse acc and mag (corrected)
+% rotators = ecompass(MS_Acc, MS_Mag, 'quaternion');
+% 
+% % The slerp function is used to steer the filter state towards the current input. 
+% % It is steered more towards the input when the difference between the input and current
+% % filter state has a large dist, and less toward the input when dist gives a small value.
+% % The interpolation parameter to slerp is in the closed-interval [0,1], so the output
+% % of dist must be re-normalized to this range. However, the full range of [0,1] for the
+% % interpolation parameter gives poor performance, so it is limited to a smaller range
+% % hrange centered at hbias.
+% slerpf.hrange = 0.2;
+% slerpf.hbias = 0.4;
+% 
+% % Limit low and high to the interval [0, 1].
+% slerpf.low  = max(min(slerpf.hbias - (slerpf.hrange./2), 1), 0);
+% slerpf.high = max(min(slerpf.hbias + (slerpf.hrange./2), 1), 0);
+% slerpf.hrangeLimited = slerpf.high - slerpf.low;
+% 
+% % Initialize the filter and preallocate outputs.
+% y = rotators(1); % initial filter state
+% rot_filt = zeros(size(y), 'like', y); % preallocate filter output
+% rot_filt(1) = y;
+% 
+% % Filter the noisy trajectory, sample-by-sample.
+% for ii=2:numel(rotators)
+%     x = rotators(ii);
+%     d = dist(y, rotators(ii));
+% 
+%     % Renormalize dist output to the range [low, high]
+%     hlpf = (d./pi).*slerpf.hrangeLimited + slerpf.low;
+%     y = slerp(y, x, hlpf);
+%     rot_filt(ii) = y;
+% end
+% clear x d y hlpf
+% 
+% %% Plot
+% % Run the plot function.
+% Deuteron_PlotMotionSensors(rot_filt, tsec, opt, 2, 1, 1); % rotators data
 end
