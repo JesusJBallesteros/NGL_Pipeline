@@ -38,7 +38,7 @@
 % There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 
-% Version 30.08.2024 (Jesus)
+% Version 28.05.2024 (Jesus)
 
 %% 00. Check current inputs.
 % Check if input variable exist already. Parse values.
@@ -76,7 +76,9 @@ for x = 1:input.nsubjects % Subjects.
 
             case {'FieldTrip'}   
                % 03.3 FT Pipeline
-               % TODO. Anything to do?
+               % Check for events, neurons and spike variables.
+               [events, trialdef, EventRecord] = EventProcess(opt);
+
                % so far, reaching this point means there was no raw data,
                % and under analysis there is FT formatted data, so prob
                % this has already been preprocessed but we only have the
@@ -113,7 +115,7 @@ for x = 1:input.nsubjects % Subjects.
         end
 
         %% Clean up to move on to next session
-        clear FT_data INTANdata txt
+        clear FT_data INTANdata txt events EventRecord trialdef
 
     end % sessions loop
 end % subjects loop

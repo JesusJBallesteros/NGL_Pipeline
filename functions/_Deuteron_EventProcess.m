@@ -1,69 +1,69 @@
-function [events, trialdef, EventRecord] = EventProcess(opt)
+function [events, trialdef, EventRecord] = Deuteron_EventProcess(opt)
 % Function meant to put together all possible ways to extract events from
-% Deuteron and INTAN systems.
+% Deuteron systems (using exe, using dll or using text format)
 %
-% Jesus 17.10.2024
+% Jesus 11.06.2024
 
 %% Defaults.
 if ~isfield(opt,'useexe'),          opt.useexe              = true;                 end
-if ~isfield(opt,'ext'),             opt.ext                 = 'fileperch';          end
 if ~isfield(opt,'eventdef'),        opt.eventdef            = eventDefinitions();   end
 if ~isfield(opt,'trEvents'),        opt.trEvents            = [];                   end
 
 opt.exefile = 'C:\Code\ephys-data-pipeline\toolboxes\Deuteron\software\Event_File_Reader_9_0.exe';
 
-%% Create empty outputs
+%% Prep. Make sure we create empty outputs
 events      = []; % If remains empty, data shall be treated as continuous.
 trialdef    = [];
 EventRecord = [];
 
 %% Check for alredy collected events
-check = 0;
 if isfile(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')))
     disp('EventRecord found. Loading.')
     load(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')), 'EventRecord');
-    check = check+1;
-    
+
     if isfile(fullfile(opt.trialSorted, strcat('trialdef.mat')))
-        disp('Trial definition file found. Loading')
+        disp('Trial definition file found. Assuming events have been collected. Loading both.')
+        load(fullfile(opt.trialSorted, strcat('events.mat')), 'events');
         load(fullfile(opt.trialSorted, strcat('trialdef.mat')), 'trialdef');
-        check = check+1;
-    end
 
-    if isfile(fullfile(opt.analysis, strcat('events.mat')))
-        disp('Events have been collected. Loading')
-        load(fullfile(opt.analysis, strcat('events.mat')), 'events');
-        check = check+1;
+        % Done here
+        return
     end
-
-    if check == 3, return; end % Done here 
 end
 
 %% Retrieve Events and generate needed variables
 if opt.RetrieveEvents
-    if check < 1
-        % Proceed to extract all events captured by DEUT/INTAN acquisition system,
-        % stored along with the data and synchronized with it (proper timestamped).
-        switch opt.ext
-            case {'DT2', 'DF1'}
+    switch opt.ext
+        case {'DT2', 'DF1'} 
+            if opt.useexe % DEFAULT. When extracting events from SD using EXE. Very easy to use vs dll
+                % Proceed to extract all events captured by Deuteron acquisition system,
+                % stored along with the data and synchronized with it (proper timestamped).
                 disp('Retrieving events from Deuteron Event files using EXE.')
                 [EventRecord, opt] = Deuteron_ExtractEvents(opt);
-            
-            case {'fileperch', 'filepertype'}
-                % INTAN
-                disp('Retrieving events from INTAN Dig-IN channels.')
-                EventRecord = INTAN_ExtractEvents(opt);
-            otherwise
-                % It is FT, keep going.
-        end
+        
+            else % Uses txt file generated at logging PC
+                % First create the EventRecord 'as it would come out of Deuteron'
+                try EventRecord = Deuteron_ExtractLogEvents(opt);
+                catch % In case logevent.txt does not exist BUT res.mat file does
+                    if isfile(ls('*res.mat'))
+                        disp('Creating trial definitions based on res.m file.')
+                        EventRecord = trialdefFromPar(opt);
+                    end
+                end
+            end
+
+        case {'fileperch', 'filepertype'}
+           % INTAN
+           [EventRecord, ~] = INTAN_ExtractEvents(opt);
+
     end
 
-    % Then, based on the trial definitions (defaulted or given) create
+    %% Then, based on the trial definitions (defaulted or given) create
     % an 'events' struct fitting the NGL convention
     disp('Creating trial definitions based on extracted EventRecord and Eventcodes descriptions.')
     [events, trialdef, opt.eventdef] = trialdefGen(EventRecord, opt);
 
-    % Create the conditions variable for trial indexing
+    %% Create the conditions variable for trial indexing
     % Initialize all fields with zeros
     zerovec = zeros(length(events.itiOn.code),1);
     condition = struct( 'correct', zerovec, 'incorrect', zerovec, 'omission', zerovec, ...
@@ -91,10 +91,10 @@ if opt.RetrieveEvents
         % if ismember(trialvect, [opt.eventdef.xxx opt.eventdef.yyy])
         %     condition.xxxyyy(i) = 1;
         % end
-    end  
+    end
+
 else
     disp('Events not requested. Skipped.')
-    return
 end
 
 %% Save this session events, trialdef and conditions variables.

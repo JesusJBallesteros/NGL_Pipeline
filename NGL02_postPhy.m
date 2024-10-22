@@ -5,8 +5,8 @@
 % Jesus 12.06.2024
 if ~isfield(opt, 'doSpikething') || isempty(opt.doSpikething),  opt.doSpikething = true;    end
 if ~isfield(opt, 'doLFPthing') || isempty(opt.doLFPthing),      opt.doLFPthing   = true;    end
+if ~isfield(opt, 'offlineTrack') || isempty(opt.offlineTrack),  opt.offlineTrack = false;   end
 if ~isfield(opt, 'FLIP') || isempty(opt.FLIP),                  opt.FLIP         = false;   end
-
 % if exist('regions','var'),                                      opt.multregion   = true;    end
 
 %% 00. Check current inputs.
@@ -29,29 +29,24 @@ input = set_default(input, opt);
 %% 01. Find and list requested sessions and subjects.
 input.sessions = findSessions(input);
 
-%% 02. Load Post_Phy parameter file (under '/analysisCode')
-try run(fullfile(input.analysisCode, 'postPhy_param.m'));
-catch, error('No script found with parameters for the Post-phy pipeline. Find it and locate it into your analysisCode folder.')
-end
-
-%% 03. Proceed with data per session
+%% 02. Proceed with data per session
 for x = 1:input.nsubjects % Subjects.
     for y = 1:input.sessions(x).nsessions % Sessions.
             input.run = [x y]; % Current run, to pass to functions.
             
-            %% 04. Prepare to proceed with a single session.
+            %% 2.03. Prepare to proceed with a single session.
             [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);           
 
-            %% 05. Offline Video blob detector
+            %% 2.04. Offline Video blob detector
             % Very specific for Social learning videos from central cenital camera. 
             if opt.offlineTrack
                 [blob] = processAndTrack_video(opt);
-                save(fullfile(opt.behavFiles, "blob.mat"), 'blob');
+                save(fullfile(opt.analysis, "blob.mat"), 'blob');
             end
 
-            %% 06. SPIKE DATA
+            %% 2.05. SPIKE DATA
             if opt.doSpikething
-                % 04.1 Extract preprocessed spikes and recover event data.
+                % Extract preprocessed spikes and recover event data.
                 % Spike clusters after sorting and curation.
                 spike = loadSpikes(opt);
                 if isfield(spike,"spike"), spike = spike.spike; end % Simplify loaded structure if needed
@@ -59,7 +54,7 @@ for x = 1:input.nsubjects % Subjects.
                 % Save output to \spikesorted
                 save(fullfile(opt.spikeSorted, "spike.mat"), 'spike', '-mat');
                 
-                % 04.2 Iterate trough all units and sort them into trials.
+                % Iterate trough all units and sort them into trials.
                 % Recover trial definitions created after event extraction and processing. 
                 % Can have as many variations as requested at that time.
                 % To create new alignments, it would have to be ran again.
@@ -67,13 +62,33 @@ for x = 1:input.nsubjects % Subjects.
                 
                 % Outputs are saved to data\analysis. 
                 % TODO fix Fieldtrip extraction
-                [neurons, ~] = sort2trials(spike, trialdef, opt);
-            
-                % 04.3 Save output to \analysis
+                [neurons, ~] = sort2trials(spike, trialdef, opt);                
+
+                if opt.useTrack
+                    % Spiking indexing for Social intereactions. Checks blob
+                    % interaction times (+-5s) and extracts spiking activity
+                    % around them. Input needs to be 'blob.Merges', instead
+                    % of a regular 'trialdef'.
+                    if ~exist('blob','var'), load(fullfile(opt.analysis, "blob.mat")); end
+                    if ~isfield(neurons,"interactions")
+                        [neurons.interactions, ~] = sort2trials(spike, blob.Merges, opt);
+                    end
+
+                    % Also, use video assessment excel files to extract the
+                    % logical indexing of Social events.
+                    % Read excel file, num trials
+                    if ~exist('events','var'), load(fullfile(opt.analysis, "events.mat")); end
+                    if ~isfield(events,"social")
+                        [events.social] = getSocialEvents(opt);
+                        save(fullfile(opt.analysis, "events.mat"), 'events', '-mat')
+                    end
+                end
+
+                % Save output to \analysis
                 save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
             end
 
-            %% 07. Continuous LFP DATA. UNDER DEVELOPMENT
+            %% 2.06. Continuous LFP DATA. UNDER DEVELOPMENT
             if opt.doLFPthing
                 % 05.1 Extract preprocessed FTcont file.
                 disp('Loading FT continuous file...')
@@ -136,6 +151,9 @@ for x = 1:input.nsubjects % Subjects.
     
                 end
             end
-            
+
+        %% Clean up to move on to next session
+        clear events EventRecord trialdef blob neurons spike
+     
     end
 end

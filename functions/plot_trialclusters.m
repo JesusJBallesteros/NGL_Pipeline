@@ -14,7 +14,7 @@ end
 if ~isfield(param,'plotStyle'),     param.plotStyle      = 'lines';      end
 if ~isfield(param,'spkWidth'),      param.spkWidth       = 1;            end
 if ~isfield(param,'lineLength'),    param.lineLength     = 1;            end
-                                    param.timelim        = [0 8000];    % Hard coded, TODO
+                                    param.timelim        = [0 6000];    % Hard coded, TODO
 if ~isfield(param,'plotevent'),     param.plotevent      = [1 3 7];      end
 % PSH
 if ~isfield(param,'binSize'),       param.binSize        = 200;          end
@@ -22,9 +22,7 @@ if ~isfield(param,'stepSz'),        param.stepSz         = 10;           end
 if ~isfield(param,'smpRate'),       param.smpRate        = 1000;         end
 
 %% Default figure attributes. 
-% Use ItiOn alignment only
-a = 1;
-
+param.raster.title = 'Whole trial';
 % Raster plot
 param.raster.ylabel = {'Trial #'}; % trial label
 param.raster.ytick = 0:50:1000; % trial ticks
@@ -50,6 +48,11 @@ param.driftmap.yticklabels = {'auto'}; % ampl label
 param.driftmap.xticklabels = {'auto'}; % time label
 
 %% Get details
+toalignto = opt.alignto;
+
+% How many alignments
+nalign = numel(toalignto); 
+
 % Figure size
 if strcmpi('adaptive', param.size)
     screen.size = get(0, 'ScreenSize');  
@@ -61,10 +64,14 @@ else
 end
 
 %% Initialize levels
-if param.treatment == true
-    param.levels = 1; 
-    param.trial_change = 1;
-    % check existence of defined treatments
+param.levels = 1; % force to integer
+param.trial_change = 1;
+
+if param.treatment
+    % conds = fieldnames(conditions);
+    conds = {'AllTrials'};
+
+    % On top, check existence of defined treatments
     if isfield(opt,'trEvents')
         % how many
         ntreatments = numel(opt.trEvents);
@@ -75,112 +82,174 @@ if param.treatment == true
             param.trial_change = [param.trial_change events.(opt.trEvents{i}).trial{1}];
         end
     end
-else
-    param.levels = 1; % force to integer
-    param.trial_change = 1;
-end
 
-% add last trial to the level-limits vector
-param.trial_change = [param.trial_change length(neurons.(opt.alignto{1}){1})];
+% Social yes/no assessment
+elseif opt.plotSocial && ~param.treatment
+    % Use Social assessment
+    conds = fieldnames(events.social);
+    % Set really relevant social conditions for an ItiOn alignment
+    relevant = {[1:7,9:16], [], []};
+    % in the social assessment, treatments are 1/0. Add levels accordingly,
+    param.levels = 2;
+    param.trial_change = ones(1,param.levels);
+    param.plotcol        = [0  0  0;
+                            1  0  0];
+% or conditions (TODO)
+% elseif
+end
 
 %% Whole trial raster and PSH, cluster by cluster
 % for each cluster
-for c = 1:length(neurons.(opt.alignto{a}))
-    % Titles
-    param.raster.title = 'Whole trial';
-    param.raster.subtitle = ['cluster: ', spike.label{c}];
-    
-    % Initialize
-    fig = figure('visible', param.visible); % switch visibility
-    set(fig, 'Position', [0, 0, round(screen.width), round(screen.height)]); % Set fig size as screen
-    
-    % Trial-long Spike Raster
-    subplot(3,1,1)
-        trialCounter = 1;
-        for lvl = 1:param.levels
-            % prepare range of trials to plot
-            trialrange = param.trial_change(lvl):param.trial_change(lvl+1);
-                if lvl > 1, trialrange(1) = []; end % remove repeated trial at beginning, when treatments exist
-                if length(trialrange) < 2, continue, end
+for a = 1:nalign
+    if strcmp(toalignto{a},'itiOn')
+        % add last trial to the level-limits vector
+        param.trial_change = [param.trial_change length(neurons.(toalignto{a}){1})];
 
-            % raster plot
-            trialCounter = plotRaster(neurons.(opt.alignto{a}){c}(trialrange), ... % spikes
-                                    trialCounter,               ... % trialCounter
-                                   'plotcol',    param.plotcol(lvl,:), ... % color per align (for now)
-                                   'spkwidth',   param.spkWidth,       ...
-                                   'linelength', param.lineLength,     ...
-                                   'plotstyle',  param.plotStyle);
-        end
+        % For each indexing condition
+        for cc = relevant{a}    
+            
+            % For each cluster
+            for c  = 1:length(neurons.(toalignto{a}))
+                jump = 0; % reset zero-trial-index switch
 
-            % Plot requested events (param.plotevent)
-            if ~isempty(param.plotevent)
-                for trial = 1:size(events.(opt.alignto{a}).code,1)
-                    for ev = param.plotevent
-                        % Check event presence in trial
-                        evidx = find(events.(opt.alignto{a}).code{trial,1} == ev);
-                        % If any, plot
-                        if ~isempty(evidx)
-                            color = [];
-                            if ev == 1, color = 'b'; end % stimOn1
-                            if ev == 3, color = 'r'; end % bhv
-                            if ev == 7, color = 'g'; end % rwd
-                            line(1000*[events.(opt.alignto{a}).time{trial,1}(evidx) events.(opt.alignto{a}).time{trial,1}(evidx)], ...
-                                 [trial trial+1], 'Color', color, 'LineWidth', 2)
+                % Titles
+                param.raster.subtitle = ['cluster: ', spike.label{c}, '. ', conds{cc}];
+                
+                % Initialize
+                fig = figure('visible', param.visible); % switch visibility
+                set(fig, 'Position', [0, 0, round(screen.width), round(screen.height)]); % Set fig size as screen
+                
+                % Trial-long Spike Raster
+                subplot(3,1,1)
+                trialCounter = 1;
+                    for lvl = 1:param.levels
+                        % prepare range of trials to plot
+                        trialrange = param.trial_change(lvl):param.trial_change(lvl+1);
+                        condsrange = trialrange;
+                        if lvl > 1, trialrange(1) = []; end % remove repeated trial at beginning, when treatments exist
+                        if size(conds,1) > 1
+                            trialrange = param.trial_change(1):param.trial_change(end);
+                            cndidx = events.social.(conds{cc});
+                            % restrict trials to those indexed as 
+                            if lvl == 1,    condsrange = cndidx; % true
+                            elseif lvl==2,  condsrange = ~cndidx; % false
+                            end
+                            trialCounter = 1; % do not re-start from last trial
+                        end
+                        
+                        if length(trialrange) < 2, continue, end
+                        if sum(condsrange) < 1, jump = jump + 1; continue, end % if no trials for this specific conditions, add to off-switch
+                        
+                        % Now, take spikes to plot
+                        toplot = neurons.(toalignto{a}){c}(trialrange);
+    
+                        % empty trials not indexed by condition but keep trial ordinal
+                        toplot(~condsrange) = {[]}; 
+
+                        % raster plot
+                        trialCounter = plotRaster(toplot, ... % spikes
+                                                trialCounter,               ... % trialCounter
+                                               'plotcol',    param.plotcol(lvl,:), ... % color per align (for now)
+                                               'spkwidth',   param.spkWidth,       ...
+                                               'linelength', param.lineLength,     ...
+                                               'plotstyle',  param.plotStyle);
+                    end
+            
+                    % Plot requested events (param.plotevent)
+                    if ~isempty(param.plotevent)
+                        for trial = param.trial_change(1):param.trial_change(end)                            
+                            for ev = param.plotevent
+                                % Check event presence in trial
+                                evidx = find(events.(toalignto{a}).code{trial,1} == ev);
+                                % If any, plot
+                                if ~isempty(evidx)
+                                    color = 'k';
+                                    if ev == 1, color = 'b'; end % stimOn1
+                                    if ev == 3, color = 'b'; end % bhv
+                                    if ev == 7, color = 'g'; end % rwd
+                                    line(1000*[events.(toalignto{a}).time{trial,1}(evidx) events.(toalignto{a}).time{trial,1}(evidx)], ...
+                                         [trial trial+1], 'Color', color, 'LineWidth', 2)
+                                end
+                            end
                         end
                     end
-                end
+                
+                    if jump == 3, continue, end % if no trials at any level, cancel figure
+    
+                    % Prettify
+                    prettify(param.raster);
+                        xlim(param.timelim)
+                        ylim([0 param.trial_change(lvl+1)])
+
+                % Trial-long PSH
+                jump = 0;
+                subplot(3,2,[3,4])
+                    for lvl=1:param.levels
+                        % prepare range of trials to plot
+                        trialrange = param.trial_change(lvl):param.trial_change(lvl+1);
+                        if lvl > 1, trialrange(1) = []; end % remove repeated trial at beginning, when treatments exist
+                        if size(conds,1) > 1
+                            trialrange = param.trial_change(1):param.trial_change(end);
+                            cndidx = events.social.(conds{cc});
+                            % restrict trials to those indexed as 
+                            if lvl == 1,    condsrange = cndidx; % true
+                            elseif lvl==2,  condsrange = ~cndidx; % false
+                            end
+                        end
+                        
+                        if length(trialrange) < 2, continue, end
+                        % if no trials for this specific conditions, add to off-switch
+                        if sum(condsrange) < 1, jump = jump + 1; continue, end 
+    
+                        % Now, take spikes to plot
+                        toplot = neurons.(toalignto{a}){c}(trialrange);
+    
+                        % empty trials not indexed by condition but keep trial ordinal
+                        toplot(~condsrange) = {[]}; 
+
+                        % Plot
+                        upperY(lvl) = plotPSTH(toplot, ... % spikes
+                                        param.stepSz,   ... % stepSz
+                                        param.binSize,  ...  % binSize
+                                        param.timelim,  ... % interval
+                                        param.smpRate,  ...  % samples per second in the feeded data
+                                        'plotcol',      param.plotcol(lvl,:),...
+                                        'meanline',     '-',...
+                                        'smoothplot',   true);
+                    end
+
+                    % Prettify
+                    prettify(param.psh)
+                        xline(param.psh.xtick(find(param.psh.xticklabels{1}{1} == 0)),'--k');
+                        maxY = max(upperY); if maxY <= 5, maxY = 6; end % force a minimum y-axis scale
+                        ylim([0 maxY*1.1]);
+            
+                % Session-long 'driftmap'
+                subplot(3,2,[5,6])
+                    scatter(spike.timestamp{c}/60, spike.templampl{c}, 5, "black", "filled");
+                    % Prettify
+                    prettify(param.driftmap);
+                        ylim([min(spike.templampl{c})*0.9 max(spike.templampl{c})*1.1]);
+                        xlim([0 spike.timestamp{c}(end)/60+.2]);
+            
+                    % treatment window 
+                    if param.treatment
+                        for i = 1:ntreatments
+                            if isfield(events,(opt.trEvents{i})) % If there is a na3 treatment field
+                                xy = [events.(opt.trEvents{i}).time{1}(1)/60, 0];
+                                w = (events.(opt.trEvents{i}).time{1}(2)-events.(opt.trEvents{i}).time{1}(1))/60; 
+                                h = 1000; % hard coded
+                                
+                                rectangle('Position', [xy(1), xy(2), w, h], ...             % [x, y, w, h]
+                                          'FaceColor',[.6 .6 .6 .35], 'LineStyle', 'none'); % [r g b alpha], no line.
+                            end
+                        end
+                    end
+            
+                % Save figure per alignment&cluster
+                exportgraphics(fig,fullfile(opt.analysis,'genplots',['fulltrial_',spike.label{c},'_',conds{cc},'.png']),'Resolution',600);
+                close all
             end
-
-        % Prettify
-        prettify(param.raster);
-            xlim(param.timelim)
-
-    % Trial-long PSH
-    subplot(3,2,[3,4])
-        for lvl=1:param.levels
-            % prepare range of trials to plot
-            trialrange = param.trial_change(lvl):param.trial_change(lvl+1);
-                if lvl > 1, trialrange(1) = []; end % remove repeated trial at beginning, when treatments exist
-                if length(trialrange) < 2, continue, end
-            % Plot
-            upperY = plotPSTH(neurons.(opt.alignto{a}){c}(param.trial_change(lvl):param.trial_change(lvl+1)), ... % spikes
-                            param.stepSz,   ... % stepSz
-                            param.binSize,  ...  % binSize
-                            param.timelim,  ... % interval
-                            param.smpRate,  ...  % samples per second in the feeded data
-                            'plotcol',      param.plotcol(lvl,:),...
-                            'meanline',     '-',...
-                            'smoothplot',   true);
         end
-        % Prettify
-        prettify(param.psh)
-        if upperY <= 5, ylim([0 5]); end
-
-    % Session-long 'driftmap'
-    subplot(3,2,[5,6])
-        scatter(spike.timestamp{c}/60, spike.templampl{c}, 5, "black", "filled");
-        % Prettify
-        prettify(param.driftmap);
-            ylim([min(spike.templampl{c})*0.9 max(spike.templampl{c})*1.1]);
-            xlim([0 spike.timestamp{c}(end)/60+.2]);
-
-        % treatment window 
-        if param.treatment
-            for i = 1:ntreatments
-                if isfield(events,(opt.trEvents{i})) % If there is a na3 treatment field
-                    xy = [events.(opt.trEvents{i}).time{1}(1)/60, 0];
-                    w = (events.(opt.trEvents{i}).time{1}(2)-events.(opt.trEvents{i}).time{1}(1))/60; 
-                    h = 1000; % hard coded
-                    
-                    rectangle('Position', [xy(1), xy(2), w, h], ...             % [x, y, w, h]
-                              'FaceColor',[.6 .6 .6 .35], 'LineStyle', 'none'); % [r g b alpha], no line.
-                end
-            end
-        end
-
-    % Save figure per alignment&cluster
-    exportgraphics(fig,fullfile(opt.analysis,'genplots',['fulltrial_',spike.label{c},'.png']),'Resolution',600);
-    close all
-end
-
+    end
 end

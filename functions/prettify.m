@@ -32,7 +32,7 @@ yticks(plotops.ytick);
 if isitiON == 1 % iti alignment
     xticks('auto'); 
     xticklabels('auto');
-    xlim([plotops.xtickiti(1) plotops.xtickiti(end)])
+    xlim([plotops.xtick(1) plotops.xtick(end)])
 else
     xticks(plotops.xtick);      
     xticklabels(plotops.xticklabels{1});

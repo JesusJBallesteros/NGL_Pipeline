@@ -52,14 +52,13 @@ for x = 1:input.nsubjects % Subjects.
                    
         %% 04.2 Raster, trace, PSH, ISI
         % whole trial
+        if ~exist('spike','var'),     load(fullfile(opt.spikeSorted, "spike.mat")),    end
         if opt.plot_trial
-            if ~exist('spike','var'),     load(fullfile(opt.spikeSorted, "spike.mat")),    end
             plot_trialclusters(neurons, events, spike, opt, param)
         end
 
         % aligned to requested events, per cluster
         if opt.plot_align && numel(opt.alignto) > 1
-            if ~exist('spike','var'),     load(fullfile(opt.spikeSorted, "spike.mat")),    end
             plot_alignedclusters(neurons, events, spike, opt, param)
         end
 

@@ -11,43 +11,61 @@ if ~isfield(param,'baseline'),      param.baseline       = 500;          end
 if ~isfield(param,'post'),          param.post           = 2500;         end
 if ~isfield(param,'timelim'),       param.timelim        = [-param.baseline param.post]; end
 if ~isfield(param,'timelimItiOn'),  param.timelimItiOn   = [   0 8000];  end
+if ~isfield(param,'size'),          param.size           = [1900 1000];   end
 
-% Pooled raster
-param.poolraster.ylabel = {'Cluster # (all trials)'}; % cluster/trial label
-param.poolraster.ytick = 0:length(neurons.itiOn{1,1}):length(neurons.itiOn{1,1})*length(neurons.(opt.alignto{1})); % trial ticks
-param.poolraster.yticklabels = {mat2cell((param.poolraster.ytick/length(neurons.itiOn{1,1}))+1,1)}; % ticks label
+%% Set
+toalignto = opt.alignto;
 
-param.poolraster.xlabel = {'ms'}; % time label
-param.poolraster.xtick = param.timelim(1):param.baseline:param.timelim(2); % time ticks
-param.poolraster.xtickiti = param.timelimItiOn(1):1000:param.timelimItiOn(2); % time ticks iti
-param.poolraster.xticklabels = {mat2cell(param.poolraster.xtick,1)}; % ticks label
-param.poolraster.xticklabelsiti = {mat2cell(param.poolraster.xtickiti,1)}; % ticks label iti
+% Add case for social interactions
+if opt.plotSocial
+    toalignto = [toalignto , 'interactions'];
+end
+
+% How many alignments
+nalign = numel(toalignto); 
 
 %% For ALL clusters
 % For each alignment
-for a = 1:numel(opt.alignto)
+for a = 1:nalign
+    % Pooled raster
+    param.poolraster.ylabel = {'Cluster #'}; % cluster/trial label
+    param.poolraster.ytick = 0:length(neurons.(toalignto{a}){1,1}):length(neurons.(toalignto{a}){1,1})*length(neurons.(toalignto{a})); % trial ticks
+    param.poolraster.yticklabels = {mat2cell((param.poolraster.ytick/length(neurons.(toalignto{a}){1,1}))+1,1)}; % ticks label
     
+    param.poolraster.xlabel = {'time (ms)'}; % time label
+    param.poolraster.xtick = param.timelim(1):param.baseline:param.timelim(2); % time ticks
+    param.poolraster.xticklabels = {mat2cell(param.poolraster.xtick,1)}; % ticks label
+
     % Cases
-    if strcmpi(opt.alignto{a}, 'itiOn'),     timelim = param.timelimItiOn; param.size = [800 1000]; % itiOn
-    elseif strcmpi(opt.alignto{a}, 'rwd'),   timelim = param.timelim;      param.size = [300 1000]; % needed?
-    else,                                    timelim = param.timelim;      param.size = [300 1000]; % all others
+    timelim = param.timelim; % General, and rwd
+    if strcmpi(toalignto{a}, 'itiOn') % itiOn
+        timelim = param.timelimItiOn;
+        param.size = [800 1000]; 
+        param.poolraster.xtick = timelim(1):1000:timelim(2); % time ticks iti
+        param.poolraster.xticklabel = {mat2cell(param.poolraster.xtick,1)}; % ticks label iti
+    elseif strcmpi(toalignto{a}, 'interactions') % social interactions
+        longst_interact = 10000;
+        timelim = [-2000 longst_interact];
+        param.poolraster.xlabel = {'time (s)'}; % time label
+        param.poolraster.xtick = timelim(1):2000:timelim(2); % time ticks
+        param.poolraster.xticklabels = {mat2cell(param.poolraster.xtick/1000,1)}; % ticks label
     end
 
     % To change color every cluster, only for this specific kind of figure
-    param.pooled_levels = length(neurons.(opt.alignto{a})); % number clusters
-    trialperclus = length(neurons.(opt.alignto{a}){1}); % trials per cluster
+    param.pooled_levels = length(neurons.(toalignto{a})); % number clusters
+    trialperclus = length(neurons.(toalignto{a}){1}); % trials per cluster
     param.pooled_trial_change = (1:trialperclus:(param.pooled_levels*trialperclus)+1);
 
     % Allocate and concatenate all cells from neurons cell array (pile
     % up all trials along all clusters)
-    poolneurons = cat(1, neurons.(opt.alignto{a}){:});
+    poolneurons = cat(1, neurons.(toalignto{a}){:});
     % poolneurons = cellfun(@(x) x*1000, poolneurons, 'UniformOutput', false); % In case time units need to be changed
 
     % prepare title and subtitle
-    param.poolraster.title = ['Aligned to: ', opt.alignto{a}];
+    param.poolraster.title = ['Aligned to: ', toalignto{a}];
     param.poolraster.subtitle = ['ALL clusters'];
 
-    % Initialize
+    %% Figure
     fig = figure('visible', param.visible); % switch visibility
     set(fig, 'Position', [0, 0, round(param.size(1)), round(param.size(2))]); % Set fig size as screen
         
@@ -68,8 +86,8 @@ for a = 1:numel(opt.alignto)
     prettify(param.poolraster, a)
         ylim([0 param.poolraster.ytick(end)])
 
-    % Save figure 
-    exportgraphics(fig,fullfile(opt.analysis,'genplots',['raster_',opt.alignto{a},'_pooled.png']),'Resolution',600);
+    %% Save figure 
+    exportgraphics(fig,fullfile(opt.analysis,'genplots',['raster_',toalignto{a},'_pooled.png']),'Resolution',600);
     close all
 end
 
