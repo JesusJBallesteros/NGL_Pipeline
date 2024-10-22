@@ -70,7 +70,7 @@ opt.offset            = 2^(opt.numberOfAdcBits-1);
 %% Event data retrieval and trial definition.
 % 'trialdef' outputted for later feed into fieldtrip transf.
 % An empty output means that data shall be treated as continuous.
-[events, trialdef, EventRecord, conditions] = EventProcess(opt);
+[events, trialdef, EventRecord] = EventProcess(opt);
 
 %% High-pass Neural Data Conversion to .bin
 if opt.bin
