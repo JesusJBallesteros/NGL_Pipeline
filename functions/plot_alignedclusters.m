@@ -7,6 +7,7 @@ function plot_alignedclusters(neurons, events, spike, opt, param)
 %% Default options.
 if ~isfield(param,'visible'),       param.visible        = 'off';        end
 if ~isfield(param,'size'),          param.size           = [600 1000];   end
+if ~isfield(param,'Resolution'),    param.Resolution     = 300;          end
 if ~isfield(param,'treatment'),     param.treatment      = false;        end
 if ~isfield(param,'plotcol'),       param.plotcol        = [ 0  0  0;
                                                             .6 .6 .6;
@@ -99,12 +100,12 @@ elseif opt.plotSocial && ~param.treatment
     % Use Social assessment
     conds = fieldnames(events.social);
     % Set really relevant social conditions for StimOn, rwd, alignment
-    relevant = {[], [1:5,9:12,15:16], [2:7,10:16]};
+    relevant = {[], [1:7,10,12,14,15], [1:7,10,12,14,15]};
     % in the social assessment, treatments are 1/0. Add levels accordingly,
     param.levels = 2;
     param.trial_change = ones(1,param.levels);
-    param.plotcol        = [0  0  0;
-                            1  0  0];
+    param.plotcol      = [0  0  0;
+                          1  0  0];
 % or conditions (TODO)
 % elseif
 end
@@ -145,15 +146,19 @@ param.trial_change = [param.trial_change length(neurons.(toalignto{1}){1})];
 for a = 1:nalign
     % Skip itiOn aligment
     if strcmp(toalignto{a},'itiOn'), continue, end 
+    
+    % Alignment title
+    param.raster.title = ['Aligned to: ', toalignto{a}];
+    
     % For each indexing condition
-    for cc = relevant{a}    
+    for cc = relevant{a}
+
         % For each cluster
         for c = 1:length(neurons.(toalignto{a}))
             jump = 0; % reset zero-trial-index switch
-            param.raster.title = ['Aligned to: ', toalignto{a}];
-            param.raster.subtitle = ['cluster: ', spike.label{c}, '. ', conds{cc}];
             
             % Initialize figure
+            param.raster.subtitle = ['cluster: ', spike.label{c}, '. ', conds{cc}];
             fig = figure('visible', param.visible); % switch visibility
             set(fig, 'Position', [0, 0, round(screen.width), round(screen.height)]); % Set fig size as screen
             
@@ -163,16 +168,22 @@ for a = 1:nalign
                 for lvl = 1:param.levels
                     % prepare range of trials to plot
                     trialrange = param.trial_change(lvl):param.trial_change(lvl+1);
+                    condsrange = trialrange;
                     if lvl > 1, trialrange(1) = []; end % remove repeated trial at beginning, when treatments exist
-                    if length(trialrange) < 2, continue, end
                     if size(conds,1) > 1
-                        % restrict trials to those indexed as true
-                        condsrange = events.social.(conds{cc})(trialrange);
+                        trialrange = param.trial_change(1):param.trial_change(end);
+                        cndidx = events.social.(conds{cc});
+                        % restrict trials to those indexed as 
+                        if lvl == 1,    condsrange = cndidx; % true
+                        elseif lvl == 2,  condsrange = ~cndidx; % false
+                        end
+                        trialCounter = 1; % plot from first trial
                     end
                     
+                    if length(trialrange) < 2, continue, end
                     if sum(condsrange) < 1, jump = jump + 1; continue, end % if no trials for this specific conditions, add to off-switch
-                    
-                    % Take relevant spikes to plot
+                        
+                    % Now, take spikes to plot
                     toplot = neurons.(toalignto{a}){c}(trialrange);
 
                     % empty trials not indexed by condition but keep trial ordinal
@@ -186,29 +197,29 @@ for a = 1:nalign
                                'linelength', param.lineLength,     ...
                                'plotstyle',  param.plotStyle,      ...
                                'timelim',    param.timelim);
-                    
-                    % Plot requested events (param.plotevent)
-                    if ~isempty(param.plotevent)
-                        for trial = trialrange(condsrange)                            
-                            for ev = param.plotevent
-                                % Check event presence in trial
-                                evidx = find(events.(toalignto{a}).code{trial,1} == ev);
-                                % If any, plot
-                                if ~isempty(evidx)
-                                    color = [1 1 1]; 
-                                    if ev == 1, color = 'b'; end % stimOn1
-                                    if ev == 3, color = 'r'; end % bhv
-                                    if ev == 7, color = 'g'; end % rwd
-                                    line(1000*[events.(toalignto{a}).time{trial,1}(evidx) events.(toalignto{a}).time{trial,1}(evidx)], ...
-                                         [trial trial+1], 'Color', color, 'LineWidth', 1)
-                                end
+                end
+
+                % Plot requested events (param.plotevent)
+                if ~isempty(param.plotevent)
+                    for trial = trialrange                            
+                        for ev = param.plotevent
+                            % Check event presence in trial
+                            evidx = find(events.(toalignto{a}).code{trial,1} == ev);
+                            % If any, plot
+                            if ~isempty(evidx)
+                                color = 'k'; 
+                                if ev == 1, color = 'b'; end % stimOn1
+                                if ev == 3, color = 'b'; end % bhv
+                                if ev == 7, color = 'g'; end % rwd
+                                line(1000*[events.(toalignto{a}).time{trial,1}(evidx) events.(toalignto{a}).time{trial,1}(evidx)], ...
+                                     [trial trial+1], 'Color', color, 'LineWidth', 1)
                             end
                         end
                     end
                 end
-
+    
             if jump == 3, continue, end % if no trials at any level, cancel figure
-            
+                
             % Prettify
             prettify(param.raster);
                 ylim([0 param.trial_change(lvl+1)])
@@ -220,7 +231,7 @@ for a = 1:nalign
                     'LineWidth', 2, 'Color', 'k', 'LineStyle', '-');
                 prettify(param.wf)
             end
-    
+        
             % Event-aligned PSH
             jump = 0;
             subplot(2,2,3)
@@ -228,21 +239,25 @@ for a = 1:nalign
                     % prepare range of trials to plot
                     trialrange = param.trial_change(lvl):param.trial_change(lvl+1);
                     if lvl > 1, trialrange(1) = []; end % remove repeated trial at beginning, when treatments exist
-                    if length(trialrange) < 2, continue, end
                     if size(conds,1) > 1
-                        % restrict trials to those indexed as true
-                        condsrange = events.social.(conds{cc})(trialrange);
+                        trialrange = param.trial_change(1):param.trial_change(end);
+                        cndidx = events.social.(conds{cc});
+                        % restrict trials to those indexed as 
+                        if lvl == 1,    condsrange = cndidx; % true
+                        elseif lvl==2,  condsrange = ~cndidx; % false
+                        end
                     end
-                    
+                            
+                    if length(trialrange) < 2, continue, end
                     % if no trials for this specific conditions, add to off-switch
                     if sum(condsrange) < 1, jump = jump + 1; continue, end 
-
-                    % Take relevant spikes to plot
+    
+                    % Now, take spikes to plot
                     toplot = neurons.(toalignto{a}){c}(trialrange);
-                    
+    
                     % empty trials not indexed by condition but keep trial ordinal
-                    toplot(~condsrange) = {[]}; 
-
+                    toplot(~condsrange) = {[]};
+    
                     % plot
                     upperY(lvl) = plotPSTH(toplot, ... % spikes
                                     param.stepSz,   ... % stepSz
@@ -259,7 +274,7 @@ for a = 1:nalign
                 xline(param.psh.xtick(find(param.psh.xticklabels{1}{1} == 0)),'--k');
                 maxY = max(upperY); if maxY <= 5, maxY = 6; end % force a minimum y-axis scale
                 ylim([0 maxY*1.1]);
-
+    
             % Plot ISI
             subplot(2,2,4)
                 histogram('BinEdges', 0:400, 'BinCounts', spike.isihist{c}, ...
@@ -271,10 +286,10 @@ for a = 1:nalign
             
             % Save figure per alignment&cluster
             exportgraphics(fig,fullfile(opt.analysis,'genplots', ...
-                            ['raster_',toalignto{a},'_',spike.label{c},'_',conds{cc},'.png']), ...
-                            'Resolution',600);
+                            ['raster_', toalignto{a}, '_', spike.label{c}, '_', conds{cc}, '.png']), ...
+                            'Resolution', param.Resolution);
             close all
+        end
     end
 end
-
 end

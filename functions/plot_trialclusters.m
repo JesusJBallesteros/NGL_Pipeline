@@ -5,11 +5,11 @@ function plot_trialclusters(neurons, events, spike, opt, param)
 %% Default options.
 if ~isfield(param,'visible'),       param.visible        = 'off';        end
 if ~isfield(param,'size'),          param.size           = [1000 600];   end
+if ~isfield(param,'Resolution'),    param.Resolution     = 300;          end
 if ~isfield(param,'treatment'),     param.treatment      = false;        end
 if ~isfield(param,'plotcol'),       param.plotcol        = [ 0  0  0;
                                                             .6 .6 .6;
                                                             .3 .3 .3]; 
-end
 % Rasters
 if ~isfield(param,'plotStyle'),     param.plotStyle      = 'lines';      end
 if ~isfield(param,'spkWidth'),      param.spkWidth       = 1;            end
@@ -88,12 +88,12 @@ elseif opt.plotSocial && ~param.treatment
     % Use Social assessment
     conds = fieldnames(events.social);
     % Set really relevant social conditions for an ItiOn alignment
-    relevant = {[1:7,9:16], [], []};
+    relevant = {[1:7,10,12,14,15], [], []};
     % in the social assessment, treatments are 1/0. Add levels accordingly,
     param.levels = 2;
     param.trial_change = ones(1,param.levels);
-    param.plotcol        = [0  0  0;
-                            1  0  0];
+    param.plotcol      = [0  0  0;
+                          1  0  0];
 % or conditions (TODO)
 % elseif
 end
@@ -112,10 +112,8 @@ for a = 1:nalign
             for c  = 1:length(neurons.(toalignto{a}))
                 jump = 0; % reset zero-trial-index switch
 
-                % Titles
-                param.raster.subtitle = ['cluster: ', spike.label{c}, '. ', conds{cc}];
-                
                 % Initialize
+                param.raster.subtitle = ['cluster: ', spike.label{c}, '. ', conds{cc}];
                 fig = figure('visible', param.visible); % switch visibility
                 set(fig, 'Position', [0, 0, round(screen.width), round(screen.height)]); % Set fig size as screen
                 
@@ -155,31 +153,31 @@ for a = 1:nalign
                                                'plotstyle',  param.plotStyle);
                     end
             
-                    % Plot requested events (param.plotevent)
-                    if ~isempty(param.plotevent)
-                        for trial = param.trial_change(1):param.trial_change(end)                            
-                            for ev = param.plotevent
-                                % Check event presence in trial
-                                evidx = find(events.(toalignto{a}).code{trial,1} == ev);
-                                % If any, plot
-                                if ~isempty(evidx)
-                                    color = 'k';
-                                    if ev == 1, color = 'b'; end % stimOn1
-                                    if ev == 3, color = 'b'; end % bhv
-                                    if ev == 7, color = 'g'; end % rwd
-                                    line(1000*[events.(toalignto{a}).time{trial,1}(evidx) events.(toalignto{a}).time{trial,1}(evidx)], ...
-                                         [trial trial+1], 'Color', color, 'LineWidth', 2)
-                                end
+                % Plot requested events (param.plotevent)
+                if ~isempty(param.plotevent)
+                    for trial = param.trial_change(1):param.trial_change(end)                            
+                        for ev = param.plotevent
+                            % Check event presence in trial
+                            evidx = find(events.(toalignto{a}).code{trial,1} == ev);
+                            % If any, plot
+                            if ~isempty(evidx)
+                                color = 'k';
+                                if ev == 1, color = 'b'; end % stimOn1
+                                if ev == 3, color = 'b'; end % bhv
+                                if ev == 7, color = 'g'; end % rwd
+                                line(1000*[events.(toalignto{a}).time{trial,1}(evidx) events.(toalignto{a}).time{trial,1}(evidx)], ...
+                                     [trial trial+1], 'Color', color, 'LineWidth', 2)
                             end
                         end
                     end
-                
-                    if jump == 3, continue, end % if no trials at any level, cancel figure
-    
-                    % Prettify
-                    prettify(param.raster);
-                        xlim(param.timelim)
-                        ylim([0 param.trial_change(lvl+1)])
+                end
+            
+                if jump == 3, continue, end % if no trials at any level, cancel figure
+
+                % Prettify
+                prettify(param.raster);
+                    xlim(param.timelim)
+                    ylim([0 param.trial_change(lvl+1)])
 
                 % Trial-long PSH
                 jump = 0;
@@ -218,11 +216,11 @@ for a = 1:nalign
                                         'smoothplot',   true);
                     end
 
-                    % Prettify
-                    prettify(param.psh)
-                        xline(param.psh.xtick(find(param.psh.xticklabels{1}{1} == 0)),'--k');
-                        maxY = max(upperY); if maxY <= 5, maxY = 6; end % force a minimum y-axis scale
-                        ylim([0 maxY*1.1]);
+                % Prettify
+                prettify(param.psh)
+                    xline(param.psh.xtick(find(param.psh.xticklabels{1}{1} == 0)),'--k');
+                    maxY = max(upperY); if maxY <= 5, maxY = 6; end % force a minimum y-axis scale
+                    ylim([0 maxY*1.1]);
             
                 % Session-long 'driftmap'
                 subplot(3,2,[5,6])
@@ -247,9 +245,12 @@ for a = 1:nalign
                     end
             
                 % Save figure per alignment&cluster
-                exportgraphics(fig,fullfile(opt.analysis,'genplots',['fulltrial_',spike.label{c},'_',conds{cc},'.png']),'Resolution',600);
+                exportgraphics(fig,fullfile(opt.analysis,'genplots', ...
+                    ['fulltrial_', spike.label{c}, '_', conds{cc}, '.png']), ...
+                    'Resolution', param.Resolution);
                 close all
             end
         end
     end
+end
 end

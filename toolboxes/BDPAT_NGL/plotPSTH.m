@@ -1,6 +1,5 @@
 function upperY = plotPSTH(spikes,stepSz,binSize,interval,smpRate,varargin)
-%%
-%upperY = plotPSTH(spikes,stepSz,binSize,interval,smpRate,varargin)
+%% upperY = plotPSTH(spikes,stepSz,binSize,interval,smpRate,varargin)
 %
 % Use this function to calculate the firing rate of a neuron over the time
 % course of the trial.
@@ -29,7 +28,7 @@ function upperY = plotPSTH(spikes,stepSz,binSize,interval,smpRate,varargin)
 % VERSION HISTORY:
 % Author:         Lukas Hahn
 % Version:        1.1.4
-% Last Change:    15.04.2024
+% Last Change:    22.10.2024
 %
 % 15.07.2019, Lukas: v1.0.0 release version
 % 12.08.2019, Lukas: v1.1.0 added handling for no spikes (returns a
@@ -42,6 +41,9 @@ function upperY = plotPSTH(spikes,stepSz,binSize,interval,smpRate,varargin)
 % 15.04.2024, Lukas: v1.1.4 bug fix, function should now work properly
 %                           irrespective of the amount of optional 
 %                           input arguments
+% 22.10.2024, Jesus: Added spikes2use index to use only non-empty trials
+%                           for calculations.
+
 %% check inputs
 %set defaults
 plotCol = [0 0 0];
@@ -69,11 +71,15 @@ if nargin>5
         %use defaults
     end
     %%
-    fireRate = calcFireRate(spikes,stepSz,binSize,interval,smpRate);
+    % ADDED Jesus (22.10.2024)
+    % To calculate rates, consider ONLY non empty cells
+    spikes2use = cellfun(@isempty, spikes);
+
+    fireRate = calcFireRate(spikes(~spikes2use),stepSz,binSize,interval,smpRate);
     if size(fireRate{1,1},1)<2 % if less than two trials have spikes
         fireRate{1,1} = nan(2,sum(abs(interval))/stepSz);
-        warning(...
-            'No trial with spikes detected, firing rate was set to NaN.')
+       % warning(...
+       %     'No trial with spikes detected, firing rate was set to NaN.')
     end
     for intervalNo=1:size(interval,1)
         [trlmean, trlsterr, ~] = nanMeanSterrHistogram(...

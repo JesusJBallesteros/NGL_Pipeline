@@ -1,7 +1,6 @@
 function fireRate = calcFireRate(alignedSpikes,stepSz,binSize,interval,...
     smpRate)
-%%
-%function fireRate = calcFireRate(alignedSpikes,stepSz,binSize,interval,...
+%% function fireRate = calcFireRate(alignedSpikes,stepSz,binSize,interval,...
 % smpRate)
 %
 % Use this function to calculate the firing rate of a neuron over the time
@@ -33,10 +32,12 @@ function fireRate = calcFireRate(alignedSpikes,stepSz,binSize,interval,...
 % 10.04.2024, Lukas: v1.0.2 bug fix: loop index 'int' is now based on 
 %                           size of correct windowBorder dimension (2)
 %%
+
 windowBorder = cell(1,size(interval,1));
 for i=1:size(interval,1) %for all intervals
     windowBorder{1,i} = interval(i,1):stepSz:interval(i,2);
 end
+
 %firing rate during the selected interval
 fireRate = cell(size(alignedSpikes,2),1);
 for int=1:size(windowBorder,2)
