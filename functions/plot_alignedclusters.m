@@ -11,7 +11,8 @@ if ~isfield(param,'Resolution'),    param.Resolution     = 300;          end
 if ~isfield(param,'treatment'),     param.treatment      = false;        end
 if ~isfield(param,'plotcol'),       param.plotcol        = [ 0  0  0;
                                                             .6 .6 .6;
-                                                            .3 .3 .3];   end
+                                                            .3 .3 .3];  
+end
 if ~isfield(param,'baseline'),      param.baseline       = 500;          end
 if ~isfield(param,'post'),          param.post           = 2500;         end
 if ~isfield(param,'plotevent'),     param.plotevent      = 1;            end
@@ -78,23 +79,24 @@ end
 %% Initialize levels
 param.levels = 1; % force to integer
 param.trial_change = 1;
+bhv = 0;
 
 if param.treatment
     % conds = fieldnames(conditions);
     conds = {'AllTrials'};
-
+    relevant = {1};
     % On top, check existence of defined treatments
     if isfield(opt,'trEvents')
         % how many
         ntreatments = numel(opt.trEvents);
+        relevant = {1, 1, 1, 1, 1};
         % have they start/end or just a single application time?
         for i = 1:ntreatments
             % add levels accordingly, e.g. basal/treatment_present/post (+2) or basal/post (+1)
             param.levels = param.levels + numel(events.(opt.trEvents{i}).time{1});
-            param.trial_change = [param.trial_change events.(opt.trEvents{i}).trial{1}];
+            param.trial_change = [param.trial_change events.(opt.trEvents{i}).trial{1}(2:end)];
         end
     end
-
 % Social yes/no assessment
 elseif opt.plotSocial && ~param.treatment
     % Use Social assessment
@@ -107,48 +109,44 @@ elseif opt.plotSocial && ~param.treatment
     param.plotcol      = [0  0  0;
                           1  0  0];
 % or conditions (TODO)
-% elseif
+elseif opt.useConditions && ~param.treatment
+    conds = fieldnames(events.social);
+    % Set really relevant social conditions for an ItiOn alignment
+    relevant = {[], [], []}; % (TODO)
+    % in the social assessment, treatments are 1/0. Add levels accordingly,
+    param.levels = 2;
+    param.trial_change = ones(1,param.levels);
 end
 
-% %% Initialize levels
-% param.levels = 1; % force to single level
-% param.trial_change = 1;
-% 
-% if param.treatment == true
-%     % check existence of defined treatments
-%     if isfield(opt,'trEvents')
-%         % how many
-%         ntreatments = numel(opt.trEvents);
-%         % have they start/end or just a single application time?
-%         for i = 1:ntreatments
-%             % add levels accordingly, e.g. basal/treatment_present/post (+2) or basal/post (+1)
-%             param.levels = param.levels + numel(events.(opt.trEvents{i}).time{1});
-%             param.trial_change = [param.trial_change events.(opt.trEvents{i}).trial{1}];
-%         end
-%     end
-% end
+switch param.levels
+    case 1
+    param.plotcol      = [0  0  0];
+    case 2
+    param.plotcol      = [0  0  0;
+                         .3 .3 .3];
+    case 3
+    param.plotcol      = [ 0  0  0;
+                          .6 .6 .6;
+                          .3 .3 .3];
+    otherwise
+        for i = 4:3:param.levels
+            param.plotcol(i:i+2,:) = param.plotcol(1:3,:);
+        end
+end
 
 % add last trial to the level-limits vector
 param.trial_change = [param.trial_change length(neurons.(toalignto{1}){1})];
-
-% %% Determine requested conditions
-% if opt.plotSocial || opt.plotConditions
-%     % Use Social assessment
-%     conds = fieldnames(events.social);
-%     % or conditions (TODO)
-%     % conds = fieldnames(conditions);
-% else
-%     conds = {'AllTrials'};
-% end
 
 %% Figure
 % For each alignment.
 for a = 1:nalign
     % Skip itiOn aligment
     if strcmp(toalignto{a},'itiOn'), continue, end 
+    if strcmp(toalignto{a},'bhv'), bhv = bhv + 1; end 
     
     % Alignment title
     param.raster.title = ['Aligned to: ', toalignto{a}];
+        if bhv == 2, param.raster.title = ['Aligned to: bhv2']; end
     
     % For each indexing condition
     for cc = relevant{a}
@@ -166,28 +164,44 @@ for a = 1:nalign
             subplot(2,2,1)
             trialCounter = 1;
                 for lvl = 1:param.levels
+
+                    % For no condition, skip last level
+                    if param.treatment && lvl==param.levels(end), continue, end
+                    
                     % prepare range of trials to plot
                     trialrange = param.trial_change(lvl):param.trial_change(lvl+1);
                     condsrange = trialrange;
-                    if lvl > 1, trialrange(1) = []; end % remove repeated trial at beginning, when treatments exist
+                    
+                    % remove repeated trial at beginning, when treatments exist
+                    if lvl > 1, trialrange(1) = []; end 
+                    
+                    % When plotting trials with condition true/false
                     if size(conds,1) > 1
                         trialrange = param.trial_change(1):param.trial_change(end);
-                        cndidx = events.social.(conds{cc});
-                        % restrict trials to those indexed as 
-                        if lvl == 1,    condsrange = cndidx; % true
-                        elseif lvl == 2,  condsrange = ~cndidx; % false
+                                                
+                        if opt.plotSocial || opt.useConditions % Here, we plot trials true for a given event
+                            cndidx = events.social.(conds{cc});
+                           % cndidx = events.xxxxx.(conds{cc});  TODO
+                           
+                           % restrict trials to those indexed above 
+                           if     lvl == 1,  condsrange = cndidx;  % use true       
+                           elseif lvl == 2,  condsrange = ~cndidx; % use false
+                           end
                         end
-                        trialCounter = 1; % plot from first trial
+
+                        trialCounter = 1; % always plot from first trial
                     end
                     
-                    if length(trialrange) < 2, continue, end
                     if sum(condsrange) < 1, jump = jump + 1; continue, end % if no trials for this specific conditions, add to off-switch
-                        
+                    if length(trialrange) < 2, continue, end
+                       
                     % Now, take spikes to plot
                     toplot = neurons.(toalignto{a}){c}(trialrange);
 
                     % empty trials not indexed by condition but keep trial ordinal
-                    toplot(~condsrange) = {[]}; 
+                    if opt.plotSocial || opt.useConditions
+                        toplot(~condsrange) = {[]}; 
+                    end
 
                     % plot
                     trialCounter = plotRaster(toplot,       ... % spikes
@@ -199,30 +213,50 @@ for a = 1:nalign
                                'timelim',    param.timelim);
                 end
 
-                % Plot requested events (param.plotevent)
-                if ~isempty(param.plotevent)
-                    for trial = trialrange                            
-                        for ev = param.plotevent
-                            % Check event presence in trial
-                            evidx = find(events.(toalignto{a}).code{trial,1} == ev);
-                            % If any, plot
-                            if ~isempty(evidx)
-                                color = 'k'; 
-                                if ev == 1, color = 'b'; end % stimOn1
-                                if ev == 3, color = 'b'; end % bhv
-                                if ev == 7, color = 'g'; end % rwd
-                                line(1000*[events.(toalignto{a}).time{trial,1}(evidx) events.(toalignto{a}).time{trial,1}(evidx)], ...
-                                     [trial trial+1], 'Color', color, 'LineWidth', 1)
+            % Plot requested events (param.plotevent)
+            if ~isempty(param.plotevent)
+                color = 'k';
+                for ev = param.plotevent
+                    if ev == 1 || 2, color = 'b'; end % stimOn1 || stimOn2
+                    if ev == 3, color = 'r'; end % bhv
+                    if ev == 7, color = 'g'; end % rwd
+                    
+                    evidx = cellfun(@(x) x==ev, events.(toalignto{a}).code, 'UniformOutput', 0);
+%                         evidx = find([events.(toalignto{a}).code{:}] == ev);
+%                         for trial = param.trial_change(1):param.trial_change(end)                            
+%                             % Check event presence in trial
+%                             index = find([C{:}] == 5);
+%                             evidx = cellfun(@find(X==ev), events.(toalignto{a}).code{trial,1}));
+%                             % If any, plot
+%                             if ~isempty(evidx)
+%                                 line(1000*[events.(toalignto{a}).time{trial,1}(evidx) events.(toalignto{a}).time{trial,1}(evidx)], ...
+%                                      [trial trial+1], 'Color', color, 'LineWidth', 2)
+%                             end
+%                         end
+                    
+                    for trial = param.trial_change(1):param.trial_change(end)  
+                        if any(evidx{trial})
+                            if bhv == 1
+                                line(1000*[min(events.(toalignto{a}).time{trial,1}(evidx{trial})) ...
+                                           min(events.(toalignto{a}).time{trial,1}(evidx{trial}))], ...
+                                     [trial trial+1], 'Color', color, 'LineWidth', 2)
+                            elseif bhv == 2
+                                line(1000*[max(events.(toalignto{a}).time{trial,1}(evidx{trial})) ...
+                                           max(events.(toalignto{a}).time{trial,1}(evidx{trial}))], ...
+                                     [trial trial+1], 'Color', color, 'LineWidth', 2)
                             end
                         end
                     end
                 end
+            end
     
             if jump == 3, continue, end % if no trials at any level, cancel figure
                 
             % Prettify
             prettify(param.raster);
-                ylim([0 param.trial_change(lvl+1)])
+                if param.treatment, ylimmax = param.trial_change(lvl);
+                else,  ylimmax = param.trial_change(lvl+1); end
+                ylim([0 ylimmax])
             
             % Plot waveform
             subplot(2,2,2) 
@@ -235,7 +269,7 @@ for a = 1:nalign
             % Event-aligned PSH
             jump = 0;
             subplot(2,2,3)
-                for lvl = 1:param.levels
+                for lvl = 1:param.levels-1
                     % prepare range of trials to plot
                     trialrange = param.trial_change(lvl):param.trial_change(lvl+1);
                     if lvl > 1, trialrange(1) = []; end % remove repeated trial at beginning, when treatments exist
@@ -285,8 +319,11 @@ for a = 1:nalign
                 xlim([-5 200])
             
             % Save figure per alignment&cluster
+            if bhv == 1, algmnt = toalignto{a};
+            elseif bhv == 2, algmnt = 'bhv2'; end
+
             exportgraphics(fig,fullfile(opt.analysis,'genplots', ...
-                            ['raster_', toalignto{a}, '_', spike.label{c}, '_', conds{cc}, '.png']), ...
+                            ['raster_', algmnt, '_', spike.label{c}, '_', conds{cc}, '.png']), ...
                             'Resolution', param.Resolution);
             close all
         end

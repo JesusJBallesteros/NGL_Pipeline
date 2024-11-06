@@ -42,7 +42,7 @@ for x = 1:input.nsubjects % Subjects.
         if ~exist('events','var'),    load(fullfile(opt.analysis, "events.mat")),      end
         if ~exist('neurons','var'),   load(fullfile(opt.analysis, "neurons.mat")),     end
 %         if ~exist('trialdef','var'),  load(fullfile(opt.trialSorted, "trialdef.mat")), end
-%         if ~exist('condition','var'), load(fullfile(opt.analysis, "condition.mat")),   end 
+        if ~exist('condition','var'), load(fullfile(opt.analysis, "condition.mat")),   end 
         
         %% 04.1 All clusters piled, ...
         % aligned to requested events, for all clusters

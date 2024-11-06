@@ -98,7 +98,7 @@ function [EventRecord, opt] = extractFromExe(opt)
     
     % By default, recordings starts as [1 1 0 0], but this is not recorded.
     words(1,:) = [1 1 0 0];
-    
+
     % Get change direction from log description (8th column) (raising == 1, falling == 0)
     edgeDirection = contains(bitRecord(:,8), 'rising'); % categorize rising and falling edges.
     

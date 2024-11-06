@@ -2,7 +2,7 @@ function plot_pooledstats(neurons, opt, param)
     %% TODO
 
 if ~isfield(param,'visible'),       param.visible        = 'off';        end
-if ~isfield(param,'treatment'),     param.treatment      = true;         end
+% if ~isfield(param,'treatment'),     param.treatment      = true;         end
 if ~isfield(param,'pooled_plotcol'),param.pooled_plotcol = [0.0 0.0 0.0; 0.6 0.1 0.2]; end
 if ~isfield(param,'plotStyle'),     param.plotStyle      = 'lines';      end
 if ~isfield(param,'spkWidth'),      param.spkWidth       = 1;            end
@@ -12,6 +12,9 @@ if ~isfield(param,'post'),          param.post           = 2500;         end
 if ~isfield(param,'timelim'),       param.timelim        = [-param.baseline param.post]; end
 if ~isfield(param,'timelimItiOn'),  param.timelimItiOn   = [   0 8000];  end
 if ~isfield(param,'size'),          param.size           = [1900 1000];   end
+
+% overrule para.treatment, to deprecate (TODO)
+param.treatment = opt.treatment;
 
 %% Set
 toalignto = opt.alignto;

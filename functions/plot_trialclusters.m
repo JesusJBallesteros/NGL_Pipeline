@@ -6,20 +6,23 @@ function plot_trialclusters(neurons, events, spike, opt, param)
 if ~isfield(param,'visible'),       param.visible        = 'off';        end
 if ~isfield(param,'size'),          param.size           = [1000 600];   end
 if ~isfield(param,'Resolution'),    param.Resolution     = 300;          end
-if ~isfield(param,'treatment'),     param.treatment      = false;        end
-if ~isfield(param,'plotcol'),       param.plotcol        = [ 0  0  0;
-                                                            .6 .6 .6;
-                                                            .3 .3 .3]; 
+% if ~isfield(param,'treatment'),     param.treatment      = false;        end
+if ~isfield(param,'plotcol'),       param.plotcol        = [ .482  .125  .302;
+                                                             .220  .161  .420;
+                                                             .435  .588  .196];
+end
 % Rasters
 if ~isfield(param,'plotStyle'),     param.plotStyle      = 'lines';      end
 if ~isfield(param,'spkWidth'),      param.spkWidth       = 1;            end
 if ~isfield(param,'lineLength'),    param.lineLength     = 1;            end
-                                    param.timelim        = [0 6000];    % Hard coded, TODO
 if ~isfield(param,'plotevent'),     param.plotevent      = [1 3 7];      end
 % PSH
 if ~isfield(param,'binSize'),       param.binSize        = 200;          end
 if ~isfield(param,'stepSz'),        param.stepSz         = 10;           end
 if ~isfield(param,'smpRate'),       param.smpRate        = 1000;         end
+
+param.timelim        = [0 6000]; % Hard coded, TODO
+param.treatment = opt.treatment; % overrule para.treatment, to deprecate (TODO)
 
 %% Default figure attributes. 
 param.raster.title = 'Whole trial';
@@ -70,16 +73,18 @@ param.trial_change = 1;
 if param.treatment
     % conds = fieldnames(conditions);
     conds = {'AllTrials'};
+    relevant = {1};
 
     % On top, check existence of defined treatments
     if isfield(opt,'trEvents')
         % how many
         ntreatments = numel(opt.trEvents);
+
         % have they start/end or just a single application time?
         for i = 1:ntreatments
             % add levels accordingly, e.g. basal/treatment_present/post (+2) or basal/post (+1)
             param.levels = param.levels + numel(events.(opt.trEvents{i}).time{1});
-            param.trial_change = [param.trial_change events.(opt.trEvents{i}).trial{1}];
+            param.trial_change = [param.trial_change events.(opt.trEvents{i}).trial{1}(2:end)];
         end
     end
 
@@ -92,10 +97,32 @@ elseif opt.plotSocial && ~param.treatment
     % in the social assessment, treatments are 1/0. Add levels accordingly,
     param.levels = 2;
     param.trial_change = ones(1,param.levels);
-    param.plotcol      = [0  0  0;
-                          1  0  0];
+
 % or conditions (TODO)
-% elseif
+elseif opt.useConditions && ~param.treatment
+    conds = fieldnames(events.social);
+    % Set really relevant social conditions for an ItiOn alignment
+    relevant = {[1:7,10,12,14,15], [], []};
+    % in the social assessment, treatments are 1/0. Add levels accordingly,
+    param.levels = 2;
+    param.trial_change = ones(1,param.levels);
+
+end
+
+switch param.levels
+    case 1
+    param.plotcol      = [0  0  0];
+    case 2
+    param.plotcol      = [0  0  0;
+                         .3 .3 .3];
+    case 3
+    param.plotcol      = [ .482  .125  .302;
+                           .220  .161  .420;
+                           .435  .588  .196];     
+    otherwise
+        for i = 4:3:param.levels
+            param.plotcol(i:i+2,:) = param.plotcol(1:3,:);
+        end
 end
 
 %% Whole trial raster and PSH, cluster by cluster
@@ -120,7 +147,7 @@ for a = 1:nalign
                 % Trial-long Spike Raster
                 subplot(3,1,1)
                 trialCounter = 1;
-                    for lvl = 1:param.levels
+                    for lvl = 1:param.levels-1
                         % prepare range of trials to plot
                         trialrange = param.trial_change(lvl):param.trial_change(lvl+1);
                         condsrange = trialrange;
@@ -155,17 +182,29 @@ for a = 1:nalign
             
                 % Plot requested events (param.plotevent)
                 if ~isempty(param.plotevent)
-                    for trial = param.trial_change(1):param.trial_change(end)                            
-                        for ev = param.plotevent
-                            % Check event presence in trial
-                            evidx = find(events.(toalignto{a}).code{trial,1} == ev);
-                            % If any, plot
-                            if ~isempty(evidx)
-                                color = 'k';
-                                if ev == 1, color = 'b'; end % stimOn1
-                                if ev == 3, color = 'b'; end % bhv
-                                if ev == 7, color = 'g'; end % rwd
-                                line(1000*[events.(toalignto{a}).time{trial,1}(evidx) events.(toalignto{a}).time{trial,1}(evidx)], ...
+                    color = 'k';
+                    for ev = param.plotevent
+                        if ev == 1 || 2, color = [.365 .200 .043]; end % stimOn1 || stimOn2 'b'
+                        if ev == 3, color = [.345 .067 .231]; end % bhv 'r'
+                        if ev == 7, color = [.071 .067 .231]; end % rwd 'g'
+                        
+                        evidx = cellfun(@(x) x==ev, events.(toalignto{a}).code, 'UniformOutput', 0);
+%                         evidx = find([events.(toalignto{a}).code{:}] == ev);
+%                         for trial = param.trial_change(1):param.trial_change(end)                            
+%                             % Check event presence in trial
+%                             index = find([C{:}] == 5);
+%                             evidx = cellfun(@find(X==ev), events.(toalignto{a}).code{trial,1}));
+%                             % If any, plot
+%                             if ~isempty(evidx)
+%                                 line(1000*[events.(toalignto{a}).time{trial,1}(evidx) events.(toalignto{a}).time{trial,1}(evidx)], ...
+%                                      [trial trial+1], 'Color', color, 'LineWidth', 2)
+%                             end
+%                         end
+                        
+                        for trial = param.trial_change(1):param.trial_change(end)  
+                            if any(evidx{trial})
+                                line(1000*[max(events.(toalignto{a}).time{trial,1}(evidx{trial})) ...
+                                           max(events.(toalignto{a}).time{trial,1}(evidx{trial}))], ...
                                      [trial trial+1], 'Color', color, 'LineWidth', 2)
                             end
                         end
@@ -182,7 +221,7 @@ for a = 1:nalign
                 % Trial-long PSH
                 jump = 0;
                 subplot(3,2,[3,4])
-                    for lvl=1:param.levels
+                    for lvl=1:param.levels-1
                         % prepare range of trials to plot
                         trialrange = param.trial_change(lvl):param.trial_change(lvl+1);
                         if lvl > 1, trialrange(1) = []; end % remove repeated trial at beginning, when treatments exist

@@ -9,6 +9,7 @@ if ~isfield(opt,'useexe'),          opt.useexe              = true;             
 if ~isfield(opt,'ext'),             opt.ext                 = 'fileperch';          end
 if ~isfield(opt,'eventdef'),        opt.eventdef            = eventDefinitions();   end
 if ~isfield(opt,'trEvents'),        opt.trEvents            = [];                   end
+if ~isfield(opt,'addtime'),         opt.addtime             = 0;                    end
 
 opt.exefile = 'C:\Code\ephys-data-pipeline\toolboxes\Deuteron\software\Event_File_Reader_9_0.exe';
 
@@ -16,6 +17,7 @@ opt.exefile = 'C:\Code\ephys-data-pipeline\toolboxes\Deuteron\software\Event_Fil
 events      = []; % If remains empty, data shall be treated as continuous.
 trialdef    = [];
 EventRecord = [];
+conditions  = [];
 
 %% Check for alredy collected events
 check = 0;
@@ -63,35 +65,9 @@ if opt.RetrieveEvents
     disp('Creating trial definitions based on extracted EventRecord and Eventcodes descriptions.')
     [events, trialdef, opt.eventdef] = trialdefGen(EventRecord, opt);
 
-    % Create the conditions variable for trial indexing
-    % Initialize all fields with zeros
-    zerovec = zeros(length(events.itiOn.code),1);
-    condition = struct( 'correct', zerovec, 'incorrect', zerovec, 'omission', zerovec, ...
-                        'response', zerovec, 'aborted', zerovec, 'stimulus', zerovec);
-    
-    % Trial by trial, classify them. Using 'itiOn' bc it should be the minimal
-    % choice of alignment, and events are the same for any alignment.
-    for i=1:length(events.itiOn.code)
-        trialvect = events.itiOn.code{i,1};
-        if sum(ismember(trialvect, [opt.eventdef.bhv opt.eventdef.rwd]))==2
-            condition.response(i) = 1;
-            condition.correct(i) = 1;
-        end
-        if sum(ismember(trialvect, [opt.eventdef.bhv opt.eventdef.pun]))==2
-            condition.response(i) = 1;
-            condition.incorrect(i) = 1;
-        end
-        if any(ismember(trialvect, [opt.eventdef.oms1 opt.eventdef.oms2]))
-            condition.omission(i) = 1;
-        end
-        % FOR MORE add as (with corresponding logical index): 
-        % if ismember(trialvect, [opt.eventdef.xxx opt.eventdef.yyy])
-        %     condition.xxxyyy(i) = 1;
-        % end
-        % if ismember(trialvect, [opt.eventdef.xxx opt.eventdef.yyy])
-        %     condition.xxxyyy(i) = 1;
-        % end
-    end  
+    %% Run the personalized script for the conditions to be extracted
+    run('conditions_script.m');
+
 else
     disp('Events not requested. Skipped.')
     return
@@ -101,6 +77,6 @@ end
 save(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')), 'EventRecord', '-v7.3');
 save(fullfile(opt.trialSorted, strcat('trialdef.mat')), 'trialdef', '-v7.3');
 save(fullfile(opt.analysis, strcat('events.mat')), 'events', '-v7.3');
-save(fullfile(opt.analysis, strcat('condition.mat')), 'condition', '-v7.3');
+save(fullfile(opt.analysis, strcat('condition.mat')), 'conditions', '-v7.3');
 
 end

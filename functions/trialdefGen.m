@@ -51,37 +51,43 @@ switch useevents
                            EventRecord.EventType == opt.eventdef.end3);
         
         if ~(length(idx.start)==length(idx.end)) % matching start-end events
-            warning('A mismatch between number of start/end trials found. Trying to fix it.')
-            % Possible sources of start-end mismatch:
-            if any(idx.end(idx.end<idx.start(1)))
-                % trialend events BEFORE first trialstart. Possible error ending
-                % a previous session, leaving the pins in a different state than 
-                % the expected [1 1 0 0], generating succesive arbitrary events 
-                % until a point where the preIni state is enforced. 
-                % Solution, remove all events before first star trial event.
-                EventRecord.EventNumber(1:idx.start(1)-1)   = [];
-                EventRecord.EventType(1:idx.start(1)-1)     = [];
-                EventRecord.TimeStamp(1:idx.start(1)-1)     = [];
-                EventRecord.TimeMsFromMidnight(1:idx.start(1)-1) = [];
-                EventRecord.TimeSource(1:idx.start(1)-1)    = [];
-                EventRecord.Details(1:idx.start(1)-1)       = [];
-                % Possible FIX to recover these initial trials? Assume firs sent event
-                % is start trial. MANUAL CHECK!
-    	        warning('Events before first start trial removed. Check if these trials are recoverable.')
-        
-            elseif any(idx.start(idx.start>idx.end(end)))
-                % This is a lonely trial start with no apparent end. Error
-                % at session level or at event reading? Get rid of this
-                % lonely last trial.
-                EventRecord.EventNumber(idx.start(end):end)   = [];
-                EventRecord.EventType(idx.start(end):end)     = [];
-                EventRecord.TimeStamp(idx.start(end):end)     = [];
-                EventRecord.TimeMsFromMidnight(idx.start(end):end) = [];
-                EventRecord.TimeSource(idx.start(end):end)    = [];
-                EventRecord.Details(idx.start(end):end)       = [];
+            warning('A mismatch between number of start/end trials found.')
+            if exist(fullfile(opt.behavFiles,"EventRecord.mat"),"file") 
+                load(fullfile(opt.behavFiles,"EventRecord.mat"), 'EventRecord');
+                warning('A fixed EventRecord variable found.')
+            else
+                warning('Trying to fix it.')
+                % Possible sources of start-end mismatch:
+                if any(idx.end(idx.end<idx.start(1)))
+                    % trialend events BEFORE first trialstart. Possible error ending
+                    % a previous session, leaving the pins in a different state than 
+                    % the expected [1 1 0 0], generating succesive arbitrary events 
+                    % until a point where the preIni state is enforced. 
+                    % Solution, remove all events before first star trial event.
+                    EventRecord.EventNumber(1:idx.start(1)-1)   = [];
+                    EventRecord.EventType(1:idx.start(1)-1)     = [];
+                    EventRecord.TimeStamp(1:idx.start(1)-1)     = [];
+                    EventRecord.TimeMsFromMidnight(1:idx.start(1)-1) = [];
+                    EventRecord.TimeSource(1:idx.start(1)-1)    = [];
+                    EventRecord.Details(1:idx.start(1)-1)       = [];
+                    % Possible FIX to recover these initial trials? Assume firs sent event
+                    % is start trial. MANUAL CHECK!
+    	            warning('Events before first start trial removed. Check if these trials are recoverable.')
+            
+                elseif any(idx.start(idx.start>idx.end(end)))
+                    % This is a lonely trial start with no apparent end. Error
+                    % at session level or at event reading? Get rid of this
+                    % lonely last trial.
+                    EventRecord.EventNumber(idx.start(end):end)   = [];
+                    EventRecord.EventType(idx.start(end):end)     = [];
+                    EventRecord.TimeStamp(idx.start(end):end)     = [];
+                    EventRecord.TimeMsFromMidnight(idx.start(end):end) = [];
+                    EventRecord.TimeSource(idx.start(end):end)    = [];
+                    EventRecord.Details(idx.start(end):end)       = [];
+                end
             end
             
-            % re-run idexing due to cover the changes
+            % re-run idexing to recover the changes
             idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 
             idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
                                EventRecord.EventType==opt.eventdef.end2 | ...
@@ -145,11 +151,41 @@ switch useevents
     case 0
         for i=1:size(opt.alignto,1)
             trialdef{1,i} = opt.alignto{i,1};
-            
+                
+            if i > 1
+               trialdef{2,i} = nan(size(trialdef{2,1}));
+            end
+
             idx = find(EventRecord.EventType==opt.alignto{i,2}); 
-            trialdef{2,i}(:,1) = trialstarts;
-            trialdef{2,i}(:,2) = trialends; 
-            trialdef{2,i}(:,3) = EventRecord.TimeMsFromMidnight(idx); % get corresponding timestamps.
+                if strcmp(opt.alignto{i,1},'bhv')
+                    idx(EventRecord.EventType(idx-1)~=opt.alignto{i-1,2}) = [];
+                end
+
+            % start times
+            trialdef{2,i}(:,1) = trialstarts-opt.addtime;
+                if trialdef{2,i}(1,1) < 0
+                    trialdef{2,i}(1,1) = trialdef{2,i}(1,1)+opt.addtime; 
+                end
+           
+            % end times
+            trialdef{2,i}(:,2) = trialends+opt.addtime;
+            
+            % zero times
+            if size(trialdef{2,i},1) == size(idx,1)
+                trialdef{2,i}(:,3) = EventRecord.TimeMsFromMidnight(idx); 
+            elseif size(trialdef{2,i},1) ~= size(idx,1)
+                trl = 1;
+                for td = 1:size(trialdef{2,3},1)
+                    tmps = EventRecord.TimeMsFromMidnight(idx(trl));
+                    if tmps > trialdef{2,i}(td,1) && tmps < trialdef{2,i}(td,2)
+                        trialdef{2,i}(td,3) = tmps;
+                        trl = trl + 1;
+                    else
+                        trialdef{2,i}(td,3) = nan;
+                    end
+                end
+
+            end
         end
     
     case 1
@@ -170,8 +206,8 @@ switch useevents
             idx.align = cell2mat(idx.align); % cell 2 mat
 
             % Retrieve the times compatible with alignment event
-            trialdef{2,i}(:,1) = trialstarts(~chck);
-            trialdef{2,i}(:,2) = trialends(~chck);
+            trialdef{2,i}(:,1) = trialstarts(~chck)-opt.addtime;
+            trialdef{2,i}(:,2) = trialends(~chck)+opt.addtime;
             for p = 2:ntrials-(sum(chck))
                 trialdef{2,i}(p,3) = EventRecord.time{p}(idx.align(p))+trialdef{2,i}(p-1,2);
             end
