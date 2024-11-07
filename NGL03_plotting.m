@@ -54,7 +54,7 @@ for x = 1:input.nsubjects % Subjects.
         % whole trial
         if ~exist('spike','var'),     load(fullfile(opt.spikeSorted, "spike.mat")),    end
         if opt.plot_trial
-            plot_trialclusters(neurons, events, spike, opt, param)
+            plot_trialclusters(neurons, events, spike, conditions, opt, param)
         end
 
         % aligned to requested events, per cluster

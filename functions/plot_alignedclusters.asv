@@ -60,6 +60,12 @@ param.isihist.xtick  = 0:20:400; % time ticks
 param.isihist.yticklabels = {'auto'}; % prob label
 param.isihist.xticklabels = {mat2cell(param.isihist.xtick/2,1)}; % time label
 
+%% Get details
+toalignto = opt.alignto;
+
+% How many alignments
+nalign = numel(toalignto); 
+
 % Figure size
 if strcmpi('adaptive', param.size)
     screen.size = get(0, 'ScreenSize');  
@@ -70,19 +76,14 @@ else
     screen.height = param.size(2);
 end
 
-%% Initialize stuff
-toalignto = opt.alignto;
-
-% How many alignments
-nalign = numel(toalignto); 
-
+%% Initialize levels
 param.levels{1}         = 1; % force cell integer
 param.trial_change{1}   = 1; % force cell integer
 ntreatments             = 1;
 conds                   = {};
 bhv = 0;
 
-%% Prepare treatments
+
 if param.treatment
     % conds = fieldnames(conditions);
     conds = {'AllTrials'};
@@ -103,7 +104,7 @@ if param.treatment
             end
 
             % Small tweak for 'tr2' case in Extintion Arena, here it
-            % signifies that Novel Stimulus was shown in the trial,
+            % signifies which the Novel Stimulus was shown in the trial,
             % rather than a block/level change in the paradigm.
             if param.levels{i} > 9, param.levels{i} = 2; end
         end
@@ -117,7 +118,7 @@ if opt.plotSocial
     relevant = {[1:7,10,12,14,15], [], []};
     % in the social assessment, treatments are 1/0. Add levels accordingly,
     param.levels{3} = 2;
-    param.trial_change{3} = ones(1,param.levels{i});
+    param.trial_change{3} = ones(1,param.levels);
 
 elseif opt.useConditions
     conds = [conds; fieldnames(conditions)];
@@ -137,7 +138,7 @@ end
 %         % have they start/end or just a single application time?
 %         for i = 1:ntreatments
 %             % add levels accordingly, e.g. basal/treatment_present/post (+2) or basal/post (+1)
-%             param.levels{i} = param.levels{i} + numel(events.(opt.trEvents{i}).time{1});
+%             param.levels = param.levels + numel(events.(opt.trEvents{i}).time{1});
 %             param.trial_change = [param.trial_change events.(opt.trEvents{i}).trial{1}(2:end)];
 %         end
 %     end
@@ -148,8 +149,8 @@ end
 %     % Set really relevant social conditions for StimOn, rwd, alignment
 %     relevant = {[], [1:7,10,12,14,15], [1:7,10,12,14,15]};
 %     % in the social assessment, treatments are 1/0. Add levels accordingly,
-%     param.levels{i} = 2;
-%     param.trial_change = ones(1,param.levels{i});
+%     param.levels = 2;
+%     param.trial_change = ones(1,param.levels);
 %     param.plotcol      = [0  0  0;
 %                           1  0  0];
 % % or conditions (TODO)
@@ -158,11 +159,11 @@ end
 %     % Set really relevant social conditions for an ItiOn alignment
 %     relevant = {[], [], []}; % (TODO)
 %     % in the social assessment, treatments are 1/0. Add levels accordingly,
-%     param.levels{i} = 2;
-%     param.trial_change = ones(1,param.levels{i});
+%     param.levels = 2;
+%     param.trial_change = ones(1,param.levels);
 % end
 
-switch param.levels{i}
+switch param.levels
     case 1
     param.plotcol      = [0  0  0];
     case 2
@@ -173,7 +174,7 @@ switch param.levels{i}
                           .6 .6 .6;
                           .3 .3 .3];
     otherwise
-        for i = 4:3:param.levels{i}
+        for i = 4:3:param.levels
             param.plotcol(i:i+2,:) = param.plotcol(1:3,:);
         end
 end
@@ -207,10 +208,10 @@ for a = 1:nalign
             % Event-aligned Spike Raster
             subplot(2,2,1)
             trialCounter = 1;
-                for lvl = 1:param.levels{i}
+                for lvl = 1:param.levels
 
                     % For no condition, skip last level
-                    if param.treatment && lvl==param.levels{i}(end), continue, end
+                    if param.treatment && lvl==param.levels(end), continue, end
                     
                     % prepare range of trials to plot
                     trialrange = param.trial_change(lvl):param.trial_change(lvl+1);
@@ -313,7 +314,7 @@ for a = 1:nalign
             % Event-aligned PSH
             jump = 0;
             subplot(2,2,3)
-                for lvl = 1:param.levels{i}-1
+                for lvl = 1:param.levels-1
                     % prepare range of trials to plot
                     trialrange = param.trial_change(lvl):param.trial_change(lvl+1);
                     if lvl > 1, trialrange(1) = []; end % remove repeated trial at beginning, when treatments exist

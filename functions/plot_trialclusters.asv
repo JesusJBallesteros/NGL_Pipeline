@@ -246,29 +246,16 @@ for p = 1:length(param.levels)
                         for lvl=1:param.levels{p}-1
                             % prepare range of trials to plot
                             trialrange = param.trial_change{p}(lvl):param.trial_change{p}(lvl+1);
-                            condsrange = trialrange;
                             if lvl > 1, trialrange(1) = []; end % remove repeated trial at beginning, when treatments exist
-                            
-                            % When plotting trials with condition true/false
                             if size(conds,1) > 1
                                 trialrange = param.trial_change{p}(1):param.trial_change{p}(end);
-                                                        
-                                % Here, we plot trials true for a given event
-                                if cc > 1 && opt.plotSocial
-                                    cndidx = events.social.(conds{cc-1});
-                                elseif cc > 1 && opt.useConditions 
-                                    cndidx = conditions.(conds{cc-1});
+                                cndidx = events.social.(conds{cc});
+                                % restrict trials to those indexed as 
+                                if lvl == 1,    condsrange = cndidx; % true
+                                elseif lvl==2,  condsrange = ~cndidx; % false
                                 end
-                                   
-                                % restrict trials to those indexed above 
-                                if ~isempty(cndidx)
-                                    if     lvl == 1,  condsrange = cndidx;  % use true       
-                                    elseif lvl == 2,  condsrange = ~cndidx; % use false
-                                    end
-                                    trialCounter = 1; % always plot from first trial
-                                end
-        
-                            end                            
+                            end
+                            
                             if length(trialrange) < 2, continue, end
                             % if no trials for this specific conditions, add to off-switch
                             if sum(condsrange) < 1, jump = jump + 1; continue, end 

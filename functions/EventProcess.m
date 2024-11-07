@@ -5,7 +5,7 @@ function [events, trialdef, EventRecord] = EventProcess(opt)
 % Jesus 17.10.2024
 
 %% Defaults.
-if ~isfield(opt,'useexe'),          opt.useexe              = true;                 end
+if ~isfield(opt,'useexe'),          opt.useexe              = true;                end
 if ~isfield(opt,'ext'),             opt.ext                 = 'fileperch';          end
 if ~isfield(opt,'eventdef'),        opt.eventdef            = eventDefinitions();   end
 if ~isfield(opt,'trEvents'),        opt.trEvents            = [];                   end
