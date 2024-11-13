@@ -86,8 +86,8 @@ for x = 1:input.nsubjects % Subjects.
                    
         %% 04.2 Raster, trace, PSH, ISI
         % whole trial
+        if ~exist('spike','var'),     load(fullfile(opt.spikeSorted, "spike.mat")),    end
         if opt.plot_trial
-            if ~exist('spike','var'),     load(fullfile(opt.spikeSorted, "spike.mat")),    end
             plot_trialclusters(allneurons{x,y}, allevents{x,y}, spike, allconditions{x,y}, opt, param)
         end
         

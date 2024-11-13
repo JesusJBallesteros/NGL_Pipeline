@@ -1,4 +1,4 @@
-function plot_alignedclusters(neurons, events, spike, opt, param)
+function plot_alignedclusters(neurons, events, spike, conditions, opt, param)
 % Will take neuron-trial data and plot a series of basic rasters,
 % histograms and other statistics to inspect clusters in relation to task
 % events. A variable number of options can be given to modify plots without

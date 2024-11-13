@@ -48,12 +48,12 @@ end
 % Y axis, normally defined
 yticklabels(plotops.yticklabels{1});
 
-% Title, obtained dynamically
-if isfield(plotops, 'title')
-    title(plotops.title);
-    subtitle(plotops.subtitle);
-    set(get(gca, 'Title'), 'FontSize', 18);
-end
+% % Title, obtained dynamically
+% if isfield(plotops, 'title')
+%     title(plotops.title);
+%     subtitle(plotops.subtitle);
+%     set(get(gca, 'Title'), 'FontSize', 18);
+% end
 
 % Fonts, for all
 set(gca, 'FontSize', 8);

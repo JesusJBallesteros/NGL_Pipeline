@@ -42,7 +42,7 @@ end
 
 % Get available subjects. Read all existing content under datafolder
 cd(fullfile(input.datafolder))
-    if isfile("_findatserver"), cd(fullfile(input.analysis)), end
+    if isfile("_findatserver"), cd(fullfile(input.processed)), end
 subjects = dir('???*');
 
 if strcmp(input.subjects, 'all') % request is 'all'
