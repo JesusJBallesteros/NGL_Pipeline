@@ -23,10 +23,14 @@ gcf;
 
 % Modify/add attributes
 box("off");
-xline(0,'--k');
 ylabel(plotops.ylabel);
 xlabel(plotops.xlabel);
 yticks(plotops.ytick);
+
+% for raster alignment
+if ~plotops.ispsh
+    xline(0,'--k');
+end
 
 % X axis
 if isitiON == 1 % iti alignment
@@ -47,13 +51,6 @@ end
 
 % Y axis, normally defined
 yticklabels(plotops.yticklabels{1});
-
-% % Title, obtained dynamically
-% if isfield(plotops, 'title')
-%     title(plotops.title);
-%     subtitle(plotops.subtitle);
-%     set(get(gca, 'Title'), 'FontSize', 18);
-% end
 
 % Fonts, for all
 set(gca, 'FontSize', 8);

@@ -43,12 +43,14 @@ function upperY = plotPSTH(spikes,stepSz,binSize,interval,smpRate,varargin)
 %                           input arguments
 % 22.10.2024, Jesus: Added spikes2use index to use only non-empty trials
 %                           for calculations.
+% 19.11.2024, Jesus: Added possibility to remove error shades by setting alpha to 0;.
 
 %% check inputs
 %set defaults
 plotCol = [0 0 0];
 meanline = '-';
 smoothPlot = true;
+erralpha = 0.7;
 if nargin>5
     for i=1:2:length(varargin)
         if isa(varargin{i},'char') || isa(varargin{i},'string')
@@ -60,6 +62,9 @@ if nargin>5
                 case 'smoothplot'
                     %set to ~ because nanMeanSterrHistogram uses dontsmooth
                     smoothPlot = ~varargin{i+1};
+                case 'erralpha'
+                    %set to ~ because nanMeanSterrHistogram uses dontsmooth
+                    erralpha = varargin{i+1};
                 otherwise
                     error(['unknown input parameter: ' varargin{i+1}])
             end
@@ -85,7 +90,7 @@ if nargin>5
         [trlmean, trlsterr, ~] = nanMeanSterrHistogram(...
             fireRate{intervalNo},...
             'errcol',plotCol,'meancol',plotCol,...
-            'nomean',false,'erralpha',0.7,'meansize',3,...
+            'nomean',false,'erralpha',erralpha,'meansize',2,...
             'dontsmooth',smoothPlot,'meanline',meanline);
     end
     upperY = ceil(max(trlmean+trlsterr))+1;
