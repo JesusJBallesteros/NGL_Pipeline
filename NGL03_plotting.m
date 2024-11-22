@@ -60,7 +60,7 @@ for x = 1:input.nsubjects % Subjects.
         % Collect all data into single all variables: events, neurons, conditions, blob
         allneurons{x,y}     = neurons;
         allevents{x,y}      = events;
-        allconditions{x,y}  = condition;
+        allconditions{x,y}  = conditions;
         allspike{x,y}       = spike;
         allblobs{x,y}       = blob;
     

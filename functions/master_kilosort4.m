@@ -119,8 +119,8 @@ if pe.ExecutionMode && pe.Status > 0
 
     % Proceed to start enviroment
     if pe.Status == "Terminated"
-        % And only if properly terminated, reset it
-        pe = pyenv('Version', [input.KSpyenv_NGL,'\python.exe'], 'ExecutionMode', 'OutOfProcess');
+        % And only if properl'y terminated, reset it
+        pe = pyenv('ExecutionMode', 'OutOfProcess');
         py.list; % a call to restart the Interpreter
         pe = pyenv; % Recall enviroment status
     else

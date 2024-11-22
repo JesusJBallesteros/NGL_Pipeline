@@ -49,29 +49,28 @@ for c = 1:nclus
         end
 
         %% IN DEVELOPMENT
-        % In addition, find event times and and codes at video-asessment
-        % file, for social interaction cues extracted by students at Juan's
-        % Social paradigm
-        for i=1:size(opt.alignto,1)
-            events.(opt.alignto{i,1}) = [];
-        
-            for t = 1:ntrials
-                % Grab all timestamps between time of start and time of end (inclusive)
-                trialstamps = EventRecord.TimeSecFromMidnight(EventRecord.TimeSecFromMidnight >= trialdef{2,i}(t,1)/1000 & ...
-                                                             EventRecord.TimeSecFromMidnight <= trialdef{2,i}(t,2)/1000);
-                % Relativize trial timestamps to alignment offset
-                trialstamps = trialstamps - trialdef{2,i}(t,3)/1000; 
-            
-                % Grab all events ocurring between time of start and time of end (inclusive)
-                trialevents = EventRecord.EventType(EventRecord.TimeSecFromMidnight >= trialdef{2,i}(t,1)/1000 & ...
-                                                    EventRecord.TimeSecFromMidnight <= trialdef{2,i}(t,2)/1000);
-        
-                % Insert into the proper structure to be output.
-                events.(opt.alignto{i,1}).code{t,1} = trialevents; 
-                events.(opt.alignto{i,1}).time{t,1} = trialstamps; 
-            end
-        end
-
+%         % In addition, find event times and and codes at video-asessment
+%         % file, for social interaction cues extracted by students at Juan's
+%         % Social paradigm
+%         for i=1:size(opt.alignto,1)
+%             events.(opt.alignto{i,1}) = [];
+%         
+%             for t = 1:ntrial
+%                 % Grab all timestamps between time of start and time of end (inclusive)
+%                 trialstamps = EventRecord.TimeSecFromMidnight(EventRecord.TimeSecFromMidnight >= trialdef{2,i}(t,1)/1000 & ...
+%                                                              EventRecord.TimeSecFromMidnight <= trialdef{2,i}(t,2)/1000);
+%                 % Relativize trial timestamps to alignment offset
+%                 trialstamps = trialstamps - trialdef{2,i}(t,3)/1000; 
+%             
+%                 % Grab all events ocurring between time of start and time of end (inclusive)
+%                 trialevents = EventRecord.EventType(EventRecord.TimeSecFromMidnight >= trialdef{2,i}(t,1)/1000 & ...
+%                                                     EventRecord.TimeSecFromMidnight <= trialdef{2,i}(t,2)/1000);
+%         
+%                 % Insert into the proper structure to be output.
+%                 events.(opt.alignto{i,1}).code{t,1} = trialevents; 
+%                 events.(opt.alignto{i,1}).time{t,1} = trialstamps; 
+%             end
+%         end
 
     end
 end
