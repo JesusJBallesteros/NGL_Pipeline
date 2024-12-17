@@ -27,10 +27,10 @@ ylabel(plotops.ylabel);
 xlabel(plotops.xlabel);
 yticks(plotops.ytick);
 
-% for raster alignment
-if ~plotops.ispsh
-    xline(0,'--k');
-end
+% % for raster alignment
+% if ~plotops.ispsh
+%     xline(0,'--k');
+% end
 
 % X axis
 if isitiON == 1 % iti alignment

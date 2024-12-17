@@ -28,7 +28,7 @@ input.sessions = findSessions(input);
 dosave = 1;
 
 for x = 1:input.nsubjects % Subjects.
-    for y = 1:input.sessions(x).nsessions % Sessions.
+    for y = 2%1:input.sessions(x).nsessions % Sessions.
         input.run = [x y]; % Current run, to pass to functions.
         
         %% 02. Proceed only once
@@ -74,7 +74,7 @@ end
 
 %% Plot session by session
 for x = 1:input.nsubjects % Subjects.
-    for y = 1:input.sessions(x).nsessions % Sessions.
+    for y = 2%1:input.sessions(x).nsessions % Sessions.
         input.run = [x y]; % Current run, to pass to functions.
 
         %% 04.1 All clusters piled, ...

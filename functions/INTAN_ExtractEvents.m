@@ -2,8 +2,8 @@ function EventRecord = INTAN_ExtractEvents(opt)
 % Based on original function readEvents()
 % Use this function to read event-codes saved in Intan (one file per channel).
 %   Current version looks for any change in a digital pin, using that time
-%   as event start. It controls for inconsistencies by considering 15
-%   samples after this time (0.5ms). Unit of time is sample index (not
+%   as event start. It controls for inconsistencies by considering 28
+%   samples after this time (0.9ms). Unit of time is sample index (not
 %   seconds) and it is relativized to the first event (start of session).
 %   This version is NOT backwards compatible.
 %
@@ -31,7 +31,7 @@ function EventRecord = INTAN_ExtractEvents(opt)
 
 %% Defaults
 pth     = opt.PathRaw; % folder for reading events
-smpDel  = 14;       % an event code is the sum over n samples (to catch instabilities)
+smpDel  = 14*2;       % an event code is read after smpDel since first pin change, for additional smpDel since (to catch instabilities)
 
 %% Initialize
 INfiles = string(ls(fullfile(pth,"board-DIGITAL-IN*")));
@@ -56,31 +56,46 @@ clear tmp i fid
 % remove samples during which pin 1 and 2 are up (per default before reset of all pins,
 % necessary in order to correctly extract all relevant events).
 startState = dIn(1,:); % Read pins states as recording starts 
-pinsOff = find(any(dIn(:,1:16)~=startState,2), 1, "first");  % find first pin change
+pinsOff = find(any(dIn(:,1:npins)~=startState,2), 1, "first");  % find first pin change
 if pinsOff ~= 1 % Only if is not already the first sample
     dIn(1:pinsOff, :) = []; % remove all samples until then
 end
 clear pinsOff
 
-% Find samples at which any pin changes (total sum ~= from previous
-% sample)
-checksum = single(sum(dIn,2));
-ts = find(diff([0; checksum])~=0);
+%% Find samples at which any pin changes
+checksum = [zeros(1,npins); diff(dIn,1)];
+ts = find(any(checksum,2));
 clear checksum 
 
+% check for pin changes too close to each other (inconsistencies, or delayed
+% change of a single event)
+for i = 2:size(ts,1)
+    if ts(i)-ts(i-1) < smpDel % if pin changes are too close
+        ts(i) = nan;     % This ts becomes NAN
+    end
+end
+
+% clean up NANs, to not be considered as new events
+ts(isnan(ts)) = [];
+
+% !!! ***
+% checksum = single(sum(dIn,2));
+% ts = find(diff([0; checksum])~=0);
+% clear checksum 
+
 %% CONVERT all events
-% convert each binary word to its corresponding decimal using the 16 bits
+% convert each binary word to its corresponding decimal using the npins bits
 EventType = nan(size(ts,1),1);
 
-for i = 1:size(ts,1)
-    % Convert binary pins to decimal, sum over n samples to catch inconsitencies
+for i = 1:size(ts)
+    % Convert binary pins to decimal, as sum over smpDel forward to catch inconsitencies
     EventType(i) = binvec2dec(sum(dIn(ts(i):ts(i)+smpDel,:))); % binary vector to decimal integer
 end
 clear dIn
 
 %% Place extracted information into a proper EventRecord
-EventRecord.EventNumber         = double(1:1:length(EventType))';
 EventRecord.EventType           = double(EventType);
+EventRecord.EventNumber         = double(1:1:length(EventType))';
 EventRecord.TimeStamp           = nan(length(EventType),1);
 EventRecord.TimeMsFromMidnight  = ts;
 EventRecord.TimeSource          = nan(length(EventType),1);
