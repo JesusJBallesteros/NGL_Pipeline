@@ -20,7 +20,7 @@ MAIN_PARAMETERS = {
     # NOTE: n_chan_bin must be specified by user when running through API
     'n_chan_bin': {  
         'gui_name': 'number of channels', 'type': int, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 32, 'step': 'data',
+        'exclude': [0], 'default': 385, 'step': 'data',
         'description':
             """
             Total number of channels in the binary file, which may be different
@@ -32,7 +32,7 @@ MAIN_PARAMETERS = {
 
     'fs': {
         'gui_name': 'sampling frequency', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 32000, 'step': 'data',
+        'exclude': [0], 'default': 30000, 'step': 'data',
         'description':
             """
             Sampling frequency of probe.
@@ -41,7 +41,7 @@ MAIN_PARAMETERS = {
 
     'batch_size': {
         'gui_name': 'batch size', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 160000, 'step': 'data',
+        'exclude': [], 'default': 60000, 'step': 'data',
         'description':
             """
             Number of samples included in each batch of data.
@@ -50,7 +50,7 @@ MAIN_PARAMETERS = {
 
     'nblocks': {
         'gui_name': 'nblocks', 'type': int, 'min': 0, 'max': np.inf,
-        'exclude': [], 'default': 0, 'step': 'preprocessing',
+        'exclude': [], 'default': 1, 'step': 'preprocessing',
         'description':
             """
             Number of non-overlapping blocks for drift correction
@@ -60,7 +60,7 @@ MAIN_PARAMETERS = {
 
     'Th_universal': {
         'gui_name': 'Th (universal)', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 12, 'step': 'spike detection',
+        'exclude': [0], 'default': 9, 'step': 'spike detection',
         'description':
             """
             Spike detection threshold for universal templates.
@@ -70,7 +70,7 @@ MAIN_PARAMETERS = {
 
     'Th_learned': {
         'gui_name': 'Th (learned)', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 11, 'step': 'spike detection',
+        'exclude': [0], 'default': 8, 'step': 'spike detection',
         'description':
             """
             Spike detection threshold for learned templates.
@@ -104,7 +104,7 @@ EXTRA_PARAMETERS = {
     ### DATA
     'nt': {
         'gui_name': 'nt', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 65, 'step': 'data',
+        'exclude': [], 'default': 61, 'step': 'data',
         'description':
             """
             Number of samples per waveform. Also size of symmetric padding
@@ -154,7 +154,7 @@ EXTRA_PARAMETERS = {
 
     'nskip': {
         'gui_name': 'nskip', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 1, 'step': 'preprocessing',
+        'exclude': [], 'default': 25, 'step': 'preprocessing',
         'description':
             """
             Batch stride for computing whitening matrix.
@@ -163,7 +163,7 @@ EXTRA_PARAMETERS = {
 
     'whitening_range': {
         'gui_name': 'whitening range', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 6, 'step': 'preprocessing',
+        'exclude': [], 'default': 32, 'step': 'preprocessing',
         'description':
             """
             Number of nearby channels used to estimate the whitening matrix.
@@ -172,7 +172,7 @@ EXTRA_PARAMETERS = {
 
     'highpass_cutoff': {
         'gui_name': 'highpass cutoff', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [], 'default': 400, 'step': 'preprocessing',
+        'exclude': [], 'default': 300, 'step': 'preprocessing',
         'description':
             """
             Critical frequency for highpass Butterworth filter applied to data.
@@ -249,7 +249,7 @@ EXTRA_PARAMETERS = {
 
     'min_template_size': {
         'gui_name': 'min template size', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 15, 'step': 'spike detection',
+        'exclude': [0], 'default': 10, 'step': 'spike detection',
         'description':
             """
             Standard deviation of the smallest, spatial envelope Gaussian used
@@ -269,7 +269,7 @@ EXTRA_PARAMETERS = {
 
     'nearest_chans': {
         'gui_name': 'nearest chans', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 5, 'step': 'spike detection',
+        'exclude': [], 'default': 10, 'step': 'spike detection',
         'description':
             """
             Number of nearest channels to consider when finding local maxima
@@ -279,7 +279,7 @@ EXTRA_PARAMETERS = {
 
     'nearest_templates': {
         'gui_name': 'nearest templates', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 50, 'step': 'spike detection',
+        'exclude': [], 'default': 100, 'step': 'spike detection',
         'description':
             """
             Number of nearest spike template locations to consider when finding
@@ -289,7 +289,7 @@ EXTRA_PARAMETERS = {
 
     'max_channel_distance': {
         'gui_name': 'max channel distance', 'type': float, 'min': 1,
-        'max': np.inf, 'exclude': [], 'default': 151, 'step': 'spike detection',
+        'max': np.inf, 'exclude': [], 'default': 32, 'step': 'spike detection',
         'description':
             """
             Templates farther away than this from their nearest channel will
@@ -330,7 +330,7 @@ EXTRA_PARAMETERS = {
 
     'Th_single_ch': {
         'gui_name': 'Th (single channel)', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 7, 'step': 'spike detection',
+        'exclude': [0], 'default': 6, 'step': 'spike detection',
         'description':
             """
             For single channel threshold crossings to compute universal-
@@ -372,7 +372,7 @@ EXTRA_PARAMETERS = {
 
     'x_centers': {
         'gui_name': 'x centers', 'type': int, 'min': 1,
-        'max': np.inf, 'exclude': [], 'default': 2, 'step': 'clustering',
+        'max': np.inf, 'exclude': [], 'default': None, 'step': 'clustering',
         'description':
             """
             Number of x-positions to use when determining center points for
@@ -398,6 +398,18 @@ EXTRA_PARAMETERS = {
             default of 7 bins for a 30kHz sampling rate.
             """
     },
+
+    'position_limit': {
+        'gui_name': 'position limit', 'type': float, 'min': 0, 'max': np.inf,
+        'exclude': [], 'default': 100, 'step': 'postprocessing',
+        'description':
+            """
+            Maximum distance (in microns) between channels that can be used
+            to estimate spike positions in `postprocessing.compute_spike_positions`.
+            This does not affect spike sorting, only how positions are estimated
+            after sorting is complete.
+            """
+    },
 }
 
 # Add default values to descriptions
@@ -420,3 +432,33 @@ main_defaults = {k: v['default'] for k, v in MAIN_PARAMETERS.items()}
 extra_defaults = {k: v['default'] for k, v in EXTRA_PARAMETERS.items()}
 # In the format expected by `run_kilosort`
 DEFAULT_SETTINGS = {**main_defaults, **extra_defaults}
+
+
+def compare_settings(settings):
+    """Find settings values that differ from the defaults.
+    
+    Parameters
+    ----------
+    settings : dict
+        Formatted the same as `DEFAULT_SETTINGS`.
+    
+    Returns
+    -------
+    modified_settings : dict
+        Formatted as above, but only contains keys with values that differ
+        from the defaults.
+    extra_keys : list
+        List of keys that appear in `settings` but not `DEFAULT_SETTINGS`.
+        These keys are *not* included in `modified_settings`.
+
+    """
+    modified_settings = {}
+    extra_keys = []
+
+    for k, v in settings.items():
+        if k in DEFAULT_SETTINGS:
+            if v != DEFAULT_SETTINGS[k]:
+                modified_settings[k] = v
+        else:
+            extra_keys.append(k)
+    return modified_settings, extra_keys
