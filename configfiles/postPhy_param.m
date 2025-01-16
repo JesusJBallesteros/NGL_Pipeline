@@ -10,7 +10,8 @@
 % blobs and categorizing as 'interactions' those when the blob merge into a
 % single one. 
 % % Working.
-opt.offlineTrack = false;
+opt.offlineTrack = true;
+opt.useTrack     = false;
 
 %% Spike analysis and plots 
 % Proceed to some analysis and plots for clustered units obtained from
@@ -33,7 +34,7 @@ opt.FLIP = false;
 % from the clustered units. 
 % Suboptions are probably to held fix for everyone.
 % % Working
-opt.getwF                   = true;
+opt.getwF                   = false;
     opt.gwfparams.dataType      = 'int16';  % Data type of .dat file
     opt.gwfparams.nCh           = 32;       % Number of channels that were streamed in .dat file
     opt.gwfparams.wfWin         = [-20 41]; % Number of samples around spiketime to include in waveform
@@ -42,6 +43,14 @@ opt.getwF                   = true;
 %% Plotting
 % These parameters affect the plotting functions used after unit sorting.
 % % Working
+opt.pooledstats             = false;
+opt.plot_trial              = false;
+opt.plot_align              = false;
+opt.plot_SocLear            = false;
+    opt.useConditions       = false;    % plot trials indexed by conditions
+    opt.plotSocial          = false;     % plot trials indexed by social assessment
+
+
 param = struct('res',           true, ...  % To deprecate % load 'res' variable from Juan's
                'visible',       'off', ... % figure visibility at plotting
                'treatment',     true, ... % plot different levels due to treatment/block/phase

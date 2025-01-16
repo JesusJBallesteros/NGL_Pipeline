@@ -15,7 +15,7 @@ function input = set_default(input, opt)
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
 % are requested, the NWB will perform well but the data extraction will not. 
 % It will crash for not completely known reason. It needs a Matlab restart between runs.
-if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB      = false; end
+if ~isfield(input,'doNWB') || isempty(input.doNWB),           input.doNWB      = false; end
 
 %% Fix drive letter if needed.
 if ~contains(input.datadrive,':\')
@@ -62,9 +62,10 @@ if ~isfield(input,'nsubjects') || isempty(input.nsubjects)
 end
 
 %% If NWB requested, Python-based toolbox needed. 
-if input.useNWB 
-    if ~isfield(input,'pyfolder') || isempty(input.pyfolder)
-        input.pyfolder = [input.toolbox '\toolboxes\IntanToNWB']; % Add it
+if opt.doNWB 
+    if ~isfield(input,'NCfolder') || isempty(input.NCfolder)
+        input.NCfolder = 'C:\Code\miniconda3\envs\neuroconv\python.exe'; % Path to the neuroconv git-code. It could change among PCs
+%         input.NCfolder = [input.toolbox '\toolboxes\IntanToNWB']; % Add it
     end
 end
 
