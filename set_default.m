@@ -15,7 +15,7 @@ function input = set_default(input, opt)
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
 % are requested, the NWB will perform well but the data extraction will not. 
 % It will crash for not completely known reason. It needs a Matlab restart between runs.
-if ~isfield(input,'useNWB') || isempty(input.useNWB),           input.useNWB      = false; end
+if ~isfield(opt,'doNWB') || isempty(opt.doNWB),           opt.doNWB      = false; end
 
 %% Fix drive letter if needed.
 if ~contains(input.datadrive,':\')

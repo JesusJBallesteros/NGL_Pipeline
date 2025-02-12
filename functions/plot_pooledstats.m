@@ -1,4 +1,4 @@
-function plot_pooledstats(neurons, opt, param)
+function plot_pooledstats(neurons, opt, param, input)
     %% TODO
 
 if ~isfield(param,'visible'),       param.visible        = 'off';        end
@@ -14,7 +14,7 @@ if ~isfield(param,'timelimItiOn'),  param.timelimItiOn   = [   0 8000];  end
 if ~isfield(param,'size'),          param.size           = [1900 1000];   end
 
 % overrule para.treatment, to deprecate (TODO)
-param.treatment = opt.treatment;
+% param.treatment = opt.treatment;
 
 %% Set
 toalignto = opt.alignto;
@@ -90,7 +90,10 @@ for a = 1:nalign
         ylim([0 param.poolraster.ytick(end)])
 
     %% Save figure 
-    exportgraphics(fig,fullfile(opt.analysis,'genplots',['raster_',toalignto{a},'_pooled.png']),'Resolution',600);
+    if ~exist(fullfile(input.analysis,'genplots'),'dir')
+        mkdir(fullfile(input.analysis,'genplots'));
+    end
+    exportgraphics(fig,fullfile(input.analysis,'genplots',['raster_',toalignto{a},'_pooled.png']),'Resolution',600);
     close all
 end
 

@@ -63,7 +63,7 @@ end
 clear pinsOff
 
 %% Find samples at which any pin changes
-checksum = [zeros(1,npins); diff(dIn,1)];
+checksum = diff([int8(zeros(1,npins)); dIn],1,1); % fixed to admit negative values by changing uint8 to int8
 ts = find(any(checksum,2));
 clear checksum 
 
