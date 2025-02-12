@@ -62,9 +62,10 @@ if ~isfield(input,'nsubjects') || isempty(input.nsubjects)
 end
 
 %% If NWB requested, Python-based toolbox needed. 
-if input.useNWB 
-    if ~isfield(input,'pyfolder') || isempty(input.pyfolder)
-        input.pyfolder = [input.toolbox '\toolboxes\IntanToNWB']; % Add it
+if opt.doNWB 
+    if ~isfield(input,'NCfolder') || isempty(input.NCfolder)
+        input.NCfolder = 'C:\Code\miniconda3\envs\neuroconv\python.exe'; % Path to the neuroconv git-code. It could change among PCs
+%         input.NCfolder = [input.toolbox '\toolboxes\IntanToNWB']; % Add it
     end
 end
 

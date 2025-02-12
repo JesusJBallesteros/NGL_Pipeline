@@ -9,14 +9,14 @@
 clear all
 % A) SYSTEM
 % RECOMMENDED to add the toolbox folder to MATLAB folder system, but not necessary.
-datadrive   = 'F';                   % The LETTER of the drive where the data structure is/will be created.
-studyname   = 'SocialLearning';  % Name of the study to be used (main folder for the data)
+datadrive   = 'D';                   % The LETTER of the drive where the data structure is/will be created.
+studyname   = 'Default';  % Name of the study to be used (main folder for the data)
 toolbox     = 'C:\Code\ephys-data-pipeline'; % Absolute path to the toolbox.
 
 % B) SUBJECTS AND SESSIONS
 % To run the script on all subjects and sessions, or as session-to-session process.
-subjects    = {'079'}; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
-dates       = {'20240325', '20240326', '20240327','20240328'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
+subjects    = {'666'}; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
+dates       = {'19970829'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
 
 % C) OPTIONS.
 opt = struct();
@@ -24,12 +24,13 @@ opt = struct();
     opt.numChannels             = 32;       % For now, explicit 32 if not SpikeLog-64C was used (Deuteron). INTAN: comment.
     opt.CAR                     = 1;        % Default: 1. CAR to remove fast-ample transients and other noise for .bin file. If == 2 also CAR for lowpass (not recommended)
     opt.linefilter              = 0;        % If not 0, filter line noise at given value +-2 (Hz)
-    opt.bin                     = false;     % Create a .bin file with the high-pass data, to be passed to Kilosort for spike sorting.
+    opt.doNWB                   = true;     % TESTING INTAN-NEUROCONV (python) with a Matlab wrapping for no python-user interaction
+    opt.bin                     = true;     % Create a .bin file with the high-pass data, to be passed to Kilosort for spike sorting.
         opt.highpass            = 400;      % Give as low boundary frequency value. (High boundary is set at recording time)
-    opt.FieldTrip               = false;     % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
+    opt.FieldTrip               = true;     % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
         opt.lowpass             = 250;      % Give as high boundary frequency value.
-    opt.GetMotionSensors        = false;    % Retrieve data from motion sensors in Deuteron. NEEDS IMPROVEMENT on head direction interpretation.
-    opt.RetrieveEvents          = false;     % Retrieve event log. If not further options defaulted to Deuteron txt log extraction.
+    opt.GetMotionSensors        = true;    % Retrieve data from motion sensors in Deuteron. NEEDS IMPROVEMENT on head direction interpretation.
+    opt.RetrieveEvents          = true;     % Retrieve event log. If not further options defaulted to Deuteron txt log extraction.
         opt.alignto             = {'itiOn', 'stimOn1', 'rwd'};  % single char array e.g. 'itiOn', or cell array e.g. {'itiOn', 'rwd'}. 'itiON' should be the very least to align to.
         opt.trEvents            = {'na3'};  % Event definition of 'special events' i.e. events at the ITI like treatments, tutors, etc...
         opt.addtime             = 1500;     % Expands the trial definition start/end by X ms in both directions. 
@@ -41,49 +42,17 @@ opt = struct();
     opt.phy                     = false;    % Open phy for manual inspection or curation. !! It puts MATLAB on HOLD! Needs bin file in same folder.
                         
     % General options for NGL02_postPhy
-    opt.offlineTrack            = false;    % process and use central camera videos to extract 
-    opt.doSpikething            = true;
-        opt.useTrack            = true;
-        opt.getwF               = false;    % To extract waveforms of each cluster from raw data.
-        opt.gwfparams.nWf       = 2000;     % maximum # of waveforms to extract per cluster. Affects computing time.
-    opt.doLFPthing              = false;
-    
-    % For plotting section.
-    opt.pooledstats             = false;
-    opt.plot_trial              = false;
-    opt.plot_align              = false;
-    opt.plot_SocLear            = true;
-        opt.useConditions       = false;    % plot trials indexed by conditions
-        opt.plotSocial          = true;     % plot trials indexed by social assessment
-    
-    % TODO: These parameters could live in an independent m-file under analysisCode, so they don't crowd it here
-    param                       = struct('visible',      'off', ... % figure visibility at plotting
-                                         'Resolution',    300, ...
-                                         'treatment',     false, ... % plot different levels due to treatment/s
-                                         'baseline',      1500, ...  % for event-aligned plots, msec before event
-                                         'post',          2000, ... % for event-aligned plots, msec after event
-                                         'plotevent',     3, ...    % mark these trial events in rasters
-                                         ... % PSH plotting
-                                         'binSize',       200, ...  % binning window, msec. Only for aligments other than itiOn
-                                         'stepSz',        20);      % window steps, msec. Only for aligments other than itiOn
-                                         % ... %
-                                        % 'raster', struct(), ...
-                                        % ... %
-                                        % 'psh', struct(), ...
-                                        % ... %
-                                        % 'poolraster', struct() ...
-                                        % );
-                                        % %  ... %
+    postPhy_param();
 
 % D) README.TXT
 % It contains details about the project. File can also be modified later.
-readmecontent = ["Study name: Preparation for social learning paradigms", ...
-                 "Readme date: 22/02/2024"                          , ...
-                 "Person (1) responsible for data repository: Jesus", ...
-                 "Person(s) responsible for study: Juan, Jesus "    , ...
-                 "Hardware used: Deuteron. E32-S2"                  , ...
+readmecontent = ["Study name: DefaultName", ...
+                 "Readme date: 29/08/1997"                          , ...
+                 "Person (1) responsible for data repository: Main researcher", ...
+                 "Person(s) responsible for study: Main R and associates"    , ...
+                 "Hardware used: ACQ SYS. Probe type. Arena/Box"                  , ...
                  "Related Publication(s): None."                    , ...
-                 "Short description of study: Autoshaping with social learning." ];
+                 "Short description of study: A more elaborated description of project paradigm, goals, etc ." ];
 
 %% 2) RUN.
 %% 2.0 Start with project folder system preparation. Commonly to be ran only ONCE,
