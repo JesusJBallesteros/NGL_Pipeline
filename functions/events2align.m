@@ -25,9 +25,16 @@ function [t0] = events2align(opt)
             % multiple events given as a cell array of characters
             t0       = {};
             for i=1:size(opt.alignto,2)
-                t0(i,:)  = {opt.alignto{i}, opt.eventdef.(opt.alignto{i})};
+                try t0(i,:)  = {opt.alignto{i}, opt.eventdef.(opt.alignto{i}), '0'};
+                catch
+                    t0(i,:)  = {opt.alignto{i}(1:3), opt.eventdef.(opt.alignto{i}(1:3)), opt.alignto{i}(end)};
+                end
             end
     end
     
+% if isfield(opt, 'newEvent')
+%     opt.alignto = [opt.alignto opt.newEvent(1)];
+% end
+% 
 end
 

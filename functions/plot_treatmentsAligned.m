@@ -1,4 +1,4 @@
-function plot_alignedclusters(neurons, events, spike, conditions, opt, param)
+function plot_treatmentsAligned(neurons, events, spike, conditions, opt, param)
 % Will take neuron-trial data and plot a series of basic rasters,
 % histograms and other statistics to inspect clusters in relation to task
 % events. A variable number of options can be given to modify plots without
@@ -370,6 +370,353 @@ for a = 1:nalign
                             ['raster_', algmnt, '_', spike.label{c}, '_', conds{cc}, '.png']), ...
                             'Resolution', param.Resolution);
             close all
+        end
+    end
+end
+end
+
+function plot_treatments(neurons, events, spike, conditions, opt, param)
+% Will take trial-long data and plot a series of basic rasters,
+% to inspect long dynamics in relation to task events.
+
+%% Default options.
+if ~isfield(param,'visible'),       param.visible        = 'off';        end
+if ~isfield(param,'size'),          param.size           = [1000 600];   end
+if ~isfield(param,'Resolution'),    param.Resolution     = 300;          end
+if ~isfield(param,'treatment'),     param.treatment      = true;         end
+if ~isfield(param,'plotcol'),       param.plotcol        = [ .482  .125  .302;
+                                                             .220  .161  .420;
+                                                             .435  .588  .196];
+end
+% Rasters
+if ~isfield(param,'plotStyle'),     param.plotStyle      = 'lines';      end
+if ~isfield(param,'spkWidth'),      param.spkWidth       = .5;            end
+if ~isfield(param,'lineLength'),    param.lineLength     = 1;            end
+if ~isfield(param,'plotevent'),     param.plotevent      = [1 3 7];      end
+% PSH
+if ~isfield(param,'binSize'),       param.binSize        = 200;          end
+if ~isfield(param,'stepSz'),        param.stepSz         = 10;           end
+if ~isfield(param,'smpRate'),       param.smpRate        = 1000;         end
+
+param.timelim        = [-1500 9500]; % Hard coded, TODO
+
+%% Default figure attributes. 
+param.raster.title = 'Whole trial';
+% Raster plot
+param.raster.ylabel = {'Trial #'}; % trial label
+param.raster.ytick = 0:50:1000; % trial ticks
+param.raster.yticklabels = {mat2cell(param.raster.ytick,1)}; % ticks label
+param.raster.xlabel = {'time from trial start (s)'};   % time label
+param.raster.xtick = param.timelim(1):1500:param.timelim(2); % time ticks
+param.raster.xticklabels = {mat2cell(param.raster.xtick/1000,1)}; % ticks label
+
+% PSH
+param.psh.ylabel = {'spikes/s'}; % rate label
+param.psh.ytick = 0:5:60; % fire rate ticks
+param.psh.yticklabels = {mat2cell(param.psh.ytick,1)}; % rate labels
+param.psh.xlabel = {'time from trial start (s)'}; % time label
+param.psh.xtick = (0:1500:diff([param.timelim(1) param.timelim(2)]))/param.stepSz; % time ticks
+param.psh.xticklabels = {mat2cell((param.psh.xtick-30)*param.stepSz/1000,1)}; % time labels
+
+% Driftmap
+param.driftmap.ylabel = {'tempAmpl'}; % ampl label
+param.driftmap.xlabel = {'min'}; % time label
+param.driftmap.ytick  = 'auto'; % ampl ticks
+param.driftmap.xtick  = 'auto'; % time ticks
+param.driftmap.yticklabels = {'auto'}; % ampl label
+param.driftmap.xticklabels = {'auto'}; % time label
+
+% Figure size
+if strcmpi('adaptive', param.size)
+    screen.size = get(0, 'ScreenSize');  
+    screen.width =  screen.size(3);
+    screen.height = screen.size(4);
+else
+    screen.width =  param.size(1); 
+    screen.height = param.size(2);
+end
+
+%% Initialize
+toalignto = opt.alignto;
+% nalign = numel(toalignto); 
+param.levels{1}         = 1; % force cell integer
+param.trial_change{1}   = 1; % force cell integer
+ntreatments             = 1;
+% nblocks                 = 1;
+conds                   = {};
+% cndidx                  = [];
+blocks.Pos = {'A' 'B' 'A' 'B' 'A' 'C' 'A' 'C'};
+blocks.Neg = {'A' 'B' 'A' 'B' 'C' 'B' 'A' 'C'};
+blocks.Amb = {'A' 'B' 'A' 'B' 'C' 'B' 'C' 'A'};
+
+%% Prepare treatments
+if param.treatment
+    % conds = fieldnames(conditions);
+    % conds = {'AllTrials'};
+    conds = [{'AllTrials'}; fieldnames(events)];
+
+    % On top, check existence of defined treatments
+    if isfield(opt,'trEvents')
+        % how many
+        ntreatments = numel(opt.trEvents);
+        
+        % for each
+        for i = 1:ntreatments
+            % is it an inter-trial appearance (trial subfield)?
+            if isfield(events.(opt.trEvents{i}), 'trial')
+                % add levels accordingly, e.g. basal/treatment_present/post (+2) or basal/post (+1)
+                % param.levels{i} = param.levels{1}(1) + numel(events.(opt.trEvents{i}).time{1});
+                param.levels{i} = numel(events.(opt.trEvents{i}).time{1});
+                param.trial_change{i} = events.(opt.trEvents{i}).trial{1}(1:end);
+            end
+
+            % Small tweak for 'tr2' case in Extintion Arena, here it
+            % signifies which the Novel Stimulus was shown in the trial,
+            % rather than a block/level change in the paradigm.
+            if param.levels{i} > 10, param.levels{i} = 2; end
+        end
+    end
+end
+
+%% Whole trial raster and PSH, cluster by cluster
+% Do this for each requested situation (#levels)
+for p = 1:length(param.levels)
+    switch param.levels{p}
+        case 2
+            param.plotcol      = [0 0 1;
+                                  1 0 0];
+            cond = 'tr2';
+        otherwise
+            param.plotcol      = [0 0 1;
+                                  1 0 0;
+                                  1 0 1];
+            cond = 'tr1';
+    end
+
+    % for each alignment 
+    for a = 1  %:nalign % (HERE ONLY itiOn, actually)
+        % add last trial to the level-limits vector
+        if length(param.trial_change{p}) > 2
+            param.trial_change{p} = [1 param.trial_change{p} length(neurons.(toalignto{a}){1})];
+        end 
+
+        % For each cluster
+        for c = 1:length(neurons.(toalignto{a}))
+            % depending on the treatment 
+            switch param.levels{p}
+                case 2 % Per level of treatment
+                    %% prepare range of trials to plot
+                    trialrange = 1:length(neurons.(toalignto{a}){1});
+                        
+                    % Now, take all trials for both treatments
+                    toplot{1} = neurons.(toalignto{a}){c};
+                    toplot{2} = neurons.(toalignto{a}){c};
+
+                    % Here, we index the tr2 code (13) for NS
+                    cndidx = events.(cond).trial{1};
+
+                    % find the complementary set of trials, the FS
+                    notcndidx = trialrange(setdiff(1:end,cndidx));
+                    
+                    % But we can just leave the right trials, to plot them
+                    % in separate rasters
+                    if ~isempty(cndidx)
+                        % Empty trials under not condition 
+                        toplot{1}(notcndidx) = [];
+                        % Empty trials under condition 
+                        toplot{2}(cndidx) = [];
+                    end
+
+                    %% Start figure
+                    param.raster.subtitle = ['cluster: ', spike.label{c}, '. ', conds{cc}];
+                    fig = figure('visible', param.visible); % switch visibility
+                    set(fig, 'Position', [0, 0, round(screen.width), round(screen.height)]); % Set fig size as screen
+                        
+                    % Trial-long Spike Raster
+                    subplot(2,2,1) % NS
+                    trialCounter = 1; % always plot from first trial
+                    % raster
+                    plotRaster(toplot{1}, ... % spikes
+                                trialCounter,               ... % trialCounter
+                               'plotcol',    param.plotcol(1,:), ... % color per align (for now)
+                               'spkwidth',   param.spkWidth,       ...
+                               'linelength', param.lineLength,     ...
+                               'plotstyle',  param.plotStyle);
+                    
+                    lasttr = cellfun(@isempty, toplot{1});
+                    lasttr = find(~lasttr,1,"last");
+
+                    % Plot events
+                    plot_events(param.plotevent, events.(toalignto{a}), (1:lasttr));
+
+                    % Prettify
+                    prettify(param.raster);
+                        xlim(param.timelim)
+                        ylim([0 length(cndidx)])
+                    subtitle('Novel Stim.')
+
+                    subplot(2,2,2) % FS
+                    trialCounter = 1; % always plot from first trial
+                    plotRaster(toplot{2}, ... % spikes
+                                trialCounter,               ... % trialCounter
+                               'plotcol',    param.plotcol(2,:), ... % color per align (for now)
+                               'spkwidth',   param.spkWidth,       ...
+                               'linelength', param.lineLength,     ...
+                               'plotstyle',  param.plotStyle);
+                    
+                    lasttr = cellfun(@isempty, toplot{2});
+                    lasttr = find(~lasttr,1,"last");
+
+                    % Plot events
+                    plot_events(param.plotevent, events.(toalignto{a}), (1:lasttr));
+
+                    % Prettify
+                    prettify(param.raster);
+                        xlim(param.timelim)
+                        ylim([0 length(notcndidx)])
+                    subtitle('Familiar Stim.')
+
+                    % Trial-long PSH
+                    subplot(2,2,[3 4])
+                    % PSH NS
+                    upperY(1) = plotPSTH(toplot{1}, ... % spikes
+                                param.stepSz,   ... % stepSz
+                                param.binSize,  ...  % binSize
+                                param.timelim,  ... % interval
+                                param.smpRate,  ...  % samples per second in the feeded data
+                                'plotcol',      param.plotcol(1,:),...
+                                'meanline',     '-',...
+                                'smoothplot',   true);  
+                    hold on
+
+                    % PSH FS
+                    upperY(2) = plotPSTH(toplot{2}, ... % spikes
+                                param.stepSz,   ... % stepSz
+                                param.binSize,  ...  % binSize
+                                param.timelim,  ... % interval
+                                param.smpRate,  ...  % samples per second in the feeded data
+                                'plotcol',      param.plotcol(2,:),...
+                                'meanline',     '-',...
+                                'smoothplot',   true);
+    
+                    % Prettify
+                    prettify(param.psh)
+                        xline(param.psh.xtick(find(param.psh.xticklabels{1}{1} == 0)),'--k');
+                        maxY = max(upperY); if maxY <= 5, maxY = 5; end % force a minimum y-axis scale
+                        ylim([0 maxY*1.1]);
+                    legend({'', 'Novel', '', 'Familiar'})
+                
+                    % Save figure per alignment&cluster
+                    exportgraphics(fig,fullfile(opt.analysis,'newplots', ...
+                        ['fulltrial_', spike.label{c}, '_', conds{cc}, '.png']), ...
+                        'Resolution', param.Resolution);
+                    close all
+                otherwise
+                    %% prepare range of trials to plot
+                    trialrange = 1:length(neurons.(toalignto{a}){1});
+
+                    for i = 1:numel(param.trial_change{p})-1
+                        % Now, take all trials for both treatments
+                        toplot{i} = neurons.(toalignto{a}){c};
+    
+                        % Here, we plot trials for the current range
+                        cndidx = param.trial_change{p}(i):param.trial_change{p}(i+1);
+                        % And we keep those Novel Stimuli
+                        cndidx = cndidx(ismember(cndidx,events.tr2.trial{1})); 
+    
+                        % find the complementary set of trials, for the
+                        % full session.
+                        notcndidx = trialrange(setdiff(1:end,cndidx));
+                        
+                        % And we empty them
+                        toplot{i}(notcndidx) = {[]};
+
+                        blks{1,i} = blocks.(conditions.type){i};
+                    end
+    
+                    %% Start figure
+                    param.raster.subtitle = ['cl: ', spike.label{c}, '. ', 'NS trials'];
+                    fig = figure('visible', param.visible); % switch visibility
+                    set(fig, 'Position', [0, 0, round(screen.height), round(screen.width)]); % Set fig size as screen
+                        
+                    % Trial-long Spike Raster
+                    subplot(2,1,1) 
+                    trialCounter = 1; % always plot from first trial
+
+                    for i = 1:numel(param.trial_change{p})-1
+                        if strcmp(blks(i),'A'), color{i} = param.plotcol(1,:); end
+                        if strcmp(blks(i),'B'), color{i} = param.plotcol(2,:); end
+                        if strcmp(blks(i),'C'), color{i} = param.plotcol(3,:); end
+
+                        % raster
+                        plotRaster(toplot{i}, ... % spikes
+                                    trialCounter,               ... % trialCounter
+                                   'plotcol',    color{i}, ... % color per align (for now)
+                                   'spkwidth',   1,       ...
+                                   'linelength', param.lineLength,     ...
+                                   'plotstyle',  param.plotStyle);
+                        
+                        lasttr = cellfun(@isempty, toplot{i});
+                        lasttr = find(~lasttr,1,"last");
+                        
+                        if isempty(lasttr), continue,
+                        else, yline(lasttr, '-', 'Color', color{i});%, blks(i), 'LabelVerticalAlignment', 'bottom',  'LineWidth', 1)
+                        end
+                    end
+
+                    % Plot events
+                    plot_events(param.plotevent, events.(toalignto{a}), (1:lasttr));
+
+                    % Prettify
+                    prettify(param.raster);
+                        xlim(param.timelim)
+                        ylim([0 lasttr])
+                    xline(0,'--k')
+                    subtitle(param.raster.subtitle)
+
+                    % PSH
+                    subplot(2,1,2)
+                    for i = 1:numel(param.trial_change{p})-1
+                        upperY(i) = plotPSTH(toplot{i}, ... % spikes
+                                    param.stepSz,   ... % stepSz
+                                    param.binSize,  ...  % binSize
+                                    param.timelim,  ... % interval
+                                    param.smpRate,  ...  % samples per second in the feeded data
+                                    'plotcol',      color{i},...
+                                    'meanline',     '-',...
+                                    'smoothplot',   true);
+                    end
+
+                    % Prettify
+                    prettify(param.psh)
+                        xline(param.psh.xtick(find(param.psh.xticklabels{1}{1} == 0)),'--k');
+                        maxY = max(upperY); if maxY <= 5, maxY = 5; end % force a minimum y-axis scale
+                        ylim([0 maxY*1.1]);
+                
+                    % Save figure per alignment&cluster
+                    exportgraphics(fig,fullfile(opt.analysis,'newplots', ...
+                        ['fulltrial_', spike.label{c}, '_', cond, '.png']), ...
+                        'Resolution', param.Resolution);
+                    close all
+            end
+        end
+    end
+end
+end
+
+function plot_events(evidx, events, idx)
+% Plot requested events (param.plotevent)
+for ev = evidx
+    if ev == 2, color = 'k'; end % StimOn2 
+    if ev == 3, color = [0 0.6 0]; end % bhv 'r'
+    if ev == 7, color = 'k'; end % rwd 'g'
+    evidx = cellfun(@(x) x==ev, events.code, 'UniformOutput', 0);
+      
+    for trial = 1:length(idx)
+        if any(evidx{idx(trial)})
+            line(1000*[max(events.time{idx(trial),1}(evidx{idx(trial)})) ...
+                       max(events.time{idx(trial),1}(evidx{idx(trial)}))], ...
+                 [trial trial+1], 'Color', color, 'LineWidth', 1)
         end
     end
 end

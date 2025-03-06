@@ -71,7 +71,9 @@ clear checksum
 % change of a single event)
 for i = 2:size(ts,1)
     if ts(i)-ts(i-1) < smpDel % if pin changes are too close
-        ts(i) = nan;     % This ts becomes NAN
+        ts(i-1) = nan;   % The previous event (i-1) becomes NAN because we
+                         % can assume it was a transitory state towards the 
+                         % desired event (current, i)
     end
 end
 

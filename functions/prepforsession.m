@@ -31,10 +31,10 @@ opt.trialSorted         = fullfile(input.trialSorted, subject, session);
 opt.analysis            = fullfile(input.analysis, subject, session);
 
 % Create session-specific folders.
-mkdir(opt.FolderProcDataMat);
-mkdir(opt.behavFiles);
-mkdir(opt.spikeSorted);
-mkdir(opt.trialSorted);
-mkdir(opt.analysis);
+if ~exist(fullfile(opt.FolderProcDataMat),"dir"), mkdir(opt.FolderProcDataMat); end
+if ~exist(fullfile(opt.behavFiles),"dir"), mkdir(opt.behavFiles); end
+if ~exist(fullfile(opt.spikeSorted),"dir"), mkdir(opt.spikeSorted); end
+if ~exist(fullfile(opt.trialSorted),"dir"), mkdir(opt.trialSorted); end
+if ~exist(fullfile(opt.analysis),"dir"), mkdir(opt.analysis); end
 
 end

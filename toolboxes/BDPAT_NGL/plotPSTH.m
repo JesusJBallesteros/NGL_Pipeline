@@ -50,7 +50,7 @@ function upperY = plotPSTH(spikes,stepSz,binSize,interval,smpRate,varargin)
 plotCol = [0 0 0];
 meanline = '-';
 smoothPlot = true;
-erralpha = 0.7;
+erralpha = 0.4;
 if nargin>5
     for i=1:2:length(varargin)
         if isa(varargin{i},'char') || isa(varargin{i},'string')
@@ -74,18 +74,30 @@ if nargin>5
     end
     else
         %use defaults
-    end
+end
+
     %%
     % ADDED Jesus (22.10.2024)
     % To calculate rates, consider ONLY non empty cells
-    spikes2use = cellfun(@isempty, spikes);
+    spikes2use = ~cellfun(@isempty, spikes);
 
-    fireRate = calcFireRate(spikes(~spikes2use),stepSz,binSize,interval,smpRate);
-    if size(fireRate{1,1},1)<2 % if less than two trials have spikes
+    % ADDED Jesus (03.03.2025)
+    % input structure to 'calcFireRate' changed
+    par.stepSz  = stepSz;
+    par.binSize = binSize;
+    par.interval= interval;
+    par.smpRate = smpRate;
+
+    % Calculate firing rate per interval bin
+    [fireRate, ~] = calcFireRate(spikes(spikes2use), par);
+    
+    % if less than two trials have spikes
+    if size(fireRate{1,1},1)<2 
+        % warning('No trial with spikes detected, firing rate was set to NaN.')
         fireRate{1,1} = nan(2,sum(abs(interval))/stepSz);
-       % warning(...
-       %     'No trial with spikes detected, firing rate was set to NaN.')
     end
+
+    % plotting funtion
     for intervalNo=1:size(interval,1)
         [trlmean, trlsterr, ~] = nanMeanSterrHistogram(...
             fireRate{intervalNo},...
@@ -93,5 +105,7 @@ if nargin>5
             'nomean',false,'erralpha',erralpha,'meansize',2,...
             'dontsmooth',smoothPlot,'meanline',meanline);
     end
+
+    % Get max value of firing rate to prettify plots
     upperY = ceil(max(trlmean+trlsterr))+1;
 end

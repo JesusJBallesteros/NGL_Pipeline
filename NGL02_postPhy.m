@@ -25,6 +25,7 @@ end
 
 % Set default inputs and dependencies. In case NGL01 did not before.
 input = set_default(input, opt);
+if ~isfield(opt,'useTrack'), opt.useTrack = false; end
 
 %% 01. Find and list requested sessions and subjects.
 input.sessions = findSessions(input);
@@ -33,7 +34,6 @@ input.sessions = findSessions(input);
 for x = 1:input.nsubjects % Subjects.
     for y = 1:input.sessions(x).nsessions % Sessions.
             input.run = [x y]; % Current run, to pass to functions.
-            
             %% 2.03. Prepare to proceed with a single session.
             [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);           
 
@@ -46,24 +46,35 @@ for x = 1:input.nsubjects % Subjects.
 
             %% 2.05. SPIKE DATA
             if opt.doSpikething
-                % Extract preprocessed spikes and recover event data.
-                % Spike clusters after sorting and curation.
-                spike = loadSpikes(opt);
-                if isfield(spike,"spike"), spike = spike.spike; end % Simplify loaded structure if needed
+                % Extract preprocessed 'spike' and recover 'events' data.
+                if exist(fullfile(opt.spikeSorted, "spike.mat"),'file')
+                    load(fullfile(opt.spikeSorted, "spike.mat"));
+                else
+                    % Spike clusters after sorting and curation.
+                    spike = loadSpikes(opt);
+                    if isfield(spike,"spike"), spike = spike.spike; end % Simplify loaded structure if needed
                             
-                % Save output to \spikesorted
-                save(fullfile(opt.spikeSorted, "spike.mat"), 'spike', '-mat');
+                    % Save output to \spikesorted
+                    save(fullfile(opt.spikeSorted, "spike.mat"), 'spike', '-mat');
+                end
                 
-                % Iterate trough all units and sort them into trials.
-                % Recover trial definitions created after event extraction and processing. 
-                % Can have as many variations as requested at that time.
-                % To create new alignments, it would have to be ran again.
-                if ~exist('trialdef','var'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
-                
-                % Outputs are saved to data\analysis. 
-                % TODO fix Fieldtrip extraction
-                [neurons, ~] = sort2trials(spike, trialdef, opt);                
+                % Sort 'spike' into 'trialdef' to create 'neurons'
+                if ~exist(fullfile(opt.analysis, "neurons.mat"),'file')
+                    % Iterate trough all units and sort them into trials.
+                    % Recover trial definitions created after event extraction and processing. 
+                    % Can have as many variations as requested at that time.
+                    % To create new alignments, it would have to be ran again.
+                    if ~exist('trialdef','var'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
+                    
+                    % Outputs are saved to data\analysis. 
+                    % TODO fix Fieldtrip extraction
+                    [neurons, ~] = sort2trials(spike, trialdef, opt);
 
+                    % Save output to \analysis
+                    save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
+                end
+
+                % Tracking in Social Arena
                 if opt.useTrack
                     % Spiking indexing for Social intereactions. Checks blob
                     % interaction times (+-5s) and extracts spiking activity
@@ -73,6 +84,7 @@ for x = 1:input.nsubjects % Subjects.
                     if ~isfield(neurons,"interactions")
                         [neurons.interactions, ~] = sort2trials(spike, blob.Merges, opt);
                     end
+                    save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
 
                     % Also, use video assessment excel files to extract the
                     % logical indexing of Social events.
@@ -84,8 +96,21 @@ for x = 1:input.nsubjects % Subjects.
                     end
                 end
 
-                % Save output to \analysis
-                save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
+                % Calculate fire rate and normalized fire rate
+                if ~exist(fullfile(opt.analysis, "fireRate.mat"),'file') || ...
+                   ~exist(fullfile(opt.analysis, "fireRateNorm.mat"),'file')
+                    if ~exist('neurons','var'), load(fullfile(opt.analysis, "neurons.mat")); end
+                    if ~exist('events','var'), load(fullfile(opt.analysis, "events.mat")); end
+                    if ~exist('condition','var'), load(fullfile(opt.analysis, "condition.mat")); end
+    
+                    param.IncludeFS = true; % NS and FS
+                    param.trial2plot = 'allInitiated'; % for correct trials
+
+                    [fireRate, fireRateNorm] = fireRate_general(neurons, events, conditions, opt, param);
+
+                    save(fullfile(opt.analysis, "fireRate.mat"), 'fireRate', '-mat')
+                    save(fullfile(opt.analysis, "fireRateNorm.mat"), 'fireRateNorm', '-mat')
+                end
             end
 
             %% 2.06. Continuous LFP DATA. UNDER DEVELOPMENT
