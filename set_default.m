@@ -34,6 +34,9 @@ input.spikeSorted   = fullfile(input.datadrive, input.studyName, '\data\spikeSor
 input.trialSorted   = fullfile(input.datadrive, input.studyName, '\data\trialSorted\');
 input.processed     = fullfile(input.datadrive, input.studyName, '\data\preprocessing\');    % Default: '\data\preprocessing'
 
+% When preprocessing as already be done, this could be overwritten later.
+input.jump2plot = false;
+
 %% Find requested subjects.
 % In case is left empty or deleted, default to 'all'
 if ~isfield(input,'subjects') || isempty(input.subjects)
