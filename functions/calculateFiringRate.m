@@ -1,4 +1,4 @@
-function [time_vector, firing_rate] = calculateFiringRate(timestamps, sample_rate, sigma)
+function [firing_rate, time_vector] = calculateFiringRate(timestamps, sample_rate, sigma)
     % calculateFiringRate - Calculate firing rate from timestamps with Gaussian smoothing
     %
     % Inputs:

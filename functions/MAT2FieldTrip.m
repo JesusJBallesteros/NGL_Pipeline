@@ -57,7 +57,8 @@ if cont
     clear cfg
     
     % Save this session data.
-    save(fullfile(opt.analysis, strcat(opt.SavFileName,'_FTcont.mat')), 'FT_data', '-v7.3');
+    save(fullfile(opt.trialSorted, strcat(opt.SavFileName,'_FTcont.mat')), 'FT_data', '-v7.3');
+    clear data
 end
 
 %% Trial-parsed treatment 
@@ -75,13 +76,18 @@ if ~isempty(trialdef)
         % Then proceed to trial-parse the FT_data. Use 'ft_redefinetrial'
         cfg = [];
         cfg.trl = trialdef{2,i};
+
+        % Re-set the offset of the trial definition for FT to get it.
+        cfg.trl(:,3) = cfg.trl(:,1) - cfg.trl(:,3);
+
+        % Redefine trials
         FT_data = ft_redefinetrial(cfg, FT_data_cont);
     
         % Update FT header info manually
         FT_data.hdr.nTrials = length(FT_data.trial);
     
         % Save this session data.
-        save(fullfile(opt.analysis, strcat(opt.SavFileName, '_', trialdef{1,i} ,'.mat')), 'FT_data', '-v7.3')
+        save(fullfile(opt.trialSorted, strcat(opt.SavFileName, '_', trialdef{1,i} ,'.mat')), 'FT_data', '-v7.3')
     end
 
 end

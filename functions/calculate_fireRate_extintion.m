@@ -1,4 +1,4 @@
-function [fireRate, fireRateNorm] = fireRate_general(neurons, events, conditions, opt, param)
+function fireRate = calculate_fireRate_extintion(neurons, events, conditions, opt, param)
 % Jesus. 06.03.2025.
 % Description
 % INPUTS
@@ -13,6 +13,10 @@ if ~isfield(param,'stepSz'),        param.stepSz         = 50;           end
 if ~isfield(param,'interval'),      param.interval       = [-2000 10000];end
 if ~isfield(param,'smpRate'),       param.smpRate        = 1000;         end
 if ~isfield(param,'baseline'),      param.baseline       = 2000;         end
+if ~isfield(param,'plot'),          param.plot           = false;         end
+    param.xtick = (0:2000:diff([param.interval(1) param.interval(2)]))/param.stepSz; % time ticks
+    param.xticklabels = {'-2', 'Ini','StimOn', '4', '6', '8', '10'};
+    param.timelabel = 'time (s)';
 
 %% Initialize
 toalignto = opt.alignto;
@@ -46,12 +50,12 @@ for a = 1 % align to ini
                 % Empy array for this cluster
                 toCalculate = cell(1, param.nBlocks);
 
-                for i = 1:param.nBlocks
+                for b = 1:param.nBlocks
                     % Take full set for the block
-                    toCalculate{i} = neuronSet{c};
+                    toCalculate{b} = neuronSet{c};
                 
                     % Here, we find trials for the current block range
-                    cndidx = ismember(trialrange, param.trial_change{1}(i):param.trial_change{1}(i+1));
+                    cndidx = ismember(trialrange, param.trial_change{1}(b):param.trial_change{1}(b+1));
                     
                     % And we keep ONLY those for Novel Stimuli (tr2)
                     if ~param.IncludeFS, FSidx = ismember(trialrange, events.tr2.trial{1}); 
@@ -62,17 +66,17 @@ for a = 1 % align to ini
                     notcndidx = trialrange(setdiff(1:end,cndidx));
                     
                     % Remove the complementary set
-                    toCalculate{i}(notcndidx) = {[]};
+                    toCalculate{b}(notcndidx) = {[]};
                     
                     % Within interest block set, empty trials of conditions of no interest
                     if strcmp(param.trial2plot, 'correct')
-                        toCalculate{i}(conditions.aborted | conditions.omission | conditions.incorrect) = {[]};
+                        toCalculate{b}(conditions.aborted | conditions.omission | conditions.incorrect) = {[]};
                     elseif strcmp(param.trial2plot, 'incorrect')
-                        toCalculate{i}(conditions.aborted | conditions.omission | conditions.correct) = {[]};
+                        toCalculate{b}(conditions.aborted | conditions.omission | conditions.correct) = {[]};
                     elseif strcmp(param.trial2plot, 'omission')
-                        toCalculate{i}(conditions.aborted | conditions.correct | conditions.incorrect) = {[]};
+                        toCalculate{b}(conditions.aborted | conditions.correct | conditions.incorrect) = {[]};
                     elseif strcmp(param.trial2plot, 'allInitiated')
-                        toCalculate{i}(logical(conditions.aborted)) = {[]};
+                        toCalculate{b}(logical(conditions.aborted)) = {[]};
                     end
                 end
 
@@ -119,12 +123,10 @@ for a = 1 % align to ini
             end
         
             %% FireRate calculation
-            % The fire rate is per cluster and per level of analisys (blocks/treatments)
+            % The fire rate is per (c)luster and per level (p) of analisys (blocks/treatments)
             for i = 1:length(toCalculate)
                 spikes2use = ~cellfun(@isempty, toCalculate{i});
-                
-                [fireRate{c,p}(i), fireRateNorm{c,p}(i,:)] = ...
-                    calcFireRate(toCalculate{i}(spikes2use), param, 'baseline', param.baseline);
+                [fireRate.sps{c,p}(i), ~, fireRate.NormMean{c,p}(i,:)] = calcFireRate(toCalculate{i}(spikes2use), opt, param);
             end
         end
     end

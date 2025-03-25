@@ -58,6 +58,8 @@ if single
         end
 
         % Valid file found. Run it.
+        % This script 'kilosortConfig.m' must be located inside '/analysisCode'
+        % and it will consolidate the 'opt' values into the 'ops' structure variable
         run(fullfile(opt.KSConfigFile, 'kilosortConfig.m'));
 
         % OVERRIDE config file values with user input values here

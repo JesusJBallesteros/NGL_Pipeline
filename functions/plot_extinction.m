@@ -12,13 +12,13 @@ if ~isfield(param,'nBlocks'),       param.nBlocks        = 8;            end
 if ~isfield(param,'binSize'),       param.binSize        = 500;          end
 if ~isfield(param,'stepSz'),        param.stepSz         = 50;           end
 if ~isfield(param,'timelim'),       param.timelim        = [-2000 10000]; end
+if ~isfield(param,'plotevent'),     param.plotevent      = [1 3 7];      end
+if ~isfield(param,'FS2plot'),       param.FS2plot        = false;        end
 
 % Rasters
 if ~isfield(param,'plotStyle'),     param.plotStyle      = 'lines';      end
 if ~isfield(param,'spkWidth'),      param.spkWidth       = .5;           end
 if ~isfield(param,'lineLength'),    param.lineLength     = 1;            end
-if ~isfield(param,'plotevent'),     param.plotevent      = [1 3 7];      end
-if ~isfield(param,'FS2plot'),       param.FS2plot        = false;        end
 
 % PSH
 if ~isfield(param,'smpRate'),       param.smpRate        = 1000;         end

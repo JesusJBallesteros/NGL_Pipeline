@@ -33,18 +33,18 @@ input.sessions = findSessions(input);
 %% 02. Proceed with data per session
 for x = 1:input.nsubjects % Subjects.
     for y = 1:input.sessions(x).nsessions % Sessions.
+            %% 2.01. Prepare to proceed with a single session.
             input.run = [x y]; % Current run, to pass to functions.
-            %% 2.03. Prepare to proceed with a single session.
             [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);           
 
-            %% 2.04. Offline Video blob detector
+            %% 2.02. Offline Video blob detector
             % Very specific for Social learning videos from central cenital camera. 
             if opt.offlineTrack
                 [blob] = processAndTrack_video(opt);
                 save(fullfile(opt.analysis, "blob.mat"), 'blob');
             end
 
-            %% 2.05. SPIKE DATA
+            %% 2.03. SPIKE DATA
             if opt.doSpikething
                 % Extract preprocessed 'spike' and recover 'events' data.
                 if exist(fullfile(opt.spikeSorted, "spike.mat"),'file')
@@ -74,6 +74,28 @@ for x = 1:input.nsubjects % Subjects.
                     save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
                 end
 
+                % Calculate fire rate and normalized fire rate
+                if ~exist(fullfile(opt.analysis, "fireRate.mat"),'file')
+                    if ~exist('neurons','var'), load(fullfile(opt.analysis, "neurons.mat")); end
+                    if ~exist('events','var'), load(fullfile(opt.analysis, "events.mat")); end
+                    if ~exist('condition','var'), load(fullfile(opt.analysis, "condition.mat")); end
+    
+                    % General function, no conditions: 'allInitiated' by default
+                    fireRate = calculate_fireRate_general(neurons, [], conditions, opt, param);
+                        
+                    save(fullfile(opt.analysis, "fireRate.mat"), 'fireRate', '-mat')
+
+                    % % Project specific    
+                    % param.IncludeFS = true; % NS and FS
+                    % param.trial2plot = 'allInitiated'; % for correct trials
+                    % fireRate = calculate_fireRate_extintion(neurons, events, conditions, opt, param);
+                    % save(fullfile(opt.analysis, "fireRate_extintion.mat"), 'fireRate', '-mat')
+                end
+                
+                % calculate dynamics
+                %
+                %
+
                 % Tracking in Social Arena
                 if opt.useTrack
                     % Spiking indexing for Social intereactions. Checks blob
@@ -96,36 +118,30 @@ for x = 1:input.nsubjects % Subjects.
                     end
                 end
 
-                % Calculate fire rate and normalized fire rate
-                if ~exist(fullfile(opt.analysis, "fireRate.mat"),'file') || ...
-                   ~exist(fullfile(opt.analysis, "fireRateNorm.mat"),'file')
-                    if ~exist('neurons','var'), load(fullfile(opt.analysis, "neurons.mat")); end
-                    if ~exist('events','var'), load(fullfile(opt.analysis, "events.mat")); end
-                    if ~exist('condition','var'), load(fullfile(opt.analysis, "condition.mat")); end
-    
-                    param.IncludeFS = true; % NS and FS
-                    param.trial2plot = 'allInitiated'; % for correct trials
-
-                    [fireRate, fireRateNorm] = fireRate_general(neurons, events, conditions, opt, param);
-
-                    save(fullfile(opt.analysis, "fireRate.mat"), 'fireRate', '-mat')
-                    save(fullfile(opt.analysis, "fireRateNorm.mat"), 'fireRateNorm', '-mat')
-                end
             end
 
-            %% 2.06. Continuous LFP DATA. UNDER DEVELOPMENT
+            %% 2.04. Continuous LFP DATA. UNDER DEVELOPMENT
             if opt.doLFPthing
-                % 05.1 Extract preprocessed FTcont file.
-                disp('Loading FT continuous file...')
-                load(fullfile(opt.analysis, input.sessions(input.run(1)).info.files.name));
+                % Extract preprocessed FTcont file.
+                if param.trialparsed
+                   disp('Loading FT trial parsed file...')
+                   load(fullfile(opt.trialSorted, [opt.SavFileName '_stimOn2.mat']), "-mat", 'FT_data');
+                else, disp('Loading FT continuous file...')
+                      load(fullfile(opt.trialSorted, [opt.SavFileName '_FTcont.mat']), "-mat", 'FT_data');
+                      FT_data.cfg.continuous = 'yes';
+                end
+                
                 if isfield(FT_data,"FT_data"), FT_data = FT_data.FT_data; end   % Simplify loaded structure if needed
 
-                % 05.2 Obtain or create trial definition to pass to FT
-                if isfile('trialdef.mat'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
-                
+                % Obtain or create trial definition to pass to FT
+                if isfile(fullfile(opt.trialSorted, 'trialdef.mat')), load(fullfile(opt.trialSorted, "trialdef.mat")); end
+                if isfile(fullfile(input.analysis, 'data_all.mat'))
+                    load(fullfile(input.analysis, "data_all.mat"), 'allconditions');
+                    conditions = allconditions{x,y};
+                end
+
                 if ~exist('trialdef','var')
                     load(fullfile(opt.analysis, "events.mat"));
-
                     if exist('events','var')
                         [~, trialdef, ~] = trialdefGen(events, opt, 1);
                         save(fullfile(opt.trialSorted, "trialdef.mat"), 'trialdef');
@@ -133,48 +149,36 @@ for x = 1:input.nsubjects % Subjects.
                     end
                 end
 
-                % Specific for chgDtctPCue
-                trialdef{2,1} = ceil(trialdef{2,1}/32);                
-                % Outputs are saved to data\analysis. 
-                MAT2FieldTrip(FT_data, opt, trialdef); 
-                clear FT_data events trialdef
+                % % Specific for chgDtctPCue
+                % trialdef{2,1} = ceil(trialdef{2,1}/32);                
+                % % Outputs are saved to data\analysis. 
+                % MAT2FieldTrip(FT_data, opt, trialdef); 
+                % clear FT_data events trialdef
 
-                % Artifact detection and rejection
-                load(fullfile(opt.analysis, [input.sessions(input.run(1)).list{input.run(2)}, '_startON.mat']), "-mat", 'FT_data');
-                
-                cfg = [];
-                cfg.trl         = FT_data.cfg.trl;
-                cfg.continuous  = 'no';
-                cfg.artfctdef.zvalue.channel    = 'all';
-                cfg.artfctdef.zvalue.cutoff     = 20;
-                cfg.artfctdef.zvalue.trlpadding = 0;
-                cfg.artfctdef.zvalue.fltpadding = 0;
-                cfg.artfctdef.zvalue.artpadding = 0;                
-                
-                % The optional configuration settings (see below) are:
-                  cfg.artfctdef.zvalue.artfctpeak       = 'no';
-                  cfg.artfctdef.zvalue.interactive      = 'no';
-                  cfg.artfctdef.zvalue.zscore           = 'yes';
-                
-                [~, artifact] = ft_artifact_zvalue(cfg, FT_data);
-    
-                % The following configuration options are supported
-                cfg = [];
-                  cfg.artfctdef.reject          = 'partial';
-                  cfg.artfctdef.zvalue.artifact = artifact;
-    %               cfg.artfctdef.minaccepttim    = when using partial rejection, minimum length
-    %                                               in seconds of remaining trial (default = 0.1)
-                [FT_data_art] = ft_rejectartifact(cfg, FT_data);
-    
-                % vFLIP Analysis
-                if opt.FLIP
-                     laminaraxis = 0:0.05:1.55;
-                     freqaxis = 1:150;
-    
-                    % Specific for chgDtctPCue
-                    [FLIP, relpow, ~] = vFLIP_NGL(FT_data, laminaraxis, freqaxis, 0);
-    
+                % Artifact detection and rejection. IN PROGRESS
+                if param.artifdet
+                    FT_data = artifact_detRej_lfp(FT_data, condition, opt, param);
                 end
+
+                % Time-frequency analisys. IN PROGRESS
+                if param.spectrogram
+                    if strcmp(FT_data.cfg.continuous, 'yes')
+                        TFR = continous_MTspectrogram(FT_data, conditions, param, opt);
+                    else
+                        TFR = trialparsed_MTspectrogram(FT_data, conditions, param, opt);
+                    end
+                end
+    
+                % % vFLIP Analysis
+                % if opt.FLIP
+                %      laminaraxis = 0:0.05:1.55;
+                %      freqaxis = 1:150;
+                % 
+                %     % Specific for chgDtctPCue
+                %     [FLIP, relpow, ~] = vFLIP_NGL(FT_data, laminaraxis, freqaxis, 0);
+                % 
+                % end
+
             end
 
         %% Clean up to move on to next session

@@ -63,7 +63,6 @@ if nargin>5
                     %set to ~ because nanMeanSterrHistogram uses dontsmooth
                     smoothPlot = ~varargin{i+1};
                 case 'erralpha'
-                    %set to ~ because nanMeanSterrHistogram uses dontsmooth
                     erralpha = varargin{i+1};
                 otherwise
                     error(['unknown input parameter: ' varargin{i+1}])

@@ -7,7 +7,7 @@ function [events, trialdef, EventRecord] = EventProcess(opt)
 %% Defaults.
 if ~isfield(opt,'useexe'),          opt.useexe              = true;                 end
 if ~isfield(opt,'ext'),             opt.ext                 = 'fileperch';          end
-if ~isfield(opt,'eventdef'),        opt.eventdef            = eventDefinitions();   end
+if ~isfield(opt,'eventdef'),        opt.eventdef            = eventDefinitions();   end % The script 'eventDefinitions.mat' must be inside your project file system, under 'analisysCode', and a template exists in the folder 'configfiles' of the toolbox
 if ~isfield(opt,'trEvents'),        opt.trEvents            = [];                   end
 if ~isfield(opt,'addtime'),         opt.addtime             = 0;                    end
 opt.newEvent    = {};
