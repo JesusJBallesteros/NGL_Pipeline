@@ -123,7 +123,7 @@ for x = 1:input.nsubjects % Subjects.
             %% 2.04. Continuous LFP DATA. UNDER DEVELOPMENT
             if opt.doLFPthing
                 % Extract preprocessed FTcont file.
-                if param.trialparsed
+                if opt.trialparsed
                    disp('Loading FT trial parsed file...')
                    load(fullfile(opt.trialSorted, [opt.SavFileName '_stimOn2.mat']), "-mat", 'FT_data');
                 else, disp('Loading FT continuous file...')
@@ -156,17 +156,34 @@ for x = 1:input.nsubjects % Subjects.
                 % clear FT_data events trialdef
 
                 % Artifact detection and rejection. IN PROGRESS
-                if param.artifdet
+                if opt.artifdet
                     FT_data = artifact_detRej_lfp(FT_data, condition, opt, param);
                 end
 
                 % Time-frequency analisys. IN PROGRESS
-                if param.spectrogram
+                if opt.spectrogram
                     if strcmp(FT_data.cfg.continuous, 'yes')
-                        TFR = continous_MTspectrogram(FT_data, conditions, param, opt);
+                        allTFR_continuous{x,y} = continous_MTspectrogram(FT_data, conditions, param, opt);
+
+                        % Save once all iterations are done
+                        if y == input.sessions(x).nsessions
+                            save(fullfile(input.analysis,'allTFR_continuous.mat'), 'allTFR_continuous', 'param', 'opt', '-mat');
+                        end
                     else
-                        TFR = trialparsed_MTspectrogram(FT_data, conditions, param, opt);
+                        % Specific parameters
+                        param.testname = 'ASL_Clean_Final_Correct';
+
+                        % pass the analysis folder info too % TO optimize
+                        opt.analysisCode = input.analysisCode;
+
+                        [allTFR_trialparsed{x,y}, TFRcgf{x,y}] = trialparsed_MTspectrogram(FT_data, conditions, param, opt);
+                        
+                        % Save once all iterations are done
+                        if y == input.sessions(x).nsessions
+                            save(fullfile(input.analysis,'allTFR_chbych_trialparsed.mat'), 'allTFR_trialparsed', 'param', 'opt', '-mat');
+                        end
                     end
+                    
                 end
     
                 % % vFLIP Analysis
@@ -186,3 +203,4 @@ for x = 1:input.nsubjects % Subjects.
      
     end
 end
+

@@ -89,7 +89,7 @@ end
     exportgraphics(fig, fullfile(opt.analysis,'plots', 'TFR', ...
                         'Cont_allCh.png'), ...
                         'Resolution', param.Resolution);
-    clos eall hidden
+    close all hidden
     
     % % 3 Z-score to baseline to measure change.
     % cfg2              = [];

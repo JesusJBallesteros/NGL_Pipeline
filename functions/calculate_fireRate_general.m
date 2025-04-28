@@ -5,14 +5,14 @@ function fireRate = calculate_fireRate_general(neurons, events, conditions, opt,
 % OUTPUTS
 
 %% Default options.
-if ~isfield(param,'trial2plot'),    param.trial2plot     = 'allInitiated';    end
-if ~isfield(param,'binSize'),       param.binSize        = 500;          end
-if ~isfield(param,'stepSz'),        param.stepSz         = 50;           end
-if ~isfield(param,'interval'),      param.interval       = [-2000 10000];end
-if ~isfield(param,'smpRate'),       param.smpRate        = 1000;         end
-if ~isfield(param,'baseline'),      param.baseline       = -param.interval(1);end
-if ~isfield(param,'plot'),          param.plot           = true;         end
-if ~isfield(param,'blockchange'),   param.blockchange    = [];           end
+if ~isfield(param,'trial2plot'),    param.trial2plot     = 'allInitiated'; end % condition to plot
+if ~isfield(param,'binSize'),       param.binSize        = 200;          end % ms
+if ~isfield(param,'stepSz'),        param.stepSz         = 20;           end % ms
+if ~isfield(param,'interval'),      param.interval       = [-2000 10000];end % ms range
+if ~isfield(param,'smpRate'),       param.smpRate        = 1000;         end % smp/s
+if ~isfield(param,'baseline'),      param.baseline       = -param.interval(1);end % ms
+if ~isfield(param,'plot'),          param.plot           = true;         end % logic
+if ~isfield(param,'blockchange'),   param.blockchange    = [];           end % trial number
 
 %% Initialize
 toalignto = opt.alignto;

@@ -28,6 +28,9 @@ function EventRecord = INTAN_ExtractEvents(opt)
 %                   extra events into just events, as we will use whole 16 bit words. This
 %                   unifies the standard coding between Deuteron and Intan. Implies that the
 %                   decimal integer 0 now has a meaning, and it is not just a reset.
+% 24.04.2025, Jesus: Added output field .TimeBreak to match the detection
+%                   from Deuteron System. Unlikely that they will happen on
+%                   Intan Systems, so it will just be an empty 1x2 cell array.
 
 %% Defaults
 pth     = opt.PathRaw; % folder for reading events
@@ -102,4 +105,5 @@ EventRecord.TimeStamp           = nan(length(EventType),1);
 EventRecord.TimeMsFromMidnight  = ts;
 EventRecord.TimeSource          = nan(length(EventType),1);
 EventRecord.Details             = nan(length(EventType),1);
+EventRecord.TimeBreak           = {[] []};
 end

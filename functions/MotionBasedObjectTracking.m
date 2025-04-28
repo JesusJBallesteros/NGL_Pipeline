@@ -53,7 +53,6 @@ blobPos  = cell(Nfs,1);
 blobTime = zeros(1,Nfs);
 
 %% Main process. Detect moving objects, and track them across video frames.
-tic
 while hasFrame(obj.reader)
     frame = readFrame(obj.reader);  % Get frame
 
@@ -84,7 +83,6 @@ while hasFrame(obj.reader)
     blobTime(1,f) = obj.reader.CurrentTime-(1/60);
     f = f + 1;
 end
-toc
 
 %% Initialize functions 
 % Create System Objects

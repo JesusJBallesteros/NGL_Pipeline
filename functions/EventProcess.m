@@ -26,20 +26,19 @@ if isfile(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')))
     load(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')), 'EventRecord');
     check = check+1;
     
-    % if isfile(fullfile(opt.trialSorted, strcat('trialdef.mat')))
-    %     disp('Trial definition file found. Loading')
-    %     load(fullfile(opt.trialSorted, strcat('trialdef.mat')), 'trialdef');
-    %     check = check+1;
-    % end
+    if isfile(fullfile(opt.trialSorted, strcat('trialdef.mat')))
+        disp('Trial definition file found. Loading')
+        load(fullfile(opt.trialSorted, strcat('trialdef.mat')), 'trialdef');
+        check = check+1;
+    end
 
-    if isfile(fullfile(opt.analysis, strcat('events.mat')))
+    if isfile(fullfile(opt.trialSorted, strcat('events.mat')))
         disp('Events have been collected. Loading')
-        load(fullfile(opt.analysis, strcat('events.mat')), 'events');
+        load(fullfile(opt.trialSorted, strcat('events.mat')), 'events');
         check = check+1;
     end
 
     if check == 3
-        % return; 
         % New event aligment requested?
         if ~all(ismember(opt.alignto, fieldnames(events)))
             opt.newEvent = opt.alignto(~ismember(opt.alignto', fieldnames(events)));
@@ -87,12 +86,12 @@ if opt.RetrieveEvents
         % Then, based on the trial definitions (defaulted or given) create
         % an 'events' struct fitting the NGL convention
         disp('Creating trial definitions based on extracted EventRecord and Eventcodes descriptions.')
-        [events, trialdef, opt.eventdef] = trialdefGen(EventRecord, opt);
+        [events, trialdef, opt.eventdef, EventRecord] = trialdefGen(EventRecord, opt);
 
     elseif check==3 && ~isempty(opt.newEvent)
         % Re create an additional field in events as requested
         disp('Re-Creating Events variable with additional alignments.')
-        [events, trialdef, ~] = trialdefGen(EventRecord, opt, events, trialdef);
+        [events, trialdef, ~, EventRecord] = trialdefGen(EventRecord, opt, events, trialdef);
     end
 
 %% Run the personalized script for the conditions to be extracted
@@ -101,8 +100,8 @@ run('conditions_script.m');
 %% Save this session events, trialdef and conditions variables.
 save(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')), 'EventRecord', '-v7.3');
 save(fullfile(opt.trialSorted, strcat('trialdef.mat')), 'trialdef', '-v7.3');
-save(fullfile(opt.analysis, strcat('events.mat')), 'events', '-v7.3');
-save(fullfile(opt.analysis, strcat('condition.mat')), 'conditions', '-v7.3');
+save(fullfile(opt.trialSorted, strcat('events.mat')), 'events', '-v7.3');
+save(fullfile(opt.trialSorted, strcat('condition.mat')), 'conditions', '-v7.3');
 
 else
     disp('Events not requested. Skipped.')

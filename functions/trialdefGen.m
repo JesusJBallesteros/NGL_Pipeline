@@ -1,4 +1,4 @@
-function [events, trialdef, eventdef] = trialdefGen(EventRecord, opt, varargin)
+function [events, trialdef, eventdef, EventRecord] = trialdefGen(EventRecord, opt, varargin)
 % Testing in experiments with Deuteron block format with a text file
 % generated from the software log. This log NEEDS to be saved and placed
 % with the raw session data manually (for now).
@@ -28,8 +28,9 @@ function [events, trialdef, eventdef] = trialdefGen(EventRecord, opt, varargin)
 %         trialdef: array (ntrials,3) columns being [trial startTime, trial endTime, trial ZeroTime]
 %         eventdef: the event definitions used to create trials, 
 %                   either defaulted or the ones given by the user.
-
 % Jesus 11.07.2024
+%       24.04.2025: timebreak fix implemented
+
 if ~isfield(opt,'trEvents'),        opt.trEvents            = [];                   end
 
 %% 01 Check inputs
@@ -64,12 +65,12 @@ if isempty(useevents)
                 % the expected [1 1 0 0], generating succesive arbitrary events 
                 % until a point where the preIni state is enforced. 
                 % Solution, remove all events before first star trial event.
-                EventRecord.EventNumber(2993:3008)   = []; %(2:5) % 4639:4650 % 2993:3008
-                EventRecord.EventType(2993:3008)     = [];
-                EventRecord.TimeStamp(2993:3008)     = [];
-                EventRecord.TimeMsFromMidnight(2993:3008) = [];
-                EventRecord.TimeSource(2993:3008)    = [];
-                EventRecord.Details(2993:3008)       = [];
+                EventRecord.EventNumber(4639:4650)   = []; % 2:5 and 4639:4650 % 2993:3008
+                EventRecord.EventType(4639:4650)     = [];
+                EventRecord.TimeStamp(4639:4650)     = [];
+                EventRecord.TimeMsFromMidnight(4639:4650) = [];
+                EventRecord.TimeSource(4639:4650)    = [];
+                EventRecord.Details(4639:4650)       = [];
                 % Possible FIX to recover these initial trials? Assume firs sent event
                 % is start trial. MANUAL CHECK!
 	            warning('Events before first start trial removed. Check if these trials are recoverable.')
@@ -92,24 +93,63 @@ if isempty(useevents)
         idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
                            EventRecord.EventType==opt.eventdef.end2 | ...
                            EventRecord.EventType==opt.eventdef.end3);
+    
+        % 000. If there was a timebreak, relativize it to the first timestamp
+        % Also, all times after the break need to be adjusted for the actual
+        % time passed during the delay, erasing it in terms of recording time
+        if isfield(EventRecord,'TimeBreak')
+            if ~isempty(EventRecord.TimeBreak{1,2})
+                EventRecord.TimeBreak{1,2} = EventRecord.TimeBreak{1,2}-EventRecord.TimeMsFromMidnight(1);
+                
+                tbreakdur = EventRecord.TimeBreak{1,2}(2) - EventRecord.TimeBreak{1,2}(1);
+                tbidx = EventRecord.TimeMsFromMidnight > EventRecord.TimeBreak{1,2}(2);
+                EventRecord.TimeMsFromMidnight(tbidx) = EventRecord.TimeMsFromMidnight(tbidx) - tbreakdur;
+            end
+        end
     end
     
     % 01 Relativize timestamps to session start keeping it in msec
     EventRecord.TimeMsFromMidnight = (EventRecord.TimeMsFromMidnight - EventRecord.TimeMsFromMidnight(1));
-    
-    % 02 Convert relativized timestamps to SECONDS
-    EventRecord.TimeSecFromMidnight = EventRecord.TimeMsFromMidnight/1000;
-    
-    % 03 Find trial start/end times using given definitions
+        
+    % 02 Find trial start/end times using given definitions
     % Index of events equal to the defined trial start and trial end events.
     idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 
     idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
                         EventRecord.EventType==opt.eventdef.end2 | ...
                         EventRecord.EventType==opt.eventdef.end3);
-    
+        
     % Now take those index time values
     trialstarts = EventRecord.TimeMsFromMidnight(idx.start); % get corresponding timestamps.
     trialends = EventRecord.TimeMsFromMidnight(idx.end); % get corresponding timestamps.
+
+    % 03 Check for trial length consistency
+    triallengths = trialends-trialstarts;
+    Avtriallength = median(triallengths); 
+    if sum(triallengths > Avtriallength*1.1)==1
+        NotTrial = find(triallengths > Avtriallength*1.1);
+        trialstarts(NotTrial) = [];
+        trialends(NotTrial) = [];
+
+        rmvtrial(1) = find(EventRecord.TimeMsFromMidnight==EventRecord.TimeMsFromMidnight(idx.start(NotTrial))==1);
+        rmvtrial(2) = find(EventRecord.TimeMsFromMidnight==EventRecord.TimeMsFromMidnight(idx.end(NotTrial))==1);
+
+        % Remove events in between to eliminate its trace
+        EventRecord.EventNumber(rmvtrial(1):rmvtrial(2)) = [];
+        EventRecord.EventType(rmvtrial(1):rmvtrial(2))  = [];
+        EventRecord.TimeStamp(rmvtrial(1):rmvtrial(2))  = []; % Convert to string array
+        EventRecord.TimeMsFromMidnight(rmvtrial(1):rmvtrial(2)) = [];
+        EventRecord.TimeSource(rmvtrial(1):rmvtrial(2)) = [];
+        EventRecord.Details(rmvtrial(1):rmvtrial(2))    = [];
+
+        warning('Exactly one trial have been found unconsistently lenghty, and has been excluded.')
+    elseif sum(triallengths > Avtriallength*1.1)>1
+        warning('Several trials have unconsistent length!')
+    else
+        disp('All trials are consistent in duration.')
+    end
+
+    % 05 Convert relativized timestamps to SECONDS
+    EventRecord.TimeSecFromMidnight = EventRecord.TimeMsFromMidnight/1000;
 
 % else
     % %% 00 Find trials with specific event combinations
@@ -135,7 +175,7 @@ if isempty(useevents)
     assert(length(trialstarts)==length(trialends),'Mismatch between number of start/end events unsolved!')
     
     % If OK, use either as a reliable count for number of trials
-    ntrials = length(idx.start); % count trial starts.
+    ntrials = length(trialstarts); % count trial starts.
 
     %% 03 Create trialdef variables. In MILISECONDS
     % Check options and prepare given events to align trial times to.
@@ -169,7 +209,7 @@ else
 end
 
 if isempty(useevents)
-%% Go over every event and create the required trialdef aligned for that event
+    %% Go over every event and create the required trialdef aligned for that event
     for i=1:size(opt.alignto,1)
         correction = 0;
         trialdef{1,i} = opt.alignto{i,1};
@@ -178,7 +218,7 @@ if isempty(useevents)
            trialdef{2,i} = nan(size(trialdef{2,1}));
         end
 
-        idx = find(EventRecord.EventType==opt.alignto{i,2}); 
+        idx = find(EventRecord.EventType==opt.alignto{i,2});
             if strcmp(opt.alignto{i,1},'bhv')
                 idx(EventRecord.EventType(idx-1) ~= str2double(opt.alignto{i,3})) = [];
                 if str2double(opt.alignto{i,3})==2, correction = 1000; end % Fix for bhv-rwd in S3-Extintion Arena
@@ -210,7 +250,7 @@ if isempty(useevents)
         end
     end  
 else
-%% Go over every New Event and create the required alignment
+    %% Go over every New Event and create the required alignment
     oldN = length(trialdef);
 
     for i = 1:size(opt.newEvent,1)
@@ -276,6 +316,9 @@ else
         % end
     end
 end
+
+% %% Trialdef double check for time jumps and its fixing
+% timebreak = check_timebreaks(trialdef{2,1}); % {2,1}(:,3) should always be t0 for itiOn
 
 %% 04 Create an NGl-standard event structure. IN SECONDS
 if isempty(useevents)

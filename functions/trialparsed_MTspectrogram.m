@@ -1,106 +1,149 @@
-function [TFR] = trialparsed_MTspectrogram(FT_data, conditions, param, opt)
+function [TFR, cfg] = trialparsed_MTspectrogram(FT_data, conditions, param, opt)
+% This function takes trial-parsed FieldTrip formatted data, the conditions
+% file and parameters and options to calculate the Time-frequency representation 
+% (TFR) with the method of choice. For wide-ranges 'superlets' is
+% recommended. By default, it will keep all trials information.
+% 
+% So far, it has a block-by-block approach, with early and late sub-block
+% iterations. For each of these, it will perform for each type of stimuli
+% present (e.g., Familiar vs Novel = 2x). Before each call to 'ft_freqanalysis'
+% is preceded by an artifact rejection function. Once TFR absolute is 
+% calculated, the value of one condition will be substracted from the
+% other stimuli type trials. 
 %
+% Baseline calculations would be performed at the time of plotting. 
+% 
+% It will save the single session data and output it to save to a general
+% file, outside the function, if requested.
 %
+% Plotting options can be added at the end of the function.
 %
+% Jesus. 14.04.2025
 
 %% Defaults
-param.multi = false;
-t_baseline = 4; % in sec
-nblocks = 1;
-
-% Figure size
-if strcmpi('adaptive', param.size)
-    param.screen.size   = get(0, 'ScreenSize');  
-    param.screen.width  = param.screen.size(3);
-    param.screen.height = param.screen.size(4);
-else
-    param.screen.width  = param.size(1); 
-    param.screen.height = param.size(2);
-end
-
-%% Wavelet default configuration
-% Absolute calculation
-cfg = [];
- cfg.method     = 'wavelet';
- cfg.output     = 'pow';      % power output
- cfg.foi        = 1:1:50;  % frequencies from 1 to 80 Hz
- cfg.width      = 7;          % wavelet width (can be tuned based on your analysis)
- cfg.keeptrials = 'yes';    
- cfg.toi        = -4:.1:8;  % time vector from -4 s to 8 s (adjust time resolution as needed)
- cfg.pad        = 'nextpow2';
-
-% Relative calculation
-cfgb              = [];
- cfgb.baseline     = [-t_baseline 0];
- cfgb.baselinetype = 'zscore';
- cfgb.stimType     = 0; % adapt to whatever (EG. 1=FS, 0=NS) 
+if ~isfield(param,'multi'),     param.multi     = false;        end
+if ~isfield(param,'testname'),  param.testname  = 'trial_TFR_'; end
+if ~isfield(opt,'blocks'),      opt.blocks      = 'all';        end
+toload = 0;
 
 %% Check existence of multiple levels
-if max(unique(conditions.block)) > 1
-    nblocks = max(unique(conditions.block));
+if isstring(opt.blocks)
+    opt.blocks = max(unique(conditions.block));
     param.multi = true; 
+elseif ~isstring(opt.blocks)
+    if opt.blocks > 1; param.multi = true; end
 end
 
-%% 1 Proceed
-for b = 1:nblocks % per block
-    % define valid trials
-    cfgt = [];         
-     cfgt.trials = find(conditions.block == b & conditions.stimulus == cfgb.stimType & ~isnan(FT_data.cfg.trl(:,3)));
-        blockData = ft_redefinetrial(cfgt, FT_data);
+%% Check for processed data
+fTFR = ls(fullfile(opt.analysis, [param.testname '*'])); % 'ASL_*
+if ~isempty(fTFR)
+    % If existing load
+    if isfile(fullfile(opt.analysis, fullfile(fTFR)))
+        toload = 1;
+        disp('Loading existing TFR data ...')
+        load(fullfile(opt.analysis, fullfile(fTFR)));
+    end
+end
+
+%% TFR Absolute calculation
+if ~toload
+    global ft_default;
+    ft_default.notification.warning = [];
+    cfg = [];
+    for f = 1:(size(opt.freqInterest,1))
+        cfg{f}.method = opt.TFRmethod;
+        cfg{f}.output = 'pow'; % Outputs power and cross-spectra
+        cfg{f}.pad    = 'nextpow2';
+        cfg{f}.keeptrials  = 'yes'; % Do (not) keep indiv. trial data
+        cfg{f}.foi    = opt.freqInterest{f}; % frequencies
+        
+        if strcmpi(opt.TFRmethod, 'wavelet')
+         % Wavelet default configuration
+         cfg{f}.width      = 7; % wavelet width (can be tuned based on your analysis)
+         cfg{f}.toi        = -4:.1:8; % time vector from -4 s to 8 s (adjust time resolution as needed)
+         
+        elseif strcmpi(opt.TFRmethod, 'mtmconvol')
+         % Multitaper default configuration
+         cfg{f}.taper       = 'hanning';      % sequence
+         cfg{f}.t_ftimwin   = 3./cfg{f}.foi;  % 3 cycles per time window
+         cfg{f}.toi         = linspace(-4,8,length(cfg{f}.foi));   % stimate
+         cfg{f}.tapsmofrq   = 4;          % smooth over +/- Hz
     
-    % Skip if there are no trials in this block
-    if isempty(blockData.trial), continue; end
+        elseif strcmpi(opt.TFRmethod, 'superlet')
+         cfg{f}.toi     = -4:opt.timeResol:8; % time vector from -4 s to 8 s (adjust time resolution as needed)
+         cfg{f}.width   = opt.width{f};
+         cfg{f}.combine = opt.combine;
+         
+         AF{f} = calculate_superlet_order(cfg{f}.foi, opt.superletOrder{f});
+         cfg{f}.order   = AF{f};
+        end
+    
+        %% 1 Proceed
+        for b = 1:opt.blocks
+            % For both stimuli NS/FS
+            for st = 1:2 % st==1 -> NS, st==2 -> FS (bc 0=NS, 1=FS)
+                % get valid trials and halven into early/last
+                seltrials = find(conditions.correct == 1 & conditions.block == b & conditions.stimulus == (st-1) & ~isnan(FT_data.cfg.trl(:,3)));
+                midblock = floor(size(seltrials,1)/2);
+                blocktrials = {seltrials(1:midblock); ...
+                               seltrials(midblock+1:end)};
+    
+                % Do first/last half of the block
+                for i = 1:2
+                    cfgt = [];
+                     cfgt.trials = blocktrials{i};
+                    blockData = ft_redefinetrial(cfgt, FT_data);
+                
+                    % Skip if there are no trials in this block
+                    if isempty(blockData.trial), continue; end
+                    
+                    % Artifact detection and rejection
+                    if opt.artifdet
+                        blockData.cfg.trl = FT_data.cfg.trl(blockData.cfg.trials,:);
+                        blockData = artifact_detRej_lfp(blockData, opt);
+                    end
 
-    % Perform Time-Frequency Representation (TFR) Analyses 
-    TFR.abs{b} = ft_freqanalysis(cfg, blockData);
-
-    % Relativize to baseline.
-    TFR.rel{b} = ft_freqbaseline(cfgb, TFR.abs{b});
-
-    % % Average over trials for each case
-    % cfg.keeptrials = 'no';    
-    %     TFR.absAV{b} = ft_freqanalysis(cfg, blockData);
-    %     TFR.relAV{b} = ft_freqbaseline(cfgt, TFR.absAV{b});
+                    % Perform Time-Frequency Representation (TFR) Analyses 
+                    TFR{f,b}.abs{i,st} = ft_freqanalysis(cfg{f}, blockData);
+                end
+            end
+        
+            % Again for Early/late, substract Abs pow, FS from NS (NS-FS)
+            for i = 1:2
+                % copy Abs NS data
+                TFR{f,b}.rem{i} = TFR{f,b}.abs{i,1};
+    
+                % calculate Abs FS mean across trials
+                meanFS = mean(TFR{f,b}.abs{i,2}.powspctrm, 1, 'omitnan');
+    
+                % Substract the Abs FS mean power from each Abs NS power trial
+                for t = 1:size(TFR{f,b}.rem{i}.powspctrm, 1)
+                    TFR{f,b}.rem{i}.powspctrm(t,:,:,:) = TFR{f,b}.rem{i}.powspctrm(t,:,:,:) - meanFS;
+                end
+            
+                % empty 'cumtapcnt'
+                TFR{f,b}.rem{i}.cumtapcnt = [];
+            end
+        end
+    end
+    clear blockData
+    
+    % Save TFR data
+    filtitl = [param.testname, opt.SavFileName, '_',opt.TFRmethod];
+    save(fullfile(opt.analysis,[filtitl '.mat']), 'TFR', 'cfg','-mat');
 end
-clear blockData b
 
-%% 2 Plot dB scaled TFRs.
-% Plot Configuration
-cfgp           = [];
- cfgp.figure    = 'gca';
- cfgp.colormap  = hot;
- cfgp.xlim      = 'maxmin';
- cfgp.ylim      = [0 max(cfg.foi)];
- cfgp.clim      = 'maxmin';
- cfgp.colorbartext = cfgb.baselinetype;
- cfgp.interactive = 'no';
- cfgp.fontsize  = 12;
-figtitl = ['TFR_StimOn2_Blocks_NS_',cfgb.baselinetype,'_1-50'];
+% % 2 Plot Baselined TFRs.
+% plot_superletsTFR_extintion(TFR, param, opt)
 
-% Plot itself
-fig = figure('Visible', param.visible, 'Position', [0 0 700 400]);
-set(fig, 'Position', [0, 0, round(param.screen.height), round(param.screen.width)]); % Set fig size as screen
-for b = 1:nblocks
- cfgp.title = sprintf('Block %d',b); 
-    subplot(nblocks/2, 2, b)
-    try ft_singleplotTFR(cfgp, TFR.rel{b}); hold on
-    catch, end
-    xlim([-3.1 6.9]);
-    clim([0 3]);
-    xticks(TFR.rel{b}.time(1):2:TFR.rel{b}.time(end));
-    xticklabels(round(TFR.rel{b}.time(1):2:TFR.rel{b}.time(end)));
-    xlabel('Time (s)'); ylabel('Frequency (Hz)');    
-    hold off
-    xline(0, '--w', 'LineWidth', 2);
-    xline(-2, ':w', 'LineWidth', 2);
+if opt.trialbytrial
+    % 3 Plot trial-by-trial TFRs.
+    plot_superletsTFR_extintion_tbt(TFR, param, opt)
 end
-sgtitle(fig,['Session Type: ', conditions.type, '. AllCh']); 
 
-%% Save the figure as .png
-if ~isfolder(fullfile(opt.analysis,'plots', 'TFR')), mkdir(fullfile(opt.analysis,'plots', 'TFR')); end
-exportgraphics(fig, fullfile(opt.analysis,'plots', 'TFR', [figtitl '.png']),'Resolution', param.Resolution);
-close all hidden
+if opt.chbych
+    % 4 Plot trial-by-trial TFRs.
+    plot_superletsTFR_extintion_chbych(TFR, param, opt)
+end
 
-%% Save the data
-save(fullfile(opt.analysis,[figtitl '.mat']), 'TFR','-mat');
 end
