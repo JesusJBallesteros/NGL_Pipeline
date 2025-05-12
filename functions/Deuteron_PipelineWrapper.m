@@ -35,7 +35,6 @@ function [opt] = Deuteron_PipelineWrapper(input, varargin)
 %       containing timeseries for each sensor readings, in physical units. Plus
 %       a 'rotators' variable, containing the quaternions to create the
 %       rotation matrices and other transformations.
-
 % Version 12.06.2024 (Jesus)
 
 if nargin < 2, opt = struct();
@@ -52,9 +51,9 @@ if ~isfield(opt,'highpass'),        opt.highpass            = 400;          end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
 if ~isfield(opt,'parsetrial'),      opt.parsetrial          = false;        end
 if ~isfield(opt,'CAR'),             opt.CAR                 = true;         end
+if ~isfield(opt,'timebreak'),       opt.timebreak           = false;        end
 
 %% Set local options.
-
 % Collect parameters to proceed with file creation. List all files.
 opt.myFiles = input.sessions(input.run(1)).info.files;
 opt.ext     = input.sessions(input.run(1)).info.fileformat;
@@ -71,6 +70,13 @@ opt.offset            = 2^(opt.numberOfAdcBits-1);
 % 'trialdef' outputted for later feed into fieldtrip transf.
 % An empty output means that data shall be treated as continuous.
 [events, trialdef, EventRecord] = EventProcess(opt);
+
+% Register a timebreak if detected
+if isfield(EventRecord,'TimeBreak')
+    if ~isempty(EventRecord.TimeBreak{1,2})
+        opt.timebreak = true;
+    end
+end
 
 %% High-pass Neural Data Conversion to .bin
 if opt.bin

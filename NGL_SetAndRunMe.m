@@ -90,7 +90,8 @@ NGL02_postPhy
 % or implemented as default if decided as standard.
 
 % TODO
-NGL03_plotting 
+% NGL03_plotting01
+% NGL03_plotting02
 
 %% 2.4 Aggregating. (IN PROGRESS)
 % Get data from all specified animals and sessions and aggregate them into

@@ -13,8 +13,16 @@ function [EventRecord, opt] = Deuteron_ExtractEvents(opt)
 %           TimeMsFromMidnight (double)
 %           TimeSource (string)
 %           Details (string)
-
-% Jesus. 23.08.2024
+%           TimeBreak (Nx2 cell array)
+%
+% 23.08.2024, Jesus: Consolidation and integration in pipeline, with two
+%                    possible ways to get the session information.
+% 24.04.2025, Jesus: Added function to detect time breaks when getting 
+%                    information from Event logs. Can detect more than one.
+%                    Only implemented for 'extractFromExe' function.
+%                    Added output field .TimeBreak to match the detection
+%                    from Deuteron System. Unlikely that they will happen on
+%                    Intan Systems, so it will just be an empty 1x2 cell array.
     
 %% Case
 if opt.useexe,  [EventRecord, opt] = extractFromExe(opt);
@@ -42,15 +50,12 @@ function [EventRecord, opt] = extractFromExe(opt)
     %           Details (string)
     % Jesus. 23.08.2024
 
-    %% Hardcoded variables (TO Reduce)
+    %% Hardcoded variables
     maxFileIndex     = length(dir([opt.PathRaw '\NEUR*'])) - 1; % cero indexed, so [0:Nfiles-1]
     count            = 1; % just a counter for processed files
     
     %% Set up files to load 
-    % if IncludeEventFile % Always included
     listOfFilesToLoad =  cell(maxFileIndex + 1, 1); % cell(maxFileIndex - 1 + 2, 1);
-    % listOfFilesToLoad{count} = 'EVENT000.DF1';
-    % count = count + 1;
     
     for fileIdx = 1:maxFileIndex
         indexStr = num2str(fileIdx,'%04.f');
@@ -82,17 +87,21 @@ function [EventRecord, opt] = extractFromExe(opt)
     myRecord = readmatrix(fullfile(opt.FolderProcDataMat, '\EventRecord.csv'), 'OutputType', 'string'); % Read the output cvs
     
     % Find those logs with Digital-IN info.
-    edgeDect = contains(myRecord(:,8), 'Digital in');
+    edgeDect = contains(myRecord(:,8), 'Digital in'); % Could be found in (:,6) as well. Same tstamp
     bitRecord = myRecord(edgeDect, 1:8); % Keep fields 1:8
 
     % Number of remainer records
     numberOfRecords = length(bitRecord); 
     fprintf(['Events extracted. The number of records is: ' num2str(numberOfRecords) '\n']);
 
+    % Check for time breaks in the session
+    [timebreak] = check_timebreaks(myRecord);
+    if ~isempty(timebreak{2})
+        warning('A time break has been found.');
+    end
+
     %% Translate edge detections into binary words. 
-    % Every detected edge is a change of pin to either 1 (rising) 
-    % or 0 (falling).
-    
+    % Every detected edge is a change of pin to either 1 (rising) or 0 (falling).
     % Prepare a variable with all 4 pins, all set to zero
     words = zeros(numberOfRecords+1, 4);
     
@@ -131,11 +140,20 @@ function [EventRecord, opt] = extractFromExe(opt)
     EventRecord.TimeMsFromMidnight  = str2double(bitRecord(:,4));
     EventRecord.TimeSource          = nan(length(bitRecord(:,6)),1);
     EventRecord.Details             = nan(length(bitRecord(:,8)),1);
+    EventRecord.TimeBreak           = timebreak;
+
+    if ~isempty(timebreak{2})
+        %EventRecord.TimeBreak{1,2} = EventRecord.TimeBreak{1,2}-EventRecord.TimeMsFromMidnight(1);
+        tbreakdur = EventRecord.TimeBreak{1,2}(2) - EventRecord.TimeBreak{1,2}(1);
+        tbidx = EventRecord.TimeMsFromMidnight > EventRecord.TimeBreak{1,2}(1);
+        EventRecord.TimeMsFromMidnight(tbidx) = EventRecord.TimeMsFromMidnight(tbidx) - tbreakdur;
+        warning('The timebreak has been fixed and the EventRecpord will be saved for check.')
+    end
 
     fprintf('Successfully created ''EventRecord'' structure.\n');
     
-    %% Save event record and DigIn events (TODO) at session folder
-    save((opt.FolderProcDataMat + "\EventRecord.mat"),"EventRecord","-mat");
+    % %% Save event record and DigIn events (TODO) at session folder
+    % save((opt.FolderProcDataMat + "\EventRecord.mat"),"EventRecord","-mat");
 end
 
 function EventRecord = extractFromLog(opt)
@@ -209,5 +227,7 @@ function EventRecord = extractFromLog(opt)
     EventRecord.TimeStamp           = string(ts); % Convert to string array
     EventRecord.TimeMsFromMidnight  = tsmsec;
     EventRecord.TimeSource          = nan(length(stateLog),1);
-EventRecord.Details             = nan(length(stateLog),1);
+    EventRecord.Details             = nan(length(stateLog),1);
+    EventRecord.TimeBreak           = {[] []};
+
 end

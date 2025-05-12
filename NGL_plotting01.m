@@ -22,7 +22,7 @@ end
 
 % Set default inputs and dependencies. In case NGL01 did not before.
 input = set_default(input, opt);
-skip =1 ;
+% skip =1 ;
 
 %% 01. Find and list requested sessions and subjects.
 input.sessions = findSessions(input);
@@ -81,6 +81,8 @@ end
 for x = 1:input.nsubjects % Subjects.   
     for y = 1:input.sessions(x).nsessions % Sessions.
         input.run = [x y]; % Current run, to pass to functions.
+        [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);           
+
         %% 3.1 All clusters piled, ...
         % aligned to requested events, for all clusters
         if opt.pooledstats
@@ -91,12 +93,12 @@ for x = 1:input.nsubjects % Subjects.
         % whole trial
         if opt.plot_trial
             if ~exist('spike','var'),     load(fullfile(opt.spikeSorted, "spike.mat")),    end
-            plot_trialclusters(allneurons{x,y}, allevents{x,y}, spike, allconditions{x,y}, opt, param, input)
+            plot_trialclusters(allneurons{x,y}, allevents{x,y}, spike, allconditions{x,y}, opt, param)
         end
         
         % aligned to requested events, per cluster
         if opt.plot_align && numel(opt.alignto) > 1
-            plot_alignedclusters(allneurons{x,y}, allevents{x,y}, spike, [], opt, param, input)
+            plot_alignedclusters(allneurons{x,y}, allevents{x,y}, spike, allconditions{x,y}, opt, param)
         end
         
         %% 3.3 SocialLearning-specific plots

@@ -10,14 +10,23 @@
 % blobs and categorizing as 'interactions' those when the blob merge into a
 % single one. 
 % % Working.
-opt.offlineTrack = true;
-opt.useTrack     = false;
+opt.offlineTrack = false;
 
 %% Spike analysis and plots 
 % Proceed to some analysis and plots for clustered units obtained from
 % KS-Phy processing.
 % % Working.
 opt.doSpikething = true;
+opt.getwF        = true;	
+	
+%% General options to extract single waveforms 
+% from the clustered units. 
+% Suboptions are probably to held fix for everyone.
+% % Working
+opt.gwfparams.nWf       	= 2000;     % maximum # of waveforms to extract per cluster. Affects computing time.
+opt.gwfparams.dataType      = 'int16';  % Data type of .dat file
+opt.gwfparams.nCh           = 32;       % Number of channels that were streamed in .dat file
+opt.gwfparams.wfWin         = [-20 41]; % Number of samples around spiketime to include in waveform
 
 %% LFP analysis and plots 
 % from data obtained via Fieldtrip pathway.
@@ -30,49 +39,34 @@ opt.doLFPthing = false;
 % % On development
 opt.FLIP = false;
 
-%% General options to extract single waveforms 
-% from the clustered units. 
-% Suboptions are probably to held fix for everyone.
-% % Working
-opt.getwF                   = false;
-    opt.gwfparams.dataType      = 'int16';  % Data type of .dat file
-    opt.gwfparams.nCh           = 32;       % Number of channels that were streamed in .dat file
-    opt.gwfparams.wfWin         = [-20 41]; % Number of samples around spiketime to include in waveform
-    opt.gwfparams.nWf           = 1;        % Proportion of total waveforms per unit to extract
-
 %% Plotting
 % These parameters affect the plotting functions used after unit sorting.
-% % Working
-opt.pooledstats             = false;
-opt.plot_trial              = false;
-opt.plot_align              = false;
-opt.plot_SocLear            = false;
-    opt.useConditions       = false;    % plot trials indexed by conditions
-    opt.plotSocial          = false;     % plot trials indexed by social assessment
+opt.plot_trial              = false;   % in general, to plot full trial rasters/PSHS
+opt.plot_align              = false;   % in general, to plot event-aligned pieces of trial
+opt.plot_sessions           = false;  % in general, to plot data collected across session
+opt.plot_fireRate           = true;
 
+%% General figure-related parameters
+param = struct('visible',      'off', ... % figure visibility at plotting
+		       'Resolution',    300, ...  %
+               'size',          'adaptive', ... %
+		       'treatment',     true, ... % plot different levels due to treatment/s
+		       'baseline',      1500, ... % for event-aligned plots, msec before event
+		       'post',          2500, ... % for event-aligned plots, msec after event
+		       'plotevent',     [2,3,7], ... % mark these trial events in rasters
+               'smpRate',       1000, ... %
+		       ... % PSH plotting
+		       'binSize',       500, ...  % binning window, msec. Only for full trial
+		       'stepSz',        50 ...    % window steps, msec. Only for full trial
+               );     
 
-param = struct('res',           true, ...  % To deprecate % load 'res' variable from Juan's
-               'visible',       'off', ... % figure visibility at plotting
-               'treatment',     true, ... % plot different levels due to treatment/block/phase
-               'genstats',      true, ... % do raster plots
-               'pooledstats',   true, ... % Plot a pool of all clusters together
-               ... % raster plotting
-               'plotcol',       [.4 .4 .4; 0.6350 0.0780 0.1840; 0 0 0], ... % levels coloring
-               'plotStyle',     'square', ...  % plot marker
-               'spkWidth',      3, ... % marker size
-               'lineLength',    1, ...  % trial line width
-               'timelim',       [-500 2000], ... % limits on msec around cero, to plot
-               ... % PSH plotting
-               'binSize',       100, ... % binning window, msec
-               'stepSz',        10, ... % window running step, msec
-               'smpRate',       1000, ... % samples per second in 'neurons'
-               'interval',      [0 2500]); % time interval to calculate histogram bins
-% These sub-structures could contain the options that currently are inside the plot functions, for further customization
-%                     ... %
-%                     'raster', struct(), ... 
-%                     ... %
-%                     'psh', struct(), ...
-%                     ... %
-%                     'poolraster', struct() ...
-%                     );
-%                   %  ... %
+% Extintion specific
+param.trial2plot = 'allInitiated'; % 'correct', 'incorrect', 'omission', 'allInitiated'
+param.IncludeFS = false;
+param.FS2plot   = true; 
+param.binSize   = 500;
+param.stepSz    = 50;
+param.nBlocks   = 8;
+param.interval  = [-2000 10000];
+param.baseline  = 0 - param.interval(1);
+

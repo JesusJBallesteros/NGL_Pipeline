@@ -2,7 +2,6 @@
 % DO NOT MODIFY here, use input values in script,
 % whose will run after this is executed.
 opt = struct();
-
 %% General
 opt.numChannels      = 32;
 opt.CAR              = 1;
@@ -20,32 +19,46 @@ opt.kilosort         = 4;
 opt.KSchanMapFile    = 'chanMapE32-S2_DeutSN11.mat';
 opt.spkTh            = -6;
 opt.bombcell         = false;
-opt.rerun            = false;
+opt.rerun            = true;
 opt.phy              = false;
-%% Deuteron pipeline
-if ~isfield(opt,'bin'),             opt.bin                 = true;         end
-if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
-if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
-if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
-if ~isfield(opt,'lowpass'),         opt.lowpass             = 250;          end
-if ~isfield(opt,'highpass'),        opt.highpass            = 400;          end
-if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
-if ~isfield(opt,'parsetrial'),      opt.parsetrial          = false;        end
-if ~isfield(opt,'CAR'),             opt.CAR                 = true;         end
-%% INTAN pipeline 
-if ~isfield(opt,'bin'),             opt.bin                 = true;         end
-if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
-if ~isfield(opt,'useNWB'),          opt.useNWB              = false;        end
-if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
-if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = true;         end
-if ~isfield(opt,'lowpass'),         opt.lowpass             = 150;          end
-%% NGL02_postPhy
-if ~isfield(opt, 'doSpikething') || isempty(opt.doSpikething),  opt.doSpikething = true;    end
-if ~isfield(opt, 'doLFPthing') || isempty(opt.doLFPthing),      opt.doLFPthing   = true;    end
-if ~isfield(opt, 'offlineTrack') || isempty(opt.offlineTrack),  opt.offlineTrack = false;   end
-if ~isfield(opt, 'FLIP') || isempty(opt.FLIP),                  opt.FLIP         = false;   end
-% if exist('regions','var'),                                      opt.multregion   = true;    end
-
+%% 01. Deuteron pipeline
+opt.StpSz            = 1000000;
+opt.parsetrial       = false;
+%% 01. INTAN pipeline 
+opt.useNWB           = false;
+%% 02. postPhy
+opt.doSpikething     = true;
+opt.doLFPthing       = true;
+opt.offlineTrack     = false;
+opt.FLIP             = false;
+% opt.multregion     = true;
+opt.getwF            = true;	
+opt.gwfparams.nWf       = 2000;     % maximum # of waveforms to extract per cluster. Affects computing time.
+opt.gwfparams.dataType  = 'int16';  % Data type of .dat file
+opt.gwfparams.nCh       = 32;       % Number of channels that were streamed in .dat file
+opt.gwfparams.wfWin     = [-20 41]; % Number of samples around spiketime to include in waveform
+%% Plotting
+param = struct('visible',      'off', ... % figure visibility at plotting
+		       'Resolution',    300, ...  % Quality
+               'size',          'adaptive', ... % 'adaptive' for screen's full resolution, or [W H]
+		       'treatment',     false, ... % plot different levels due to treatment/s
+		       'baseline',      1500, ... % data before event-aligned 0 (msec)
+		       'post',          2500, ... % data after event-aligned 0 (msec)
+		       'plotevent',     [2,3,7], ... % draw these events in raster trial plots  
+               ... % Rasters
+               'plotStyle',     'lines', ... % lines/dots
+               'spkWidth',      .5, ... % line/dot width
+               'lineLength',    1, ... % line length
+		       ... % PSH
+		       'smpRate',       1000, ... % To perform calculations on PSH plots (Hz)
+               'binSize',       500, ...  % binning window (msec)
+		       'stepSz',        50 ...    % window steps (msec)
+               );     
+% These parameters affect the plotting functions used after unit sorting.
+opt.plot_trial          = false;   % in general, to plot full trial rasters/PSHS
+opt.plot_align          = false;   % in general, to plot event-aligned pieces of trial
+opt.plot_sessions       = false;  % in general, to plot data collected across session
+opt.plot_fireRate       = true;
 %% README.TXT 
 % It contains details about the project. File can also be modified later.
 readmecontent = ["Study name: Preparation for social learning paradigms", ...

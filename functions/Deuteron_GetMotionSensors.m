@@ -7,8 +7,8 @@ function Deuteron_GetMotionSensors(opt)
 % (AHRS) to hopefully put the data in a meaningful reference system that
 % can be used to predict/estimate the animal's position/heading.
 % 
-% WORK IN PROGRESS
-% Jesus 29.08.2024
+% Last: Added warning for deadtime
+% Jesus 22.04.2025
 
 %% Some local Parameters
 numFiles        = length(opt.myFiles);
@@ -81,26 +81,36 @@ if ~isfile(fullfile(opt.FolderProcDataMat, strcat('MotionData.mat')))
         end
     end
     
-    % Remove all timestamps where all mag readings are 0 (very first samples)
-    idx0 = find(~data.mag.X & ~data.mag.Y & ~data.mag.Z);
-    data.acc.X(idx0) = [];
-    data.acc.Y(idx0) = [];
-    data.acc.Z(idx0) = [];
-    data.gyr.X(idx0) = [];
-    data.gyr.Y(idx0) = [];
-    data.gyr.Z(idx0) = [];
-    data.mag.X(idx0) = [];
-    data.mag.Y(idx0) = [];
-    data.mag.Z(idx0) = [];
-    timestamps(idx0) = [];
+    % % Remove all timestamps where all readings are 0 (failsafe)
+    idx0 = find(~data.mag.X & ~data.mag.Y & ~data.mag.Z & ...
+                ~data.acc.X & ~data.acc.Y & ~data.acc.Z & ...
+                ~data.gyr.X & ~data.gyr.Y & ~data.gyr.Z);
+    if ~isempty(idx0)
+        data.acc.X(idx0) = [];
+        data.acc.Y(idx0) = [];
+        data.acc.Z(idx0) = [];
+        data.gyr.X(idx0) = [];
+        data.gyr.Y(idx0) = [];
+        data.gyr.Z(idx0) = [];
+        data.mag.X(idx0) = [];
+        data.mag.Y(idx0) = [];
+        data.mag.Z(idx0) = [];
+        timestamps(idx0) = [];
+    end
+    
+    % Find deadtimes
+    idxt = find(diff(timestamps)>3);
+    if ~isempty(idxt)
+        timestamps(idxt+1:end) = timestamps(idxt+1:end)-(timestamps(idxt+1)-timestamps(idxt)-1);
+    end
     
     % Calculate timestamps in seconds
     tsec = timestamps/16000 + 12/fsmot; % since midnight
     tsec = tsec - tsec(1); % relativize to recording
 
-    % Plot sensors readings. RAW.
+    %% Plot sensors readings. RAW.
     % Run the plot function. 
-    Deuteron_PlotMotionSensors(data, tsec, opt, 1); % 3r input == 1 (raw data)
+    Deuteron_PlotMotionSensors(data, tsec, opt, 1); % 4th input == 1 (raw data)
     exportgraphics(gcf, fullfile(opt.FolderProcDataMat, strcat('motion_raw.png')), 'Resolution', 300)
     close gcf
 
