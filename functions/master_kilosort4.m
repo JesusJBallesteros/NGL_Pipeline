@@ -171,8 +171,8 @@ if length(projfiles)>3 % if project uses only one probe, there should be no more
     end
 else
     % One single probe would mean there is three files, being the
-    % parameters' the second one.
-    copyfile(projfiles{2}, input.KSpyfolder,'f');
+    % parameters' the third one.
+    copyfile(projfiles{3}, input.KSpyfolder,'f');
 end
 
 copyfile(projfiles{1},input.KSpyfolder,'f'); 

@@ -56,6 +56,7 @@ if sessions.info.nfiles < opt.numChannels
     % Report
     disp('Found less channel files than expected by header. Using number of files as truth.')
     opt.numChannels = sessions.info.nfiles;
+    sessions.info.nChannels = opt.numChannels;
 end
 
 % Sample rate, from Intan_hdr.
