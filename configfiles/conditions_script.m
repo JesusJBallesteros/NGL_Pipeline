@@ -7,7 +7,7 @@
 %% Create the conditions variable for trial indexing
 % Initialize all fields with zeros
 zerovec = zeros(length(events.itiOn.code),1);
-condition = struct( 'correct', zerovec, 'incorrect', zerovec, 'omission', zerovec, ...
+conditions = struct( 'correct', zerovec, 'incorrect', zerovec, 'omission', zerovec, ...
                     'response', zerovec, 'aborted', zerovec, 'stimulus', zerovec);
 
 % Trial by trial, classify them. Using 'itiOn' bc it should be the minimal
@@ -17,25 +17,25 @@ for i=1:length(events.itiOn.code)
 
     % Response / Correct
     if sum(ismember(trialvect, [opt.eventdef.bhv opt.eventdef.rwd]))==2
-        condition.response(i) = 1;
-        condition.correct(i) = 1;
+        conditions.response(i) = 1;
+        conditions.correct(i) = 1;
     end
 
     % Response / Incorrect
     if sum(ismember(trialvect, [opt.eventdef.bhv opt.eventdef.pun]))==2
-        condition.response(i) = 1;
-        condition.incorrect(i) = 1;
+        conditions.response(i) = 1;
+        conditions.incorrect(i) = 1;
     end
 
     % Omissions
     if any(ismember(trialvect, [opt.eventdef.oms1 opt.eventdef.oms2]))
-        condition.omission(i) = 1;
+        conditions.omission(i) = 1;
     end
 
     % Stimulus used 
     % 'tr2' defines the Novel Stimuli in Extinction_Arena project
     if ismember(trialvect, [opt.eventdef.tr2])
-        condition.stimulus(i) = 1;
+        conditions.stimulus(i) = 1;
     end
 
     % FOR MORE add as (with corresponding logical index): 

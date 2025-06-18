@@ -219,10 +219,10 @@ if isempty(useevents)
         end
 
         idx = find(EventRecord.EventType==opt.alignto{i,2});
-            if strcmp(opt.alignto{i,1},'bhv')
-                idx(EventRecord.EventType(idx-1) ~= str2double(opt.alignto{i,3})) = [];
-                if str2double(opt.alignto{i,3})==2, correction = 1000; end % Fix for bhv-rwd in S3-Extintion Arena
-            end
+            % if strcmp(opt.alignto{i,1},'bhv') % TODO. Has to be used ONLY for bhv2 in S3-Extintion Arena
+            %     idx(EventRecord.EventType(idx-1) ~= str2double(opt.alignto{i,3})) = [];
+            %     if str2double(opt.alignto{i,3})==2, correction = 1000; end % Fix for bhv-rwd in S3-Extintion Arena
+            % end
 
         % start times
         trialdef{2,i}(:,1) = trialstarts-opt.addtime;
@@ -243,7 +243,11 @@ if isempty(useevents)
                 if tmps > trialdef{2,i}(td,1) && tmps < trialdef{2,i}(td,2)
                     trialdef{2,i}(td,3) = tmps;
                     trl = trl + 1;
-                % else
+                % else TODO
+                % To find out if some trials are missing in trialdef, that
+                % are in EvenrRecord (idx). This could mean the trialdef
+                % generation has been modified somewhere here, due to
+                % mismatch on start-end events.
                 %     trialdef{2,i}(td,3) = nan;
                 end
             end
