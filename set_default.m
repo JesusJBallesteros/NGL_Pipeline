@@ -110,6 +110,7 @@ addpath toolboxes\BDPAT_NGL
 addpath(genpath('toolboxes\Deuteron'))
 addpath(genpath('toolboxes\npy-matlab'))
 addpath(genpath('toolboxes\bombcell'))
+addpath(genpath('toolboxes\prettify_matlab'))
 addpath(genpath('toolboxes\spikes'))
 
 % Initialize FT

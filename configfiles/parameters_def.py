@@ -20,7 +20,7 @@ MAIN_PARAMETERS = {
     # NOTE: n_chan_bin must be specified by user when running through API
     'n_chan_bin': {  
         'gui_name': 'number of channels', 'type': int, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 385, 'step': 'data',
+        'exclude': [0], 'default': 32, 'step': 'data',
         'description':
             """
             Total number of channels in the binary file, which may be different
@@ -41,7 +41,7 @@ MAIN_PARAMETERS = {
 
     'batch_size': {
         'gui_name': 'batch size', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 60000, 'step': 'data',
+        'exclude': [], 'default': 150000, 'step': 'data',
         'description':
             """
             Number of samples included in each batch of data.
@@ -50,7 +50,7 @@ MAIN_PARAMETERS = {
 
     'nblocks': {
         'gui_name': 'nblocks', 'type': int, 'min': 0, 'max': np.inf,
-        'exclude': [], 'default': 1, 'step': 'preprocessing',
+        'exclude': [], 'default': 0, 'step': 'preprocessing',
         'description':
             """
             Number of non-overlapping blocks for drift correction
@@ -154,7 +154,7 @@ EXTRA_PARAMETERS = {
 
     'nskip': {
         'gui_name': 'nskip', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 25, 'step': 'preprocessing',
+        'exclude': [], 'default': 2, 'step': 'preprocessing',
         'description':
             """
             Batch stride for computing whitening matrix.
@@ -163,7 +163,7 @@ EXTRA_PARAMETERS = {
 
     'whitening_range': {
         'gui_name': 'whitening range', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 32, 'step': 'preprocessing',
+        'exclude': [], 'default': 4, 'step': 'preprocessing',
         'description':
             """
             Number of nearby channels used to estimate the whitening matrix.
@@ -172,7 +172,7 @@ EXTRA_PARAMETERS = {
 
     'highpass_cutoff': {
         'gui_name': 'highpass cutoff', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [], 'default': 300, 'step': 'preprocessing',
+        'exclude': [], 'default': 400, 'step': 'preprocessing',
         'description':
             """
             Critical frequency for highpass Butterworth filter applied to data.
@@ -237,7 +237,7 @@ EXTRA_PARAMETERS = {
 
     'dminx': {
         'gui_name': 'dminx', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 32, 'step': 'spike detection',
+        'exclude': [0], 'default': 2, 'step': 'spike detection',
         'description':
             """
             Horizontal spacing of template centers used for spike detection,
@@ -269,7 +269,7 @@ EXTRA_PARAMETERS = {
 
     'nearest_chans': {
         'gui_name': 'nearest chans', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 10, 'step': 'spike detection',
+        'exclude': [], 'default': 3, 'step': 'spike detection',
         'description':
             """
             Number of nearest channels to consider when finding local maxima
@@ -279,7 +279,7 @@ EXTRA_PARAMETERS = {
 
     'nearest_templates': {
         'gui_name': 'nearest templates', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 100, 'step': 'spike detection',
+        'exclude': [], 'default': 32, 'step': 'spike detection',
         'description':
             """
             Number of nearest spike template locations to consider when finding
@@ -289,7 +289,7 @@ EXTRA_PARAMETERS = {
 
     'max_channel_distance': {
         'gui_name': 'max channel distance', 'type': float, 'min': 1,
-        'max': np.inf, 'exclude': [], 'default': 32, 'step': 'spike detection',
+        'max': np.inf, 'exclude': [], 'default': 151, 'step': 'spike detection',
         'description':
             """
             Templates farther away than this from their nearest channel will
@@ -298,6 +298,16 @@ EXTRA_PARAMETERS = {
             """
     },
 
+    'max_peels': {
+        'gui_name': 'max peels', 'type': int, 'min': 1, 'max': 10000, 'exclude': [],
+        'default': 100, 'step': 'spike detection',
+        'description':
+        """
+        Number of iterations to do over each batch of data in the matching
+        pursuit step. More iterations may detect more overlapping spikes.
+        """
+    },
+    
     'templates_from_data': {
         'gui_name': 'templates from data', 'type': bool, 'min': None, 'max': None,
         'exclude': [], 'default': True, 'step': 'spike detection',
@@ -360,6 +370,18 @@ EXTRA_PARAMETERS = {
             """
     },
 
+    'cluster_neighbors': {
+        'gui_name': 'cluster neighbors', 'type': int, 'min': 2, 'max': np.inf,
+        'exclude': [], 'default': 10, 'step': 'clustering',
+        'description':
+            """
+            Number of nearest spike neighbors to search for in
+            `clustering_qr.neigh_mat` when building the adjacency matrix that
+            defines the graph for clustering. Note that changes to this parameter
+            will affect resource usage and sorting time.
+            """ 
+    },
+    
     'cluster_downsampling': {
         'gui_name': 'cluster downsampling', 'type': int, 'min': 1, 'max': np.inf,
         'exclude': [], 'default': 20, 'step': 'clustering',
@@ -370,6 +392,27 @@ EXTRA_PARAMETERS = {
             """
     },
 
+   'max_cluster_subset': {
+        'gui_name': 'max cluster subset', 'type': int, 'min': 1, 'max': np.inf,
+        'exclude': [], 'default': None, 'step': 'clustering',
+        'description':
+            """
+            Maximum number of spikes to use when searching for nearest neighbors
+            to build the graph used for clustering. Within each clustering center,
+            only a subset of spikes is searched with the size determined by
+            `cluster_downsampling` and the total number of spikes. This sets
+            a maximum on the size of that subset, so that it will not grow without
+            bound for very long recordings. Using a very large number of spikes
+            is not necessary and causes performance bottlenecks.
+
+            Note: In practice, the actual number of spikes used may increase or
+            decrease slightly while staying under the maximum. This happens
+            because the maximum is set by adjusting `cluster_downsampling` on the
+            fly so that it results in a set no larger than the given size.
+            """
+    },
+    # TODO: Add suggested values after more testing on different datasets.
+    
     'x_centers': {
         'gui_name': 'x centers', 'type': int, 'min': 1,
         'max': np.inf, 'exclude': [], 'default': None, 'step': 'clustering',
