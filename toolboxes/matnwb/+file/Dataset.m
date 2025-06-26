@@ -1,4 +1,4 @@
-classdef Dataset < handle
+classdef Dataset < file.interface.HasProps & file.interface.HasQuantity
     properties
         name;
         doc;
@@ -6,6 +6,8 @@ classdef Dataset < handle
         dtype;
         isConstrainedSet;
         required;
+        value;
+        readonly; %determines whether value can be changed or not
         scalar;
         shape;
         dimnames;
@@ -22,12 +24,15 @@ classdef Dataset < handle
             obj.type = '';
             obj.dtype = 'any';
             obj.required = true;
+            obj.value = [];
+            obj.readonly = false;
             obj.scalar = true;
             obj.definesType = false;
             
             obj.shape = {};
             obj.dimnames = {};
             obj.attributes = [];
+
             
             if nargin < 1
                 return;
@@ -41,6 +46,22 @@ classdef Dataset < handle
             nameKey = 'name';
             if isKey(source, nameKey)
                 obj.name = source(nameKey);
+            end
+
+            % Todo: same as for attribute, should consolidate
+            % Use either 'value' or 'default_value' (not both).
+            % If both are present, 'value' takes precedence.
+            valueKey = 'value';
+            defaultKey = 'default_value';
+            if isKey(source, valueKey)
+                obj.value = source(valueKey);
+                obj.readonly = true;
+            elseif isKey(source, defaultKey)
+                obj.value = source(defaultKey);
+                obj.readonly = false;
+            else
+                obj.value = [];
+                obj.readonly = false;
             end
             
             typeKeys = {'neurodata_type_def', 'data_type_def'};
@@ -59,19 +80,13 @@ classdef Dataset < handle
                 obj.dtype = file.mapType(source(dataTypeKey));
             end
             
-            if isKey(source, 'quantity')
-                quantity = source('quantity');
-                switch quantity
-                    case '?'
-                        obj.required = false;
-                        obj.scalar = true;
-                    case '*'
-                        obj.required = false;
-                        obj.scalar = false;
-                    case '+'
-                        obj.required = true;
-                        obj.scalar = false;
-                end
+            % If a value key is specified, the resulting property is a
+            % constant (and by definition required). Therefore we will only
+            % update the required flag based on the `quantity` key when the
+            % `value` key is missing.
+            if ~isKey(source, valueKey) && isKey(source, 'quantity')
+                obj.required = obj.isRequired(source);
+                obj.scalar = obj.isScalar(source);
             end
             
             obj.isConstrainedSet = ~isempty(obj.type) && ~obj.scalar;
@@ -108,6 +123,7 @@ classdef Dataset < handle
             obj.linkable = ~isempty(obj.name) && hasNoAttributes;
         end
         
+        %% HasProps
         function props = getProps(obj)
             props = containers.Map;
             
@@ -120,15 +136,19 @@ classdef Dataset < handle
             
             %constrained
             % error unless it defines the object.
+
+            assert(...
+                ~isempty(obj.type), ...
+                'NWB:Dataset:UnsupportedOperation', ...
+                'The method `getProps` should not be called on an untyped dataset.' ...
+                );
             
-            if isempty(obj.type)
-                error('You shouldn''t be calling getProps on an untyped dataset');
-            end
-            
-            if obj.isConstrainedSet && ~obj.definesType
-                error('You shouldn''t be calling getProps on a constrained dataset');
-            end
-            
+            assert( ...
+                ~obj.isConstrainedSet || obj.definesType, ...
+                'NWB:Dataset:UnsupportedOperation', ...
+                'The method `getProps` should not be called on constrained dataset.' ...
+                );
+
             if ~isempty(obj.dtype)
                 props('data') = obj.dtype;
             end
