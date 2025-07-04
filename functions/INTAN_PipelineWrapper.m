@@ -29,7 +29,7 @@ if isfile(fullfile(opt.trialSorted, "trialdef.mat"))
     end
 else
     % 'trialdef' outputted for later feed into fieldtrip transf.
-    [~, trialdef, ~] = EventProcess(opt);
+    [~, trialdef, ~] = EventProcess(input, opt);
 
 end
 

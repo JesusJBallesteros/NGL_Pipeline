@@ -1,4 +1,4 @@
-function [events, trialdef, EventRecord] = EventProcess(opt)
+function [events, trialdef, EventRecord] = EventProcess(input, opt)
 % Function meant to put together all possible ways to extract events from
 % Deuteron and INTAN systems.
 %
@@ -76,7 +76,7 @@ if opt.RetrieveEvents
             case {'fileperch', 'filepertype'}
                 % INTAN
                 disp('Retrieving events from INTAN Dig-IN channels.')
-                EventRecord = INTAN_ExtractEvents(opt);
+                EventRecord = INTAN_ExtractEvents(input, opt);
             otherwise
                 % It is FT, keep going.
         end

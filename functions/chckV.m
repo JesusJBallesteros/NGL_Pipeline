@@ -83,6 +83,18 @@ switch formatis
        %  'amp' should always exist. Would be used as ultimate source of
        %  data if 'low' does not. If 'low' exist, the loop breaks and takes
        %  the indexed file list with such extension.
+       
+       metaData = readstruct('settings.xml');
+       for b = 1:size(metaData.SignalGroup,2)
+        if strlength(metaData.SignalGroup(b).PrefixAttribute)==1
+            nchan(b) = size(metaData.SignalGroup(b).Channel,2)-3-1; % always 3 AUX + 1 VDD
+        end
+       end
+       info.nChannels     = sum(nchan);
+           
+       % This info is extracted later on, 'findSetting.m'
+           % info.amplifier_sample_rate = metaData.SampleRateHertzAttribute;
+       
        for i = 1:2
            info.files = dir('low*.dat');
            if ~isempty(info.files)
