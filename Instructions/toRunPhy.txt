@@ -1,0 +1,7 @@
+in Powershell or Windows PowerShell,
+go to sorted directory (example.  cd ...project\animal\session\processed\sorted\)
+run 'phy template-gui params.py'
+
+OR
+
+Make the input.phy variable 'true' in NGL_SetAndRunMe.m
