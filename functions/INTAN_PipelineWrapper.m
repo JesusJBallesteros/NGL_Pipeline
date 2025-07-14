@@ -70,6 +70,7 @@ end
 if opt.bin && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
     % Based on Sara, Aylin and Lukas' scripts.
     Intan2Kilosort_wrapper(input.sessions(input.run(1)), opt);
+
 end
 
 %% 05. Run functions to convert INTAN dat to FIELDTRIP structure.

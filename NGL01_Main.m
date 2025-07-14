@@ -70,7 +70,7 @@ for x = 1:input.nsubjects % Subjects.
                % 03.1 Deuteron Pipeline
                opt = Deuteron_PipelineWrapper(input, opt);
     
-            case {'fileperch', 'filepertype'}
+            case {'fileperch', 'filepertype', 'tradFormat'}
                % 03.2 INTAN Pipeline
                input = INTAN_PipelineWrapper(input, opt);
 
