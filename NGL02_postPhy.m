@@ -93,8 +93,13 @@ for x = 1:input.nsubjects % Subjects.
                 end
                 
                 % calculate dynamics
-                %
-                %
+                if ~exist(fullfile(opt.analysis, "neuralDynamics.mat"),'file')
+                    % Uses opt.neurDyn optional structure for passing arguments
+                    neuralDynamics = calculate_neural_dynamics(neurons, fireRate, trialdef, opt);
+                    %
+
+                    save(fullfile(opt.analysis, "neuralDynamics.mat"), 'neuralDynamics', '-mat')
+                end
 
                 % Tracking in Social Arena
                 if opt.useTrack

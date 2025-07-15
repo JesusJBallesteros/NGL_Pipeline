@@ -66,6 +66,7 @@ NGL00_Prep
 % Additionally it can launch Phy for manual curation after each sessions, or first
 % run Bombcell to semi-automatize this porcess (only once appropiate
 % parameters are known) and then launch Phy.
+cd('C:\Code\ephys-data-pipeline')
 
 % TODO. separate data from different ports at this level to
 %       effective CAR use on different brain regions
