@@ -31,12 +31,13 @@ gain_to_uV      = 1; % 0.195;
 param = bc.qm.qualityParamValues(ephysMetaDir, ephysRawFile, ephysKilosortPath, gain_to_uV, kilosortVersion);
 
 %% Override params based on opts
-run("bombcellConfig.m"); % Use with care! Try Defaults first
+run("bombcellConfig_KS4.m"); % Use with care! Try Defaults first
+opt.callBcGUI = 1;
 
 %% Faster compute. Compile .mex file only if not done yet
-if ~isfile('C:\Code\ephys-data-pipeline\toolboxes\bombcell\+bc\+ep\+helpers\CCGHeart.mexw64')
+if ~isfile('C:\Code\ephys-data-pipeline\toolboxes\bombcell\matlab\+bc\+ep\+helpers\CCGHeart.mexw64')
     orig = pwd;
-    cd('C:\Code\ephys-data-pipeline\toolboxes\bombcell\+bc\+ep\+helpers');
+    cd('C:\Code\ephys-data-pipeline\toolboxes\bombcell\matlab\+bc\+ep\+helpers');
     mex -O CCGHeart.c 
     cd(orig); clear orig
 end

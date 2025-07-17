@@ -11,7 +11,7 @@
 
 Manual curation of electrophysiology spike sorted units is slow, laborious, and hard to standardize and reproduce. Bombcell is a powerful toolbox that addresses this problem, evaluating the quality of recorded units and extracting essential electrophysiological properties. Bombcell can replace manual curation or can be used as a tool to aid manual curation. See [this talk](https://youtu.be/CvXUtGzkXIY?si=lHkLN885OCb4WJEv) at the annual Neuropixels course about quality control.
 
-📢 After many requests, we now have a Python of version of bombcell! See the installation instructions below to get started! 📢
+📢 We are working on a Python version - it's expected to be ready for release in April 📢
 
 Please star the project to support us, using the top-right "⭐ Star" button.
 
@@ -30,13 +30,10 @@ Below is a flowchart of how bombcell evaluates and classifies each unit:
 
 Bombcell extracts relevant quality metrics to categorize units into four categories: single somatic units, multi-units, noise units and non-somatic units.
 
-Take a look at:
-- the MATLAB live script [`gettingStarted`](https://github.com/Julie-Fabre/bombcell/blob/main/gettingStarted.mlx) to see an example workflow and play around with our small toy dataset.
-- the Python Jupyter notebook [`BC_demo`](https://github.com/Julie-Fabre/bombcell/blob/main/py_bombcell/demos/BC_demo.ipynb)
-- You can also take a look at the exercise we prepared for the 2024 Neuropixels course [here](https://github.com/BombCell/Neuropixels_course_2024). 
+Take a look at the MATLAB live script [`gettingStarted`](https://github.com/Julie-Fabre/bombcell/blob/main/gettingStarted.mlx) to see an example workflow and play around with our small toy dataset. You can also take a look at the exercise we prepared for the 2024 Neuropixels course [here](https://github.com/BombCell/Neuropixels_course_2024). 
 
 #### Installation
-##### Matlab
+
 Bombcell requires MATLAB>=2019a.
 
 To begin using Bombcell:
@@ -44,7 +41,7 @@ To begin using Bombcell:
 - add bombcell's and the dependancies' folders to [MATLAB's path](https://uk.mathworks.com/help/matlab/ref/pathtool.html).
 - in addition, if you want to compute ephys properties, change your working directory to `bombcell\+bc\+ep\+helpers` in matlab and run `mex -O CCGHeart.c` to able to compute fast ACGs, using part of the [FMAToolbox](https://fmatoolbox.sourceforge.net/).
 
-###### Dependencies
+#### Dependencies
 
 - [npy-matlab](https://github.com/kwikteam/npy-matlab), to load .npy data in.
 - If you have z-lib compressed ephys data, compressed with [mtscomp](https://github.com/int-brain-lab/mtscomp), you will need the [zmat toolbox](https://uk.mathworks.com/matlabcentral/fileexchange/71434-zmat). More information about compressing ephys data [here](https://www.biorxiv.org/content/biorxiv/early/2023/05/24/2023.05.22.541700.full.pdf?%3Fcollection=).
@@ -59,31 +56,6 @@ To begin using Bombcell:
 In addition we would like to acknowledge:
 - to compute fast ACGs, we use a function (`CCGHeart.c`) part of the [FMAToolbox](https://fmatoolbox.sourceforge.net/), and it is already included in bombcell.
 - to read in spikeGLX meta data, we use a function from Jennifer Colonell's [SpikeGLX_Datafile_Tools](https://github.com/jenniferColonell/SpikeGLX_Datafile_Tools) repository. 
-
-#### Python 
-
-##### Latest stable version
-
-```bash
-# Create a conda environment
-conda create -n bombcell python=3.11
-conda activate bombcell
-# Install bombcell
-pip install uv
-uv pip install bombcell # you could do `pip install .`, but uv is much quicker!
-```
-##### Dev version (with the latest updates): 
-```bash
-# Create a conda environment
-conda create -n bombcell python=3.11
-conda activate bombcell
-# Clone latest bombcell repository from github
-git clone https://github.com/Julie-Fabre/bombcell.git
-cd bombcell/pyBombCell
-# Install bombcell
-pip install uv
-uv pip install -e .
-```
 
 ### 🤗 Support and citing
 
