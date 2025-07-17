@@ -69,7 +69,7 @@ opt.offset            = 2^(opt.numberOfAdcBits-1);
 %% Event data retrieval and trial definition.
 % 'trialdef' outputted for later feed into fieldtrip transf.
 % An empty output means that data shall be treated as continuous.
-[events, trialdef, EventRecord] = EventProcess(opt);
+[events, trialdef, EventRecord] = EventProcess(input, opt);
 
 % Register a timebreak if detected
 if isfield(EventRecord,'TimeBreak')

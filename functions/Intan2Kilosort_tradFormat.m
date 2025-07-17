@@ -11,22 +11,30 @@ function Intan2Kilosort_tradFormat(opt)
 % file. Filters the data if necessary/requested.  
 data = INTAN_hdr.amplifier_data;
 
-% Sample rate, from Intan_hdr.
+% Get Sample rate, from Intan_hdr.
 opt.sampleRate  = INTAN_hdr.frequency_parameters.amplifier_sample_rate;
-
 clear INTAN_hdr
 
-% Proceed with filters. Set variables in output if you want to have the
-% exact values applied during filtering.
+% Make noisy channels NaNs
+if ~isempty(opt.noise)
+    data(opt.noise,:) = nan(size(data(opt.noise,:)));
+end
 
+% In principle, only for data from a single active zone...
 if opt.CAR
-    % In principle, data from a single HS on a single region.
     disp('Re-referencing by Common Average Referencing (CARing).')
-    data = ft_preproc_rereference(data, 'all', 'median');
+    data = ft_preproc_rereference(data, 'all', 'median', true);
+end
+
+
+% Make noisy channels zeros
+if ~isempty(opt.noise)
+    data(opt.noise,:) = zeros(size(data(opt.noise,:)));
 end
 
 txt = sprintf('Highpass filter set at %d Hz. It may take a moment.\n', opt.highpass);
 fprintf(txt);
+
 % Keep memory usage low doing one channel at a time.
 for i = 1:opt.numChannels
     fprintf('- Filtering channel %d of %d.\n', i, opt.numChannels);
