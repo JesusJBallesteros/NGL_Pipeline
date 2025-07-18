@@ -25,18 +25,19 @@ ephysRawFile    = [ephysRawDir.folder, filesep, ephysRawDir.name]; % Ours is nev
 
 % Version
 kilosortVersion = 4; % if using kilosort4 
-gain_to_uV      = 1; % 0.195;
+gain_to_uV      = 0.195; % for DEUTERON, make sure you have this modified in your config file
 
 %% Load default parameters
 param = bc.qm.qualityParamValues(ephysMetaDir, ephysRawFile, ephysKilosortPath, gain_to_uV, kilosortVersion);
 
 %% Override params based on opts
-run("bombcellConfig.m"); % Use with care! Try Defaults first
+run("bombcellConfig.m"); % THIS OVERRIDES THE PREVIOUS 'param' CALL. Try Defaults first
+opt.callBcGUI = 1;
 
 %% Faster compute. Compile .mex file only if not done yet
-if ~isfile('C:\Code\ephys-data-pipeline\toolboxes\bombcell\+bc\+ep\+helpers\CCGHeart.mexw64')
+if ~isfile('C:\Code\ephys-data-pipeline\toolboxes\bombcell\matlab\+bc\+ep\+helpers\CCGHeart.mexw64')
     orig = pwd;
-    cd('C:\Code\ephys-data-pipeline\toolboxes\bombcell\+bc\+ep\+helpers');
+    cd('C:\Code\ephys-data-pipeline\toolboxes\bombcell\matlab\+bc\+ep\+helpers');
     mex -O CCGHeart.c 
     cd(orig); clear orig
 end

@@ -1,5 +1,5 @@
-%% 0) READ. 
-% SET AND RUN
+%% 0) READ. THIS FILE MUST EXIST ON YOUR PROJECT'S analisysCode FOLDER
+% SET AND RUN. 
 % Input file where there is no access to any of the running code, making
 % this the only file that needs to be modified, and that could call all
 % pipelines as a sequence of easily swichable runs by simply commenting 
@@ -22,6 +22,7 @@ dates       = {'19970829'}; % char array 'all', or cell array of dates for a sin
 opt = struct();
     % General options for NGL01_Main
     opt.numChannels             = 32;       % For now, explicit 32 if not SpikeLog-64C was used (Deuteron). INTAN: comment.
+    opt.noise                   = 21:24;
     opt.CAR                     = 1;        % Default: 1. CAR to remove fast-ample transients and other noise for .bin file. If == 2 also CAR for lowpass (not recommended)
     opt.linefilter              = 0;        % If not 0, filter line noise at given value +-2 (Hz)
     opt.doNWB                   = true;     % TESTING INTAN-NEUROCONV (python) with a Matlab wrapping for no python-user interaction
@@ -66,6 +67,7 @@ NGL00_Prep
 % Additionally it can launch Phy for manual curation after each sessions, or first
 % run Bombcell to semi-automatize this porcess (only once appropiate
 % parameters are known) and then launch Phy.
+cd('C:\Code\ephys-data-pipeline')
 
 % TODO. separate data from different ports at this level to
 %       effective CAR use on different brain regions

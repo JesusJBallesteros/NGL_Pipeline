@@ -16,18 +16,14 @@ opt.offlineTrack = false;
 % Proceed to some analysis and plots for clustered units obtained from
 % KS-Phy processing.
 % % Working.
-opt.doSpikething = true;
-opt.getwF        = true;	
+opt.doSpikething = false;
+	opt.useTrack     = false;
+	opt.getwF        = false;
+    
+opt.neurDyn.binsize = 0.1;
+    opt.neurDyn.method = "tSNE";
+    opt.neurDyn.synth = 1;
 	
-%% General options to extract single waveforms 
-% from the clustered units. 
-% Suboptions are probably to held fix for everyone.
-% % Working
-opt.gwfparams.nWf       	= 2000;     % maximum # of waveforms to extract per cluster. Affects computing time.
-opt.gwfparams.dataType      = 'int16';  % Data type of .dat file
-opt.gwfparams.nCh           = 32;       % Number of channels that were streamed in .dat file
-opt.gwfparams.wfWin         = [-20 41]; % Number of samples around spiketime to include in waveform
-
 %% LFP analysis and plots 
 % from data obtained via Fieldtrip pathway.
 % % Not totally functional yet. 
@@ -39,34 +35,42 @@ opt.doLFPthing = false;
 % % On development
 opt.FLIP = false;
 
+%% General options to extract single waveforms 
+% from the clustered units. 
+% Suboptions are probably to held fix for everyone.
+% % Working
+opt.gwfparams.nWf       	= 2000;     % maximum # of waveforms to extract per cluster. Affects computing time.
+opt.gwfparams.dataType      = 'int16';  % Data type of .dat file
+opt.gwfparams.nCh           = 32;       % Number of channels that were streamed in .dat file
+opt.gwfparams.wfWin         = [-20 41]; % Number of samples around spiketime to include in waveform
+opt.gwfparams.nWf           = 1;        % Proportion of total waveforms per unit to extract
+
 %% Plotting
 % These parameters affect the plotting functions used after unit sorting.
-opt.plot_trial              = false;   % in general, to plot full trial rasters/PSHS
-opt.plot_align              = false;   % in general, to plot event-aligned pieces of trial
-opt.plot_sessions           = false;  % in general, to plot data collected across session
-opt.plot_fireRate           = true;
+param   = struct('visible',      'off', ... % figure visibility at plotting
+	            'Resolution',    300, ...
+		        'treatment',     false, ... % plot different levels due to treatment/s
+		        'baseline',      1500, ...  % for event-aligned plots, msec before event
+		        'post',          2000, ... % for event-aligned plots, msec after event
+		        'plotevent',     3, ...    % mark these trial events in rasters
+		        ... % PSH plotting
+		        'binSize',       200, ...  % binning window, msec. Only for aligments other than itiOn
+		        'stepSz',        20);      % window steps, msec. Only for aligments other than itiOn
+		        % ... %
+		        % 'raster', struct(), ...
+		        % ... %
+		        % 'psh', struct(), ...
+		        % ... %
+		        % 'poolraster', struct() ...
+		        % );
+		        % %  ... %
 
-%% General figure-related parameters
-param = struct('visible',      'off', ... % figure visibility at plotting
-		       'Resolution',    300, ...  %
-               'size',          'adaptive', ... %
-		       'treatment',     true, ... % plot different levels due to treatment/s
-		       'baseline',      1500, ... % for event-aligned plots, msec before event
-		       'post',          2500, ... % for event-aligned plots, msec after event
-		       'plotevent',     [2,3,7], ... % mark these trial events in rasters
-               'smpRate',       1000, ... %
-		       ... % PSH plotting
-		       'binSize',       500, ...  % binning window, msec. Only for full trial
-		       'stepSz',        50 ...    % window steps, msec. Only for full trial
-               );     
-
-% Extintion specific
-param.trial2plot = 'allInitiated'; % 'correct', 'incorrect', 'omission', 'allInitiated'
-param.IncludeFS = false;
-param.FS2plot   = true; 
-param.binSize   = 500;
-param.stepSz    = 50;
-param.nBlocks   = 8;
-param.interval  = [-2000 10000];
-param.baseline  = 0 - param.interval(1);
-
+% % Extintion specific
+% param.trial2plot = 'allInitiated'; % 'correct', 'incorrect', 'omission', 'allInitiated'
+% param.IncludeFS = false;
+% param.FS2plot   = true; 
+% param.binSize   = 500;
+% param.stepSz    = 50;
+% param.nBlocks   = 8;
+% param.interval  = [-2000 10000];
+% param.baseline  = 0 - param.interval(1);

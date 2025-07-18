@@ -110,7 +110,8 @@ clear content
 
 %% Set up Kilosort enviroment
 % Call enviroment status
-pe = pyenv;
+%pe = pyenv;
+pe = pyenv(Version=[input.KSpython,'python.exe'], ExecutionMode="OutOfProcess");
 
 % Check if pyenv is set, or kill any residual process running
 if pe.ExecutionMode && pe.Status > 0
@@ -124,7 +125,9 @@ if pe.ExecutionMode && pe.Status > 0
         py.list; % a call to restart the Interpreter
         pe = pyenv; % Recall enviroment status
     else
-        error('Something went wrong while reloading Python Interpreter. Restart Matlab.')
+        % error('Something went wrong while reloading Python Interpreter. Restart Matlab.')        
+        py.list; % a call to restart the Interpreter
+        pe = pyenv; % Recall enviroment status
     end
 end
 
@@ -161,7 +164,7 @@ cd(input.analysisCode)
 projfiles = string(ls("*.py"));
 
 % Some projects might use more than one probe. CAREFUL!
-if length(projfiles)>2 % if project uses only one probe, there should be no more than 3 .py files
+if length(projfiles)>3 % if project uses only one probe, there should be no more than 3 .py files
     if contains(opt.KSchanMapFile, 'S2') % This would depend on the specific probes used
         copyfile(string(fullfile(input.analysisCode,projfiles{3})), string(fullfile(input.KSpyfolder, 'parameters.py')),'f');
     elseif contains(opt.KSchanMapFile, 'Poly3') % This would depend on the specific probes used
@@ -170,9 +173,8 @@ if length(projfiles)>2 % if project uses only one probe, there should be no more
         error('Your specific configuration for Kilosort4 does not seem to be listed.')
     end
 else
-    % One single probe would mean there is 2 files, being the
-    % parameters' the 2nd one.
-    copyfile(projfiles{2}, input.KSpyfolder,'f');
+    % One single probe would mean there is 3 files, being the parameters' the 2nd one.
+    copyfile(projfiles{3}, input.KSpyfolder,'f');
 end
 
 copyfile(projfiles{1},input.KSpyfolder,'f'); 

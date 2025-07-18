@@ -52,6 +52,7 @@ if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
 if ~isfield(opt,'parsetrial'),      opt.parsetrial          = false;        end
 if ~isfield(opt,'CAR'),             opt.CAR                 = true;         end
 if ~isfield(opt,'timebreak'),       opt.timebreak           = false;        end
+if ~isfield(opt,'noise'),           opt.noise               = [];           end
 
 %% Set local options.
 % Collect parameters to proceed with file creation. List all files.
@@ -69,7 +70,7 @@ opt.offset            = 2^(opt.numberOfAdcBits-1);
 %% Event data retrieval and trial definition.
 % 'trialdef' outputted for later feed into fieldtrip transf.
 % An empty output means that data shall be treated as continuous.
-[events, trialdef, EventRecord] = EventProcess(opt);
+[events, trialdef, EventRecord] = EventProcess(input, opt);
 
 % Register a timebreak if detected
 if isfield(EventRecord,'TimeBreak')

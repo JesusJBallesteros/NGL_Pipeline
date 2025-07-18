@@ -27,8 +27,12 @@ else
     if ~isempty(info.files)
         formatis = 4; 
     else
-        formatis = 0;
-        err = 1; 
+        if isfile('settings.xml') 
+           formatis = 5; 
+        else 
+           formatis = 0;
+           err = 1;
+        end
     end
 end
 
@@ -105,6 +109,7 @@ switch formatis
               info.bandpass = 'amp';
            end
        end
+       info.files = dir('*.rhd');
        info.nfiles = length(info.files);
         
        % How many files exist for this sessions. If we have several types 
@@ -112,11 +117,28 @@ switch formatis
        % If there are many files, is 'fileperch', if there is only one, is 'filepertype'
        if info.nfiles > 1, info.fileformat = 'fileperch';
        else,               info.fileformat = 'filepertype';  end
+
     case 4
         info.fileformat = 'FieldTrip';
         % TODO: Figure out how to work with this files.
         % (most likely, after Allego's self preprocessing tool?)
-    
+    case 5
+       metaData = readstruct('settings.xml');
+       for b = 1:size(metaData.SignalGroup,2)
+        if strlength(metaData.SignalGroup(b).PrefixAttribute)==1
+            nchan(b) = size(metaData.SignalGroup(b).Channel,2)-3-1; % always 3 AUX + 1 VDD
+        end
+       end
+       info.nChannels     = sum(nchan);
+           
+       % This info is extracted later on, 'findSetting.m'
+           % info.amplifier_sample_rate = metaData.SampleRateHertzAttribute;
+       
+       info.files = dir('*.rhd');
+       info.nfiles = length(info.files);
+
+       info.fileformat = 'tradFormat';
+       
     case 0
         % Invalid formats or error
         warning('The format of the sessions could not be determined.')
