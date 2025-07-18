@@ -1,12 +1,12 @@
 % Creates parameter ans paths structures, defining extraction and classification parameters
 %  
-% Modified by Jesus 05/04/2024
+% Modified by Jesus 08/04/2024
 
 %% Paths and other
 % Find .bin files.
-path.ephysKilosortPath  = [opt.FolderProcDataMat, '\kilosort2']; % the raw data binary file is in this folder (for current subject and session)
+path.ephysKilosortPath  = [opt.FolderProcDataMat, '\kilosort4']; % the raw data binary file is in this folder (for current subject and session)
 path.ephysRawDir        = dir([opt.FolderProcDataMat, '\*.*bin']); % your raw .bin data
-path.savePath           = [opt.FolderProcDataMat, '\kilosort2']; % where you want to save the quality metrics
+path.savePath           = [opt.FolderProcDataMat, '\kilosort4']; % where you want to save the quality metrics
 
 % Detect whether data is compressed. Decompress locally, if necessary.
 path.rawFile = [path.ephysRawDir.folder, filesep, path.ephysRawDir.name]; % Ours is never .cbin, so far.
@@ -48,8 +48,7 @@ param.qMetricsExist = ~isempty(dir(fullfile(path.savePath, 'qMetric*.mat'))) || 
     % recording parameters
     param.nChannels         = 32; %number of channels recorded in the raw data.
     param.nSyncChannels     = 0;
-    param.ephys_sample_rate = 32000;
-    param.gain_to_uV        = 0.195;
+    param.ephys_sample_rate = input.sessions.info.amplifier_sample_rate;
     param.nRawSpikesToExtract = 5000;
     
     % duplicate spikes parameters 
@@ -59,7 +58,13 @@ param.qMetricsExist = ~isempty(dir(fullfile(path.savePath, 'qMetric*.mat'))) || 
     param.ephysMetaFile = 'NaN';
 
     % amplitude / raw waveform parameters
-    param.spikeWidth = 82; % width in samples.
+    if param.ephys_sample_rate == 30000 % INTAN
+        param.gain_to_uV = 0.195;
+        param.spikeWidth = 61; 
+    elseif param.ephys_sample_rate == 32000 % DEUTERON
+        param.gain_to_uV = 1;
+        param.spikeWidth = 65; 
+    end
     param.probeType = []; % For additional probe types. Not valid yet.
 
     % signal to noise ratio

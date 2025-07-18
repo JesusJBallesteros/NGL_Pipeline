@@ -25,13 +25,13 @@ ephysRawFile    = [ephysRawDir.folder, filesep, ephysRawDir.name]; % Ours is nev
 
 % Version
 kilosortVersion = 4; % if using kilosort4 
-gain_to_uV      = 1; % 0.195;
+gain_to_uV      = 0.195; % for DEUTERON, make sure you have this modified in your config file
 
 %% Load default parameters
 param = bc.qm.qualityParamValues(ephysMetaDir, ephysRawFile, ephysKilosortPath, gain_to_uV, kilosortVersion);
 
 %% Override params based on opts
-run("bombcellConfig_KS4.m"); % Use with care! Try Defaults first
+run("bombcellConfig.m"); % THIS OVERRIDES THE PREVIOUS 'param' CALL. Try Defaults first
 opt.callBcGUI = 1;
 
 %% Faster compute. Compile .mex file only if not done yet

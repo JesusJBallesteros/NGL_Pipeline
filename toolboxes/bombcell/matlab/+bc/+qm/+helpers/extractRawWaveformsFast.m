@@ -54,8 +54,8 @@ if param.extractRaw
             case 82
                 % spikeWidth = 82: kilosort <4, baseline = 1:41
                 halfWidth = spikeWidth / 2;
-            case 61
-                % spikeWidth = 61: kilosort 4, baseline = 1:20
+            otherwise
+                % spikeWidth = 61: kilosort 4 30KHz, baseline = 1:20
                 halfWidth = 20;
         end
         dataTypeNBytes = numel(typecast(cast(0, 'uint16'), 'uint8'));

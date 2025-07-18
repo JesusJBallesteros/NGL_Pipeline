@@ -69,6 +69,11 @@ for i = 1:opt.numChannels
 %             [1 opt.num_samples]); % samples to write
 end
 
+% Make noisy channels NaNs
+if ~isempty(opt.noise)
+    data(opt.noise,:) = nan(size(data(opt.noise,:)));
+end
+
 % Proceed with filters. Set variables in output if you want to have the
 % exact values applied during filtering.
 

@@ -154,7 +154,7 @@ if param.plotGlobal
             singleU = uniqueTemplates_idx(find(unitType == iUnitType));
             set(gca, 'XColor', 'w', 'YColor', 'w')
             singleUnitLines = arrayfun(@(x) plot(squeeze(templateWaveforms(singleU(x), :)), 'linewidth', 1, 'Color', [0, 0, 0, 0.2]), 1:size(singleU, 2));
-            if param.spikeWidth == 61 %Kilosort 4
+            if param.spikeWidth < 82 %Kilosort 4
                 xlim([1, 61])
             else
                 xlim([21, 82])

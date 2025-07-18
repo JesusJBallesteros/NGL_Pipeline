@@ -77,7 +77,7 @@ for x = 1:input.nsubjects % Subjects.
             case {'FieldTrip'}   
                % 03.3 FT Pipeline
                % Check for events, neurons and spike variables.
-               [events, trialdef, EventRecord] = EventProcess(opt);
+               [events, trialdef, EventRecord] = EventProcess(input, opt);
 
                % so far, reaching this point means there was no raw data,
                % and under analysis there is FT formatted data, so prob
