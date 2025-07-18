@@ -37,7 +37,7 @@ function Intan2Kilosort_fileperch(opt)
 data = int16(zeros(opt.numChannels,opt.num_samples));
 
 % Create or open a bin file. Append data at end.
-opt.binfilename = fullfile(opt.FolderProcDataMat,[opt.SavFileName + ".bin"]);
+opt.binfilename = fullfile(opt.FolderProcDataMat,opt.SavFileName + ".bin");
 if isfile(opt.binfilename)
     delete(opt.binfilename);
 end
