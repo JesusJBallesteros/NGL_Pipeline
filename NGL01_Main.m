@@ -29,12 +29,8 @@
 % TODO LIST
 % Order channels as incremental ordinals. (in 'Deuteron_ExtractEvents' ~136)
 % If Deuteron2Kilosort(opt) filter for DF1 format works, set filter out of format cases (generalize)
-% Continue with 'Deuteron_GetDigInEvents' when we get a recording with EVENTS
-% Check for Deuteron_GetDigInEvents(EventRecord) status.
 % Check for FT trial-parsing using EventRecord with MAT2FieldTrip(data, opt, varargin)
 %    Create a 'trial-parsed' stream in 'mat2FieldTrip' VS. add post-hoc parsing
-% Extract nChannels from EventsRecord. Find first 'File started' then use
-%    'strsplit(EventRecord(50).Details,{';','='})' and find the 6th cell
 % There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 
