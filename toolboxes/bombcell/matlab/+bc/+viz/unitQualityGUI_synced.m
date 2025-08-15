@@ -281,8 +281,8 @@ hold on;
 max_n_channels_plot = 20;
 templateWaveformLines = arrayfun(@(x) plot(nan(82, 1), nan(82, 1), 'linewidth', 2, 'color', 'k'), 1:max_n_channels_plot);
 maxTemplateWaveformLines = arrayfun(@(x) plot(nan(82, 1), nan(82, 1), 'linewidth', 2, 'color', 'b'), 1);
-peaks = scatter(nan(10, 1), nan(10, 1), [], [255 165 0], 'v', 'filled');
-troughs = scatter(nan(10, 1), nan(10, 1), [], [255 215 0], 'v', 'filled');
+peaks = scatter(nan(10, 1), nan(10, 1), [], prettify_rgb('Orange'), 'v', 'filled');
+troughs = scatter(nan(10, 1), nan(10, 1), [], prettify_rgb('Gold'), 'v', 'filled');
 %xlabel('Position+Time');
 %ylabel('Position');
 set(gca, 'YDir', 'reverse')
@@ -323,7 +323,7 @@ else
 end
 hold on;
 spDecayPoints = scatter(NaN, NaN, 'black', 'filled');
-spDecayFit = plot(NaN, NaN, 'Color', ([178 34 34])/255, 'LineWidth', 2);
+spDecayFit = plot(NaN, NaN, 'Color', prettify_rgb('FireBrick'), 'LineWidth', 2);
 spDecayLegend = legend(spDecayFit, {''}, 'Location', 'best');
 spDecayTitle = title('');
 ylabel('ampli. (a.u.)');
@@ -428,7 +428,7 @@ ampliFitAx = subplot(6, 13, [78]);
 hold on;
 ampliBins = barh(NaN, NaN, 'blue');
 ampliBins.FaceAlpha = 0.5;
-ampliFit = plot(NaN, NaN, 'Color', ([255 165 0])/255, 'LineWidth', 2);
+ampliFit = plot(NaN, NaN, 'Color', prettify_rgb('Orange'), 'LineWidth', 2);
 ampliFitTitle = title('');
 ampliFitLegend = legend(ampliFit, {''}, 'Location', 'best');
 

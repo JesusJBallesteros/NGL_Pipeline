@@ -1,4 +1,4 @@
-function EventRecord = INTAN_ExtractEvents(opt)
+function EventRecord = INTAN_ExtractEvents(input, opt)
 % Based on original function readEvents()
 % Use this function to read event-codes saved in Intan (one file per channel).
 %   Current version looks for any change in a digital pin, using that time
