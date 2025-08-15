@@ -91,7 +91,8 @@ switch formatis
        metaData = readstruct('settings.xml');
        for b = 1:size(metaData.SignalGroup,2)
         if strlength(metaData.SignalGroup(b).PrefixAttribute)==1
-            nchan(b) = size(metaData.SignalGroup(b).Channel,2)-3-1; % always 3 AUX + 1 VDD
+            % % TODO account for >1 HS per bank (case of 32+32 instead of 64 HS)
+            nchan(b) = size(metaData.SignalGroup(b).Channel,2)-6-2; % always 3 AUX + 1 VDD
         end
        end
        info.nChannels     = sum(nchan);
@@ -109,7 +110,6 @@ switch formatis
               info.bandpass = 'amp';
            end
        end
-       info.files = dir('*.rhd');
        info.nfiles = length(info.files);
         
        % How many files exist for this sessions. If we have several types 
