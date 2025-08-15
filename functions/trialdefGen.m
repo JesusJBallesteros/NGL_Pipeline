@@ -243,6 +243,7 @@ if isempty(useevents)
                 if tmps > trialdef{2,i}(td,1) && tmps < trialdef{2,i}(td,2)
                     trialdef{2,i}(td,3) = tmps;
                     trl = trl + 1;
+                    if trl > size(idx,1), break, end
                 % else TODO
                 % To find out if some trials are missing in trialdef, that
                 % are in EvenrRecord (idx). This could mean the trialdef

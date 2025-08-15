@@ -92,7 +92,7 @@ ts(isnan(ts)) = [];
 % convert each binary word to its corresponding decimal using the npins bits
 EventType = nan(size(ts,1),1);
 
-for i = 1:size(ts)
+for i = 1:size(ts,1)
     % Convert binary pins to decimal, as sum over smpDel forward to catch inconsitencies
     EventType(i) = binvec2dec(sum(dIn(ts(i):ts(i)+smpDel,:))); % binary vector to decimal integer
 end

@@ -9,31 +9,31 @@
 clear all
 % A) SYSTEM
 % RECOMMENDED to add the toolbox folder to MATLAB folder system, but not necessary.
-datadrive   = 'D';                   % The LETTER of the drive where the data structure is/will be created.
-studyname   = 'Default';  % Name of the study to be used (main folder for the data)
+datadrive   = 'E';                   % The LETTER of the drive where the data structure is/will be created.
+studyname   = 'ColorWheel';  % Name of the study to be used (main folder for the data)
 toolbox     = 'C:\Code\ephys-data-pipeline'; % Absolute path to the toolbox.
 
 % B) SUBJECTS AND SESSIONS
 % To run the script on all subjects and sessions, or as session-to-session process.
-subjects    = {'666'}; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
-dates       = {'19970829'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
+subjects    = {'ABR'}; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
+dates       = {'13082025'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
 
 % C) OPTIONS.
 opt = struct();
     % General options for NGL01_Main
-    opt.numChannels             = 32;       % For now, explicit 32 if not SpikeLog-64C was used (Deuteron). INTAN: comment.
-    opt.noise                   = 21:24;
+    opt.numChannels             = 64;       % For now, explicit 32 if not SpikeLog-64C was used (Deuteron). INTAN: comment.
+    opt.noise                   = [];
     opt.CAR                     = 1;        % Default: 1. CAR to remove fast-ample transients and other noise for .bin file. If == 2 also CAR for lowpass (not recommended)
     opt.linefilter              = 0;        % If not 0, filter line noise at given value +-2 (Hz)
-    opt.doNWB                   = true;     % TESTING INTAN-NEUROCONV (python) with a Matlab wrapping for no python-user interaction
+    opt.doNWB                   = false;     % TESTING INTAN-NEUROCONV (python) with a Matlab wrapping for no python-user interaction
     opt.bin                     = true;     % Create a .bin file with the high-pass data, to be passed to Kilosort for spike sorting.
         opt.highpass            = 400;      % Give as low boundary frequency value. (High boundary is set at recording time)
     opt.FieldTrip               = true;     % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
         opt.lowpass             = 250;      % Give as high boundary frequency value.
     opt.GetMotionSensors        = true;    % Retrieve data from motion sensors in Deuteron. NEEDS IMPROVEMENT on head direction interpretation.
     opt.RetrieveEvents          = true;     % Retrieve event log. If not further options defaulted to Deuteron txt log extraction.
-        opt.alignto             = {'itiOn', 'stimOn1', 'rwd'};  % single char array e.g. 'itiOn', or cell array e.g. {'itiOn', 'rwd'}. 'itiON' should be the very least to align to.
-        opt.trEvents            = {'na3'};  % Event definition of 'special events' i.e. events at the ITI like treatments, tutors, etc...
+        opt.alignto             = {'itiOn', 'stimOn1', 'stimOn2', 'rwd'};  % single char array e.g. 'itiOn', or cell array e.g. {'itiOn', 'rwd'}. 'itiON' should be the very least to align to.
+        opt.trEvents            = {};  % Event definition of 'special events' i.e. events at the ITI like treatments, tutors, etc...
         opt.addtime             = 1500;     % Expands the trial definition start/end by X ms in both directions. 
     opt.kilosort                = 4;        % Kilosort processing. == 2 for KS2, == 4 for KS4 !! KS2 NEEDS configfile saved under 'studyName\analysisCode\'
         opt.KSchanMapFile       = 'chanMapE32-S2_DeutSN11.mat';  % Empty '' to use non-mapped, linear array. Or e.g.'chanMapXXX.mat' for custom maps saved under 'studyName\analysisCode\'
@@ -42,9 +42,6 @@ opt = struct();
          opt.rerun              = false;    % To overwrite previous runs of BombCell.
     opt.phy                     = false;    % Open phy for manual inspection or curation. !! It puts MATLAB on HOLD! Needs bin file in same folder.
                         
-    % General options for NGL02_postPhy
-    postPhy_param();
-
 % D) README.TXT
 % It contains details about the project. File can also be modified later.
 readmecontent = ["Study name: DefaultName", ...
@@ -67,7 +64,7 @@ NGL00_Prep
 % Additionally it can launch Phy for manual curation after each sessions, or first
 % run Bombcell to semi-automatize this porcess (only once appropiate
 % parameters are known) and then launch Phy.
-cd('C:\Code\ephys-data-pipeline')
+cd(toolbox)
 
 % TODO. separate data from different ports at this level to
 %       effective CAR use on different brain regions
@@ -77,6 +74,9 @@ NGL01_Main
 % Includes steps towards spike/trial sorting of the curated data. Uses
 % events and trial definitions obtained before to trial-parse the spike or
 % LFP data, creating the variables into the lab standard.
+
+% General options for NGL02_postPhy
+postPhy_param();
 
 % TODO
 NGL02_postPhy
