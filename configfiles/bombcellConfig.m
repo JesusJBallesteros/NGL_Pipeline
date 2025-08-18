@@ -15,10 +15,10 @@ path.rawFile = [path.ephysRawDir.folder, filesep, path.ephysRawDir.name]; % Ours
 param.qMetricsExist = ~isempty(dir(fullfile(path.savePath, 'qMetric*.mat'))) || ~isempty(dir(fullfile(path.savePath, 'templates._bc_qMetrics.parquet')));
 
 %% Switches
-    param.rerun         = false;
-    param.verbose       = false; % update user on progress
-    param.plotDetails   = false; % lot of plots to check, debug or for a presentation
-    param.reextractRaw  = true; % re-extract raw waveforms or not 
+    param.rerun         = true;
+    param.verbose       = true; % update user on progress
+    param.plotDetails   = true; % lot of plots to check, debug or for a presentation
+    param.reextractRaw  = false; % re-extract raw waveforms or not 
 
     % plotting parameters
     param.plotGlobal    = true; % plot summary of quality metrics 
@@ -42,7 +42,7 @@ param.qMetricsExist = ~isempty(dir(fullfile(path.savePath, 'qMetric*.mat'))) || 
     param.computeDrift      = false; % whether to compute each units drift. this is critically slow step that takes around 2seconds per unit 
     param.computeTimeChunks = false; % compute fraction refractory period violations and percent spikes missing for different time chunks 
     param.somatic           = false; % keep only somatic units, and reject non-somatic ones
-    param.computeDistanceMetrics = false; % whether to compute distance metrics - this can be time consuming 
+    param.computeDistanceMetrics = true; % whether to compute distance metrics - this can be time consuming 
 
 %% Values
     % recording parameters
