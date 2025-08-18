@@ -82,7 +82,7 @@ if isfield(opt,'kilosort')
     
     elseif opt.kilosort == 4
        input.KSpython = 'C:\Code\miniconda3\envs\kilosort\'; 
-        input.KSpyfolder = [input.KSpython,'\Lib\site-packages\kilosort']; % Path to the kilosort git-code. It could change among PCs
+        input.KSpyfolder = [input.KSpython,'Lib\site-packages\kilosort']; % Path to the kilosort git-code. It could change among PCs
     
        % No need to add to matlab path
     end
