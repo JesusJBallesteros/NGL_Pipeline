@@ -1,4 +1,4 @@
-function Bombcell_Main(~, opt)
+function Bombcell_Main(input, opt)
 % Adapted Bombcell pipeline 
 % Set the paths here and the parameters in 'bc_qualityParamValues'
 % This pipeline will:
@@ -35,9 +35,9 @@ run("bombcellConfig.m"); % THIS OVERRIDES THE PREVIOUS 'param' CALL. Try Default
 opt.callBcGUI = 1;
 
 %% Faster compute. Compile .mex file only if not done yet
-if ~isfile('C:\Code\ephys-data-pipeline\toolboxes\bombcell\matlab\+bc\+ep\+helpers\CCGHeart.mexw64')
+if ~isfile([input.toolbox, '\toolboxes\bombcell\matlab\+bc\+ep\+helpers\CCGHeart.mexw64'])
     orig = pwd;
-    cd('C:\Code\ephys-data-pipeline\toolboxes\bombcell\matlab\+bc\+ep\+helpers');
+    cd([input.toolbox, '\toolboxes\bombcell\matlab\+bc\+ep\+helpers']);
     mex -O CCGHeart.c 
     cd(orig); clear orig
 end
