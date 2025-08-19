@@ -1,6 +1,6 @@
 % Creates parameter ans paths structures, defining extraction and classification parameters
 %  
-% Modified by Jesus 08/04/2024
+% These defaults were check by Jesus 19/08/2025
 
 %% Paths and other
 % Find .bin files.
@@ -17,7 +17,7 @@ param.qMetricsExist = ~isempty(dir(fullfile(path.savePath, 'qMetric*.mat'))) || 
 %% Switches
     param.rerun         = true;
     param.verbose       = true; % update user on progress
-    param.plotDetails   = true; % lot of plots to check, debug or for a presentation
+    param.plotDetails   = false; % lot of plots to check, debug or for a presentation
     param.reextractRaw  = false; % re-extract raw waveforms or not 
 
     % plotting parameters
@@ -46,7 +46,7 @@ param.qMetricsExist = ~isempty(dir(fullfile(path.savePath, 'qMetric*.mat'))) || 
 
 %% Values
     % recording parameters
-    param.nChannels         = 32; %number of channels recorded in the raw data.
+    param.nChannels         = 64; %number of channels recorded in the raw data.
     param.nSyncChannels     = 0;
     param.ephys_sample_rate = input.sessions.info.amplifier_sample_rate;
     param.nRawSpikesToExtract = 5000;
@@ -67,27 +67,40 @@ param.qMetricsExist = ~isempty(dir(fullfile(path.savePath, 'qMetric*.mat'))) || 
     end
     param.probeType = []; % For additional probe types. Not valid yet.
 
-    % signal to noise ratio
-    param.waveformBaselineNoiseWindow = 10; % samples at beginning extracted to compute the mean raw waveform. Needs to be before the waveform starts 
-
     % refractory period parameters
-    param.tauR_valuesMin    = 0.002; % refractory period time (s)
-    param.tauR_valuesStep   = 0.0005; % refractory period time (s) steps.
-    param.tauR_valuesMax    = 0.002; % refractory period time (s)
+    param.tauR_valuesMin    = 1.5/1000; % refractory period time (s)
+    param.tauR_valuesStep   = 0.1/1000; % refractory period time (s)
+    param.tauR_valuesMax    = 2.4/1000; % refractory period time (s)
     param.tauC              = 0.0005; % censored period time (s)
 
     % percentage spikes missing parameters 
-    param.deltaTimeChunk    = 300; % time in seconds 
+    param.deltaTimeChunk    = 360; % time in seconds 
 
     % presence ratio 
-    param.presenceRatioBinSize = 5; % in seconds 
+    param.presenceRatioBinSize = 60; % in seconds 
 
     % drift estimate
-    param.driftBinSize = 120; % in seconds
+    param.driftBinSize = 300; % in seconds
+
+    % Now calculate all spike-width-dependent parameters
+    % Signal to noise ratio - baseline noise window
+    if param.spikeWidth <= 70  % Shorter waveforms (like KS4)
+        param.waveformBaselineNoiseWindow = round(param.spikeWidth * 10/61); % Scale from standard 10 samples at 61 width
+    else  % Longer waveforms
+        param.waveformBaselineNoiseWindow = round(param.spikeWidth * 20/82); % Scale from standard 20 samples at 82 width
+    end
+    param.waveformBaselineNoiseWindow = max(5, param.waveformBaselineNoiseWindow); % Ensure at least 5 samples
+    
+    % Waveform baseline windows
+    if param.spikeWidth <= 70  % Shorter waveforms (like KS4)
+        param.waveformBaselineWindowStart = max(1, round(param.spikeWidth * 1/61));
+        param.waveformBaselineWindowStop = max(5, round(param.spikeWidth * 11/61)); % in samples 
+    else  % Longer waveforms
+        param.waveformBaselineWindowStart = max(1, round(param.spikeWidth * 20/82));
+        param.waveformBaselineWindowStop = max(10, round(param.spikeWidth * 30/82)); % in samples 
+    end
 
     % waveform parameters
-    param.waveformBaselineWindowStart   = 21; % in samples 
-    param.waveformBaselineWindowStop    = 30; % in samples 
     param.minThreshDetectPeaksTroughs   = 0.2; % this is multiplied by the max value 
         % in a units waveform to give the minimum prominence to detect peaks using
         % matlab's findpeaks function.
@@ -103,9 +116,9 @@ param.qMetricsExist = ~isempty(dir(fullfile(path.savePath, 'qMetric*.mat'))) || 
     param.maxNPeaks     = 2; % maximum number of peaks
     param.maxNTroughs   = 1; % maximum number of troughs
     param.minWvDuration = 100; % in us
-    param.maxWvDuration = 800; % in us
-    param.minSpatialDecaySlope  = 0; % in a.u./um (was -0.003)
-    param.maxWvBaselineFraction = 0.5; % maximum absolute value in waveform baseline
+    param.maxWvDuration = 950; % in us
+    param.minSpatialDecaySlope  = 0.005; % in a.u./um (was -0.003)
+    param.maxWvBaselineFraction = 0.35; % maximum absolute value in waveform baseline
         % should not exceed this fraction of the waveform's abolute peak value (was 0.3)
 
     % distance metrics
@@ -114,11 +127,11 @@ param.qMetricsExist = ~isempty(dir(fullfile(path.savePath, 'qMetric*.mat'))) || 
     param.ssMax     = NaN; % minimum silhouette score 
 
     % other classification params
-    param.minAmplitude      = 30; % in uV
+    param.minAmplitude      = 20; % in uV
     param.maxRPVviolations  = 0.2; % fraction
     param.RPV_tauR_estimate = NaN;
-    param.maxPercSpikesMissing = 40; % in percentage
+    param.maxPercSpikesMissing = 25; % in percentage
     param.minNumSpikes      = 500; % number of spikes
     param.maxDrift          = 100;
-    param.minPresenceRatio  = 0.7;
-    param.minSNR            = 5;
+    param.minPresenceRatio  = 0.8;
+    param.minSNR            = 9;
