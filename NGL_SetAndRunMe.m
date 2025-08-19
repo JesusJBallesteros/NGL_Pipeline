@@ -73,6 +73,7 @@ NGL01_Main
 % Includes steps towards spike/trial sorting of the curated data. Uses
 % events and trial definitions obtained before to trial-parse the spike or
 % LFP data, creating the variables into the lab standard.
+cd(input.analysisCode)
 
 % General options for NGL02_postPhy
 postPhy_param();
