@@ -16,6 +16,7 @@ function input = set_default(input, opt)
 % are requested, the NWB will perform well but the data extraction will not. 
 % It will crash for not completely known reason. It needs a Matlab restart between runs.
 if ~isfield(opt,'doNWB') || isempty(opt.doNWB),           opt.doNWB      = false; end
+if ~isfield(opt,'kilosort') || isempty(opt.kilosort),     opt.kilosort   = 4; end
 
 %% Fix drive letter if needed.
 if ~contains(input.datadrive,':\')
@@ -74,18 +75,18 @@ end
 
 %% Kilosort-related
 if isfield(opt,'kilosort')
-    if opt.kilosort == 2
-       input.KSpath = 'C:\Kilosort_2.0'; % Absolute path to kilosort, hardcoded. It could change among PCs.
-       
-       % Add Kilosort (external)
-       addpath(genpath(input.KSpath)) % path to kilosort toolbox
-    
-    elseif opt.kilosort == 4
+    % if opt.kilosort == 2
+    %    input.KSpath = 'C:\Kilosort_2.0'; % Absolute path to kilosort, hardcoded. It could change among PCs.
+    % 
+    %    % Add Kilosort (external)
+    %    addpath(genpath(input.KSpath)) % path to kilosort toolbox
+    % 
+    % elseif opt.kilosort == 4
        % input.KSpython = 'C:\Code\miniconda3\envs\kilosort\'; 
        input.KSpyfolder = [input.pythonExe,'Lib\site-packages\kilosort']; % Path to the kilosort git-code. It could change among PCs
     
-       % No need to add to matlab path
-    end
+    %    % No need to add to matlab path
+    % end
 end
 
 %% Set Dependencies. Critical to find toolboxes.
