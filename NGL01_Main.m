@@ -42,6 +42,7 @@ if ~exist("input","var")
     input = struct( 'datadrive' , datadrive , ...   % force char array
                     'studyName' , studyname , ...   % force char array
                     'toolbox'   , toolbox   , ...   % force char array
+                    'pythonExe' , pythonExe , ...   % force char array
                     'subjects'  , [], ...           % do NOT force char array
                     'dates'     , []        );      % do NOT force char array
     input.dates     = dates;    % place as it comes
@@ -87,13 +88,15 @@ for x = 1:input.nsubjects % Subjects.
                continue
         end 
         %% 04. Kilosort
-        if opt.kilosort == 2
-            % Kilosort 2 will run without GUI.
-            master_kilosort(input, opt)
-        elseif opt.kilosort == 4
-            % Kilosort 4 will run without GUI.
-            master_kilosort4(input, opt)
-        end
+        % if opt.kilosort == 2
+        %     % Kilosort 2 will run without GUI.
+        %     master_kilosort(input, opt)
+        % elseif opt.kilosort == 4
+
+        % Kilosort 4 will run without GUI.
+        master_kilosort4(input, opt)
+        
+        % end
         close all
         
         %% 05. Bombcell

@@ -81,8 +81,8 @@ if isfield(opt,'kilosort')
        addpath(genpath(input.KSpath)) % path to kilosort toolbox
     
     elseif opt.kilosort == 4
-       input.KSpython = 'C:\Code\miniconda3\envs\kilosort\'; 
-        input.KSpyfolder = [input.KSpython,'Lib\site-packages\kilosort']; % Path to the kilosort git-code. It could change among PCs
+       % input.KSpython = 'C:\Code\miniconda3\envs\kilosort\'; 
+       input.KSpyfolder = [input.pythonExe,'Lib\site-packages\kilosort']; % Path to the kilosort git-code. It could change among PCs
     
        % No need to add to matlab path
     end
