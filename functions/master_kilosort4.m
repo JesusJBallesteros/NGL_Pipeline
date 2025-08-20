@@ -111,7 +111,7 @@ clear content
 %% Set up Kilosort enviroment
 % Call enviroment status
 %pe = pyenv;
-pe = pyenv(Version=[input.KSpython,'python.exe'], ExecutionMode="OutOfProcess");
+pe = pyenv(Version=[input.pythonExe,'python.exe'], ExecutionMode="OutOfProcess");
 
 % Check if pyenv is set, or kill any residual process running
 if pe.ExecutionMode && pe.Status > 0
