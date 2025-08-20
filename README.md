@@ -1,13 +1,68 @@
-# 'Ephys-data-pipeline'
+# **'Ephys-data-pipeline'**
 Scripts, functions and tools to work with electrophysiological data at NGL.
 
-# Use 'NGL00_Prep' to create a new project folder system to start storing your raw data and set initial readme info.
-Then, drop your raw data into individual subject and session folders under 'data/raw'.
-Your data SHOULD be stored as the IKN standard Harddisk data structure. 
-See: gitlab.ruhr-uni-bochum.de/ikn/howto/-/wikis/Neurophysiology/hard-disk-data-structure
+# 1 **Install The toolbox in your local PC**
+For that, **clone it** (RECOMMENDED) with your choice method. Or download and unzip it, but is not so convenient.
 
-# 'NGL01_Main' will transform raw data from INTAN and Deuteron into .bin files (for kilosort) and .mat (for Fieldtrip) files.
-A set of options let the user decide wich pipelines to follow, and to specify any filters, thresholds and so on for the related steps.
+# 2 **Create a new project folder system**
+For that, open **NGL_SetAndRunMe.m** inside the toolbox folder. **This only needs to be done once.**
+1. Start by block **1) Prepare**: Fill up your **Readme.txt** file information.
+2. Set the **data drive** for data storage, i.e. 'E'
+3. Set the **name of your project**, as a word withour spaces as ProjectName or Project_Name.
+4. Declare the **full path to** where your **toolbox** was cloned or downloaded, i.e. 'C:\Code\ephys-data-pipeline'
+5. ONLY IMPORTANT IN **WORKSTATIONS** (Paloma, TheRevolver, etc). Declare the location of the **python executable** on the kilosort enviroment.
+6. You can **run this block** of Code, so the script **NGL00_Prep.m** is called.
+
+None of these inputs will change after this first setup.
+See the image for an example:
+![Setting folder system example](Instructions/images/Prep.png)
+
+Your data folder system should have been created now at 'datadrive':\'ProjectName'
+![Folder system created](Instructions/images/FolderSystem.png)
+
+IMPORTANT: Now, you can 'Save As' the **NGL_SetAndRunMe.m** you are using under '..\ProjectName\analysisCode'
+**You will use this script** from now on, NOT the one in the toolbox.
+
+# 3 **Start storing your raw data.**
+You can drop your raw data now, with an subject/session folder system.
+1. This is to be done under '..\ProjectName\data\raw' and the subforlders there will be formatted as '...\AAA\YYYYMMDD''.
+2. Remember that your data SHOULD be stored as the IKN standard Harddisk data structure. 
+See: gitlab.ruhr-uni-bochum.de/ikn/howto/-/wikis/Neurophysiology/hard-disk-data-structure
+3. For each session, drop ONLY data/metadata files from INTAN or DEUTERON in its YYYYMMDD folder, with no subfolders or extra files.
+
+# 4 **Copy and set all your configuration files.**
+Go to the toolbox main folder and get into '..\configfiles'.
+1. Copy all the files in there.
+2. Paste the into your project folder '..\ProjectName\analysisCode'
+3. Go over them and set your the parameters for each. Descriptions will be provided.
+
+# 5. **Set preprocessing options.**
+1. Go back to your **NGL_SetAndRunMe.m**, scroll to block **2) SET**.
+2. In A) Your **subjects** and **sessions** to process can be written as 'subjects' and 'dates' cell arrays.
+3. In B) Your options **('opt') structure will be set**. 
+
+The following values set some parameters and allows to switch on/off certain parts of the pipeline.
+![Set options](Instructions/images/Set.png)
+
+To have appropiate spike sorting:
+4. Sort out your channel maps. Once you have a .mat file ready for KiloSort
+5. Drop the file it at '..\ProjectName\analysisCode' and set the name in the options
+
+Prepare your trial structure:
+5. Make sure you choose the relevant events to align data to. Not all events are supposed to be analyzed like this.
+6. Set any events that inform about about changes in experimental phases, manipulation times, etc.
+
+7. You can **run this block** of code.
+
+# RUN the preprocessing step
+1. Go back to your **NGL_SetAndRunMe.m**, scroll to block **3) Run**.
+2. **Run this block**.
+![Set options](Instructions/images/Run1.png)
+
+# 'NGL01_Main'
+**'NGL01_Main.m'** will transform raw data from INTAN and Deuteron into .bin (for kilosort) and .mat (for Fieldtrip) files.
+A set of options let the user to specify filters, broken channels, which sort of data to retrieve, and determine the events of interest to create our trial structures.
+
 
 This Script will process high-pass data and proceed to Kilosort it with no GUI. 
 Inmediately after, it will call Bombcell to 'pre-curate' and create an initial set of tags for the sorted clusters.
