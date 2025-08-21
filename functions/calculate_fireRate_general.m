@@ -1,11 +1,11 @@
 function fireRate = calculate_fireRate_general(neurons, events, conditions, opt, param)
-% Jesus. 06.03.2025.
+% Jesus. 21.08.2025.
 % Description
 % INPUTS
 % OUTPUTS
 
 %% Default options.
-if ~isfield(param,'trial2plot'),    param.trial2plot     = 'allInitiated'; end % condition to plot
+if ~isfield(param,'trial2plot'),    param.trial2plot     = 'allInitiated'; end % conditions to plot
 if ~isfield(param,'binSize'),       param.binSize        = 200;          end % ms
 if ~isfield(param,'stepSz'),        param.stepSz         = 20;           end % ms
 if ~isfield(param,'interval'),      param.interval       = [-2000 10000];end % ms range
@@ -37,8 +37,9 @@ end
 % param.trial_change{2} = events.(opt.trEvents{2}).trial{1}(1:end);
 
 %% Trial indexing
-for a = 1 % align only to ini (SUBJECT TO CHANGE AND LOOP several)
+for a = 1 % align only to ini (SUBJECT TO CHANGE to LOOP several)
     neuronSet = neurons.(toalignto{a});
+    param.ROI = neurons.ROI';
     % trialrange = 1:length(conditions.correct); % we could set the trial range (not INDEX)
 
     % For each cluster
@@ -56,7 +57,7 @@ for a = 1 % align only to ini (SUBJECT TO CHANGE AND LOOP several)
             % Index any valid/non-valid conditions
             cndidx = ones(1,length(conditions.correct)); % all valid
             % E.G % if p == 2
-            %       cndidx = events.(param.cond).trial{1}; % only a trial type 
+            %       cndidx = events.(param.cond).trial{1}; % only one trial type 
             %       end
             
             % Empty non-valid

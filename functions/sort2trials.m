@@ -26,10 +26,10 @@ for c = 1:nclus
                       st <  trialdef{2,a}(i,2);      % and trial end
                 
                 % relativize times to the given alignment point
-                neurons.(opt.alignto{1,a}){c,1}{i,1} = st(idx) - trialdef{2,a}(i,3); 
+                neurons.(opt.alignto{1,a}){c,1}{i,1} = st(idx) - trialdef{2,a}(i,3);
             end
         end
-
+        neurons.ROI(c) = spike.roi(c);
     else
         % Spiking indexing for Social interactions. Checks blob interaction 
         % times and extract spiking activity around them.

@@ -8,7 +8,7 @@ function plot_single_fireRate(fireRate, normFireRate, param, opt)
 %
 % OUTPUTS: saved plots in the session folder
 %
-% Jesus. 14.03.1985
+% Last modified Jesus. 21.08.2025
 
 %% Defaults
 if ~isfield(param,'xtick')
@@ -99,7 +99,7 @@ if ~isempty(normFireRate)
             end
         end
 end
-tlo.Title.String = [opt.alignto{param.cl(1)}, ' c', num2str(param.cl(2))];
+tlo.Title.String = [opt.alignto{param.cl(1)}, ' c', num2str(param.cl(2)), ' ROI:', param.ROI(param.cl(2)))];
 
 % Save figure per alignment&cluster    
 if ~exist(fullfile(opt.analysis,'plots','single_fr'),"dir")

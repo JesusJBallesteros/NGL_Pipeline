@@ -2,7 +2,8 @@
 % To run after manual curation of desired sessions is completed. Will read
 % the resulting KS results after manual curation.
 %
-% Jesus 12.06.2024
+% Jesus 21.08.2025
+
 if ~isfield(opt, 'doSpikething') || isempty(opt.doSpikething),  opt.doSpikething = true;    end
 if ~isfield(opt, 'doLFPthing') || isempty(opt.doLFPthing),      opt.doLFPthing   = true;    end
 if ~isfield(opt, 'offlineTrack') || isempty(opt.offlineTrack),  opt.offlineTrack = false;   end
@@ -46,11 +47,13 @@ for x = 1:input.nsubjects % Subjects.
 
             %% 2.03. SPIKE DATA
             if opt.doSpikething
-                % Extract preprocessed 'spike' and recover 'events' data.
+
+                % Extract 'spike' data from saved data.
                 if exist(fullfile(opt.spikeSorted, "spike.mat"),'file')
                     load(fullfile(opt.spikeSorted, "spike.mat"));
                 else
-                    % Spike clusters after sorting and curation.
+
+                    % Or find clusters after sorting and curation.
                     spike = loadSpikes(opt);
                     if isfield(spike,"spike"), spike = spike.spike; end % Simplify loaded structure if needed
                             
@@ -64,13 +67,15 @@ for x = 1:input.nsubjects % Subjects.
                     % Recover trial definitions created after event extraction and processing. 
                     % Can have as many variations as requested at that time.
                     % To create new alignments, it would have to be ran again.
+
+                    % Get trialdef
                     if ~exist('trialdef','var'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
                     
-                    % Outputs are saved to data\analysis. 
+                    % Use trial info to sort 'spikes' into 'neurons'
                     % TODO fix Fieldtrip extraction
                     [neurons, ~] = sort2trials(spike, trialdef, opt);
 
-                    % Save output to \analysis
+                    % Save output to data\analysis
                     save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
                 end
 
@@ -93,16 +98,17 @@ for x = 1:input.nsubjects % Subjects.
                 end
                 
                 % calculate dynamics
-                % Under construction
-                % if ~exist(fullfile(opt.analysis, "neuralDynamics.mat"),'file')
-                %    if ~exist('trialdef','var'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
-                % 
-                %     % Uses opt.neurDyn optional structure for passing arguments
-                %     neuralDynamics = calculate_neural_dynamics(neurons, fireRate, trialdef, opt);
-                %     %
-                % 
-                %     save(fullfile(opt.analysis, "neuralDynamics.mat"), 'neuralDynamics', '-mat')
-                % end
+                if opt.neurDyn.do
+                    if ~exist(fullfile(opt.analysis, "neuralDynamics.mat"),'file')
+                       if ~exist('trialdef','var'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
+    
+                        % Uses opt.neurDyn optional structure for passing arguments
+                        neuralDynamics = calculate_neural_dynamics(neurons, fireRate, trialdef, opt);
+                        %
+    
+                        save(fullfile(opt.analysis, "neuralDynamics.mat"), 'neuralDynamics', '-mat')
+                    end
+                end
                 
                 % Tracking in Social Arena
                 if opt.useTrack

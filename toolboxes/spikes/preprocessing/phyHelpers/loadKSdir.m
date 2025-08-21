@@ -1,4 +1,7 @@
 function spikeStruct = loadKSdir(ksDir, varargin)
+%
+% Added Load maps, shanks.
+% Last modified 21.08.2025, Jesus
 
 if ~isempty(varargin)
     params = varargin{1};
@@ -74,13 +77,18 @@ end
     
 % Load channel mapping
 coords = readNPY(fullfile(ksDir, 'channel_positions.npy'));
-ycoords = coords(:,2); xcoords = coords(:,1);
+ycoords = coords(:,2);
+xcoords = coords(:,1);
 
 % Load templates
 temps = readNPY(fullfile(ksDir, 'templates.npy'));
 
 % Load whitening matrix 
 winv = readNPY(fullfile(ksDir, 'whitening_mat_inv.npy'));
+
+% Load maps, shanks, etc
+chmap = readNPY(fullfile(ksDir, 'channel_map.npy'));
+chshanks = readNPY(fullfile(ksDir, 'channel_shanks.npy'));
 
 % Extract and process further info
 [spikeAmps, spikeDepths, ~, ~, ~, templateDuration, ~] = ...
@@ -99,7 +107,8 @@ spikeStruct.temps = temps;
 spikeStruct.winv = winv;
 spikeStruct.pcFeat = pcFeat;
 spikeStruct.pcFeatInd = pcFeatInd;
-
+spikeStruct.chmap = chmap;
+spikeStruct.chshanks = chshanks;
 spikeStruct.spikeAmps = spikeAmps;
 spikeStruct.spikeDepths = spikeDepths;
 spikeStruct.templateDuration = templateDuration;

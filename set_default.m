@@ -74,20 +74,7 @@ if opt.doNWB
 end
 
 %% Kilosort-related
-if isfield(opt,'kilosort')
-    % if opt.kilosort == 2
-    %    input.KSpath = 'C:\Kilosort_2.0'; % Absolute path to kilosort, hardcoded. It could change among PCs.
-    % 
-    %    % Add Kilosort (external)
-    %    addpath(genpath(input.KSpath)) % path to kilosort toolbox
-    % 
-    % elseif opt.kilosort == 4
-       % input.KSpython = 'C:\Code\miniconda3\envs\kilosort\'; 
-       input.KSpyfolder = [input.pythonExe,'Lib\site-packages\kilosort']; % Path to the kilosort git-code. It could change among PCs
-    
-    %    % No need to add to matlab path
-    % end
-end
+input.KSpyfolder = [input.pythonExe,'Lib\site-packages\kilosort']; % Path to the kilosort git-code. It could change among PCs
 
 %% Set Dependencies. Critical to find toolboxes.
 cd(input.toolbox)

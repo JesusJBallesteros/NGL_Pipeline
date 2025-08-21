@@ -1,6 +1,6 @@
 function [info, opt] = prepforsession(input, opt)
 % Check system and version. Determine where processed session data will be saved.
-if ~isfield(opt, 'kilosort') || isempty(opt.kilosort),   opt.kilosort = 2; end
+if ~isfield(opt, 'kilosort') || isempty(opt.kilosort),   opt.kilosort = 4; end
 % Version 12.06.2024 (Jesus)
 
 % Extract subject and session 
