@@ -5,7 +5,7 @@ Scripts, functions and tools to work with electrophysiological data at NGL.
 For that, **clone it** (RECOMMENDED) with your choice method. Or download and unzip it, but is not so convenient.
 
 # **Use of the Pipeline**
-<details><summary>2 **Create a new project folder system**</summary>
+<details><summary># 1. **Create a new project folder system**</summary>
 For that, open **NGL_SetAndRunMe.m** inside the toolbox folder. **This only needs to be done once.**
 1. Start by block **1) Prepare**: Fill up your **Readme.txt** file information.
 2. Set the **data drive** for data storage, i.e. 'E'
@@ -25,7 +25,7 @@ Your data folder system should have been created now at 'datadrive':\'ProjectNam
 **You will use this script** from now on, NOT the one in the toolbox.
 </details>
 
-<details><summary># 3 **Start storing your raw data.**</summary>
+<details><summary># 2. **Start storing your raw data.**</summary>
 You can drop your raw data now, with an subject/session folder system.
 1. This is to be done under '..\ProjectName\data\raw' and the subforlders there will be formatted as '...\AAA\YYYYMMDD''.
 2. Remember that your data SHOULD be stored as the IKN standard Harddisk data structure. 
@@ -33,7 +33,7 @@ See: gitlab.ruhr-uni-bochum.de/ikn/howto/-/wikis/Neurophysiology/hard-disk-data-
 3. For each session, drop ONLY data/metadata files from INTAN or DEUTERON in its YYYYMMDD folder, with no subfolders or extra files.
 </details>
 
-<details><summary># 4 **Copy and set all your configuration files.**</summary>
+<details><summary># 3. **Copy and set all your configuration files.**</summary>
 Go to the toolbox main folder and get into '..\configfiles'.
 1. Copy all the files in there.
 2. Paste the into your project folder '..\ProjectName\analysisCode'
@@ -43,7 +43,7 @@ You should have the following files:
 ![List of config files](Instructions/images/ConfigFiles.png)
 </details>
 
-<details><summary># 5. **Set preprocessing options.**</summary>
+<details><summary># 4. **Set preprocessing options.**</summary>
 1. Go back to your **NGL_SetAndRunMe.m**, scroll to block **2) SET**.
 2. In A) Your **subjects** and **sessions** to process can be written as 'subjects' and 'dates' cell arrays.
 3. In B) Your options **('opt') structure will be set**. 
@@ -62,7 +62,7 @@ Prepare your trial structure:
 8. You can **run this block** of code.
 </details>
 
-<details><summary>#6 **RUN the preprocessing step**</summary>
+<details><summary># 5. **RUN the preprocessing step**</summary>
 1. Go back to your **NGL_SetAndRunMe.m**, scroll to block **3) Run**.
 2. **Run this block**.
 ![Set options](Instructions/images/Run1.png)
