@@ -17,6 +17,7 @@ if ~isfield(param,'ytick'),         param.ytick         = 0:10:1000;            
 if ~isfield(param,'yticklabels'),   param.yticklabels   = {mat2cell(param.ytick,1)};            end % cluster labels
 if ~isfield(param,'inibin'),        param.inibin = param.xtick(find(param.xticklabels{1}==0));  end
 if ~isfield(param,'blockchange'),   param.blockchange    = [];                                  end
+if ~isfield(param,'size'),          param.size           = 'adaptive';                           end
 
 %% Figure size
 if strcmpi('adaptive', param.size)
