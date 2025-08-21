@@ -1,9 +1,10 @@
 # **'Ephys-data-pipeline'**
 Scripts, functions and tools to work with electrophysiological data at NGL.
 
-# 1 **Install The toolbox in your local PC**
+# **Install The toolbox in your local PC**
 For that, **clone it** (RECOMMENDED) with your choice method. Or download and unzip it, but is not so convenient.
 
+# **Use of the Pipeline**
 <details><summary>2 **Create a new project folder system**</summary>
 For that, open **NGL_SetAndRunMe.m** inside the toolbox folder. **This only needs to be done once.**
 1. Start by block **1) Prepare**: Fill up your **Readme.txt** file information.
@@ -61,12 +62,13 @@ Prepare your trial structure:
 8. You can **run this block** of code.
 </details>
 
-# RUN the preprocessing step
+<details><summary>#6 **RUN the preprocessing step**</summary>
 1. Go back to your **NGL_SetAndRunMe.m**, scroll to block **3) Run**.
 2. **Run this block**.
 ![Set options](Instructions/images/Run1.png)
+</details>
 
-# 'NGL01_Main'
+# Description: **'NGL01_Main'**
 **'NGL01_Main.m'** will transform raw data from INTAN and Deuteron into .bin (for kilosort) and .mat (for Fieldtrip) files.
 A set of options let the user to specify filters, broken channels, which sort of data to retrieve, and determine the events of interest to create our trial structures.
 
@@ -77,13 +79,14 @@ Then, **the user** needs to manually curate the results. There is no way around 
 For low-pass data, the downsampled time series will be stored into .mat files with the FieldTrip expected format. 
 Events will be used to trial-parse the data (or let it be continous) and give proper format to allow the use of FT functions.
 
-# 'NGL02_postPhy' will proceed with typical steps to transform the manually-curated spike data to NLG data format.
+# Description: **'NGL02_postPhy'**
+It will proceed with typical steps to transform the manually-curated spike data to NLG data format.
 It will read and extract data from the python-based files into MATLAB, generating spike matices according to the lab format.
 This can then be feeded into further functions to analyze, plot, etc.
 It will also process the spike data to fit the FieldTrip structures together with the LFP data, and trial parsed if required.
 This would allow for spike-field analysis, as well as the use of FT funtions on both domains.
 
-# Script Description. (in progress)
+# General Description. (in progress)
 Pipeline process INTAN and Deuteron continous data.
 Will read and process INTAN, DEUTERON (or ALLEGO) data, from selected sessions for a given animal.
 The main pipeline will be: INTAN/DEUTERON raw formats to be located, then
