@@ -17,7 +17,7 @@ opt.exefile = 'C:\Code\ephys-data-pipeline\toolboxes\Deuteron\software\Event_Fil
 events      = []; % If remains empty, data shall be treated as continuous.
 trialdef    = [];
 EventRecord = [];
-conditions  = [];
+condition  = [];
 
 %% Check for alredy collected events
 check = 0;
@@ -101,7 +101,7 @@ run('conditions_script.m');
 save(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')), 'EventRecord', '-v7.3');
 save(fullfile(opt.trialSorted, strcat('trialdef.mat')), 'trialdef', '-v7.3');
 save(fullfile(opt.trialSorted, strcat('events.mat')), 'events', '-v7.3');
-save(fullfile(opt.trialSorted, strcat('condition.mat')), 'conditions', '-v7.3');
+save(fullfile(opt.trialSorted, strcat('condition.mat')), 'condition', '-v7.3');
 
 else
     disp('Events not requested. Skipped.')

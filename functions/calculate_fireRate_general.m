@@ -19,7 +19,9 @@ toalignto = opt.alignto;
 
 %% Prepare treatments
 param.levels = 1;
-param.blockchange = (find(diff(conditions.block)>0)+1)';
+if isfield(param,'block')
+    param.blockchange = (find(diff(conditions.v)>0)+1)';
+end
 
 % % E.G % add levels accordingly, e.g. basal/treatment_present/post (+2) or basal/post (+1)
 % param.levels{1} = numel(events.(opt.trEvents{1}).trial{1});

@@ -77,30 +77,33 @@ for x = 1:input.nsubjects % Subjects.
                 % Calculate fire rate and normalized fire rate
                 if ~exist(fullfile(opt.analysis, "fireRate.mat"),'file')
                     if ~exist('neurons','var'), load(fullfile(opt.analysis, "neurons.mat")); end
-                    if ~exist('events','var'), load(fullfile(opt.analysis, "events.mat")); end
-                    if ~exist('condition','var'), load(fullfile(opt.analysis, "condition.mat")); end
+                    if ~exist('events','var'), load(fullfile(opt.trialSorted, "events.mat")); end
+                    if ~exist('condition','var'), load(fullfile(opt.trialSorted, "condition.mat")); end
     
                     % General function, no conditions: 'allInitiated' by default
-                    fireRate = calculate_fireRate_general(neurons, [], conditions, opt, param);
+                    fireRate = calculate_fireRate_general(neurons, events, condition, opt, param);
                         
                     save(fullfile(opt.analysis, "fireRate.mat"), 'fireRate', '-mat')
 
                     % % Project specific    
                     % param.IncludeFS = true; % NS and FS
                     % param.trial2plot = 'allInitiated'; % for correct trials
-                    % fireRate = calculate_fireRate_extintion(neurons, events, conditions, opt, param);
+                    % fireRate = calculate_fireRate_extintion(neurons, events, condition, opt, param);
                     % save(fullfile(opt.analysis, "fireRate_extintion.mat"), 'fireRate', '-mat')
                 end
                 
                 % calculate dynamics
-                if ~exist(fullfile(opt.analysis, "neuralDynamics.mat"),'file')
-                    % Uses opt.neurDyn optional structure for passing arguments
-                    neuralDynamics = calculate_neural_dynamics(neurons, fireRate, trialdef, opt);
-                    %
-
-                    save(fullfile(opt.analysis, "neuralDynamics.mat"), 'neuralDynamics', '-mat')
-                end
-
+                % Under construction
+                % if ~exist(fullfile(opt.analysis, "neuralDynamics.mat"),'file')
+                %    if ~exist('trialdef','var'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
+                % 
+                %     % Uses opt.neurDyn optional structure for passing arguments
+                %     neuralDynamics = calculate_neural_dynamics(neurons, fireRate, trialdef, opt);
+                %     %
+                % 
+                %     save(fullfile(opt.analysis, "neuralDynamics.mat"), 'neuralDynamics', '-mat')
+                % end
+                
                 % Tracking in Social Arena
                 if opt.useTrack
                     % Spiking indexing for Social intereactions. Checks blob
@@ -142,7 +145,7 @@ for x = 1:input.nsubjects % Subjects.
                 if isfile(fullfile(opt.trialSorted, 'trialdef.mat')), load(fullfile(opt.trialSorted, "trialdef.mat")); end
                 if isfile(fullfile(input.analysis, 'data_all.mat'))
                     load(fullfile(input.analysis, "data_all.mat"), 'allconditions');
-                    conditions = allconditions{x,y};
+                    condition = allconditions{x,y};
                 end
 
                 if ~exist('trialdef','var')
@@ -168,7 +171,7 @@ for x = 1:input.nsubjects % Subjects.
                 % Time-frequency analisys. IN PROGRESS
                 if opt.spectrogram
                     if strcmp(FT_data.cfg.continuous, 'yes')
-                        allTFR_continuous{x,y} = continous_MTspectrogram(FT_data, conditions, param, opt);
+                        allTFR_continuous{x,y} = continous_MTspectrogram(FT_data, condition, param, opt);
 
                         % Save once all iterations are done
                         if y == input.sessions(x).nsessions
@@ -181,7 +184,7 @@ for x = 1:input.nsubjects % Subjects.
                         % pass the analysis folder info too % TO optimize
                         opt.analysisCode = input.analysisCode;
 
-                        [allTFR_trialparsed{x,y}, TFRcgf{x,y}] = trialparsed_MTspectrogram(FT_data, conditions, param, opt);
+                        [allTFR_trialparsed{x,y}, TFRcgf{x,y}] = trialparsed_MTspectrogram(FT_data, condition, param, opt);
                         
                         % Save once all iterations are done
                         if y == input.sessions(x).nsessions

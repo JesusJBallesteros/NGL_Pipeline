@@ -11,7 +11,7 @@ if ~isfield(opt,'isibins'),     opt.isibins = 0:0.5:200;                        
 
 % Waveform extraction option defaults
 gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
-                   'wfWin',    [-32 63], ... % Number of samples around spiketime to include in waveform.
+                   'wfWin',    opt.gwfparams.wfWin, ... %[-32 63], ... % Number of samples around spiketime to include in waveform.
                    'nWf',      opt.gwfparams.nWf,     ... % N waveforms to extrac tper unit.
                    'dataDir',  fullfile(opt.KSfolder), ... % KiloSort/Phy output folder
                    'fileName', fullfile(opt.FolderProcDataMat, [opt.SavFileName, '.bin']), ... % .dat file containing the raw 
@@ -21,7 +21,16 @@ gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
 %% Extract data from python files into a matlab friendly matrix
 % if ~exist(fullfile(opt.spikeSorted, 'spike.mat'), "file")
     spikes = loadKSdir(opt.KSfolder, opt.spparams); % Helper function from Cortex-lab toolbox
-    
+    if any(spikes.st <= -(opt.gwfparams.wfWin(1)))
+       idx = spikes.st <= -(opt.gwfparams.wfWin(1))/30000;
+        spikes.st(idx)              = [];
+        spikes.spikeTemplates(idx)  = [];
+        spikes.clu(idx)             = [];
+        spikes.tempScalingAmps(idx) = [];
+        spikes.spikeAmps(idx)       = [];
+        spikes.spikeDepths(idx)     = [];
+    end
+
     %% Get relevant info
     clusters        = sort(unique(spikes.cids)); % get and sort clusters by id
     nclust          = numel(clusters); % number of clusters
