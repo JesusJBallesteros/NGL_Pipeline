@@ -38,6 +38,7 @@ function [fireRate, normFireRate, meanNormFireRate] = calcFireRate(spikes, opt, 
 % 03.03.2024, Jesus: v1.0.3 modified input for simplicity. Added normalization
 %                           over baseline optional input.
 % 14.03.2024, Jesus: v1.1   Added possibility to plot fr and Norm fr
+% 21.08.2025, Jesus: v1.2   Added labels for ROI
 
 %% Defaults
 if isempty(param)

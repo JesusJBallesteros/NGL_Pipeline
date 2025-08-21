@@ -53,7 +53,7 @@ if ~exist(projectfolder,"dir")
     clear fileID txt
 else
     % Update result
-    txt = sprintf('Folder system for project "%s" already exists (or not). But nothing changed. \n', studyname);
+    txt = sprintf('Folder system for project "%s" located. \n', studyname);
     fprintf(txt);
 
     clear txt

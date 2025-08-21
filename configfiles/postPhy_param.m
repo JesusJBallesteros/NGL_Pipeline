@@ -4,37 +4,27 @@
 % divert from others. Add this file to the other config/parameter files
 % under your '\analysisCode' folder
 
-%% Run blob ID and tracking on behavioral videos.
-% So far, optimized for Social learning paradigm in half plus arena.
-% Tracks simultaneous pigeons in the arena , measuring the distance between
-% blobs and categorizing as 'interactions' those when the blob merge into a
-% single one. 
-% % Working.
-opt.offlineTrack = false;
+%% BRAIN AREA - MAP key
+% Set an area pointer, according to your k-coords shank definition
+opt.mapkey = struct();
+    opt.mapkey.NCL = [1,2];
+    opt.mapkey.STR = 3;
 
 %% Spike analysis and plots 
 % Proceed to some analysis and plots for clustered units obtained from
 % KS-Phy processing.
 % % Working.
-opt.doSpikething = false;
-	opt.useTrack     = false;
-	opt.getwF        = false;
+opt.doSpikething = true;
+	opt.getwF    = true;
+	opt.useTrack = false;
     
-opt.neurDyn.binsize = 0.1;
-    opt.neurDyn.method = "tSNE";
-    opt.neurDyn.synth = 1;
+% On development
+opt.neurDyn = struct();
+    opt.neurDyn.do      = true;
+    opt.neurDyn.binsize = 0.1;
+    opt.neurDyn.method  = "tSNE";
+    opt.neurDyn.synth   = 1;
 	
-%% LFP analysis and plots 
-% from data obtained via Fieldtrip pathway.
-% % Not totally functional yet. 
-opt.doLFPthing = false;
-
-%% FLIP tests.
-% First approach to the 'Beta-gamma cortical motif' paper from Miller lab,
-% without much results yet but also no deeply investigated.
-% % On development
-opt.FLIP = false;
-
 %% General options to extract single waveforms 
 % from the clustered units. 
 % Suboptions are probably to held fix for everyone.
@@ -44,6 +34,25 @@ opt.gwfparams.dataType      = 'int16';  % Data type of .dat file
 opt.gwfparams.nCh           = 32;       % Number of channels that were streamed in .dat file
 opt.gwfparams.wfWin         = [-20 41]; % Number of samples around spiketime to include in waveform
 opt.gwfparams.nWf           = 1;        % Proportion of total waveforms per unit to extract
+
+%% LFP analysis and plots 
+% from data obtained via Fieldtrip pathway.
+% % Not totally functional yet. 
+opt.doLFPthing = false;
+
+%% Run blob ID and tracking on behavioral videos.
+% So far, optimized for Social learning paradigm in half plus arena.
+% Tracks simultaneous pigeons in the arena , measuring the distance between
+% blobs and categorizing as 'interactions' those when the blob merge into a
+% single one. 
+% % Working.
+opt.offlineTrack = false;
+
+%% FLIP tests.
+% First approach to the 'Beta-gamma cortical motif' paper from Miller lab,
+% without much results yet but also no deeply investigated.
+% % On development
+opt.FLIP = false;
 
 %% Plotting
 % These parameters affect the plotting functions used after unit sorting.
@@ -65,7 +74,8 @@ param   = struct('visible',      'off', ... % figure visibility at plotting
 		        % );
 		        % %  ... %
 
-% % Extintion specific
+% % % Examples for other projects
+% % Extintion specific. 
 % param.trial2plot = 'allInitiated'; % 'correct', 'incorrect', 'omission', 'allInitiated'
 % param.IncludeFS = false;
 % param.FS2plot   = true; 
@@ -74,3 +84,8 @@ param   = struct('visible',      'off', ... % figure visibility at plotting
 % param.nBlocks   = 8;
 % param.interval  = [-2000 10000];
 % param.baseline  = 0 - param.interval(1);
+
+% %
+%
+%
+%

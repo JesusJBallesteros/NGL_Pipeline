@@ -5,7 +5,7 @@
 % pipelines as a sequence of easily swichable runs by simply commenting 
 % lines. Could be ran line-by-line (F9) or all at once (F5).
 
-%% 1) PREPARE. Only needs to be done once, really.
+%% 1) PREPARE.
 % A) README.TXT
 readmecontent = ["Study name: DefaultName", ...
                  "Readme date: 29/08/1997"                          , ...

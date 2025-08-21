@@ -36,7 +36,7 @@ plotmatrix = cell2mat(fireRate);
 plotmatrix(all(plotmatrix==Inf,2),:) = [];
 plotmatrix(all(isnan(plotmatrix),2),:) = [];
 
-% Sort matrices by max firing rate, at shorter time bin, increasingly
+% Sort matrices by max firing rate and earlier time bin, increasingly
 for i = 1:size(plotmatrix,1)
     maxfr(i,1) = max(plotmatrix(i,:));
     maxtb(i,1) = find(plotmatrix(i,:)==maxfr(i,1),1);

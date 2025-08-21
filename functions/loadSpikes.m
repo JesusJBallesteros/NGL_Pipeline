@@ -3,6 +3,8 @@ function [spike] = loadSpikes(opt)
 % after KS-Phy. Will extract all remaining clusters, excluding the ones
 % labeled as 'noise', if not explicitly asked for. By default, it will not
 % load the PCs and it will extract a maximum of 2000 waveforms from the raw data.
+%
+% 21.08.2025, Jesus
 
 %% Default parameters
 if ~isfield(opt,'spparams'),    opt.spparams = struct('excludeNoise', true, 'loadPCs', false);  end % For cluster loading
@@ -21,8 +23,9 @@ gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
 %% Extract data from python files into a matlab friendly matrix
 % if ~exist(fullfile(opt.spikeSorted, 'spike.mat'), "file")
     spikes = loadKSdir(opt.KSfolder, opt.spparams); % Helper function from Cortex-lab toolbox
+    
     if any(spikes.st <= -(opt.gwfparams.wfWin(1)))
-       idx = spikes.st <= -(opt.gwfparams.wfWin(1))/30000;
+       idx = spikes.st <= -(opt.gwfparams.wfWin(1))/spikes.sample_rate;
         spikes.st(idx)              = [];
         spikes.spikeTemplates(idx)  = [];
         spikes.clu(idx)             = [];
@@ -32,6 +35,8 @@ gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
     end
 
     %% Get relevant info
+    bc_table        = readtable(fullfile(opt.KSfolder, 'bombcell\templates._bc_qMetrics_all.csv'));
+    shanksmap       = [spikes.chshanks, spikes.chmap];
     clusters        = sort(unique(spikes.cids)); % get and sort clusters by id
     nclust          = numel(clusters); % number of clusters
     
@@ -45,11 +50,18 @@ gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
     %% Proceed to extract timestamps for each cluster
     disp('Extracting curated clusters from Phy files. If many waveforms are requested, it may take a while.')
     for cl = 1:nclust
-        spike.label{cl}         = num2str(clusters(cl));
+        spike.label{cl}      = num2str(clusters(cl));
         spike.timestamp{cl}     = spikes.st(spikes.clu==clusters(cl)); % in seconds
         spike.depth{cl}         = spikes.spikeDepths(spikes.clu==clusters(cl));
         spike.ampl{cl}          = spikes.spikeAmps(spikes.clu==clusters(cl));
         spike.templampl{cl}     = spikes.tempScalingAmps(spikes.clu==clusters(cl));
+        
+        % find maxChannel using the cluster index of the bombcell table 
+        spike.ch{cl}            = bc_table.maxChannels(find(bc_table.phy_clusterID==clusters(cl)));
+        % Link it to the shank-ch equivalent
+        spike.shank{cl}         = shanksmap(shanksmap(:,2) == spike.ch{cl}-1, 1);
+        % Use ROI key to get the area
+        spike.roi(cl)           = opt.mapkey(spike.shank{cl});
 
         %% Extract waveforms
         if opt.getwF
