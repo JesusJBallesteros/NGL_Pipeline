@@ -4,7 +4,7 @@ Scripts, functions and tools to work with electrophysiological data at NGL.
 # 1 **Install The toolbox in your local PC**
 For that, **clone it** (RECOMMENDED) with your choice method. Or download and unzip it, but is not so convenient.
 
-# 2 **Create a new project folder system**
+<details><summary>2 **Create a new project folder system**</summary>
 For that, open **NGL_SetAndRunMe.m** inside the toolbox folder. **This only needs to be done once.**
 1. Start by block **1) Prepare**: Fill up your **Readme.txt** file information.
 2. Set the **data drive** for data storage, i.e. 'E'
@@ -20,23 +20,29 @@ See the image for an example:
 Your data folder system should have been created now at 'datadrive':\'ProjectName'
 ![Folder system created](Instructions/images/FolderSystem.png)
 
-IMPORTANT: Now, you can 'Save As' the **NGL_SetAndRunMe.m** you are using under '..\ProjectName\analysisCode'
+7. Now 'Save As' your **NGL_SetAndRunMe.m** under '..\ProjectName\analysisCode'
 **You will use this script** from now on, NOT the one in the toolbox.
+</details>
 
-# 3 **Start storing your raw data.**
+<details><summary># 3 **Start storing your raw data.**</summary>
 You can drop your raw data now, with an subject/session folder system.
 1. This is to be done under '..\ProjectName\data\raw' and the subforlders there will be formatted as '...\AAA\YYYYMMDD''.
 2. Remember that your data SHOULD be stored as the IKN standard Harddisk data structure. 
 See: gitlab.ruhr-uni-bochum.de/ikn/howto/-/wikis/Neurophysiology/hard-disk-data-structure
 3. For each session, drop ONLY data/metadata files from INTAN or DEUTERON in its YYYYMMDD folder, with no subfolders or extra files.
+</details>
 
-# 4 **Copy and set all your configuration files.**
+<details><summary># 4 **Copy and set all your configuration files.**</summary>
 Go to the toolbox main folder and get into '..\configfiles'.
 1. Copy all the files in there.
 2. Paste the into your project folder '..\ProjectName\analysisCode'
 3. Go over them and set your the parameters for each. Descriptions will be provided.
 
-# 5. **Set preprocessing options.**
+You should have the following files:
+![List of config files](Instructions/images/ConfigFiles.png)
+</details>
+
+<details><summary># 5. **Set preprocessing options.**</summary>
 1. Go back to your **NGL_SetAndRunMe.m**, scroll to block **2) SET**.
 2. In A) Your **subjects** and **sessions** to process can be written as 'subjects' and 'dates' cell arrays.
 3. In B) Your options **('opt') structure will be set**. 
@@ -49,10 +55,11 @@ To have appropiate spike sorting:
 5. Drop the file it at '..\ProjectName\analysisCode' and set the name in the options
 
 Prepare your trial structure:
-5. Make sure you choose the relevant events to align data to. Not all events are supposed to be analyzed like this.
-6. Set any events that inform about about changes in experimental phases, manipulation times, etc.
+6. Make sure you choose the relevant events to align data to. Not all events are supposed to be analyzed like this.
+7. Set any events that inform about about changes in experimental phases, manipulation times, etc.
 
-7. You can **run this block** of code.
+8. You can **run this block** of code.
+</details>
 
 # RUN the preprocessing step
 1. Go back to your **NGL_SetAndRunMe.m**, scroll to block **3) Run**.
@@ -63,10 +70,9 @@ Prepare your trial structure:
 **'NGL01_Main.m'** will transform raw data from INTAN and Deuteron into .bin (for kilosort) and .mat (for Fieldtrip) files.
 A set of options let the user to specify filters, broken channels, which sort of data to retrieve, and determine the events of interest to create our trial structures.
 
-
 This Script will process high-pass data and proceed to Kilosort it with no GUI. 
 Inmediately after, it will call Bombcell to 'pre-curate' and create an initial set of tags for the sorted clusters.
-Then, the user needs to manually curate the results. There is no way around this.
+Then, **the user** needs to manually curate the results. There is no way around this.
 
 For low-pass data, the downsampled time series will be stored into .mat files with the FieldTrip expected format. 
 Events will be used to trial-parse the data (or let it be continous) and give proper format to allow the use of FT functions.
@@ -76,14 +82,6 @@ It will read and extract data from the python-based files into MATLAB, generatin
 This can then be feeded into further functions to analyze, plot, etc.
 It will also process the spike data to fit the FieldTrip structures together with the LFP data, and trial parsed if required.
 This would allow for spike-field analysis, as well as the use of FT funtions on both domains.
-
-# Getting Started
-For the very first time: Set the main repo folder (where 'NGL01_Main.m' is) as working folder.
-*Adding this folder permanently to Matlab's path is recommended, the rest will be taken care of during the run.
-
-Fill out the A, B and C Sections as needed. A is mandatory.
-
-Hit F5.
 
 # Script Description. (in progress)
 Pipeline process INTAN and Deuteron continous data.
@@ -114,18 +112,16 @@ OPTIONS: is a struct with many possible fields. All should have a
 corresponding default inside whatever function is being called. Main ones
 are:     
     opt.bin,              Creation of .bin file, input to Kilosort 2/4.
-    opt.FTfile,           Creation of .mat file with FieldTrip format.
+    opt.fieldtrip,           Creation of .mat file with FieldTrip format.
     opt.RetrieveEvents,   Retrieve event log from Deuteron system.
     opt.GetMotionSensors, Retrieve data from motion sensors in Deuteron.
-    opt.kilosort,         Asks to proceed with KS processing and waits to retrieve its results.
     opt.set_filter,       If Deuteron data was adquired with a wideband.
     opt.lowpass,          Lowpass band to extract LFP from wideband.
     opt.highpass,         Highpass band to extract spike activity.
-    opt.h5,               Creation of .h5 file (not really used, to deprecate?).
 
 OUTPUTS:
 For one single session or for a batch of sessions, from one single animal:
-       Fieldtrip (.mat), binary (.bin), HDF5 (.h5) and/or .nwb files from
+       Fieldtrip (.mat), binary (.bin) and/or .nwb files from
            1. Deuteron .DT2 or .DF1 data.
            2. INTAN file-per-type and file-per-channel format data.
            3. (ALLEGO data?)
@@ -133,4 +129,4 @@ For one single session or for a batch of sessions, from one single animal:
        MotionData.mat file, From Deuteron sensors.
        Plots snippets of time- and frequency-domain data, from FieldTrip
        
-Last modified 21.12.2023 (Jesus)
+Last modified 21.08.2025 (Jesus Ballesteros)
