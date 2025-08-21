@@ -93,7 +93,7 @@ if ~isempty(param.baseline)
                 if param.baseline(2) == 1, basetrials = 1:param.blockchange(param.baseline(2));
                 else,                      basetrials = param.blockchange(param.baseline(2)-1):param.blockchange(param.baseline(2));
                 end
-            else,  basetrials = 1:length(fireRate{int});
+            else,  basetrials = 1:size(fireRate{int},1);
             end
             
             % Compute the baseline for normalization 

@@ -35,7 +35,7 @@ gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
     end
 
     %% Get relevant info
-    bc_table        = readtable(fullfile(opt.KSfolder, 'bombcell\templates._bc_qMetrics_all.csv'));
+    phy_table        = readtable(fullfile(opt.KSfolder, 'cluster_info.tsv'), "FileType", "text", 'Delimiter', '\t');
     shanksmap       = [spikes.chshanks, spikes.chmap];
     clusters        = sort(unique(spikes.cids)); % get and sort clusters by id
     nclust          = numel(clusters); % number of clusters
@@ -57,7 +57,7 @@ gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
         spike.templampl{cl}     = spikes.tempScalingAmps(spikes.clu==clusters(cl));
         
         % find maxChannel using the cluster index of the bombcell table 
-        spike.ch{cl}            = bc_table.maxChannels(find(bc_table.phy_clusterID==clusters(cl)));
+        spike.ch{cl}            = phy_table.ch(find(phy_table.cluster_id==clusters(cl)));
         % Link it to the shank-ch equivalent
         spike.shank{cl}         = shanksmap(shanksmap(:,2) == spike.ch{cl}-1, 1);
         % Use ROI key to get the area

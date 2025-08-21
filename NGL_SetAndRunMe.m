@@ -6,6 +6,7 @@
 % lines. Could be ran line-by-line (F9) or all at once (F5).
 
 %% 1) PREPARE.
+clear all
 % A) README.TXT
 readmecontent = ["Study name: DefaultName", ...
                  "Readme date: 29/08/1997"                          , ...
@@ -27,7 +28,6 @@ pythonExe   = 'C:\Code\miniconda3\envs\kilosort\'; % Absolute path to the KS pyt
 NGL00_Prep
 
 %% 2) SET.
-clear all
 % A) SUBJECTS AND SESSIONS
 % To run the script on all subjects and sessions, or as session-to-session process.
 subjects    = {'BBB'}; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
@@ -61,22 +61,23 @@ opt = struct();
 % Additionally it can launch Phy for manual curation after each sessions, or first
 % run Bombcell to semi-automatize this porcess (only once appropiate
 % parameters are known) and then launch Phy.
-cd(toolbox)
 
 % TODO. separate data from different ports at this level to
 %       effective CAR use on different brain regions
+cd(toolbox)
 NGL01_Main
 
 %% 3.2 Proceed with post-Phy processing. Once data is curated.
 % Includes steps towards spike/trial sorting of the curated data. Uses
 % events and trial definitions obtained before to trial-parse the spike or
 % LFP data, creating the variables into the lab standard.
-cd(input.analysisCode)
 
 % General options for NGL02_postPhy
+cd(input.analysisCode)
 postPhy_param();
 
 % TODO
+cd(toolbox)
 NGL02_postPhy
 
 %% 3.3 Plotting.

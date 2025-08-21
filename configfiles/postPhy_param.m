@@ -6,9 +6,8 @@
 
 %% BRAIN AREA - MAP key
 % Set an area pointer, according to your k-coords shank definition
-opt.mapkey = struct();
-    opt.mapkey.NCL = [1,2];
-    opt.mapkey.STR = 3;
+opt.shank  = [1,     2,     3];     % This is only so you match your kcoords to the ROI below
+opt.mapkey = {'NCL', 'NCL', 'STR'}; % Here is what it will be included in the spike data
 
 %% Spike analysis and plots 
 % Proceed to some analysis and plots for clustered units obtained from
