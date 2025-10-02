@@ -1,4 +1,4 @@
-function fireRate = calculate_fireRate_general(neurons, events, conditions, opt, param)
+function fireRate = calculate_fireRate_general(neurons, events, condition, opt, param)
 % Jesus. 21.08.2025.
 % Description
 % INPUTS
@@ -20,7 +20,7 @@ toalignto = opt.alignto;
 %% Prepare treatments
 param.levels = 1;
 if isfield(param,'block')
-    param.blockchange = (find(diff(conditions.v)>0)+1)';
+    param.blockchange = (find(diff(condition.v)>0)+1)';
 end
 
 % % E.G % add levels accordingly, e.g. basal/treatment_present/post (+2) or basal/post (+1)
@@ -37,7 +37,7 @@ end
 % param.trial_change{2} = events.(opt.trEvents{2}).trial{1}(1:end);
 
 %% Trial indexing
-for a = 1 % align only to ini (SUBJECT TO CHANGE to LOOP several)
+for a = 1:length(toalignto) % align only to ini (SUBJECT TO CHANGE to LOOP several)
     neuronSet = neurons.(toalignto{a});
     param.ROI = neurons.ROI';
     % trialrange = 1:length(conditions.correct); % we could set the trial range (not INDEX)
@@ -55,9 +55,9 @@ for a = 1 % align only to ini (SUBJECT TO CHANGE to LOOP several)
             toCalculate{p}(emptytrials) = {NaN}; % make those Nan
 
             % Index any valid/non-valid conditions
-            cndidx = ones(1,length(conditions.correct)); % all valid
+            cndidx = ones(1,length(condition.correct)); % all valid
             % E.G % if p == 2
-            %       cndidx = events.(param.cond).trial{1}; % only one trial type 
+                  % cndidx = events.(param.cond).trial{1}; % only one trial type 
             %       end
             
             % Empty non-valid
@@ -65,9 +65,9 @@ for a = 1 % align only to ini (SUBJECT TO CHANGE to LOOP several)
                 
             % Plus, empty specific conditions based on behavior
             if strcmp(param.trial2plot, 'allInitiated')
-                toCalculate{p}(logical(conditions.aborted)) = {[]};
+                toCalculate{p}(logical(condition.aborted)) = {[]};
             else
-                toCalculate{p}(logical(~conditions.(param.trial2plot))) = {[]};
+                toCalculate{p}(logical(~condition.(param.trial2plot))) = {[]};
             end
         end
     

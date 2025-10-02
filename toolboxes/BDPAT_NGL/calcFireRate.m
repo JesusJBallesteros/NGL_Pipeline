@@ -3,19 +3,19 @@ function [fireRate, normFireRate, meanNormFireRate] = calcFireRate(spikes, opt, 
 % course of the trial.
 %
 % INPUTS
-% 'spikes'   : cell containing aligned spike times per trial
+% 'spikes'   : cell containing aligned spike times per trial. Timestamps in msec
 %
 % 'opt'     : contains options to plot and save graphs
 %
 % 'param' structure with fields:
 %  '.stepSz'          : step size of for the walk through the interval of
-%                        interest (in samples)
+%                        interest (in msec)
 %  '.binSize'         : size of the bins in which the spike train will be
-%                        divided (in samples)
+%                        divided (in msec)
 %  '.interval'        : matrix containing the start and the end point(s)
-%                        (in samples) of the interval of interest, relative
+%                        (in msec) of the interval of interest, relative
 %                        to the alignment
-%  '.smpRate'         : sampling rate of the recording (in Hz)
+%  '.smpRate'         : sampling rate of the recording (in Hz, meaning the time units used in input 'spikes')
 %
 % 'varargin' OPTIONAL include pairwise inpus as:
 %   'baseline'        : followed by the number of miliseconds to use as
@@ -39,6 +39,8 @@ function [fireRate, normFireRate, meanNormFireRate] = calcFireRate(spikes, opt, 
 %                           over baseline optional input.
 % 14.03.2024, Jesus: v1.1   Added possibility to plot fr and Norm fr
 % 21.08.2025, Jesus: v1.2   Added labels for ROI
+% 02.10.2025, Jesus: v1.3   Changed description, units were in samples when
+%                           now we are using msec. for clarity
 
 %% Defaults
 if isempty(param)
