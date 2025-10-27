@@ -1,7 +1,7 @@
 function [info, opt] = prepforsession(input, opt)
 % Check system and version. Determine where processed session data will be saved.
 if ~isfield(opt, 'kilosort') || isempty(opt.kilosort),   opt.kilosort = 4; end
-% Version 12.06.2024 (Jesus)
+% Version 10.10.2025 (Winston)
 
 % Extract subject and session 
 subject = input.subjects(input.run(1)).name;
@@ -37,4 +37,12 @@ if ~exist(fullfile(opt.spikeSorted),"dir"), mkdir(opt.spikeSorted); end
 if ~exist(fullfile(opt.trialSorted),"dir"), mkdir(opt.trialSorted); end
 if ~exist(fullfile(opt.analysis),"dir"), mkdir(opt.analysis); end
 
+% Check number of expected channels vs number of raw files. Create a 
+% reduced channel map if mismatched, and save in preprocessing output dir.
+if length(dir('amp*.dat')) > opt.numChannels
+    error('More INTAN files than number of channels specified in NGL_SetAndRunMe.m')
+elseif length(dir('amp*.dat')) < opt.numChannels
+        % Create reduced probe map .mat file for kilosort
+        opt = reduceChanMap(input,opt); % also reassigns opt.KSchanMapFile to new map
+        opt.numChannels = length(dir('amp*.dat'));
 end
