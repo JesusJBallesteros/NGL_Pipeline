@@ -11,7 +11,7 @@
 
 Manual curation of electrophysiology spike sorted units is slow, laborious, and hard to standardize and reproduce. Bombcell is a powerful toolbox that addresses this problem, evaluating the quality of recorded units and extracting essential electrophysiological properties. Bombcell can replace manual curation or can be used as a tool to aid manual curation. See [this talk](https://youtu.be/CvXUtGzkXIY?si=lHkLN885OCb4WJEv) at the annual Neuropixels course about quality control.
 
-📢 After many requests, we now have a Python of version of bombcell! See the installation instructions below to get started! 📢
+📢 We now have a Python of version of bombcell! See the installation instructions below to get started! 📢
 
 Please star the project to support us, using the top-right "⭐ Star" button.
 
@@ -31,7 +31,7 @@ Below is a flowchart of how bombcell evaluates and classifies each unit:
 Bombcell extracts relevant quality metrics to categorize units into four categories: single somatic units, multi-units, noise units and non-somatic units.
 
 Take a look at:
-- the MATLAB live script [`gettingStarted`](https://github.com/Julie-Fabre/bombcell/blob/main/gettingStarted.mlx) to see an example workflow and play around with our small toy dataset.
+- the MATLAB live script [`gettingStarted`](https://github.com/Julie-Fabre/bombcell/tree/main/matlab/gettingStarted.mlx) to see an example workflow and play around with our small toy dataset.
 - the Python Jupyter notebook [`BC_demo`](https://github.com/Julie-Fabre/bombcell/blob/main/py_bombcell/demos/BC_demo.ipynb)
 - You can also take a look at the exercise we prepared for the 2024 Neuropixels course [here](https://github.com/BombCell/Neuropixels_course_2024). 
 
@@ -79,7 +79,7 @@ conda create -n bombcell python=3.11
 conda activate bombcell
 # Clone latest bombcell repository from github
 git clone https://github.com/Julie-Fabre/bombcell.git
-cd bombcell/pyBombCell
+cd bombcell/py_bombcell
 # Install bombcell
 pip install uv
 uv pip install -e .
@@ -99,3 +99,7 @@ Bombcell is under the open-source [copyleft](https://www.gnu.org/licenses/copyle
 
 If you run into any issues or if you have any suggestions, please raise a [github issue](https://github.com/Julie-Fabre/bombcell/issues) or create a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request). You can also use the [Neuropixels slack workgroup](https://join.slack.com/t/neuropixelsgroup/shared_invite/zt-2h3sp1nfr-JZrpKWxeVptI0EPbHAoxKA).
 Please star the project to support us, using the top-right "⭐ Star" button.
+
+
+
+
