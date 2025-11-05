@@ -36,6 +36,9 @@ map.session = opt.SavFileName;                                               % A
 %% Saving new channel map
 opt.KSchanMapFile = [erase(mapname,'.mat') '_reduced.mat'];                  % assign new name (X_reduced.mat)
 save(fullfile(input.analysisCode, opt.KSchanMapFile),"-struct","map")        % save to analysisCode (for kilosort use)
+if ~isfolder(opt.KSfolder)                                                   % sequentially, KS output folder is only created after kilosort (but required to save the reduced chanMap appropriately)
+    mkdir(opt.KSfolder)
+end
 save(fullfile(opt.KSfolder, opt.KSchanMapFile),"-struct","map")              % save to preprocessing (for future analysis use / tagged to recording)
 disp(sprintf('Channel map "%s" created in analysisCode and preprocessing folders, and will be used by Kilosort',opt.KSchanMapFile))
 end
