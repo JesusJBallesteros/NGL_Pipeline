@@ -82,7 +82,7 @@ end
 
 %% Get Motion Data into Matlab
 if opt.GetMotionSensors
-    disp('Extracting Motion Sensor data ...')
+    disp('Extracting Motion Sensor data from Deuteron...')
     GetMotionSensors(opt, input);
 end
 

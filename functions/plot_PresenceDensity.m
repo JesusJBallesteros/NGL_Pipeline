@@ -1,0 +1,100 @@
+function plot_PresenceDensity(csvFile)
+    % plotPresenceDensityHex - Generates presence density maps for bodypart positions
+    % with enclosing hexagon overlay
+    %
+    %   plotPresenceDensityHex(csvFile)
+    %   csvFile: path to the CSV file with bodypart coordinates
+    
+    % Read CSV fully
+    raw = readcell(csvFile);
+
+    % Set parts to keep. MANUAL
+    keepparts = logical([1 1 1 0 0 1 0 0 1 1]);
+
+    % Extract bodyparts (row 2 in file, MATLAB index = 2)
+    bodyParts = raw(2,:);
+    coords = raw(3,:);
+
+    % Data starts from row 4
+    data = cell2mat(raw(4:end,:));
+
+    % Remove every 3rd column (likelihood)
+    keepIdx = ~strcmp(coords,'likelihood');
+    data = data(:, keepIdx);
+    bodyParts = bodyParts(keepIdx);
+
+    % Rename bodyParts to unique labels (bodypart_x, bodypart_y)
+    newNames = cell(size(bodyParts));
+    seen = containers.Map;
+    for i = 1:numel(bodyParts)
+        bp = bodyParts{i};
+        if ~isKey(seen, bp)
+            seen(bp) = 1;
+            suffix = 'x';
+        else
+            seen(bp) = seen(bp) + 1;
+            suffix = 'y';
+        end
+        newNames{i} = [bp '_' suffix];
+    end
+    bodyParts_coord = newNames;
+
+    % Determine global data limit
+    allX = data(:, endsWith(bodyParts_coord,'_x'));
+    allY = data(:, endsWith(bodyParts_coord,'_y'));
+    xlimData = [min(allX(:)), max(allX(:))];
+    ylimData = [min(allY(:)), max(allY(:))];
+
+    % Bin size
+    binSize = 50;
+    xEdges = xlimData(1):binSize:xlimData(2);
+    yEdges = ylimData(1):binSize:ylimData(2);
+
+    % Compute centroid of all points
+    cx = 650; % mean(allX(:),'omitnan');
+    cy = 540; % mean(allY(:),'omitnan');
+    % Compute radius as maximum distance from centroid
+    r = 630; %max(sqrt((allX(:)-cx).^2 + (allY(:)-cy).^2));
+    % Hexagon vertices
+    theta = (0:6) * pi/3; % 0 to 360 deg
+    xHex = cx + r*cos(theta);
+    yHex = cy + r*sin(theta);
+
+    % --- Prepare tiled layout (better than subplot) ---
+    bpUnique = unique(erase(bodyParts, {'_x','_y'}));
+    bpUnique = bpUnique(keepparts);
+    
+    N = numel(bpUnique);
+    t = tiledlayout(N/2, 2,'TileSpacing','compact','Padding','compact');
+    % Add a title row
+    title(t,'Presence Density per Bodypart','FontSize',14)
+
+    for i = 1:N
+        % Extract coordinates for this bodypart
+        x = data(:, strcmp(bodyParts_coord,[bpUnique{i} '_x']));
+        y = data(:, strcmp(bodyParts_coord,[bpUnique{i} '_y']));
+
+        % 2D histogram counts
+        counts = histcounts2(x, y, xEdges, yEdges);
+
+        % Plot counts
+        nexttile;
+        imHandlesCounts(i) = imagesc(xEdges, yEdges, counts');
+        axis equal tight;
+        set(gca,'YDir','reverse');
+        hold on;
+            
+        plot(xHex,yHex,'w-','LineWidth',2);
+
+        colorbar;
+        colormap turbo
+
+        ylabel('Y (pixels)');
+        if i == N, xlabel('X (pixels)'); end
+        title([bpUnique{i} ' - Counts']);
+    end
+
+    % Print to A4 portrait
+    set(gcf,'PaperOrientation', 'portrait');
+    set(gcf,'PaperUnits','normalized','PaperPosition',[0 0 1 1]);
+end
