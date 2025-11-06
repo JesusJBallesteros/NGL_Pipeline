@@ -4,10 +4,10 @@
 opt = struct();
 %% General
 opt.numChannels      = 32;
-opt.CAR              = 1;
+opt.CAR              = 0;
 opt.linefilter       = 0;
 opt.bin              = true;
-opt.highpass         = 400;
+opt.highpass         = 0;
 opt.FieldTrip        = false;
 opt.lowpass          = 250;
 opt.GetMotionSensors = false;
@@ -16,10 +16,8 @@ opt.alignto          = {'itiOn', 'stimOn1', 'rwd'};
 opt.trEvents         = {'na1'};
 opt.addtime          = 1500;
 opt.kilosort         = 4;
-opt.KSchanMapFile    = 'chanMapE32-S2_DeutSN11.mat';
-opt.spkTh            = -6;
+opt.KSchanMapFile    = 'chanMap.mat';
 opt.bombcell         = false;
-opt.rerun            = true;
 opt.phy              = false;
 %% 01. Deuteron pipeline
 opt.StpSz            = 1000000;

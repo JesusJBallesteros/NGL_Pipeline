@@ -9,7 +9,7 @@ function input = set_default(input, opt)
 % 
 % For missing optionals, it uses defaults.
 %
-% Jesus. 28.05.2024
+% Jesus. 06.11.2025
 
 %% Set default to extract data without NWB file creation.
 % Due to a conflict at h5 python-matlab dlls, when the two following pipelines 
@@ -24,6 +24,7 @@ if ~contains(input.datadrive,':\')
 end
 
 %% Find toolbox
+input.toolbox     = 'C:\Code\ephys-data-pipeline'; % Absolute path to the toolbox.
 cd(input.toolbox)
 
 %% Set default paths. IKN Standard recommended.
@@ -35,8 +36,8 @@ input.spikeSorted   = fullfile(input.datadrive, input.studyName, '\data\spikeSor
 input.trialSorted   = fullfile(input.datadrive, input.studyName, '\data\trialSorted\');
 input.processed     = fullfile(input.datadrive, input.studyName, '\data\preprocessing\');    % Default: '\data\preprocessing'
 
-% When preprocessing as already be done, this could be overwritten later.
-input.jump2plot = false;
+% % When preprocessing as already be done, this could be overwritten later.
+% input.jump2plot = false;
 
 %% Find requested subjects.
 % In case is left empty or deleted, default to 'all'
@@ -74,7 +75,10 @@ if opt.doNWB
 end
 
 %% Kilosort-related
-input.KSpyfolder = [input.pythonExe,'Lib\site-packages\kilosort']; % Path to the kilosort git-code. It could change among PCs
+input.KSpythonExe = 'C:\Users\ACN\miniconda3\envs\kilosort\';
+input.KSpyfolder = [input.KSpythonExe,'Lib\site-packages\kilosort']; % Path to the kilosort git-code. It could change among PCs
+input.PHYpythonExe = 'C:\Users\ACN\miniconda3\envs\phy2\';
+input.PHYpyfolder = [input.PHYpythonExe,'Lib\site-packages\phy']; % Path to the kilosort git-code. It could change among PCs
 
 %% Set Dependencies. Critical to find toolboxes.
 cd(input.toolbox)
