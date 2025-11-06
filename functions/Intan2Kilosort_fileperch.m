@@ -89,19 +89,21 @@ end
 % needs to be reverted to 'int16'.
 %    [tmp, ~, ~] = bandFilter(double(tempdata), [], opt.highpass, opt.sampleRate);
 
-txt = sprintf('Highpass filter set at %d Hz. It may take a moment.\n', opt.highpass);
-fprintf(txt);
-% Keep memory usage low doing one channel at a time.
-for i = 1:opt.numChannels
-    fprintf('- Filtering channel %d of %d.\n', i, opt.numChannels);
+if opt.highpass > 0
+    txt = sprintf('Highpass filter set at %d Hz. It may take a moment.\n', opt.highpass);
+    fprintf(txt);
+    % Keep memory usage low doing one channel at a time.
+    for i = 1:opt.numChannels
+        fprintf('- Filtering channel %d of %d.\n', i, opt.numChannels);
+        
+        % Detrend channel (remove DC)
+        disp('Detrending...')
+        data(i,:) = ft_preproc_detrend(data(i,:));
     
-    % Detrend channel (remove DC)
-    disp('Detrending...')
-    data(i,:) = ft_preproc_detrend(data(i,:));
-
-    % Highpass channel (Butterwort, 6th order, back&forth)
-    disp('Filtering...')
-    [data(i,:), ~, ~] = ft_preproc_highpassfilter(data(i,:), opt.sampleRate, opt.highpass, 6, 'but', 'twopass');
+        % Highpass channel (Butterwort, 6th order, back&forth)
+        disp('Filtering...')
+        [data(i,:), ~, ~] = ft_preproc_highpassfilter(data(i,:), opt.sampleRate, opt.highpass, 6, 'but', 'twopass');
+    end
 end
 
 %% Write bin file.

@@ -41,8 +41,6 @@
 if ~exist("input","var")
     input = struct( 'datadrive' , datadrive , ...   % force char array
                     'studyName' , studyname , ...   % force char array
-                    'toolbox'   , toolbox   , ...   % force char array
-                    'pythonExe' , pythonExe , ...   % force char array
                     'subjects'  , [], ...           % do NOT force char array
                     'dates'     , []        );      % do NOT force char array
     input.dates     = dates;    % place as it comes

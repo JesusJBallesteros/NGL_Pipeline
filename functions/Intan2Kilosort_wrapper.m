@@ -32,7 +32,7 @@ elseif nargin == 2, opt = varargin{1};
 end
 
 %% Defaults
-if ~isfield(opt,'highpass'),       opt.highpass      = 400; end
+if ~isfield(opt,'highpass'),       opt.highpass      = 0; end
 if ~isfield(opt,'StpSz'),          opt.StpSz         = 1000000;    end
 
 %% Main call

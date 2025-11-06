@@ -18,8 +18,8 @@ readmecontent = ["Study name: DefaultName", ...
 
 % B) SYSTEM
 % RECOMMENDED to add the toolbox folder to MATLAB folder system, but not necessary.
-datadrive   = 'E';                   % The LETTER of the drive where the data structure is/will be created.
-studyname   = 'ProjectName';  % Name of the study to be used (main folder for the data)
+datadrive   = 'D';                   % The LETTER of the drive where the data structure is/will be created.
+studyname   = 'SPP';  % Name of the study to be used (main folder for the data)
 
 % before any data exists, since the folder for the raw data is created
 % here. If it already exists, nothing will change.
@@ -28,13 +28,13 @@ NGL00_Prep
 %% 2) SET.
 % A) SUBJECTS AND SESSIONS
 % To run the script on all subjects and sessions, or as session-to-session process.
-subjects    = {'BBB'}; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
-dates       = {'YYYYMMDD'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
+subjects    = {'DUM'}; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
+dates       = {'20251129'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
 
 % B) OPTIONS.
 opt = struct();
     % General options for NGL01_Main
-    opt.numChannels         = 32;       % For now, explicit 32 if not SpikeLog-64C was used (Deuteron). INTAN: comment.
+    opt.numChannels         = 256;       % For now, explicit 32 if not SpikeLog-64C was used (Deuteron). INTAN: comment.
     opt.noise               = [];
     opt.CAR                 = 0;        % Default: 1. CAR to remove fast-ample transients and other noise for .bin file. If == 2 also CAR for lowpass (not recommended)
     opt.linefilter          = 0;        % If not 0, filter line noise at given value +-2 (Hz)
@@ -44,7 +44,7 @@ opt = struct();
     opt.FieldTrip           = true;     % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
         opt.lowpass         = 250;      % Give as high boundary frequency value.
     opt.GetMotionSensors    = true;    % Retrieve data from motion sensors in Deuteron. NEEDS IMPROVEMENT on head direction interpretation.
-    opt.RetrieveEvents      = true;     % Retrieve event log. If not further options defaulted to Deuteron txt log extraction.
+    opt.RetrieveEvents      = false;     % Retrieve event log. If not further options defaulted to Deuteron txt log extraction.
         opt.alignto         = {'itiOn', 'stimOn1', 'rwd'};  % single char array e.g. 'itiOn', or cell array e.g. {'itiOn', 'rwd'}. 'itiON' should be the very least to align to.
         opt.trEvents        = {'tr1', 'tr2'}; % Event definition of 'special events' i.e. events at the ITI like treatments, tutors, etc...
         opt.addtime         = 1000;     % Expands the trial definition start/end by X ms in both directions. 
@@ -62,7 +62,6 @@ opt = struct();
 
 % TODO. separate data from different ports at this level to
 %       effective CAR use on different brain regions
-cd(toolbox)
 NGL01_Main
 
 %% 3.2 Proceed with post-Phy processing. Once data is curated.
