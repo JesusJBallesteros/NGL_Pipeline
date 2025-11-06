@@ -1008,8 +1008,10 @@ def get_all_quality_metrics(
 
         # amplitude
         if raw_waveforms_full is not None and param["extractRaw"] and param['gain_to_uV'] is not None:
+            # Use the template's peak channel for raw amplitude calculation
+            template_peak_channel = quality_metrics["maxChannels"][unit_idx]
             quality_metrics["rawAmplitude"][unit_idx] = qm.get_raw_amplitude(
-                raw_waveforms_full[unit_idx], param["gain_to_uV"]
+                raw_waveforms_full[unit_idx], param["gain_to_uV"], peak_channel=template_peak_channel
             )
         else:
             quality_metrics["rawAmplitude"][unit_idx] = np.nan
@@ -1072,7 +1074,7 @@ def get_all_quality_metrics(
     return quality_metrics, runtimes
 
 
-def run_bombcell(ks_dir, save_path, param):
+def run_bombcell(ks_dir, save_path, param, save_figures=False, return_figures=False):
     """
     This function runs the entire bombcell pipeline from input data paths
 
@@ -1084,6 +1086,10 @@ def run_bombcell(ks_dir, save_path, param):
         The path to the directory to save the bombcell results
     param : dict
         The param dictionary
+    save_figures : bool, optional
+        If True, saves the generated figures to disk, by default False
+    return_figures : bool, optional
+        If True, returns the generated figures, by default False
 
     Returns
     -------
@@ -1095,6 +1101,9 @@ def run_bombcell(ks_dir, save_path, param):
         The unit classifications as numbers 
     unit_type_string: ndarray
         The unit classifications as names
+    figures : dict, optional
+        If return_figures=True, returns dictionary with figure objects:
+        'waveforms_overlay', 'upset_plots', 'histograms'
     """
     
     if param.get("verbose", False):
@@ -1115,6 +1124,9 @@ def run_bombcell(ks_dir, save_path, param):
     
     if param.get("verbose", False):
         print(f"Loaded ephys data: {len(np.unique(spike_clusters))} units, {len(spike_times_samples):,} spikes")
+
+    # pre-load peak channels from templates before extracting raw waveforms
+    maxChannels = qm.get_waveform_peak_channel(template_waveforms)
 
     # Extract or load in raw waveforms
     if param["raw_data_file"] is not None:
@@ -1141,6 +1153,7 @@ def run_bombcell(ks_dir, save_path, param):
             spike_times_samples,
             param["reextractRaw"],
             save_path,
+            maxChannels,  # Pass template peak channels
         )
     else:
         raw_waveforms_full = None
@@ -1148,9 +1161,6 @@ def run_bombcell(ks_dir, save_path, param):
         signal_to_noise_ratio = None
         raw_waveforms_id_match = None
         param["extractRaw"] = False  # No waveforms to extract!
-
-    # pre-load peak channels
-    maxChannels = qm.get_waveform_peak_channel(template_waveforms)
 
     # Remove duplicate spikes
     if param["removeDuplicateSpikes"]:
@@ -1229,10 +1239,21 @@ def run_bombcell(ks_dir, save_path, param):
         param, quality_metrics
     )  # JF: this should be inside bc.get_all_quality_metrics
 
+    # Override param settings if save_figures is explicitly set
+    if save_figures:
+        param["savePlots"] = True
+        if param.get("plotsSaveDir") is None:
+            param["plotsSaveDir"] = str(Path(save_path) / "bombcell_plots")
+    
+    figures = None
     if param.get("verbose", False):
         print("\nGenerating summary plots...")
     
-    plot_summary_data(quality_metrics, template_waveforms, unit_type, unit_type_string, param)
+    # Call plot_summary_data with return_figures parameter if needed
+    if return_figures:
+        figures = plot_summary_data(quality_metrics, template_waveforms, unit_type, unit_type_string, param, return_figures=True)
+    else:
+        plot_summary_data(quality_metrics, template_waveforms, unit_type, unit_type_string, param)
 
     if param.get("verbose", False):
         print("\nSaving results...")
@@ -1249,15 +1270,24 @@ def run_bombcell(ks_dir, save_path, param):
         ks_dir,
     )  
 
-    return (
-        quality_metrics,
-        param,
-        unit_type,
-        unit_type_string,
-    )
+    if return_figures and figures is not None:
+        return (
+            quality_metrics,
+            param,
+            unit_type,
+            unit_type_string,
+            figures,
+        )
+    else:
+        return (
+            quality_metrics,
+            param,
+            unit_type,
+            unit_type_string,
+        )
 
 
-def run_bombcell_unit_match(ks_dir, save_path, raw_file=None, meta_file=None, kilosort_version=4, gain_to_uV=None):
+def run_bombcell_unit_match(ks_dir, save_path, raw_file=None, meta_file=None, kilosort_version=4, gain_to_uV=None, save_figures=False, return_figures=False):
     """
     This function runs bombcell pipeline with parameters optimized for UnitMatch
     
@@ -1275,6 +1305,10 @@ def run_bombcell_unit_match(ks_dir, save_path, raw_file=None, meta_file=None, ki
         The kilosort version used (default: 4)
     gain_to_uV : float, optional
         The gain to microvolts conversion factor
+    save_figures : bool, optional
+        If True, saves the generated figures to disk, by default False
+    return_figures : bool, optional
+        If True, returns the generated figures, by default False
         
     Returns
     -------
@@ -1286,6 +1320,9 @@ def run_bombcell_unit_match(ks_dir, save_path, raw_file=None, meta_file=None, ki
         The unit classifications as numbers 
     unit_type_string: ndarray
         The unit classifications as names
+    figures : dict, optional
+        If return_figures=True, returns dictionary with figure objects:
+        'waveforms_overlay', 'upset_plots', 'histograms'
     """
     from bombcell.default_parameters import get_unit_match_parameters
     
@@ -1299,7 +1336,7 @@ def run_bombcell_unit_match(ks_dir, save_path, raw_file=None, meta_file=None, ki
         print(f"   - Detrending waveforms: {param['detrendWaveform']}")
     
     # Run bombcell with unit match parameters
-    return run_bombcell(ks_dir, save_path, param)
+    return run_bombcell(ks_dir, save_path, param, save_figures=save_figures, return_figures=return_figures)
 
 
 def make_qm_table(quality_metrics, param, unit_type_string):

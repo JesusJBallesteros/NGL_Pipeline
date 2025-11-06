@@ -8,8 +8,8 @@ from . import (
     helper_functions,
     plot_functions,
     classification,
-    unit_quality_gui,
-    manual_analysis
+    manual_analysis,
+    unit_quality_gui
 )
 
 from .default_parameters import *

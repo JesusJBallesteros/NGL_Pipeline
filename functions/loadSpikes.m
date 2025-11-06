@@ -61,7 +61,7 @@ gwfparams = struct('dataType', 'int16',  ... % Data type of .dat file
         % Link it to the shank-ch equivalent
         spike.shank{cl}         = shanksmap(shanksmap(:,2) == spike.ch{cl}-1, 1);
         % Use ROI key to get the area
-        spike.roi(cl)           = opt.mapkey(spike.shank{cl});
+        spike.roi{cl}           = opt.mapkey(spike.shank{cl});
 
         %% Extract waveforms
         if opt.getwF

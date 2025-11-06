@@ -85,6 +85,21 @@ if isempty(useevents)
                 EventRecord.TimeMsFromMidnight(idx.start(end):end) = [];
                 EventRecord.TimeSource(idx.start(end):end)    = [];
                 EventRecord.Details(idx.start(end):end)       = [];
+
+            elseif opt.invalidTrls 
+                % st = dbstack; warning('Revisar manualmente la sección: mira la línea %d en %s', st(1).line+2, st(1).file); % points out line to check
+
+                st = dbstack; fname = st(1).file; lnum  = st(1).line + 3;  % points out line to check
+                msg = sprintf('<a href="matlab: opentoline(''%s'', %d)">Double check before proceeding!!! %s (línea %d)</a>', fname, lnum, st(1).file, lnum); disp(msg);
+
+                invalidTrls = invalidTrials(EventRecord.EventType); % double check output before proceeding
+
+                EventRecord.EventNumber(invalidTrls)   = [];
+                EventRecord.EventType(invalidTrls)     = [];
+                EventRecord.TimeStamp(invalidTrls)     = [];
+                EventRecord.TimeMsFromMidnight(invalidTrls) = [];
+                EventRecord.TimeSource(invalidTrls)    = [];
+                EventRecord.Details(invalidTrls)       = [];
             end
         end
         
