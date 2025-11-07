@@ -20,7 +20,7 @@ MAIN_PARAMETERS = {
     # NOTE: n_chan_bin must be specified by user when running through API
     'n_chan_bin': {  
         'gui_name': 'number of channels', 'type': int, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 64, 'step': 'data',
+        'exclude': [0], 'default': None, 'step': 'data',
         'description':
             """
             Total number of channels in the binary file, which may be different
@@ -60,7 +60,7 @@ MAIN_PARAMETERS = {
 
     'Th_universal': {
         'gui_name': 'Th (universal)', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 10, 'step': 'spike detection',
+        'exclude': [0], 'default': 9, 'step': 'spike detection',
         'description':
             """
             Spike detection threshold for universal templates.
@@ -70,7 +70,7 @@ MAIN_PARAMETERS = {
 
     'Th_learned': {
         'gui_name': 'Th (learned)', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 9, 'step': 'spike detection',
+        'exclude': [0], 'default': 8, 'step': 'spike detection',
         'description':
             """
             Spike detection threshold for learned templates.
@@ -140,10 +140,21 @@ EXTRA_PARAMETERS = {
             """
     },
 
+    'batch_downsampling': {
+        'gui_name': 'batch downsampling', 'type': int, 'min': 1, 'max': np.inf,
+        'exclude': [], 'default': 1, 'step': 'data',
+        'description':
+            """
+            Number of batches skipped for each batch used for sorting. For example,
+            if `batch_downsampling = 10`, then only every 10th batch will be used.
+            In general, this should be left as the default (using all batches).
+            """
+    },
+
     ### PREPROCESSING
     'artifact_threshold': {
         'gui_name': 'artifact threshold', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [], 'default': 1000, 'step': 'preprocessing',
+        'exclude': [], 'default': np.inf, 'step': 'preprocessing',
         'description':
             """
             If a batch contains absolute values above this number, it will be
@@ -154,7 +165,7 @@ EXTRA_PARAMETERS = {
 
     'nskip': {
         'gui_name': 'nskip', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 2, 'step': 'preprocessing',
+        'exclude': [], 'default': 25, 'step': 'preprocessing',
         'description':
             """
             Batch stride for computing whitening matrix.
@@ -163,7 +174,7 @@ EXTRA_PARAMETERS = {
 
     'whitening_range': {
         'gui_name': 'whitening range', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 16, 'step': 'preprocessing',
+        'exclude': [], 'default': 32, 'step': 'preprocessing',
         'description':
             """
             Number of nearby channels used to estimate the whitening matrix.
@@ -172,7 +183,7 @@ EXTRA_PARAMETERS = {
 
     'highpass_cutoff': {
         'gui_name': 'highpass cutoff', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [], 'default': 400, 'step': 'preprocessing',
+        'exclude': [], 'default': 300, 'step': 'preprocessing',
         'description':
             """
             Critical frequency for highpass Butterworth filter applied to data.
@@ -237,7 +248,7 @@ EXTRA_PARAMETERS = {
 
     'dminx': {
         'gui_name': 'dminx', 'type': float, 'min': 0, 'max': np.inf,
-        'exclude': [0], 'default': 43, 'step': 'spike detection',
+        'exclude': [0], 'default': 32, 'step': 'spike detection',
         'description':
             """
             Horizontal spacing of template centers used for spike detection,
@@ -269,7 +280,7 @@ EXTRA_PARAMETERS = {
 
     'nearest_chans': {
         'gui_name': 'nearest chans', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 6, 'step': 'spike detection',
+        'exclude': [], 'default': 10, 'step': 'spike detection',
         'description':
             """
             Number of nearest channels to consider when finding local maxima
@@ -279,7 +290,7 @@ EXTRA_PARAMETERS = {
 
     'nearest_templates': {
         'gui_name': 'nearest templates', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 64, 'step': 'spike detection',
+        'exclude': [], 'default': 100, 'step': 'spike detection',
         'description':
             """
             Number of nearest spike template locations to consider when finding
@@ -289,7 +300,7 @@ EXTRA_PARAMETERS = {
 
     'max_channel_distance': {
         'gui_name': 'max channel distance', 'type': float, 'min': 1,
-        'max': np.inf, 'exclude': [], 'default': 101, 'step': 'spike detection',
+        'max': np.inf, 'exclude': [], 'default': 32, 'step': 'spike detection',
         'description':
             """
             Templates farther away than this from their nearest channel will
@@ -307,7 +318,7 @@ EXTRA_PARAMETERS = {
         pursuit step. More iterations may detect more overlapping spikes.
         """
     },
-    
+
     'templates_from_data': {
         'gui_name': 'templates from data', 'type': bool, 'min': None, 'max': None,
         'exclude': [], 'default': True, 'step': 'spike detection',
@@ -381,14 +392,18 @@ EXTRA_PARAMETERS = {
             will affect resource usage and sorting time.
             """ 
     },
-    
+
     'cluster_downsampling': {
         'gui_name': 'cluster downsampling', 'type': int, 'min': 1, 'max': np.inf,
-        'exclude': [], 'default': 20, 'step': 'clustering',
+        'exclude': [], 'default': 1, 'step': 'clustering',
         'description':
             """
-            Inverse fraction of nodes used as landmarks during clustering
-            (can be 1, but that slows down the optimization). 
+            Inverse fraction of spikes used as landmarks during clustering. By
+            default, all spikes are used up to a maximum of
+            `max_cluster_subset=25000`.
+
+            The old default behavior (version < 4.1.0) is
+            equivalent to `max_cluster_subset=None, cluster_downsampling=20`.
             """
     },
 
@@ -415,7 +430,7 @@ EXTRA_PARAMETERS = {
             fly so that it results in a set no larger than the given size.
             """
     },
-    
+
     'x_centers': {
         'gui_name': 'x centers', 'type': int, 'min': 1,
         'max': np.inf, 'exclude': [], 'default': None, 'step': 'clustering',
@@ -426,6 +441,16 @@ EXTRA_PARAMETERS = {
             by finding peaks in channel density. For 2D array type probes, we
             recommend specifying this so that centers are placed every few
             hundred microns.
+            """
+    },
+
+    'cluster_init_seed': {
+        'gui_name': 'cluster init seed', 'type': int, 'min': 1, 'max': np.inf,
+        'exclude': [], 'default': 5, 'step': 'clustering',
+        'description':
+            """
+            Random seed for kmeans++ algorithm used to initialize the graph
+            for clustering.
             """
     },
 
