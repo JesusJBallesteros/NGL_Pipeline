@@ -161,23 +161,28 @@ command.full = append(command.script, ...
 %% RUN
 % Make sure we use the project's parameters
 cd(input.analysisCode)
-projfiles = string(ls("*.py"));
+% projfiles = string(ls("*.py"));
+% fix to avoid issues 
+KSparam = string(ls("parameters.py"));
+KSmaster = string(ls("master_kilosort4.py"));
+copyfile(KSparam, input.KSpyfolder,'f');
+copyfile(KSmaster, input.KSpyfolder,'f');
 
-% Some projects might use more than one probe. CAREFUL!
-if length(projfiles)>3 % if project uses only one probe, there should be no more than 3 .py files
-    if contains(opt.KSchanMapFile, 'S2') % This would depend on the specific probes used
-        copyfile(string(fullfile(input.analysisCode,projfiles{3})), string(fullfile(input.KSpyfolder, 'parameters.py')),'f');
-    elseif contains(opt.KSchanMapFile, 'Poly3') % This would depend on the specific probes used
-        copyfile(projfiles{2}, [input.KSpyfolder '\parameters.py'],'f');
-    else
-        error('Your specific configuration for Kilosort4 does not seem to be listed.')
-    end
-else
-    % One single probe would mean there is 3 files, being the parameters' the 2nd one.
-    copyfile(projfiles{3}, input.KSpyfolder,'f');
-end
-
-copyfile(projfiles{1},input.KSpyfolder,'f'); 
+% % Some projects might use more than one probe. CAREFUL!
+% if length(projfiles)>3 % if project uses only one probe, there should be no more than 3 .py files
+%     if contains(opt.KSchanMapFile, 'S2') % This would depend on the specific probes used
+%         copyfile(string(fullfile(input.analysisCode,projfiles{3})), string(fullfile(input.KSpyfolder, 'parameters.py')),'f');
+%     elseif contains(opt.KSchanMapFile, 'Poly3') % This would depend on the specific probes used
+%         copyfile(projfiles{2}, [input.KSpyfolder '\parameters.py'],'f');
+%     else
+%         error('Your specific configuration for Kilosort4 does not seem to be listed.')
+%     end
+% else
+%     % One single probe would mean there is 3 files, being the parameters' the 2nd one.
+%     copyfile(projfiles{3}, input.KSpyfolder,'f');
+% end
+% 
+% copyfile(projfiles{1},input.KSpyfolder,'f'); 
 
 % Move to the kilosort enviroment working directory
 cd(input.KSpyfolder)
