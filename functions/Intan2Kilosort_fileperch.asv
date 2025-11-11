@@ -10,8 +10,9 @@ function Intan2Kilosort_fileperch(opt)
  
 %% Get data from INTAN data files, as single channels.
 % Opens neural data file and coverts the ADC steps to microvolts, then
-% write channel-by-channel into a matfile file and then in chunks into a .bin
-% file.
+% write channel-by-channel into .h5 file and the whole array into a .bin
+% file. Filters the data if necessary/requested.  
+opt.StpSz = 6000000;
 
 % Create a temporary mat file in system drive (for writting speed).
 opt.matfile = "C:\Users\ACN\Documents\tempMatFile.mat";
@@ -46,7 +47,6 @@ for i = 1:opt.numChannels
 end
 
 % Write bin file.
-opt.StpSz = 6000000;
 if opt.StpSz > opt.num_samples
     opt.StpSz = opt.num_samples;
 end
@@ -57,7 +57,7 @@ iter = 0;
 
 for j = chunks
     iter = iter +1;
-    if mod(iter,10)==0, fprintf('.bin File, chunk %d/%d. \n', iter, length(chunks)), end
+    if j/10==0, fprintf('.bin File, chunk %d/%d. \n', iter, length(chunks)), end
     Chunk = int16(zeros(opt.numChannels, opt.StpSz));
 
     for k = 1:opt.numChannels
