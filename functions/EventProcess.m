@@ -95,7 +95,7 @@ if opt.RetrieveEvents
     end
 
 %% Run the personalized script for the conditions to be extracted
-run('conditions_script.m');
+    run(fullfile(input.analysisCode, 'conditions_script.m'));
 
 %% Save this session events, trialdef and conditions variables.
 save(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')), 'EventRecord', '-v7.3');

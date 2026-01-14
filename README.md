@@ -30,6 +30,14 @@ Fill out the A, B and C Sections as needed. A is mandatory.
 
 Hit F5.
 
+# Required files checklist (per project)
+Place these in your project `analysisCode` folder before running the pipeline:
+* `conditions_script.m` (project-specific trial/condition logic used by `EventProcess`)
+* `eventDefinitions.mat` (event code definitions; template exists under `configfiles`)
+* `kilosortConfig.m` (Kilosort 2 config; template exists under `configfiles`)
+* `parameters.py` / `master_kilosort4.py` (Kilosort 4 parameters and wrapper, if using KS4)
+* `chanMap*.mat` (channel map file(s) for the probe; templates/examples in `channelmaps`/`Instructions`)
+
 # Script Description. (in progress)
 Pipeline process INTAN and Deuteron continous data.
 Will read and process INTAN, DEUTERON (or ALLEGO) data, from selected sessions for a given animal.

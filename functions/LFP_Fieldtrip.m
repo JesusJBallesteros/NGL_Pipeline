@@ -1,9 +1,9 @@
 function LFP_Fieldtrip(neurons, spike, trialdef, input, opt)
 %UNTITLED3 Summary of this function goes here
 %   Detailed explanation goes here
-if ~isfield('artifact_rejection',opt),  opt.artifact_rejection  = false; end
-if ~isfield('FLIP',opt),                opt.FLIP                = false; end
-if ~isfield('chgDtctPCue',opt),         opt.chgDtctPCue         = false; end
+if ~isfield(opt, 'artifact_rejection'),  opt.artifact_rejection  = false; end
+if ~isfield(opt, 'FLIP'),                opt.FLIP                = false; end
+if ~isfield(opt, 'chgDtctPCue'),         opt.chgDtctPCue         = false; end
 
 FT_data = [];
 
@@ -33,7 +33,7 @@ if opt.chgDtctPCue % Specific Step
 end
 
 % If artifact retection
-if op.artifact_rejection
+if opt.artifact_rejection
     cfg = [];
      cfg.trl         = FT_data.cfg.trl;
      cfg.continuous  = 'no';
