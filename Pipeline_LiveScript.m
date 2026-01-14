@@ -1,19 +1,25 @@
 %[text] %[text:anchor:T_5E89BFB6] # Ephys Data Pipeline, LiveScript version
-%[text] General explanation and Instructions go here
+%[text] This Live Script is a structured entry point for the preprocessing pipeline. It is intended to replace `NGL_SetAndRunMe.m` by providing guided inputs, preflight checks, and clearer state handling. Work top-to-bottom, verify each section, and only run the next block when the prior one reports success.
 %[text:tableOfContents]{"heading":"**Table of Contents**"}
 %%
 %[text] %[text:anchor:T_5782] # Main inputs
 %[text] %[text:anchor:H_320a] ## Paths to toolbox and data
-%[text] %[text:anchor:H_6d7b] Absolute path to the toolbox and project folders.
-toolbox = "C:\Code\ephys-data-pipeline"; %[control:filebrowser:6d69]{"position":[11,40]}
-Project = "D:\S3_ExperimentArena"; %[control:filebrowser:8d93]{"position":[11,34]}
+%[text] %[text:anchor:H_6d7b] Absolute path to the toolbox and project folders. Leave empty to select folders.
+toolbox = string(pwd); %[control:filebrowser:6d69]{"position":[11,40]}
+Project = ""; %[control:filebrowser:8d93]{"position":[11,34]}
 %[text] %[text:anchor:H_9913] ## Data selection
 %[text] Input a string 'all' to use all valid directories at project, or explicit a subset of them
 subjects = 'all'; % Input as 'all' or {'DOE', ..., '666'} %[control:editfield:77cf]{"position":[12,17]}
 dates    = 'all'; % Input as 'all' or {'YYYYMMDD', ..., 'YYYYMMDD'} %[control:editfield:8f23]{"position":[12,17]}
-%[text] Get into toolbox's given path and set default parameters.
-cd(toolbox); addpath(toolbox);
+%[text] Optional: path to a saved configuration (.mat) containing opt/param. Leave empty to use defaults.
+configFile = ""; %[control:filebrowser:7810]{"position":[10,36]}
+%[text] Resolve paths, validate inputs, and set default parameters.
+[toolbox, Project, subjects, dates] = resolve_inputs(toolbox, Project, subjects, dates);
+addpath(toolbox);
 default_opt;
+if strlength(configFile) > 0
+    [opt, param] = load_saved_config(configFile, opt, param);
+end
 %[text] %[text:anchor:T_8f81] # User options
 %[text] %[text:anchor:H_4A35002E] Defaults will be used if no changes are made. See 'default\_opt'. Alternatively, you can modify the  options below, or add your own.
 %[text] Number of channels:
@@ -24,6 +30,8 @@ opt.CAR = true; % The method actually uses the median, not the average %[control
 opt.linefilter = 0; % Hz %[control:dropdown:138b]{"position":[18,19]}
 %[text] Create .bin file for Kilosort to spike sorting:
 opt.bin = true; %[control:checkbox:1ac4]{"position":[11,15]}
+%[text] Dry-run mode: list sessions and exit before preprocessing.
+opt.dryRun = false; %[control:checkbox:9aa1]{"position":[11,15]}
 %[text] High-pass filter's lower boundary frequency:
 opt.highpass = 400; % Hz %[control:slider:0bf3]{"position":[16,19]}
 %[text]  Create .mat file with FieldTrip format (continuous, trial-parsed or both): 
@@ -38,8 +46,8 @@ opt.RetrieveEvents = true; %[control:checkbox:5fc5]{"position":[22,26]}
 opt.alignto = {'itiOn','stimOn1', 'rwd'}; % keep 'itiON' %[control:editfield:188c]{"position":[24,40]}
 %[text] If any, ITI Event names to locate (e.g stimulus type, block change, tutor in/out):
 opt.trEvents = {'na1', 'na2'}; %[control:editfield:954b]{"position":[17,29]}
-%[text] Miliseconds of data to retrieve from start/end of each trial, in both directions:
-opt.addtime = 1500; % miliseconds %[control:slider:3fad]{"position":[15,19]}
+%[text] Milliseconds of data to retrieve from start/end of each trial, in both directions:
+opt.addtime = 1500; % milliseconds %[control:slider:3fad]{"position":[15,19]}
 %[text] Kilosort processing via v.2 or v.4. A **configuration file is needed** at '...\\analysisCode\\'
 opt.kilosort = 4; % to DEPRECATE and leave 4 only  %[control:dropdown:760b]{"position":[16,17]}
 %[text] Channel map file for sorting. The **file must be at** '...\\analysisCode\\' **with name** 'chanMapXXX.mat'
@@ -52,6 +60,10 @@ opt.bombcell = 0; %[control:dropdown:4406]{"position":[16,17]}
 opt.phy = false; % Puts MatLab on HOLD until Phy is closed. %[control:checkbox:68a4]{"position":[11,16]}
 %[text] Jump directly to plot functions:
 opt.jump2plot = false; % if preprocessing was already done %[control:checkbox:4be0]{"position":[17,22]}
+%[text] Re-run sessions even if a status file exists.
+opt.rerun = false; %[control:checkbox:1b35]{"position":[20,24]}
+%[text] Continue preprocessing other sessions if one fails.
+opt.continueOnError = true; %[control:checkbox:4f2b]{"position":[24,28]}
 %[text] Create the to-plot list:
 opt.plot.Raster_trialbytrial = false; %[control:checkbox:6bbb]{"position":[32,37]}
 opt.plot.Raster_Aligned      = false; %[control:checkbox:4cf3]{"position":[32,37]}
@@ -74,7 +86,7 @@ opt %[output:50f8331b]
 %[text] %[text:anchor:T_5663] # <u>**00**</u>. Check folder system, inputs and dependencies.
 %[text] No user input is needed. <u>**Click to Continue.**</u>
   %[control:button:8b0b]{"position":[1,2]}
-%[text] %[text:anchor:H_6a33] #### Folder syster preparation.
+%[text] %[text:anchor:H_6a33] #### Folder system preparation.
 %[text] Get the Drive where the data structure is/will be created and the desired Project Name.
 [datadrive, studyname] = fileparts(Project);
 %[text] Prepares the project folder system if not existing, and copies all default scripts and configurations to the appropiate folder. If everything is already set from a previous run, nothing will change.
@@ -86,25 +98,50 @@ input = struct('datadrive', datadrive, 'studyName', studyname, 'toolbox', toolbo
 input.dates    = dates;    % place as it comes
 input.subjects = subjects; % place as it comes
 %[text] Add other default inputs and set necessary dependencies.
+origDir = pwd;
+dirCleanup = onCleanup(@() cd(origDir));
 input = set_default(input, opt);
+preflight_checks(input, opt);
 %[text] %[text:anchor:H_5447] #### Locate requested sessions.
 input.sessions = findSessions(input);
 %[text] Summary of data to be processed:
 input.sessions
+if opt.dryRun
+    disp('Dry-run requested; no preprocessing will be executed.');
+    return
+end
 %%
 %[text] %[text:anchor:T_78a6] # <u>**01**</u>. Find and run the data preprocessing.
 %[text] No user input is needed. <u>**Click to Continue.**</u>
   %[control:button:3bbe]{"position":[1,2]}
-%[text] Continue with locating sessions, determine formats, extract EventCodes and Motion data, convert to Kilosort and FieldTtrip formats, performs Kilosort automatic sorting. Additionally it can launch Phy for manual curation after each sessions, or first run Bombcell to semi-automatize this porcess (only once appropiate parameters are known) and then launch Phy.
-if StopGo, error('Did you put all your customized files in its place? Did you check the box?'); end %[output:296e2cb5]
+%[text] Continue with locating sessions, determine formats, extract EventCodes and Motion data, convert to Kilosort and FieldTrip formats, performs Kilosort automatic sorting. Additionally it can launch Phy for manual curation after each session, or first run Bombcell to semi-automatize this process (only once appropriate parameters are known) and then launch Phy.
+if StopGo
+    warning('Please verify project-specific files, then uncheck StopGo before continuing.');
+    return
+end %[output:296e2cb5]
 %[text] If all checks passed, then we start preprocessing in a subject and session basis.
 if ~opt.jump2plot % If not expicitly skipped
+ statusDir = fullfile(input.analysis, "status");
+ if ~exist(statusDir, "dir"), mkdir(statusDir); end
  for x = 1:input.nsubjects % Go over subjects
  for y = 1:input.sessions(x).nsessions % Go over sessions
+%[text] Initialize per-session variables to avoid carryover.
+ conditions = [];
+ neurons = [];
+ events = [];
+ spike = [];
 %[text] Prepare for session preprocessing.
  input.run = [x y]; 
  [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);
  input.sessions(input.run(1)).info.fileformat
+%[text] Skip session if already processed.
+ statusFile = session_status_path(statusDir, input, x, y);
+ if isfile(statusFile) && ~opt.rerun
+     disp("Skipping session (status file found): " + statusFile);
+     continue
+ end
+ write_session_status(statusFile, "running", "");
+ try
 %[text] Direct script towards the appropiate pipeline based on data format:
  switch input.sessions(input.run(1)).info.fileformat
 %[text] %[text:anchor:H_7efe] ###  <u>Deuteron Pipeline</u>
@@ -154,7 +191,7 @@ if ~opt.jump2plot % If not expicitly skipped
     end
 %[text] %[text:anchor:H_133e] ####           Get Motion Data from INTAN data, if requested. (TODO)
     if opt.GetMotionSensors, disp('Extracting Motion Sensor data from INTAN.')
-       % not_a_function_yet(opt);
+       warning('INTAN motion sensor extraction is not implemented yet.');
     end
 %[text] %[text:anchor:H_1e13] ###  <u>FieldTrip Pipeline</u>
     case {'FieldTrip'}
@@ -174,15 +211,16 @@ if ~opt.jump2plot % If not expicitly skipped
  if opt.bombcell, Bombcell_Main(input, opt), end
 %[text] %[text:anchor:H_100a] ### <u>Phy Programatic Call</u>
 %[text] Parameters for proper Phy function are created at the time of kilosort processing. Check them!
- if opt.phy, cd(opt.FolderProcDataMat)
-   system('phy template-gui params.py'); % This will keep Matlab on HOLD until the Phy instance is closed!
+ if opt.phy
+   phyCmd = sprintf('cd "%s" && phy template-gui params.py', opt.FolderProcDataMat);
+   system(phyCmd); % This will keep Matlab on HOLD until the Phy instance is closed!
  end
 %[text] %[text:anchor:H_3fef] ### <u>Blob tracking</u> 
-%[text] (Social Learning-specific Method). Optimiced for videos from central cenital camera. 
+%[text] (Social Learning-specific Method). Optimized for videos from central cenital camera. 
  if opt.offlineTrack, blob = processAndTrack_video(opt);
   save(fullfile(opt.analysis, "blob.mat"), 'blob');
  end
-%[text] %[text:anchor:T_6418] # <u>02.</u> Beging Post-phy processing.
+%[text] %[text:anchor:T_6418] # <u>02.</u> Begin Post-phy processing.
 %[text] %[text:anchor:H_2366] ### <u>Spike Data</u> Processing
  if opt.doSpikething
 %[text] %[text:anchor:H_3be1] ####      Recover Spike clusters after sorting and curation. (General Method)
@@ -214,11 +252,20 @@ if ~opt.jump2plot % If not expicitly skipped
     allspike{x,y}       = spike;        % idem
     if opt.plot_SocLear, allblobs{x,y} = blob; end % Include blob tracking if Social
     clear neurons events conditions spike blob % Clean up Subjects/Session results after collection
+    write_session_status(statusFile, "completed", "");
+ catch err
+    write_session_status(statusFile, "failed", format_error_message(err));
+    warning("Session failed: %s", err.message);
+    if ~opt.continueOnError
+        rethrow(err);
+    end
+ end
  end % Sessions loop
  end % Subjects loop
 %[text]  Save all preprocessed data.
   save(fullfile(input.analysis, "data_all.mat"),'allspike','allconditions','allevents','allneurons');
   if exist('allblobs','var'), save(fullfile(input.analysis, "data_all.mat"), 'allblobs','-append');end
+  save_config_snapshot(input.analysis, opt, param);
 end % End preprocessing line.
 %%
 %[text] %[text:anchor:T_93c6] # <u>03</u>. Plotting. 
@@ -235,6 +282,86 @@ end
 %[text] Make sure they are in accordance with the to-plot list set above.
 % NGL_plotting01
 % NGL_plotting02
+% Example:
+% if opt.plot.Raster_trialbytrial
+%     NGL_plotting01;
+% end
+%% Local helper functions
+function [toolbox, Project, subjects, dates] = resolve_inputs(toolbox, Project, subjects, dates)
+toolbox = string(toolbox);
+Project = string(Project);
+if strlength(Project) == 0
+    Project = string(uigetdir("", "Select project root folder"));
+end
+if strlength(toolbox) == 0
+    toolbox = string(uigetdir("", "Select toolbox root folder"));
+end
+if ~isfolder(toolbox)
+    error("Toolbox folder not found: %s", toolbox);
+end
+if ~isfolder(Project)
+    error("Project folder not found: %s", Project);
+end
+if ~(ischar(subjects) || isstring(subjects) || iscell(subjects))
+    error("subjects must be 'all' or a cell array of subject names.");
+end
+if ~(ischar(dates) || isstring(dates) || iscell(dates))
+    error("dates must be 'all' or a cell array of date strings.");
+end
+if iscell(dates)
+    invalidDates = cellfun(@(d) isempty(regexp(d, '^\d{8}$', 'once')), dates);
+    if any(invalidDates)
+        error("dates entries must follow YYYYMMDD format.");
+    end
+end
+end
+
+function [opt, param] = load_saved_config(configFile, opt, param)
+if ~isfile(configFile)
+    error("Config file not found: %s", configFile);
+end
+loaded = load(configFile);
+if isfield(loaded, "opt"), opt = loaded.opt; end
+if isfield(loaded, "param"), param = loaded.param; end
+end
+
+function preflight_checks(input, opt)
+if ~isfolder(input.analysisCode)
+    warning("analysisCode folder not found: %s", input.analysisCode);
+end
+if strlength(string(opt.KSchanMapFile)) > 0
+    chanMapPath = fullfile(input.analysisCode, opt.KSchanMapFile);
+    if ~isfile(chanMapPath)
+        warning("Channel map file not found: %s", chanMapPath);
+    end
+end
+end
+
+function statusFile = session_status_path(statusDir, input, subjectIdx, sessionIdx)
+subjectName = string(input.subjects(subjectIdx).name);
+sessionName = string(input.sessions(subjectIdx).list{sessionIdx});
+safeName = regexprep(subjectName + "_" + sessionName, "[^a-zA-Z0-9_-]", "_");
+statusFile = fullfile(statusDir, safeName + ".mat");
+end
+
+function write_session_status(statusFile, status, message)
+statusInfo = struct("status", status, "message", message, "timestamp", datetime("now"));
+save(statusFile, "-struct", "statusInfo");
+end
+
+function save_config_snapshot(analysisDir, opt, param)
+if ~exist(analysisDir, "dir")
+    return
+end
+save(fullfile(analysisDir, "last_run_config.mat"), "opt", "param");
+end
+
+function message = format_error_message(err)
+message = err.message;
+if isfield(err, "identifier") && ~isempty(err.identifier)
+    message = sprintf("%s (%s)", err.message, err.identifier);
+end
+end
 
 %[appendix]{"version":"1.0"}
 %---
@@ -242,10 +369,13 @@ end
 %   data: {"layout":"inline","rightPanelPercent":33.1}
 %---
 %[control:filebrowser:6d69]
-%   data: {"browserType":"Folder","defaultValue":"\"C:\\Code\\ephys-data-pipeline\"","label":"Toolbox path","run":"Nothing"}
+%   data: {"browserType":"Folder","defaultValue":"\"\"","label":"Toolbox path","run":"Nothing"}
 %---
 %[control:filebrowser:8d93]
-%   data: {"browserType":"Folder","defaultValue":"\"D:\\\"","label":"Project Location","run":"Nothing"}
+%   data: {"browserType":"Folder","defaultValue":"\"\"","label":"Project Location","run":"Nothing"}
+%---
+%[control:filebrowser:7810]
+%   data: {"browserType":"File","defaultValue":"\"\"","label":"Config file","run":"Nothing"}
 %---
 %[control:editfield:77cf]
 %   data: {"defaultValue":"'all';","label":"subjects","run":"Nothing","valueType":"MATLAB code"}
@@ -264,6 +394,9 @@ end
 %---
 %[control:checkbox:1ac4]
 %   data: {"defaultValue":true,"label":"bin","run":"Nothing"}
+%---
+%[control:checkbox:9aa1]
+%   data: {"defaultValue":false,"label":"dryRun","run":"Nothing"}
 %---
 %[control:slider:0bf3]
 %   data: {"defaultValue":400,"label":"Highpass","max":500,"min":150,"run":"Nothing","runOn":"ValueChanged","step":50}
@@ -306,6 +439,12 @@ end
 %---
 %[control:checkbox:4be0]
 %   data: {"defaultValue":false,"label":"","run":"SectionToEnd"}
+%---
+%[control:checkbox:1b35]
+%   data: {"defaultValue":false,"label":"rerun","run":"Nothing"}
+%---
+%[control:checkbox:4f2b]
+%   data: {"defaultValue":true,"label":"continueOnError","run":"Nothing"}
 %---
 %[control:checkbox:6bbb]
 %   data: {"defaultValue":false,"label":"Raster Trial by trial","run":"Nothing"}
