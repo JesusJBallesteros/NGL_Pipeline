@@ -1,101 +1,89 @@
-# Ephys Data Pipeline (NGL)
+# 'Ephys-data-pipeline'
+Scripts, functions and tools to work with electrophysiological data at NGL.
 
-Scripts, functions, and toolboxes to process electrophysiology recordings at NGL. The pipeline converts raw INTAN/Deuteron recordings into spike-sorting and FieldTrip-compatible LFP outputs, supports automated Kilosort/Bombcell runs, and provides post-curation analysis utilities.
+# Use 'NGL00_Prep' to create a new project folder system to start storing your raw data and set initial readme info.
+Then, drop your raw data into individual subject and session folders under 'data/raw'.
+Your data SHOULD be stored as the IKN standard Harddisk data structure. 
+See: gitlab.ruhr-uni-bochum.de/ikn/howto/-/wikis/Neurophysiology/hard-disk-data-structure
 
-## Why this repo exists
-This repository standardizes the workflow from **raw recordings** to **curated spikes and LFP analysis**, while enforcing a consistent on-disk data structure. It is designed to be the lab’s reproducible “one-stop” pipeline for typical NGL electrophysiology datasets.
+# 'NGL01_Main' will transform raw data from INTAN and Deuteron into .bin files (for kilosort) and .mat (for Fieldtrip) files.
+A set of options let the user decide wich pipelines to follow, and to specify any filters, thresholds and so on for the related steps.
 
-## Quick start
-1. **Set your MATLAB working directory** to this repository’s root (where `NGL01_Main.m` lives). Adding the repo to MATLAB’s permanent path is recommended.
-2. **Edit `NGL_SetAndRunMe.m`** to configure your:
-   - `datadrive`, `studyname`, and `toolbox` paths
-   - subject/session selection (`subjects`, `dates`)
-   - pipeline options (`opt.*`)
-3. **Run the script**:
-   - `NGL00_Prep` creates the folder structure for a new project.
-   - `NGL01_Main` preprocesses data, exports Kilosort/FieldTrip files, and optionally runs Kilosort/Bombcell/Phy.
-   - `NGL02_postPhy` performs post-curation processing (spikes, trial sorting, LFP workflows).
+This Script will process high-pass data and proceed to Kilosort it with no GUI. 
+Inmediately after, it will call Bombcell to 'pre-curate' and create an initial set of tags for the sorted clusters.
+Then, the user needs to manually curate the results. There is no way around this.
 
-> **Note:** Raw data is expected to follow the IKN hard-disk structure. See:
-> `gitlab.ruhr-uni-bochum.de/ikn/howto/-/wikis/Neurophysiology/hard-disk-data-structure`
+For low-pass data, the downsampled time series will be stored into .mat files with the FieldTrip expected format. 
+Events will be used to trial-parse the data (or let it be continous) and give proper format to allow the use of FT functions.
 
----
+# 'NGL02_postPhy' will proceed with typical steps to transform the manually-curated spike data to NLG data format.
+It will read and extract data from the python-based files into MATLAB, generating spike matices according to the lab format.
+This can then be feeded into further functions to analyze, plot, etc.
+It will also process the spike data to fit the FieldTrip structures together with the LFP data, and trial parsed if required.
+This would allow for spike-field analysis, as well as the use of FT funtions on both domains.
 
-## Repository structure (high-level)
-```
-.
-├── NGL_SetAndRunMe.m     # Main “driver” script you configure per project
-├── NGL00_Prep.m          # Initializes project folder structure and README
-├── NGL01_Main.m          # Main preprocessing pipeline (INTAN/Deuteron)
-├── NGL02_postPhy.m       # Post-curation processing of spikes + LFP
-├── default_opt.m         # Default pipeline options
-├── set_default.m         # Input validation + dependency setup
-├── functions/            # MATLAB helpers used by the pipeline
-├── toolboxes/            # External toolboxes (FieldTrip, Kilosort utils, etc.)
-├── channelmaps/          # Channel map files for probes
-├── configfiles/          # Configs for specific processing steps
-└── Instructions/         # Files to copy into a project’s analysisCode folder
-```
+# Getting Started
+For the very first time: Set the main repo folder (where 'NGL01_Main.m' is) as working folder.
+*Adding this folder permanently to Matlab's path is recommended, the rest will be taken care of during the run.
 
----
+Fill out the A, B and C Sections as needed. A is mandatory.
 
-## Pipeline overview
+Hit F5.
 
-### 1) NGL00_Prep — Project initialization
-- Creates a standard folder tree under `datadrive:\studyname\`.
-- Writes a project `readme.txt` with basic metadata.
+# Required files checklist (per project)
+Place these in your project `analysisCode` folder before running the pipeline:
+* `conditions_script.m` (project-specific trial/condition logic used by `EventProcess`)
+* `eventDefinitions.mat` (event code definitions; template exists under `configfiles`)
+* `kilosortConfig.m` (Kilosort 2 config; template exists under `configfiles`)
+* `parameters.py` / `master_kilosort4.py` (Kilosort 4 parameters and wrapper, if using KS4)
+* `chanMap*.mat` (channel map file(s) for the probe; templates/examples in `channelmaps`/`Instructions`)
 
-### 2) NGL01_Main — Preprocessing + spike sorting
-- Detects session formats (INTAN vs. Deuteron vs. preprocessed FT).
-- Converts raw data into:
-  - `.bin` for Kilosort
-  - FieldTrip-ready `.mat` for LFP
-  - event/motion logs where applicable
-- Runs Kilosort automatically (version 2 or 4).
-- Optionally runs Bombcell and/or launches Phy for manual curation.
+# Script Description. (in progress)
+Pipeline process INTAN and Deuteron continous data.
+Will read and process INTAN, DEUTERON (or ALLEGO) data, from selected sessions for a given animal.
+The main pipeline will be: INTAN/DEUTERON raw formats to be located, then
+converted to .bin files (spike sorting), and Fieldtrip .mat structures
+(for LFP). Once sorted, spike data will be attached to the FieldTrip
+structure. For Arena experiments, motion sensor data will be extracted and
+interpreted. Data will be trial-parsed using EventCodes.
 
-### 3) NGL02_postPhy — Post-curation and analysis
-- Loads curated spike output.
-- Builds trial-sorted neuron structures.
-- Computes firing rates and optional tracking-related outputs.
-- Loads LFP data and optionally performs trial parsing and time-frequency analysis.
+The hard disk data structure SHOULD fit the IKN standard published at:
+gitlab.ruhr-uni-bochum.de/ikn/howto/-/wikis/Neurophysiology/hard-disk-data-structure
 
----
+DEPENDENCIES:
+Requires that all pipeline dependencies are properly located. 
+I suggest to include the 'mainfolder' in Matlab's permanent path system.
+The function 'set_default' will take care of the rest of folders on each run.
 
-## Configuration and defaults
+INPUTS:
+      input.datadrive, char array with the drive where data is located. As 'D:\'
+      input.studyName, char array with the project name, matching the
+                         folder name where all data will be stored. As 'studyName'
+      input.subjects,  char array with either 'all' OR a single subject name e.g. 'DOE'
+      input.dates,     char array with either 'all' OR a cell array of dates 
+                         for a SINGLE subject e.g. {'YYYYMMDD' 'yyyymmdd' ...)
 
-### Main configuration (recommended)
-Edit **`NGL_SetAndRunMe.m`** to set your project paths, subject/session selection, and pipeline options. This is intended to be the only file you routinely edit.
+OPTIONS: is a struct with many possible fields. All should have a
+corresponding default inside whatever function is being called. Main ones
+are:     
+    opt.bin,              Creation of .bin file, input to Kilosort 2/4.
+    opt.FTfile,           Creation of .mat file with FieldTrip format.
+    opt.RetrieveEvents,   Retrieve event log from Deuteron system.
+    opt.GetMotionSensors, Retrieve data from motion sensors in Deuteron.
+    opt.kilosort,         Asks to proceed with KS processing and waits to retrieve its results.
+    opt.set_filter,       If Deuteron data was adquired with a wideband.
+    opt.lowpass,          Lowpass band to extract LFP from wideband.
+    opt.highpass,         Highpass band to extract spike activity.
+    opt.h5,               Creation of .h5 file (not really used, to deprecate?).
 
-### Default options
-`default_opt.m` defines a baseline `opt` structure (filters, Kilosort version, plotting parameters, etc.). You typically override these in `NGL_SetAndRunMe.m`.
-
-### Dependency setup
-`set_default.m` validates input settings, establishes default paths for analysis/raw/trial folders, and adds all required toolboxes to the MATLAB path.
-
----
-
-## Important notes for newcomers
-- **Manual curation is required.** Kilosort and Bombcell run automatically, but you still need to curate in Phy before post-processing spikes.
-- **Stick to the expected data structure.** The pipeline assumes the IKN standard hard-disk layout and will break if data is placed elsewhere.
-- **Keep toolboxes accessible.** `set_default.m` adds MATLAB paths to all required toolboxes; ensure those directories are present.
-
----
-
-## What to learn next
-If you’re new to this pipeline, these are great next steps:
-- Understand **FieldTrip data structures** (LFP format and trial parsing).
-- Learn the **Kilosort → Phy → postPhy** workflow end-to-end.
-- Explore helper functions in `functions/` to see how events, trial definitions, and conversions are implemented.
-- Review the `Instructions/` folder for project-specific configs (Kilosort configs, channel maps).
-
----
-
-## Troubleshooting tips
-- If NWB export fails after a previous run, you may need to restart MATLAB due to DLL conflicts (see `set_default.m`).
-- If Phy launches but no data appears, verify that `.bin` and `params.py` are in the same session folder.
-
----
-
-## License / attribution
-This is an internal NGL electrophysiology pipeline. If you plan to reuse or publish parts of it, check with the lab maintainers.
+OUTPUTS:
+For one single session or for a batch of sessions, from one single animal:
+       Fieldtrip (.mat), binary (.bin), HDF5 (.h5) and/or .nwb files from
+           1. Deuteron .DT2 or .DF1 data.
+           2. INTAN file-per-type and file-per-channel format data.
+           3. (ALLEGO data?)
+       EventRecord.mat file, from Deuteron session.
+       MotionData.mat file, From Deuteron sensors.
+       Plots snippets of time- and frequency-domain data, from FieldTrip
+       
+Last modified 21.12.2023 (Jesus)

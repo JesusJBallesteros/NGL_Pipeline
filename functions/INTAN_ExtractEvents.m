@@ -1,4 +1,4 @@
-function EventRecord = INTAN_ExtractEvents(opt)
+function EventRecord = INTAN_ExtractEvents(input, opt)
 % Based on original function readEvents()
 % Use this function to read event-codes saved in Intan (one file per channel).
 %   Current version looks for any change in a digital pin, using that time
@@ -102,7 +102,7 @@ clear dIn
 EventRecord.EventType           = double(EventType);
 EventRecord.EventNumber         = double(1:1:length(EventType))';
 EventRecord.TimeStamp           = nan(length(EventType),1);
-EventRecord.TimeMsFromMidnight  = ts/(input.sessions.info.amplifier_sample_rate/1000);
+EventRecord.TimeMsFromMidnight  = ts/(input.sessions(input.run(1)).info.amplifier_sample_rate/1000);
 EventRecord.TimeSource          = nan(length(EventType),1);
 EventRecord.Details             = nan(length(EventType),1);
 EventRecord.TimeBreak           = {[] []};
