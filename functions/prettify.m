@@ -25,7 +25,7 @@ gcf;
 box("off");
 ylabel(plotops.ylabel);
 xlabel(plotops.xlabel);
-yticks(plotops.ytick);
+yticks(plotops.yticks);
 
 % % for raster alignment
 % if ~plotops.ispsh
@@ -36,12 +36,12 @@ yticks(plotops.ytick);
 if isitiON == 1 % iti alignment
     xticks('auto'); 
     xticklabels('auto');
-    xlim([plotops.xtick(1) plotops.xtick(end)])
+    xlim([plotops.xticks(1) plotops.xticks(end)])
 else
-    xticks(plotops.xtick);      
-    xticklabels(plotops.xticklabels{1});
-    if ~strcmp(plotops.xtick, 'auto')    
-        xlim([plotops.xtick(1) plotops.xtick(end)])
+    xticks(plotops.xticks);      
+    xticklabels(plotops.xticklabels);
+    if ~strcmp(plotops.xticks, 'auto')    
+        xlim([plotops.xticks(1) plotops.xticks(end)])
     end
 end
 
@@ -50,11 +50,12 @@ end
 % end        
 
 % Y axis, normally defined
-yticklabels(plotops.yticklabels{1});
+yticklabels(plotops.yticklabels);
+ylim([plotops.yticks(1) plotops.yticks(end)])
 
 % Fonts, for all
-set(gca, 'FontSize', 8);
-set(get(gca, 'XLabel'), 'FontSize', 10);
-set(get(gca, 'YLabel'), 'FontSize', 10);
+set(gca, 'FontSize', 10);
+set(get(gca, 'XLabel'), 'FontSize', 12);
+set(get(gca, 'YLabel'), 'FontSize', 12);
 
 end

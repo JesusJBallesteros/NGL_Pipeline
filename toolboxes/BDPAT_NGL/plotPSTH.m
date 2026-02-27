@@ -88,7 +88,7 @@ end
     par.smpRate = smpRate;
 
     % Calculate firing rate per interval bin
-    [fireRate, ~] = calcFireRate(spikes(spikes2use), par);
+    [fireRate, ~] = calcFireRate(spikes(spikes2use), par, []);
     
     % if less than two trials have spikes
     if size(fireRate{1,1},1)<2 

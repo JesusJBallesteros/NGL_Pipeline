@@ -86,7 +86,7 @@ for x = 1:input.nsubjects % Subjects.
                     if ~exist('condition','var'), load(fullfile(opt.trialSorted, "condition.mat")); end
     
                     % General function, no conditions: 'allInitiated' by default
-                    fireRate = calculate_fireRate_general(neurons, events, condition, opt, param);
+                    fireRate = calculate_fireRate_general(neurons, events, conditions, opt, param);
                         
                     save(fullfile(opt.analysis, "fireRate.mat"), 'fireRate', '-mat')
 

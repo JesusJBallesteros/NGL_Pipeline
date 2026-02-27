@@ -46,13 +46,14 @@ if ~isfield(opt,'bin'),             opt.bin                 = true;         end
 if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = true;         end
 if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
 if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
-if ~isfield(opt,'lowpass'),         opt.lowpass             = 150;          end
-if ~isfield(opt,'highpass'),        opt.highpass            = 400;          end
+if ~isfield(opt,'lowpass'),         opt.lowpass             = 10000;        end
+if ~isfield(opt,'lowpassFT'),       opt.lowpassFT           = 250;          end
+if ~isfield(opt,'highpass'),        opt.highpass            = 0;            end
 if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
-if ~isfield(opt,'parsetrial'),      opt.parsetrial          = false;        end
-if ~isfield(opt,'CAR'),             opt.CAR                 = true;         end
+if ~isfield(opt,'CAR'),             opt.CAR                 = false;        end
 if ~isfield(opt,'timebreak'),       opt.timebreak           = false;        end
 if ~isfield(opt,'noise'),           opt.noise               = [];           end
+if ~isfield(opt,'parsetrial'),      opt.parsetrial          = false;        end
 
 %% Set local options.
 % Collect parameters to proceed with file creation. List all files.
@@ -101,7 +102,7 @@ end
 %% Get Motion Data into Matlab
 if opt.GetMotionSensors
     disp('Extracting Motion Sensor data from Deuteron...')
-    Deuteron_GetMotionSensors(opt);
+    GetMotionSensors(opt, input);
 end
 
 end

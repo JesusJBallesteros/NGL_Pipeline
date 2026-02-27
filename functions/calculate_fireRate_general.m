@@ -19,6 +19,8 @@ toalignto = opt.alignto;
 
 %% Prepare treatments
 param.levels = 1;
+param.ROI = neurons.ROI';
+
 if isfield(param,'block')
     param.blockchange = (find(diff(condition.v)>0)+1)';
 end
@@ -39,12 +41,11 @@ end
 %% Trial indexing
 for a = 1:length(toalignto) % align only to ini (SUBJECT TO CHANGE to LOOP several)
     neuronSet = neurons.(toalignto{a});
-    param.ROI = neurons.ROI';
     % trialrange = 1:length(conditions.correct); % we could set the trial range (not INDEX)
 
     % For each cluster
     for c = 1:length(neuronSet)
-       %% Cluster's spike set selection
+       %% Cluster's spike set selection       
        toCalculate = cell(1,param.levels); % preallocation
        for p = 1:param.levels 
             % Initial, full set for any level
@@ -85,7 +86,7 @@ for a = 1:length(toalignto) % align only to ini (SUBJECT TO CHANGE to LOOP sever
                 end
             end
 
-            [fireRate.sps{c,p}, fireRate.Norm{c,p}, fireRate.meanNorm{c,p}] = calcFireRate(toCalculate{p}(spikes2use), opt, param);
+            [fireRate.sps{c,p}, fireRate.Norm{c,p}, fireRate.meanNorm{c,p}] = calcFireRate(toCalculate{p}(spikes2use), param, opt);
 
             if iscell(fireRate.sps{c,p}), fireRate.sps{c,p} = cell2mat(fireRate.sps{c,p}); end
             if iscell(fireRate.Norm{c,p}), fireRate.Norm{c,p} = cell2mat(fireRate.Norm{c,p}); end

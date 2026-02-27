@@ -1,8 +1,4 @@
 function [events, trialdef, eventdef, EventRecord] = trialdefGen(EventRecord, opt, varargin)
-% Testing in experiments with Deuteron block format with a text file
-% generated from the software log. This log NEEDS to be saved and placed
-% with the raw session data manually (for now).
-%
 % The Event system and descritipions are based on a probably-to-be standard, as
 % Deuteron current capabilities include reading single pin changes, limited
 % to four input pins only. Therefore we are restricted to a sucession of
@@ -12,7 +8,7 @@ function [events, trialdef, eventdef, EventRecord] = trialdefGen(EventRecord, op
 % INPUT: EventRecords: struct with all events recorded during session.
 %           EventNumber (double)
 %           EventType (string)  
-%           TimeStamp (string)
+%           TimeStamp (string or double)
 %           TimeMsFromMidnight (double) --> Converted to SECONDS
 %           TimeSource (string)
 %           Details (string)
@@ -30,6 +26,7 @@ function [events, trialdef, eventdef, EventRecord] = trialdefGen(EventRecord, op
 %                   either defaulted or the ones given by the user.
 % Jesus 11.07.2024
 %       24.04.2025: timebreak fix implemented
+%       27.02.2026: Removal of timestamp relativization to first trial start
 
 if ~isfield(opt,'trEvents'),        opt.trEvents            = [];                   end
 
@@ -39,17 +36,20 @@ if nargin > 2,  useevents = varargin{1};
 else,           useevents = {};
                 trialdef = [];
 end
-
 events = [];
-% eventdef = [];
 
+%% Find start/end trials idx and ts
 if isempty(useevents)
-    %% 00 Sanity check for matching start/end events
+    % 00 Sanity check for matching start/end events
     % Index of events equal to the defined trial start and trial end events.
     idx.start   = find(EventRecord.EventType == opt.eventdef.itiOn); 
     idx.end     = find(EventRecord.EventType == opt.eventdef.end1 | ...
                        EventRecord.EventType == opt.eventdef.end2 | ...
                        EventRecord.EventType == opt.eventdef.end3);
+
+    if idx.start(1)==1 % First trial start event can't be the first event sent. In INTAN this means 'sessionsStart'
+        idx.start(1)=[]; %remove it
+    end
     
     if ~(length(idx.start)==length(idx.end)) % matching start-end events
         warning('A mismatch between number of start/end trials found.')
@@ -65,13 +65,13 @@ if isempty(useevents)
                 % the expected [1 1 0 0], generating succesive arbitrary events 
                 % until a point where the preIni state is enforced. 
                 % Solution, remove all events before first star trial event.
-                EventRecord.EventNumber(4639:4650)   = []; % 2:5 and 4639:4650 % 2993:3008
-                EventRecord.EventType(4639:4650)     = [];
-                EventRecord.TimeStamp(4639:4650)     = [];
-                EventRecord.TimeMsFromMidnight(4639:4650) = [];
-                EventRecord.TimeSource(4639:4650)    = [];
-                EventRecord.Details(4639:4650)       = [];
-                % Possible FIX to recover these initial trials? Assume firs sent event
+                EventRecord.EventNumber(1:idx.end(1))   = [];
+                EventRecord.EventType(1:idx.end(1))     = [];
+                EventRecord.TimeStamp(1:idx.end(1))     = [];
+                EventRecord.TimeMsFromMidnight(1:idx.end(1)) = [];
+                EventRecord.TimeSource(1:idx.end(1))    = [];
+                EventRecord.Details(1:idx.end(1))       = [];
+                % Possible FIX to recover these initial trials? Assume first sent event
                 % is start trial. MANUAL CHECK!
 	            warning('Events before first start trial removed. Check if these trials are recoverable.')
         
@@ -87,10 +87,10 @@ if isempty(useevents)
                 EventRecord.Details(idx.start(end):end)       = [];
 
             elseif opt.invalidTrls 
-                % st = dbstack; warning('Revisar manualmente la sección: mira la línea %d en %s', st(1).line+2, st(1).file); % points out line to check
-
-                st = dbstack; fname = st(1).file; lnum  = st(1).line + 3;  % points out line to check
-                msg = sprintf('<a href="matlab: opentoline(''%s'', %d)">Double check before proceeding!!! %s (línea %d)</a>', fname, lnum, st(1).file, lnum); disp(msg);
+                % points out line to check
+                st = dbstack; fname = st(1).file; lnum  = st(1).line + 3;  
+                msg = sprintf('<a href="matlab: opentoline(''%s'', %d)">Double check before proceeding!!! %s (line %d)</a>', fname, lnum, st(1).file, lnum);
+                disp(msg);
 
                 invalidTrls = invalidTrials(EventRecord.EventType); % double check output before proceeding
 
@@ -109,7 +109,15 @@ if isempty(useevents)
                            EventRecord.EventType==opt.eventdef.end2 | ...
                            EventRecord.EventType==opt.eventdef.end3);
     
-        % 000. If there was a timebreak, relativize it to the first timestamp
+        % Remove INTAN's 'sessionsStart' event again if re-captured
+        if idx.start(1)==1 
+            idx.start(1)=[];
+        end
+
+        % Final check for start/end trial consistency. Throw error upen mismatch
+        assert(length(idx.start)==length(idx.end), 'Mismatch in start/end trials unsolved. Check the EventRecord to find the problem.')
+
+        % If there was a timebreak, relativize it to the first timestamp
         % Also, all times after the break need to be adjusted for the actual
         % time passed during the delay, erasing it in terms of recording time
         if isfield(EventRecord,'TimeBreak')
@@ -121,32 +129,28 @@ if isempty(useevents)
                 EventRecord.TimeMsFromMidnight(tbidx) = EventRecord.TimeMsFromMidnight(tbidx) - tbreakdur;
             end
         end
+
     end
     
-    % 01 Relativize timestamps to session start keeping it in msec
-    EventRecord.TimeMsFromMidnight = (EventRecord.TimeMsFromMidnight - EventRecord.TimeMsFromMidnight(1));
-        
-    % 02 Find trial start/end times using given definitions
-    % Index of events equal to the defined trial start and trial end events.
-    idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 
-    idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
-                        EventRecord.EventType==opt.eventdef.end2 | ...
-                        EventRecord.EventType==opt.eventdef.end3);
+    % Relativize timestamps to session start keeping it in msec
+    % EventRecord.TimeMsFromMidnight = (EventRecord.TimeMsFromMidnight - EventRecord.TimeMsFromMidnight(1));
         
     % Now take those index time values
     trialstarts = EventRecord.TimeMsFromMidnight(idx.start); % get corresponding timestamps.
     trialends = EventRecord.TimeMsFromMidnight(idx.end); % get corresponding timestamps.
 
-    % 03 Check for trial length consistency
+    % Check for trial length consistency
     triallengths = trialends-trialstarts;
     Avtriallength = median(triallengths); 
-    if sum(triallengths > Avtriallength*1.1)==1
+    if sum(triallengths > Avtriallength*1.5)==1
+        warning('Exactly one trial have been found unconsistently lenghty. This "trial" range will be excluded:')
         NotTrial = find(triallengths > Avtriallength*1.1);
         trialstarts(NotTrial) = [];
         trialends(NotTrial) = [];
 
         rmvtrial(1) = find(EventRecord.TimeMsFromMidnight==EventRecord.TimeMsFromMidnight(idx.start(NotTrial))==1);
         rmvtrial(2) = find(EventRecord.TimeMsFromMidnight==EventRecord.TimeMsFromMidnight(idx.end(NotTrial))==1);
+        rmvtrial(1):rmvtrial(2)
 
         % Remove events in between to eliminate its trace
         EventRecord.EventNumber(rmvtrial(1):rmvtrial(2)) = [];
@@ -156,17 +160,17 @@ if isempty(useevents)
         EventRecord.TimeSource(rmvtrial(1):rmvtrial(2)) = [];
         EventRecord.Details(rmvtrial(1):rmvtrial(2))    = [];
 
-        warning('Exactly one trial have been found unconsistently lenghty, and has been excluded.')
     elseif sum(triallengths > Avtriallength*1.1)>1
-        warning('Several trials have unconsistent length!')
-    else
-        disp('All trials are consistent in duration.')
+        warning('Several trials are over 50% of the average trial duration. Make sure this is right')
     end
 
-    % 05 Convert relativized timestamps to SECONDS
+    % If all OK, use either as a reliable count for number of trials
+    ntrials = length(trialstarts); % count trial starts.
+
+    %% 01 Convert timestamps to SECONDS
     EventRecord.TimeSecFromMidnight = EventRecord.TimeMsFromMidnight/1000;
 
-% else
+    %% A more flexible way? (On the works)
     % %% 00 Find trials with specific event combinations
     % % Index of events equal to the defined trial start and trial end events.
     % idx.start   = cellfun(@(x) any(x==opt.eventdef.itiOn), EventRecord.code, 'UniformOutput', 1);
@@ -186,20 +190,15 @@ if isempty(useevents)
     % trialstarts = cellfun(@(x) x(1), EventRecord.time, 'UniformOutput', 1); % get corresponding timestamps.
     % trialends   = cellfun(@(x) x(end), EventRecord.time, 'UniformOutput', 1); % get corresponding timestamps.
 
-    %% 02 Safety check, in case of unsolved problem.
-    assert(length(trialstarts)==length(trialends),'Mismatch between number of start/end events unsolved!')
-    
-    % If OK, use either as a reliable count for number of trials
-    ntrials = length(trialstarts); % count trial starts.
-
-    %% 03 Create trialdef variables. In MILISECONDS
+    %% 03 Create trialdef variables. In MILLISECONDS
     % Check options and prepare given events to align trial times to.
     opt.alignto = events2align(opt);
     
-    % the field 't0' is an cell array of decimal values and their char arrays.
+    % the field 't0' is a cell array of decimal values and their char arrays.
     % Then, create a 'trialdef' xxx array where 
     % Nx3, where columns are 'trial start time', 'trial end time' and 'offset to zero'.
     trialdef = cell(2,size(opt.alignto,1));
+    
 else
     % 01 Find trial start/end times using given definitions
     % Index of events equal to the defined trial start and trial end events.
@@ -208,8 +207,12 @@ else
                     EventRecord.EventType==opt.eventdef.end2 | ...
                     EventRecord.EventType==opt.eventdef.end3);
     
+    if idx.start(1)==1 % First event can indeed be 'startTrial' but in INTAN it means 'sessionsStart'
+        idx.start(1)=[];
+    end
+
     % 01 Relativize timestamps to session start keeping it in msec
-    EventRecord.TimeMsFromMidnight = (EventRecord.TimeMsFromMidnight - EventRecord.TimeMsFromMidnight(1));
+    % EventRecord.TimeMsFromMidnight = (EventRecord.TimeMsFromMidnight - EventRecord.TimeMsFromMidnight(1));
     
     % 02 Convert relativized timestamps to SECONDS
     EventRecord.TimeSecFromMidnight = EventRecord.TimeMsFromMidnight/1000;
@@ -222,9 +225,10 @@ else
 
     opt.alignto = events2align(opt);
 end
-
+    
+%% Go over every event and create the required trialdef aligned for that event
+% or else %% Go over every New Event and create the required alignment
 if isempty(useevents)
-    %% Go over every event and create the required trialdef aligned for that event
     for i=1:size(opt.alignto,1)
         correction = 0;
         trialdef{1,i} = opt.alignto{i,1};
@@ -234,15 +238,19 @@ if isempty(useevents)
         end
 
         idx = find(EventRecord.EventType==opt.alignto{i,2});
-            % if strcmp(opt.alignto{i,1},'bhv') % TODO. Has to be used ONLY for bhv2 in S3-Extintion Arena
-            %     idx(EventRecord.EventType(idx-1) ~= str2double(opt.alignto{i,3})) = [];
-            %     if str2double(opt.alignto{i,3})==2, correction = 1000; end % Fix for bhv-rwd in S3-Extintion Arena
-            % end
+        if idx(1)==1 % First event can indeed be 'startTrial' but in INTAN it means 'sessionsStart'
+            idx(1)=[];
+        end
+
+        % if strcmp(opt.alignto{i,1},'bhv') % TODO. Has to be used ONLY for bhv2 in S3-Extintion Arena
+        %     idx(EventRecord.EventType(idx-1) ~= str2double(opt.alignto{i,3})) = [];
+        %     if str2double(opt.alignto{i,3})==2, correction = 1000; end % Fix for bhv-rwd in S3-Extintion Arena
+        % end
 
         % start times
         trialdef{2,i}(:,1) = trialstarts-opt.addtime;
-            if trialdef{2,i}(1,1) < 0
-                trialdef{2,i}(1,1) = trialdef{2,i}(1,1)+opt.addtime; 
+            if trialdef{2,i}(1,1) < 0 % should very rarely happen, try not to.
+                trialdef{2,i}(1,1) = trialstarts(1); % would end up being 'addtime' shorter
             end
        
         % end times
@@ -270,7 +278,7 @@ if isempty(useevents)
         end
     end  
 else
-    %% Go over every New Event and create the required alignment
+    % Go over every New Event and create the required alignment
     oldN = length(trialdef);
 
     for i = 1:size(opt.newEvent,1)

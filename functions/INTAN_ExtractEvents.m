@@ -56,18 +56,17 @@ end
 clear tmp i fid
 
 %% Convert to sample # and event-code
-% remove samples during which pin 1 and 2 are up (per default before reset of all pins,
-% necessary in order to correctly extract all relevant events).
+% Keep samples during which pin 1 and/or 2 are up (per default, before first task event '0' is sent).
 startState = dIn(1,:); % Read pins states as recording starts 
-pinsOff = find(any(dIn(:,1:npins)~=startState,2), 1, "first");  % find first pin change
-if pinsOff ~= 1 % Only if is not already the first sample
-    dIn(1:pinsOff, :) = []; % remove all samples until then
-end
-clear pinsOff
+
+% % pinsOff = find(any(dIn(:,1:npins)~=startState,2), 1, "first");  % find first pin change
+% % if pinsOff ~= 1 % Only if is not already the first sample
+% %     dIn(1:pinsOff, :) = []; % remove all samples until then
+% % end
 
 %% Find samples at which any pin changes
-checksum = diff([int8(zeros(1,npins)); dIn],1,1); % fixed to admit negative values by changing uint8 to int8
-ts = find(any(checksum,2));
+checksum = diff([int8(startState); dIn],1,1); % fixed to admit negative values, added starting state to keep nsampl
+ts = find(any(checksum,2)); % First ts found should be task start (8 or 0)
 clear checksum 
 
 % check for pin changes too close to each other (inconsistencies, or delayed
@@ -83,11 +82,6 @@ end
 % clean up NANs, to not be considered as new events
 ts(isnan(ts)) = [];
 
-% !!! ***
-% checksum = single(sum(dIn,2));
-% ts = find(diff([0; checksum])~=0);
-% clear checksum 
-
 %% CONVERT all events
 % convert each binary word to its corresponding decimal using the npins bits
 EventType = nan(size(ts,1),1);
@@ -96,14 +90,26 @@ for i = 1:size(ts,1)
     % Convert binary pins to decimal, as sum over smpDel forward to catch inconsitencies
     EventType(i) = binvec2dec(sum(dIn(ts(i):ts(i)+smpDel,:))); % binary vector to decimal integer
 end
-clear dIn
+clear dIn    
 
 %% Place extracted information into a proper EventRecord
 EventRecord.EventType           = double(EventType);
 EventRecord.EventNumber         = double(1:1:length(EventType))';
-EventRecord.TimeStamp           = nan(length(EventType),1);
+EventRecord.TimeStamp           = ts; % Updated 16.02.2026 to always keep original timeStamps (samples)
 EventRecord.TimeMsFromMidnight  = ts/(input.sessions.info.amplifier_sample_rate/1000);
 EventRecord.TimeSource          = nan(length(EventType),1);
 EventRecord.Details             = nan(length(EventType),1);
 EventRecord.TimeBreak           = {[] []};
+
+% if EventType(1)~=8
+%     warning( 'Error found extracting events from Intan data. First event is NOT 0')
+%     firstEv = find(EventRecord.EventType==8,1,"first");
+%     EventRecord.EventType(1:firstEv-1)           = [];
+%     EventRecord.EventNumber(1:firstEv-1)         = [];
+%     EventRecord.TimeStamp(1:firstEv-1)           = [];
+%     EventRecord.TimeMsFromMidnight(1:firstEv-1)  = [];
+%     EventRecord.TimeSource(1:firstEv-1)          = [];
+%     EventRecord.Details(1:firstEv-1)             = [];
+% end
+
 end

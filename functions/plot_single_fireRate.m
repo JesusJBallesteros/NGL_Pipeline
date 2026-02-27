@@ -42,7 +42,8 @@ if ~isempty(fireRate)
         % Ini
         xline(param.inibin, LineWidth=2, Color='w', LineStyle='--')
         % Color scale
-        fr.CLim = [0 max(max(fireRate))*0.9];
+        try fr.CLim = [0 max(max(fireRate))*0.9];
+        catch, fr.CLim = [0 Inf]; end
         % Color Bar
         cb1 = colorbar;
         cb1.Position = [0.49 0.35 0.017 0.30];
@@ -99,7 +100,15 @@ if ~isempty(normFireRate)
             end
         end
 end
-tlo.Title.String = [opt.alignto{param.cl(1)}, ' c', num2str(param.cl(2)), '@', param.ROI{param.cl(2)}];
+if ~isempty(param.ROI{param.cl(2)})
+    roistr = param.ROI{param.cl(2)};
+else
+    roistr = '';
+end
+
+if ~iscell(roistr), roistr = {roistr}; end
+
+tlo.Title.String = [opt.alignto{param.cl(1)}, ' c', num2str(param.cl(2)), '@', cell2mat(roistr)];
 
 % Save figure per alignment&cluster    
 if ~exist(fullfile(opt.analysis,'plots','single_fr'),"dir")

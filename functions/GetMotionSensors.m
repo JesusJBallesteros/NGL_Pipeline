@@ -7,12 +7,13 @@ function GetMotionSensors(opt, input)
 % (AHRS) to hopefully put the data in a meaningful reference system that
 % can be used to predict/estimate the animal's position/heading.
 % 
-% Last: Generalization for Deuteron and Intan
-% Jesus 08.09.2025
+% Last: Fix in timestamp to seconds calculation
+% Jesus 22.01.2026
+
 if strcmp(input.sessions.info.fileformat, 'fileperch')
-    getfrom_INTAN(opt, input)
-elseif strcmp(input.sessions.info.fileformat, 'DTF')
-    getfrom_Deuteron(opt, input)
+    getfrom_INTAN(opt)
+elseif strcmp(input.sessions.info.fileformat, 'DTF') || strcmp(input.sessions.info.fileformat, 'DF1')
+    getfrom_Deuteron(opt)
 end
 
 end
@@ -27,11 +28,11 @@ function getfrom_Deuteron(opt)
     MField_Bochum = 19.7; % uTesla.
     
     % Sample rate for motion sensors is 1000Hz. 
-    fsmot          = 1000;         % Sample Rate of the feeded data (Hz)
+    opt.fsmot          = 1000;         % Sample Rate of the feeded data (Hz)
     
-    % Gyro/Accel_Noise are determined from the hardware datasheets.
-    Gyro_Noise  = 1.7453e-04;   % Gyroscope Noise (variance value) in units of rad/s. (MPU-9250: 0.01 deg/sec)
-    Accel_Noise = .008;        % Accelerometer Noise(variance value) in units of m/s^2 (g). (MPU-9250: 8 mg)
+    % % Gyro/Accel_Noise are determined from the hardware datasheets.
+    % Gyro_Noise  = 1.7453e-04;   % Gyroscope Noise (variance value) in units of rad/s. (MPU-9250: 0.01 deg/sec)
+    % Accel_Noise = .008;        % Accelerometer Noise(variance value) in units of m/s^2 (g). (MPU-9250: 8 mg)
     
     % The values for acclMax and gyroMax are chosen by the user. They can be found using the Event
     % File Viewer in the file started event. If not activelly changed, they should stay as follows:
@@ -45,7 +46,6 @@ function getfrom_Deuteron(opt)
         data.acc    = struct('X', [], 'Y', [], 'Z', [], 'max', opt.acclMax);
         data.gyr    = struct('X', [], 'Y', [], 'Z', [], 'max', opt.gyroMax);
         data.mag    = struct('X', [], 'Y', [], 'Z', [], 'max', opt.magMax);
-        timestamps  = [];
                     
         % Axes description. With board plugged on animal's head, and according to the sensor sheet:
           % Magnetometer: Y for vertical, X for AP and Z for DL.
@@ -59,7 +59,7 @@ function getfrom_Deuteron(opt)
         %     The magnetometer needs the two horizontal (planar) axes for head orientation: Z and Y
         %     Acc.X detects gravity acceleration (points down-up axes!)
         for i = 1:numFiles         
-            if ~strcmp(opt.myFiles(i).name(1:4),'NEUR')
+            if strlength(opt.myFiles(i).name) < 4 || ~startsWith(opt.myFiles(i).name,"NEUR")
                 % Skips Event and other files (do not contain data)
                 continue
             else
@@ -73,21 +73,37 @@ function getfrom_Deuteron(opt)
                 % magnetometer in MPU-9250. The accelerometer and the gyroscope axis need to be swapped and/or 
                 % inverted to match the magnetometer axis. For more information refer to the section 
                 % "Orientation of Axes" section in MPU-9250 datasheet.        
-                data.acc.X = [data.acc.X  mot.Accelerometer.Data.X']; 
-                data.acc.Y = [data.acc.Y  mot.Accelerometer.Data.Y']; 
-                data.acc.Z = [data.acc.Z  -mot.Accelerometer.Data.Z']; % Note the sign inversion, to match magnetic
+                % NO MODIFICATION FROM RAW DATA JUST YET
+                acc.X{i} = mot.Accelerometer.Data.X';
+                acc.Y{i} = mot.Accelerometer.Data.Y';
+                acc.Z{i} = mot.Accelerometer.Data.Z';
         
-                data.gyr.X = [data.gyr.X  -mot.Gyroscope.Data.X'];
-                data.gyr.Y = [data.gyr.Y  -mot.Gyroscope.Data.Y'];
-                data.gyr.Z = [data.gyr.Z  -mot.Gyroscope.Data.Z']; % Note the sign inversion, to match magnetic
+                gyr.X{i} = mot.Gyroscope.Data.X';
+                gyr.Y{i} = mot.Gyroscope.Data.Y';
+                gyr.Z{i} = mot.Gyroscope.Data.Z';
         
-                data.mag.X = [data.mag.X mot.Magnetometer.Data.X']; 
-                data.mag.Y = [data.mag.Y mot.Magnetometer.Data.Y']; 
-                data.mag.Z = [data.mag.Z mot.Magnetometer.Data.Z'];
-                
-                timestamps = [timestamps mot.Accelerometer.timestamps];
+                mag.X{i} = mot.Magnetometer.Data.X';
+                mag.Y{i} = mot.Magnetometer.Data.Y';
+                mag.Z{i} = mot.Magnetometer.Data.Z';
+ 
+                ts{i} = mot.Accelerometer.timestamps;
             end
         end
+
+        data.acc.X = cat(2,acc.X{:});
+        data.acc.Y = cat(2,acc.Y{:});
+        data.acc.Z = cat(2,acc.Z{:});
+
+        data.gyr.X = cat(2,gyr.X{:});
+        data.gyr.Y = cat(2,gyr.Y{:});
+        data.gyr.Z = cat(2,gyr.Z{:});
+
+        data.mag.X = cat(2,mag.X{:});
+        data.mag.Y = cat(2,mag.Y{:});
+        data.mag.Z = cat(2,mag.Z{:});
+
+        timestamps = cat(2,ts{:});
+        clear ts acc gyr mag
         
         % Remove all timestamps where all readings are 0 (failsafe)
         idx0 = find(~data.mag.X & ~data.mag.Y & ~data.mag.Z & ...
@@ -106,19 +122,20 @@ function getfrom_Deuteron(opt)
             timestamps(idx0) = [];
         end
         
-        % Find deadtimes
+        % Find deadtimes, as changes of battery for long recordings will
+        % lead to deadtimes in between the actual 
         idxt = find(diff(timestamps)>3);
         if ~isempty(idxt)
             timestamps(idxt+1:end) = timestamps(idxt+1:end)-(timestamps(idxt+1)-timestamps(idxt)-1);
         end
         
         % Calculate timestamps in seconds
-        tsec = timestamps/16000 + 12/fsmot; % since midnight
+        tsec = timestamps/opt.fsmot; % since midnight
         tsec = tsec - tsec(1); % relativize to recording
     
         % Plot sensors readings. RAW.
         % Run the plot function. 
-        Deuteron_PlotMotionSensors(data, tsec, opt, 1); % 4th input == 1 (raw data)
+        Deuteron_PlotMotionSensors(data, tsec, opt, 1);
         exportgraphics(gcf, fullfile(opt.FolderProcDataMat, strcat('motion_raw.png')), 'Resolution', 300)
         close gcf
     
@@ -150,8 +167,7 @@ function getfrom_Deuteron(opt)
         data.magcorr.Z = MS_Mag(:,3)';
         
         % Plot sensors readings. MAG CORRECTED.
-        % Run the plot function, set 3rd input to 1 to plot corrected data.
-        Deuteron_PlotMotionSensors(data, tsec, opt, 1);
+        Deuteron_PlotMotionSensors(data, tsec, opt, 1, 1);
         exportgraphics(gcf, fullfile(opt.FolderProcDataMat, strcat('motion_magcorr.png')), 'Resolution', 300)
         close gcf
     
@@ -163,82 +179,203 @@ function getfrom_Deuteron(opt)
     else
         load(fullfile(opt.FolderProcDataMat, strcat('MotionData.mat')));
     end
+
+    % get eventRecord
+    load(fullfile(opt.FolderProcDataMat, 'EventRecord.mat'), 'EventRecord');
+    %ev = EventRecord.TimeSecFromMidnight(EventRecord.EventType==7);
+
+    %% Estimate orientation and render a 3-D video.
+    makeOrientationVideoFromMotionData(data, tsec, opt, EventRecord)
+    % makeOrientationVideoFromMotionData_hybrid(data, tsec, opt, EventRecord)
     
-    %% Use ecompass to merge Acc and Mag only, for the first 500 samples. Average to
-    % % get an estimate of initial heading. Output is in quaternions as 'rotators.ecomp'
-    % rotators.ecomp = ecompass(MS_Acc(1:500,:), MS_Mag(1:500,:), "rotmat");
-    % rotators.ecomp = mean(rotators.ecomp,3); 
-    % % poseplot(rotators.ecomp(1:3,:)); % to check
-    MS_Acc = [data.acc.X; data.acc.Y; data.acc.Z]';
-    MS_Mag = [data.mag.X; data.mag.Y; data.mag.Z]';
-
-    % use ecompass to fuse acc and mag (corrected)
-    rotators = ecompass(MS_Acc, MS_Mag, 'quaternion');
-
-    % The slerp function is used to steer the filter state towards the current input. 
-    % It is steered more towards the input when the difference between the input and current
-    % filter state has a large dist, and less toward the input when dist gives a small value.
-    % The interpolation parameter to slerp is in the closed-interval [0,1], so the output
-    % of dist must be re-normalized to this range. However, the full range of [0,1] for the
-    % interpolation parameter gives poor performance, so it is limited to a smaller range
-    % hrange centered at hbias.
-    slerpf.hrange = 0.2;
-    slerpf.hbias = 0.4;
-
-    % Limit low and high to the interval [0, 1].
-    slerpf.low  = max(min(slerpf.hbias - (slerpf.hrange./2), 1), 0);
-    slerpf.high = max(min(slerpf.hbias + (slerpf.hrange./2), 1), 0);
-    slerpf.hrangeLimited = slerpf.high - slerpf.low;
-
-    % Initialize the filter and preallocate outputs.
-    y = rotators(1); % initial filter state
-    rot_filt = zeros(size(y), 'like', y); % preallocate filter output
-    rot_filt(1) = y;
-
-    % Filter the noisy trajectory, sample-by-sample.
-    for ii=2:numel(rotators)
-        x = rotators(ii);
-        d = dist(y, rotators(ii));
-
-        % Renormalize dist output to the range [low, high]
-        hlpf = (d./pi).*slerpf.hrangeLimited + slerpf.low;
-        y = slerp(y, x, hlpf);
-        rot_filt(ii) = y;
-    end
-    clear x d y hlpf
-
-    %% Plot
-    % Run the plot function.
-    Deuteron_PlotMotionSensors(rot_filt, tsec, opt, 2, 1, 1); % rotators data
+    % %% TEST peakdetect 1
+    % % peak_opts to parse into function 
+    %     peak_opt.AlignMode = 'mpu9250_nedlike';     % swap X/Y and flip Z for accel+gyro
+    %     peak_opt.fs = 1000;         % Sampling frequency, Hz
+    %     peak_opt.filter = 'filtfilt'; % 'sgolay'
+    %         peak_opt.low_cut = 10;    % low-cut, Hz
+    %         peak_opt.high_cut = 400;  % high-cut, Hz
+    %     % peak_opt.filter = 'sgolay';
+    %     %     peak_opt.sgolayOrder = 3; 
+    %     %     peak_opt.frameLen = 11;    % odd integer, adjust for sampling rate
+    %     peak_opt.s_around = 80/peak_opt.fs;
+    %     peak_opt.SDs = 3;
+    %     peak_opt.ev_minus = 6;
+    %     peak_opt.ev_plus = 4;
+    %     peak_opt.stpSize = 50;
+    %     peak_opt.binSize = 500;
+    %     peak_opt.limitEvents = {'rwd'}; % 'rwd'
+    %     peak_opt.eventdef.(peak_opt.limitEvents{1}) = 7; %7;
+    %     peak_opt.filedir = fullfile(opt.FolderProcDataMat);
+    % 
+    % % [magnitude_vector, valid_peaks, valid_peaks_wf] = estimate_pecking(accel_dwnsmpl, tsec, EventRecord, peak_opt, []);
+    % estimate_pecking(data, tsec, EventRecord, peak_opt, []);
+   
 end
 
-function getfrom_INTAN(opt, input)
+function getfrom_INTAN(opt)
     % Finds aux-*-AUX*.dat files, converts to volts, creates accel matrix,
     % estimates pitch/roll, projects gaze to a screen plane, outputs 2D screen
     % coordinates (meters + pixels) and heatmaps.
     sessionDir      = opt.PathRaw;
-    
-    % Struct containing AUX port info
-    aux_info = input.sessions.info.INTAN_hdr.aux_input_channels;
-    
+    assert(isfolder(sessionDir), 'Invalid session directory.');
+
     % Identify which AUX channels correspond to accelerometer axes
-    targetCh = {'A-AUX1','A-AUX2','A-AUX3'}; % X, Y, Z axes
+    targetCh = dir('*AUX*.dat');
 
     %% Parameters
-    par.fsAux_Hz        = {30000};          % AUX sampling rate (Hz)
-    par.targetFs        = 200;            % downsampled Hz, plenty for head motion
+    par.fsAux_Hz        = {10000};        % AUX sampling rate (Hz)
+    par.targetFs        = 1000;           % downsampled Hz, plenty for head motion
     par.voltsPerCount   = 3.74e-5;        % Intan documentation constant
     par.sensitivity_V_per_g = 0.300;      % ADXL335 typical ~0.300 V/g (set per-axis if available)
     par.g0 = 9.80665;
+    par.calibDur_s = 1;                   % initial calibration duration for bias (s)
 
-    % Orientation & mounting: sensor axes -> head coordinate frame transform.
-    % Default: assume accel columns are [X_forward, Y_right, Z_up] in sensor frame.
-    % i.e: sensorToHeadRot = eye(3);
-    % If your mounting is different, modify sensorToHeadRot (3x3 rotation).
-    par.sensorToHeadRot = [1 0 0; 0 0 1; 0 1 0]; % X for/backwards, Y up/down, Z left/right
+    % % Orientation & mounting: sensor axes -> head coordinate frame transform.
+    % % Default: assume accel columns are [X_forward, Y_right, Z_up] in sensor frame.
+    % % i.e: sensorToHeadRot = eye(3);
+    % % If your mounting is different, modify sensorToHeadRot (3x3 rotation).
+    % par.sensorToHeadRot = [1 0 0; 0 0 1; 0 1 0]; % X for/backwards, Y up/down, Z left/right
+          
+    % Get data
+    if ~isfile(fullfile(opt.FolderProcDataMat,'acceldata_raw.mat'))
+        m = matfile(fullfile(opt.FolderProcDataMat, 'acceldata_raw.mat'),'Writable',true);
+        for k = 1:3
+            auxN = str2double(targetCh(k).name(end-4));
+            fprintf('Getting AUX channel %d ... \n', auxN);
+            
+            % Build filename (INTAN convention: aux-<prefix>-<native_channel_name>.dat)
+            fname = fullfile(sessionDir, targetCh(k).name);
+            if ~isfile(fname)
+                error('File not found: %s', fname);
+            end
+            
+            % Read raw (30KHz) int16 data, every third sample (10KHz)
+            fid = fopen(fname, 'r');
+                raw = fread(fid, inf, 'int16');
+                nSampl = length(raw(1:3:end));
+            fclose(fid);
+
+            % Convert to volts (from documentation)
+            m.accelData(1:nSampl,k) = par.voltsPerCount * double(raw(1:3:end));
+            clear raw
+        end
+
+        tsec = (0:size(m.accelData,1)-1)/par.fsAux_Hz{1}; % in sec
     
+        f1 = tiledlayout;
+            t1 = nexttile;
+            plot(tsec(10000:110000), m.accelData(10000:110000,:)); % sample RAW data
+            title(t1, 'RAW, uncorrected, 10 KHz');
+            ylabel('V'), xlabel('session time (s)'), xlim(t1, [1 11]);
+
+        % if numel(targetCh) > 3 % More than one headstage fix
+        %     % Average axes 1,2,3 with 4,5,6 respectively
+        %     accel(:,1) = mean(m.accelData(1:nSampl/3,[1 3]),2);
+        %     accel(:,2) = mean(m.accelData(1:nSampl/3,[2 4]),2);
+        %     accel(:,3) = mean(m.accelData(1:nSampl/3,[4 6]),2);
+        %     targetCh(4:6) = [];
+        % end
+
+        % Volts -> accel (m/s^2) + bias calib
+        disp('Processing Accelerometer data. If you have more than one HS, it could take a moment...')
+        nCal = max(1, round(par.calibDur_s * par.fsAux_Hz{1}));
+        biasV = median(m.accelData(1:nCal,1:k), 1, 'omitnan');    % robust bias estimate
+        accel = par.g0 * ((m.accelData - biasV) ./ par.sensitivity_V_per_g); % m/s^2
+        
+        % % Rotate sensor frame to head frame if requested
+        % m.accel_head = (par.sensorToHeadRot * accel.').';  % rows = samples
+        m.accel_head = accel;
+        clear accel
+        
+            t2 = nexttile;
+            plot(tsec(10000:110000), m.accel_head(10000:110000,:)); % sample UNBIAS data
+            title(t2, 'RAW, bias corrected, 10 KHz');
+            ylabel('m/s^2'), xlabel('session time (s)'), xlim(t2, [1 11]);
+        
+        % Save intermediate metadata
+        meta = struct('sessionDir', sessionDir, 'parameters', par, ...
+            'axesChannels', {targetCh});
+    
+        m.meta = meta;
+    
+    % Downsampling    
+    dsFactor = round(par.fsAux_Hz{1} / par.targetFs);
+    if dsFactor > 13
+        dsFactor = factor(dsFactor);
+    end
+
+    % built-in filter+downsample
+    if length(dsFactor) > 1
+        % for f = 2:length(dsFactor)+1
+        %     fprintf('Decimating by a factor of %d ... \n', dsFactor(f-1));
+        %     for k = numel(targetCh):-1:1
+        %         accel_head{f}(:,k) = decimate(m.accel_head{f-1}(1:nSampl,k), dsFactor(f-1));
+        %         accel_head{f-1}(:,k) = [];
+        %     end
+        %     par.fsAux_Hz{f} = par.fsAux_Hz{f-1} / dsFactor(f-1);
+        % end
+    else
+        fprintf('Decimating by a factor of %d ... \n', dsFactor);
+        for k = 1:3
+            accel_dwnsmpl{1}(:,k) = decimate(m.accel_head(1:nSampl,k), dsFactor); 
+        end
+        par.fsAux_Hz{1} = par.fsAux_Hz{1} / dsFactor;
+    end
+
+    % Keep last results only
+    accel_dwnsmpl = accel_dwnsmpl{end};
+    par.fsAux_Hz = par.fsAux_Hz{end};
+
+    % Decimated time vector
+    tsec = (0:size(accel_dwnsmpl,1)-1)/par.fsAux_Hz; % in sec
+
+        t3 = nexttile;
+        plot(tsec(1000:11000),accel_dwnsmpl(1000:11000,:)); % sample DWNSMP data
+        title(t3, 'Downsampled, bias corrected, 1 KHz');
+        ylabel('m/s^2'), xlabel('session time (s)'), xlim([1 11]);
+
+    m.accel_dwnsmpl = accel_dwnsmpl;
+    m.tsec = tsec;
+    meta = struct('sessionDir', sessionDir, 'parameters', par, ...
+                  'axesChannels', {targetCh});
+    m.meta = meta;
+    peak_opt.filename =  fullfile(opt.FolderProcDataMat, 'Accel_data_sample.pdf');
+    exportgraphics(f1, peak_opt.filename, 'ContentType', 'vector');
+
+    else
+        load(fullfile(opt.FolderProcDataMat,'acceldata_raw.mat'), 'accel_dwnsmpl', 'tsec');
+    end
+
+% get eventRecord
+load(fullfile(opt.FolderProcDataMat, 'EventRecord.mat'), 'EventRecord');
+
+    % peak_opts to parse into function 
+        peak_opt.isaccel = 0;
+        peak_opt.fs = 1000;         % Sampling frequency, Hz
+        peak_opt.filter = 'filtfilt'; % 'sgolay'
+            peak_opt.low_cut = 50;    % low-cut, Hz
+            peak_opt.high_cut = 400;  % high-cut, Hz
+        % peak_opt.filter = 'sgolay';
+        %     peak_opt.sgolayOrder = 3; 
+        %     peak_opt.frameLen = 11;    % odd integer, adjust for sampling rate
+        peak_opt.s_around = 30/peak_opt.fs;
+        peak_opt.SDs = 10;
+        peak_opt.ev_minus = 6;
+        peak_opt.ev_plus = 4;
+        peak_opt.stpSize = 50;
+        peak_opt.binSize = 500;
+        peak_opt.limitEvents = {'rwd'}; % 'rwd'
+        peak_opt.eventdef.(peak_opt.limitEvents{1}) = 7; %7;
+        peak_opt.filename = fullfile(opt.FolderProcDataMat, sprintf('Figure_dwn_%s_%dSD_%ds.pdf', peak_opt.limitEvents{1}, peak_opt.SDs, peak_opt.ev_minus+peak_opt.ev_plus));
+
+    % [magnitude_vector, valid_peaks, valid_peaks_wf] = estimate_pecking(accel_dwnsmpl, tsec, EventRecord, peak_opt, []);
+    estimate_pecking(accel_dwnsmpl, tsec, EventRecord, peak_opt, []);
+
+%% ON THE WORKS
+
     % Gaze projection geometry (meters). Edit to match your experiment:
-    par.headPos         = [0.20, 0.00, 0.20]; % [x,y,z] head sensor origin (m) in world coords
+    par.headPos         = [0.0, 0.00, 0.0]; % [x,y,z] head sensor origin (m) in world coords
     % Define screen plane using a point and a unit normal (screen-facing direction)
     par.screenCenter    = [0.00, 0.00, 0.00]; % screen center point in world coords (m)
     par.screenNormal    = [-1, 0, 0];        % screen normal (points toward subject). Unit-ish; will normalize
@@ -261,104 +398,16 @@ function getfrom_INTAN(opt, input)
     
     % Filtering / gravity extraction
     par.gravityLP_Hz = 0.30;              % low-pass cutoff for gravity estimation (Hz)
-    par.calibDur_s = 1;                   % initial calibration duration for bias (s)
-
-    assert(isfolder(sessionDir), 'Invalid session directory.');
-      
-    %% Get data
-    if ~isfile(fullfile(opt.FolderProcDataMat,'acceldata_raw.mat'))
-        accelData = [];
-        for k = 1:numel(targetCh)
-            fprintf('Getting AUX channel %d ... \n', k);
-            chName = targetCh{k};
-            % Find row in aux_info for this channel
-            idx = find(strcmp({aux_info.native_channel_name}, chName));
-            if isempty(idx)
-                error('Channel %s not found in aux_info.', chName);
-            end
-            
-            % Build filename (INTAN convention: aux-<prefix>-<native_channel_name>.dat)
-            fname = fullfile(sessionDir, sprintf('aux-%s.dat', chName));
-            if ~isfile(fname)
-                error('File not found: %s', fname);
-            end
-            
-            % Read raw int16 data
-            fid = fopen(fname, 'r');
-            raw = fread(fid, inf, 'int16');
-            fclose(fid);
-            
-            % Convert to volts (from documentation)
-            volts = par.voltsPerCount * double(raw);
-            accelData(:,k) = volts(:);
-        end
-    
-        %% Volts -> accel (m/s^2) + bias calib
-        nCal = max(1, round(par.calibDur_s * par.fsAux_Hz{1}));
-        biasV = median(accelData(1:nCal,:), 1, 'omitnan');    % robust bias estimate
-        accel_g = (accelData - biasV) ./ par.sensitivity_V_per_g; % g
-        accel_ms2 = accel_g * par.g0;                             % m/s^2
-        
-        % Rotate sensor frame to head frame if requested
-        accel_ms2_head = {(par.sensorToHeadRot * accel_ms2.').'};  % rows = samples
-        clear accel_g accel_ms2
-        
-        % Save intermediate metadata
-        disp('Saving raw data...');
-        meta = struct('sessionDir', sessionDir, 'parameters', par, ...
-            'axesChannels', {targetCh});
-    
-        save(fullfile(opt.FolderProcDataMat,'acceldata_raw.mat'), 'accelData', 'accel_ms2_head', 'meta', '-v7.3');
-        
-        % free memory
-        clear accelData
-    else
-        load(fullfile(opt.FolderProcDataMat,'acceldata_raw.mat'), 'accel_ms2_head', 'meta');
-    end
-
-if ~isfile(fullfile(opt.FolderProcDataMat,'acceldata_decim.mat'))
-    dsFactor = round(par.fsAux_Hz{1} / par.targetFs);
-    if dsFactor > 13
-        dsFactor = factor(dsFactor);
-    end
-
-    % built-in filter+downsample
-    if length(dsFactor) > 1
-        for f = 2:length(dsFactor)+1
-            fprintf('Decimating by a factor of %d ... \n', dsFactor(f-1));
-            for k = numel(targetCh):-1:1
-                accel_ms2_head{f}(:,k) = decimate(accel_ms2_head{f-1}(:,k), dsFactor(f-1));
-                accel_ms2_head{f-1}(:,k) = [];
-            end
-            par.fsAux_Hz{f} = par.fsAux_Hz{f-1} / dsFactor(f-1);
-        end
-    else
-        fprintf('Decimating by a factor of %d ... \n', dsFactor);
-        for k = 1:numel(targetCh)
-            accel_ms2_head{1}(:,k) = decimate(accel_ms2_head{1}(:,k), dsFactor); 
-        end
-        par.fsAux_Hz{1} = par.fsAux_Hz{1} / dsFactor;
-    end
-    % Keep last results only
-    accel_ms2_head = accel_ms2_head{end};
-    par.fsAux_Hz = par.fsAux_Hz{end};
-    % Decimated time vector
-    t = (0:size(accel_ms2_head,1)-1)/par.fsAux_Hz; % in sec
-    
-    save(fullfile(opt.FolderProcDataMat,'acceldata_decim.mat'), 't', 'accel_ms2_head', 'meta');
-else
-    load(fullfile(opt.FolderProcDataMat,'acceldata_decim.mat'), 't', 'accel_ms2_head', 'meta');    
-end
 
     %% Gravity estimation (pitch & roll)
     if ~isfile(fullfile(opt.FolderProcDataMat,'grav_estimation.mat'))
         % low-pass filter to estimate gravity vector
         [bLP,aLP] = butter(2, par.gravityLP_Hz/(par.fsAux_Hz/2), 'low'); % apply along each column (use filtfilt for zero-phase)
-        grav_ms2 = zeros(size(accel_ms2_head));
+        grav_ms2 = zeros(size(accel_dwnsmpl));
         for k = 1:numel(targetCh)
-            grav_ms2(:,k) = filtfilt(bLP, aLP, accel_ms2_head(:,k));
+            grav_ms2(:,k) = filtfilt(bLP, aLP, accel_dwnsmpl(:,k));
         end
-        dyn_ms2 = accel_ms2_head - grav_ms2;
+        dyn_ms2 = accel_dwnsmpl - grav_ms2;
         
         % compute pitch & roll from gravity (assumes head axes: x forward, y right, z up)
         gx = grav_ms2(:,1) / par.g0;
@@ -373,15 +422,15 @@ end
 
         % Quick sanity plots
         figure('Name','Raw accel per axis','Color','w');
-        plot(t, accel_ms2_head);
+        plot(t, accel_dwnsmpl);
         xlabel('Time (s)'); ylabel('Accel (m/s^2)');
         legend('X','Y','Z'); title('Bias-corrected accel (downsampled)');
 
         figure('Name','Gravity vs raw accel','Color','w');
-        subplot(3,1,1); plot(t, accel_ms2_head(:,1),'k',t,grav_ms2(:,1),'r'); ylabel('X');
+        subplot(3,1,1); plot(t, accel_dwnsmpl(:,1),'k',t,grav_ms2(:,1),'r'); ylabel('X');
         legend('raw','gravity');
-        subplot(3,1,2); plot(t, accel_ms2_head(:,2),'k',t,grav_ms2(:,2),'r'); ylabel('Y');
-        subplot(3,1,3); plot(t, accel_ms2_head(:,3),'k',t,grav_ms2(:,3),'r'); ylabel('Z');
+        subplot(3,1,2); plot(t, accel_dwnsmpl(:,2),'k',t,grav_ms2(:,2),'r'); ylabel('Y');
+        subplot(3,1,3); plot(t, accel_dwnsmpl(:,3),'k',t,grav_ms2(:,3),'r'); ylabel('Z');
         xlabel('Time (s)'); sgtitle('Accel vs gravity estimate');
 
         figure('Name','Pitch & Roll','Color','w');
@@ -393,7 +442,7 @@ end
         % Save
         disp('Saving gravity vectors and roll and pitch estimations ...');
         save(fullfile(opt.FolderProcDataMat,'grav_estimation.mat'), 't', 'grav_ms2','dyn_ms2','roll_rad','pitch_rad','roll_deg','pitch_deg','meta');
-        clear grav_ms2 accel_ms2_head pitch_deg roll_deg
+        clear grav_ms2 accel_head pitch_deg roll_deg
 
     else
         load(fullfile(opt.FolderProcDataMat,'grav_estimation.mat'), 'dyn_ms2','roll_rad','pitch_rad','meta');    
@@ -551,7 +600,7 @@ end
 
 end    
 
-% function: given yaw_deg returns fraction of gaze points on-screen during fixations
+% given yaw_deg returns fraction of gaze points on-screen during fixations
 function [frac, R] = evaluate_yaw_fraction(yaw_deg, pitch_rad, roll_rad, par, halfW, halfH, isFix, screen_u, screen_v)
     yaw_rad = deg2rad(yaw_deg);
     
@@ -588,8 +637,8 @@ function [frac, R] = evaluate_yaw_fraction(yaw_deg, pitch_rad, roll_rad, par, ha
     frac = sum(onScreen_fix) / max(1, sum(isFix));
 end
 
+% Compose rotation matrices for each time sample.
 function R = composeRotationMatrix(yaw_rad, pitch_rad_vec, roll_rad_vec)
-    % Compose rotation matrices for each time sample.
     % R = R_yaw * R_pitch * R_roll (intrinsic rotations about z,y,x respectively),
     % returned as 3x3xN where N = length(pitch_rad_vec)
     N = numel(pitch_rad_vec);

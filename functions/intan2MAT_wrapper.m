@@ -179,7 +179,7 @@ function tmp = doFilters(tmp, opt)
 
         % Lowpass filter channel (Butterwort, 6th order, back&forth)
         disp('Lowpassing...')
-        [tmp(i,:), ~, ~] = ft_preproc_lowpassfilter(tmp(i,:), opt.sampleRate, opt.lowpass, 6, 'but', 'twopass');
+        [tmp(i,:), ~, ~] = ft_preproc_lowpassfilter(tmp(i,:), opt.sampleRate, opt.lowpassFT, 6, 'but', 'twopass');
                     
         % FT's bandstop filter (btw 50 +-2 Hz, Butterwort, 2nd order, back&forth)
         if opt.linefilter > 0

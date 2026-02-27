@@ -1,4 +1,4 @@
-function [fireRate, normFireRate, meanNormFireRate] = calcFireRate(spikes, opt, param)
+function [fireRate, normFireRate, meanNormFireRate] = calcFireRate(spikes, param, opt)
 % Use this function to calculate the firing rate of a neuron over the time
 % course of the trial.
 %
@@ -43,15 +43,13 @@ function [fireRate, normFireRate, meanNormFireRate] = calcFireRate(spikes, opt, 
 %                           now we are using msec. for clarity
 
 %% Defaults
-if isempty(param)
-    param.stepSz  = 200;
-    param.binSize = 400;
-    param.interval= [-1000 3000];
-    param.smpRate = 1000;  
-    param.baseline  = [];
-    param.plot  = false;
-    param.blockchange = [];
-end
+if ~isfield(param,'stepSz'),        param.stepSz        = 200;        end
+if ~isfield(param,'binSize'),       param.binSize       = 400;        end
+if ~isfield(param,'interval'),      param.interval      = [-param.baseline 3000];        end
+if ~isfield(param,'smpRate'),       param.smpRate       = 1000;        end
+if ~isfield(param,'baseline'),      param.baseline      = [];        end
+if ~isfield(param,'plot'),          param.plot          = false;        end
+if ~isfield(param,'blockchange'),   param.blockchange   = [];        end
 
 % To find bin corresponding to alignment (time 0)
 param.xtick = (0:(0-param.interval(1)):diff([param.interval(1) param.interval(2)]))/param.stepSz; % time ticks

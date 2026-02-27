@@ -25,7 +25,7 @@ function Intan2Kilosort_wrapper(sessions, varargin)
 % 
 % VERSION HISTORY:
 % Author: Aylin, Lukas & Sara
-% Last MOD. Jesus 14.07.2025
+% Last MOD. Jesus 27.02.2026
 
 if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
@@ -33,6 +33,7 @@ end
 
 %% Defaults
 if ~isfield(opt,'highpass'),       opt.highpass      = 0; end
+if ~isfield(opt,'lowpass'),        opt.lowpass       = 10000; end
 if ~isfield(opt,'StpSz'),          opt.StpSz         = 1000000;    end
 
 %% Main call
@@ -66,11 +67,7 @@ if strcmp(sessions.info.fileformat,'filepertype') || strcmp(sessions.info.filefo
     
     % ChunkSize of HDF5 file (e.g. 5 minutes = 300 s @30000 Hz = 9600000 samples).
     opt.HDF5chunkSize = 300*opt.sampleRate;
-    
-    % Kilosort rearranges the rows of the input matrix according to the a channel map (which is developed in another file).
-    % Therefore, the matrix should be compiled with the channels in an increasing order.
-    % opt.channelOrder = 1:1:opt.numChannels; % Deprecating
-    
+        
     % To obtain the number of samples per file, first read file info. Can be a 
     % file per channel or only one for all, it does not matter. Read the first.
     fileinfo = dir(opt.myFiles(1).name);

@@ -86,9 +86,19 @@ function [EventRecord, opt] = extractFromExe(opt)
         
     myRecord = readmatrix(fullfile(opt.FolderProcDataMat, '\EventRecord.csv'), 'OutputType', 'string'); % Read the output cvs
     
+    % Remove headers if existing
+    hasHeader = strcmp(myRecord(1,1),'Event number');
+    if hasHeader, myRecord(1,:) = []; end
+
     % Find those logs with Digital-IN info.
-    edgeDect = contains(myRecord(:,8), 'Digital in'); % Could be found in (:,6) as well. Same tstamp
-    bitRecord = myRecord(edgeDect, 1:8); % Keep fields 1:8
+    digCol = size(myRecord,2);
+    if digCol>6
+        warning('This log contains 8 columns instead of the regular 6.')
+        myRecord(:,7:8) = [];
+        digCol = size(myRecord,2);
+    end
+    edgeDect = contains(myRecord(:,digCol), 'edge on pin'); 
+    bitRecord = myRecord(edgeDect, :); % Keep all fields
 
     % Number of remainer records
     numberOfRecords = length(bitRecord); 
@@ -105,14 +115,14 @@ function [EventRecord, opt] = extractFromExe(opt)
     % Prepare a variable with all 4 pins, all set to zero
     words = zeros(numberOfRecords+1, 4);
     
-    % By default, recordings starts as [1 1 0 0], but this is not recorded.
+    % By default, recordings start as [1 1 0 0], but this is not recorded.
     words(1,:) = [1 1 0 0];
 
-    % Get change direction from log description (8th column) (raising == 1, falling == 0)
-    edgeDirection = contains(bitRecord(:,8), 'rising'); % categorize rising and falling edges.
+    % Get change direction from log description (8th/6th column) (raising == 1, falling == 0)
+    edgeDirection = contains(bitRecord(:,digCol), 'rising'); % categorize rising and falling edges.
     
-    % Get changed Pin from the same description. (8th column)
-    pin = regexp(bitRecord(:,8),'\d*','Match', 'once'); % Match the general expression '\d*', only once.
+    % Get changed Pin from the same description. (8th/6th column)
+    pin = regexp(bitRecord(:,digCol),'\d*','Match', 'once'); % Match the general expression '\d*', only once.
     pin = single(str2double(pin)); % make it single array
 
     % Place corresponding rising changes into corresponding pins
@@ -127,19 +137,22 @@ function [EventRecord, opt] = extractFromExe(opt)
     % Use EventRecord to determine number of channels.
     % As a final account for active channels, we use the explicit log about it
     % that Deuteron provides with every new file created while recording.
-    mapDetc = find(contains(myRecord(:,8), 'Channel'), 1, "first"); % Find the log for a new file started. % Find the log for a new file started.
-    geninfo = split(myRecord(mapDetc,8), "="); % Split the text contained in Details using semicolons.
+    mapDetc = find(contains(myRecord(:,digCol), 'Channel'), 1, "first"); % Find the log for a new file started. % Find the log for a new file started.
+    geninfo = split(myRecord(mapDetc,digCol), "="); % Split the text contained in Details using '='.
     geninfo = regexp(geninfo,'\d*','Match'); % Match the general expression '\d*'.
-    opt.channelOrder = str2double(geninfo{2});
-    opt.numChannels = numel(opt.channelOrder); % Transform the 3rd field (hardcoded) into double.
+    opt.channelOrder = str2double(geninfo{2}); % The Ch numbers should be the second part
+    opt.numChannels = numel(opt.channelOrder);
 
     % Place extracted information into a proper EventRecord
+    if size(char(myRecord(2,2)),2)==1, add = 1; 
+    else, add=0; end
+
     EventRecord.EventNumber         = double(1:1:length(EventType))';
     EventRecord.EventType           = single(EventType)';
-    EventRecord.TimeStamp           = string(bitRecord(:,3)); % Convert to string array
-    EventRecord.TimeMsFromMidnight  = str2double(bitRecord(:,4));
-    EventRecord.TimeSource          = nan(length(bitRecord(:,6)),1);
-    EventRecord.Details             = nan(length(bitRecord(:,8)),1);
+    EventRecord.TimeStamp           = string(bitRecord(:,2+add)); % Convert to string array
+    EventRecord.TimeMsFromMidnight  = str2double(bitRecord(:,3+add)) - str2double(myRecord(1,3+add)); % in ms from start recording
+    EventRecord.TimeSource          = nan(size(bitRecord,1),1);
+    EventRecord.Details             = bitRecord(:,digCol);
     EventRecord.TimeBreak           = timebreak;
 
     if ~isempty(timebreak{2})
@@ -147,7 +160,7 @@ function [EventRecord, opt] = extractFromExe(opt)
         tbreakdur = EventRecord.TimeBreak{1,2}(2) - EventRecord.TimeBreak{1,2}(1);
         tbidx = EventRecord.TimeMsFromMidnight > EventRecord.TimeBreak{1,2}(1);
         EventRecord.TimeMsFromMidnight(tbidx) = EventRecord.TimeMsFromMidnight(tbidx) - tbreakdur;
-        warning('The timebreak has been fixed and the EventRecpord will be saved for check.')
+        warning('The timebreak has been fixed and the EventRecord will be saved for check.')
     end
 
     fprintf('Successfully created ''EventRecord'' structure.\n');

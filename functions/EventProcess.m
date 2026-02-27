@@ -1,4 +1,4 @@
-function [events, trialdef, EventRecord] = EventProcess(input, opt)
+function [events, trialdef, EventRecord, opt] = EventProcess(input, opt)
 % Function meant to put together all possible ways to extract events from
 % Deuteron and INTAN systems.
 %
@@ -17,6 +17,7 @@ opt.exefile = 'C:\Code\ephys-data-pipeline\toolboxes\Deuteron\software\Event_Fil
 events      = []; % If remains empty, data shall be treated as continuous.
 trialdef    = [];
 EventRecord = [];
+conditions  = [];
 condition  = [];
 
 %% Check for alredy collected events
@@ -96,12 +97,15 @@ if opt.RetrieveEvents
 
 %% Run the personalized script for the conditions to be extracted
 run('conditions_script.m');
+if isempty(conditions) || ~isempty(condition)
+    conditions=condition; clear condition
+end
 
 %% Save this session events, trialdef and conditions variables.
 save(fullfile(opt.FolderProcDataMat, strcat('EventRecord.mat')), 'EventRecord', '-v7.3');
 save(fullfile(opt.trialSorted, strcat('trialdef.mat')), 'trialdef', '-v7.3');
 save(fullfile(opt.trialSorted, strcat('events.mat')), 'events', '-v7.3');
-save(fullfile(opt.trialSorted, strcat('condition.mat')), 'condition', '-v7.3');
+save(fullfile(opt.trialSorted, strcat('condition.mat')), 'conditions', '-v7.3');
 
 else
     disp('Events not requested. Skipped.')

@@ -85,16 +85,11 @@ for x = 1:input.nsubjects % Subjects.
                warning('Something went wrong during format verification. Skipping Session');
                continue
         end 
+        
         %% 04. Kilosort
-        % if opt.kilosort == 2
-        %     % Kilosort 2 will run without GUI.
-        %     master_kilosort(input, opt)
-        % elseif opt.kilosort == 4
-
         % Kilosort 4 will run without GUI.
         master_kilosort4(input, opt)
         
-        % end
         close all
         
         %% 05. Bombcell
