@@ -139,30 +139,30 @@ if isempty(useevents)
     trialstarts = EventRecord.TimeMsFromMidnight(idx.start); % get corresponding timestamps.
     trialends = EventRecord.TimeMsFromMidnight(idx.end); % get corresponding timestamps.
 
-    % Check for trial length consistency
-    triallengths = trialends-trialstarts;
-    Avtriallength = median(triallengths); 
-    if sum(triallengths > Avtriallength*1.5)==1
-        warning('Exactly one trial have been found unconsistently lenghty. This "trial" range will be excluded:')
-        NotTrial = find(triallengths > Avtriallength*1.1);
-        trialstarts(NotTrial) = [];
-        trialends(NotTrial) = [];
-
-        rmvtrial(1) = find(EventRecord.TimeMsFromMidnight==EventRecord.TimeMsFromMidnight(idx.start(NotTrial))==1);
-        rmvtrial(2) = find(EventRecord.TimeMsFromMidnight==EventRecord.TimeMsFromMidnight(idx.end(NotTrial))==1);
-        rmvtrial(1):rmvtrial(2)
-
-        % Remove events in between to eliminate its trace
-        EventRecord.EventNumber(rmvtrial(1):rmvtrial(2)) = [];
-        EventRecord.EventType(rmvtrial(1):rmvtrial(2))  = [];
-        EventRecord.TimeStamp(rmvtrial(1):rmvtrial(2))  = []; % Convert to string array
-        EventRecord.TimeMsFromMidnight(rmvtrial(1):rmvtrial(2)) = [];
-        EventRecord.TimeSource(rmvtrial(1):rmvtrial(2)) = [];
-        EventRecord.Details(rmvtrial(1):rmvtrial(2))    = [];
-
-    elseif sum(triallengths > Avtriallength*1.1)>1
-        warning('Several trials are over 50% of the average trial duration. Make sure this is right')
-    end
+    % % Check for trial length consistency
+    % triallengths = trialends-trialstarts;
+    % Avtriallength = median(triallengths); 
+    % if sum(triallengths > Avtriallength*1.5)==1
+    %     warning('Exactly one trial have been found unconsistently lenghty. This "trial" range will be excluded:')
+    %     NotTrial = find(triallengths > Avtriallength*1.5);
+    %     trialstarts(NotTrial) = [];
+    %     trialends(NotTrial) = [];
+    % 
+    %     rmvtrial(1) = find(EventRecord.TimeMsFromMidnight==EventRecord.TimeMsFromMidnight(idx.start(NotTrial))==1);
+    %     rmvtrial(2) = find(EventRecord.TimeMsFromMidnight==EventRecord.TimeMsFromMidnight(idx.end(NotTrial))==1);
+    %     rmvtrial(1):rmvtrial(2)
+    % 
+    %     % Remove events in between to eliminate its trace
+    %     EventRecord.EventNumber(rmvtrial(1):rmvtrial(2)) = [];
+    %     EventRecord.EventType(rmvtrial(1):rmvtrial(2))  = [];
+    %     EventRecord.TimeStamp(rmvtrial(1):rmvtrial(2))  = []; % Convert to string array
+    %     EventRecord.TimeMsFromMidnight(rmvtrial(1):rmvtrial(2)) = [];
+    %     EventRecord.TimeSource(rmvtrial(1):rmvtrial(2)) = [];
+    %     EventRecord.Details(rmvtrial(1):rmvtrial(2))    = [];
+    % 
+    % elseif sum(triallengths > Avtriallength*1.1)>1
+    %     warning('Several trials are over 50% of the average trial duration. Make sure this is right')
+    % end
 
     % If all OK, use either as a reliable count for number of trials
     ntrials = length(trialstarts); % count trial starts.
