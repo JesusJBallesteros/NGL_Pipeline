@@ -8,17 +8,37 @@ function GetMotionSensors(opt, input)
 % can be used to predict/estimate the animal's position/heading.
 % 
 % Last: Fix in timestamp to seconds calculation
-% Jesus 22.01.2026
+% Jesus 06.03.2026
+    
+% options to parse into estimation functions
+    % User decided
+    peak_opt.limitEvents = {'bhv'}; % event of choice
+        peak_opt.eventdef.(peak_opt.limitEvents{1}) = 3; % and its decimal value
+        peak_opt.ev_minus = 2; % time to get before event
+        peak_opt.ev_plus = 1; % time to get after event
+    
+    % Mostly settled
+    peak_opt.fs = 1000;  % Sampling frequency, Hz
+    peak_opt.hpass = 20; % standard high-cut, Hz
+    peak_opt.filedir = fullfile(opt.FolderProcDataMat);
+    peak_opt.stpSize = 50; % for PSH calculation
+    peak_opt.binSize = 100; % for PSH calculation 
+    peak_opt.s_around = 100/peak_opt.fs; % 100ms around peaks seem OK
 
 if strcmp(input.sessions.info.fileformat, 'fileperch')
-    getfrom_INTAN(opt)
+    peak_opt.AlignMode = 'intan'; % for Intan
+
+    getfrom_INTAN(opt, peak_opt)
 elseif strcmp(input.sessions.info.fileformat, 'DTF') || strcmp(input.sessions.info.fileformat, 'DF1')
-    getfrom_Deuteron(opt)
+    peak_opt.AlignMode = 'mpu9250_nedlike'; % for Deuteron
+
+    getfrom_Deuteron(opt, peak_opt)
 end
 
 end
 
-function getfrom_Deuteron(opt)
+% System dependent function to run
+function getfrom_Deuteron(opt, peak_opt)
     %% Some local Parameters
     numFiles        = length(opt.myFiles);
     opt.stream      = 2;
@@ -31,8 +51,8 @@ function getfrom_Deuteron(opt)
     opt.fsmot          = 1000;         % Sample Rate of the feeded data (Hz)
     
     % % Gyro/Accel_Noise are determined from the hardware datasheets.
-    % Gyro_Noise  = 1.7453e-04;   % Gyroscope Noise (variance value) in units of rad/s. (MPU-9250: 0.01 deg/sec)
-    % Accel_Noise = .008;        % Accelerometer Noise(variance value) in units of m/s^2 (g). (MPU-9250: 8 mg)
+    opt.Gyro_Noise  = .01;   % Gyroscope Noise (variance value) in units of rad/s. (MPU-9250: 0.01 deg/sec)
+    opt.Accel_Noise = .01;        % Accelerometer Noise(variance value) in units of m/s^2 (g). (MPU-9250: 8 mg)
     
     % The values for acclMax and gyroMax are chosen by the user. They can be found using the Event
     % File Viewer in the file started event. If not activelly changed, they should stay as follows:
@@ -182,38 +202,17 @@ function getfrom_Deuteron(opt)
 
     % get eventRecord
     load(fullfile(opt.FolderProcDataMat, 'EventRecord.mat'), 'EventRecord');
-    %ev = EventRecord.TimeSecFromMidnight(EventRecord.EventType==7);
+
+    % Peak estimation
+    estimate_pecking(data, EventRecord, peak_opt, []);
 
     %% Estimate orientation and render a 3-D video.
-    makeOrientationVideoFromMotionData(data, tsec, opt, EventRecord)
-    % makeOrientationVideoFromMotionData_hybrid(data, tsec, opt, EventRecord)
+    % makeOrientationVideoFromMotionData(data, tsec, opt, EventRecord)
     
-    % %% TEST peakdetect 1
-    % % peak_opts to parse into function 
-    %     peak_opt.AlignMode = 'mpu9250_nedlike';     % swap X/Y and flip Z for accel+gyro
-    %     peak_opt.fs = 1000;         % Sampling frequency, Hz
-    %     peak_opt.filter = 'filtfilt'; % 'sgolay'
-    %         peak_opt.low_cut = 10;    % low-cut, Hz
-    %         peak_opt.high_cut = 400;  % high-cut, Hz
-    %     % peak_opt.filter = 'sgolay';
-    %     %     peak_opt.sgolayOrder = 3; 
-    %     %     peak_opt.frameLen = 11;    % odd integer, adjust for sampling rate
-    %     peak_opt.s_around = 80/peak_opt.fs;
-    %     peak_opt.SDs = 3;
-    %     peak_opt.ev_minus = 6;
-    %     peak_opt.ev_plus = 4;
-    %     peak_opt.stpSize = 50;
-    %     peak_opt.binSize = 500;
-    %     peak_opt.limitEvents = {'rwd'}; % 'rwd'
-    %     peak_opt.eventdef.(peak_opt.limitEvents{1}) = 7; %7;
-    %     peak_opt.filedir = fullfile(opt.FolderProcDataMat);
-    % 
-    % % [magnitude_vector, valid_peaks, valid_peaks_wf] = estimate_pecking(accel_dwnsmpl, tsec, EventRecord, peak_opt, []);
-    % estimate_pecking(data, tsec, EventRecord, peak_opt, []);
    
 end
 
-function getfrom_INTAN(opt)
+function getfrom_INTAN(opt, peak_opt)
     % Finds aux-*-AUX*.dat files, converts to volts, creates accel matrix,
     % estimates pitch/roll, projects gaze to a screen plane, outputs 2D screen
     % coordinates (meters + pixels) and heatmaps.
@@ -227,20 +226,20 @@ function getfrom_INTAN(opt)
     par.fsAux_Hz        = {10000};        % AUX sampling rate (Hz)
     par.targetFs        = 1000;           % downsampled Hz, plenty for head motion
     par.voltsPerCount   = 3.74e-5;        % Intan documentation constant
-    par.sensitivity_V_per_g = 0.300;      % ADXL335 typical ~0.300 V/g (set per-axis if available)
-    par.g0 = 9.80665;
+    par.sensitivity_V_per_g = 0.340;      % ADXL335 typical ~0.300 V/g (set per-axis if available)
+    par.g0 = 9.81;
     par.calibDur_s = 1;                   % initial calibration duration for bias (s)
 
-    % % Orientation & mounting: sensor axes -> head coordinate frame transform.
-    % % Default: assume accel columns are [X_forward, Y_right, Z_up] in sensor frame.
-    % % i.e: sensorToHeadRot = eye(3);
+    % Orientation & mounting: sensor axes -> head coordinate frame transform.
+    % Default: assume accel columns are [X_forward, Y_right, Z_up] in sensor frame.
+    par.sensorToHeadRot = eye(3);
     % % If your mounting is different, modify sensorToHeadRot (3x3 rotation).
-    % par.sensorToHeadRot = [1 0 0; 0 0 1; 0 1 0]; % X for/backwards, Y up/down, Z left/right
+    % par.sensorToHeadRot = [1 0 0; 0 1 0; 0 0 1]; % X for/backwards, Y up/down, Z left/right
           
     % Get data
     if ~isfile(fullfile(opt.FolderProcDataMat,'acceldata_raw.mat'))
         m = matfile(fullfile(opt.FolderProcDataMat, 'acceldata_raw.mat'),'Writable',true);
-        for k = 1:3
+        for k = 1:3 % X, Y, Z Being +Y the G-axis when mounted in bird (Y = +1g, 9.81m/s2,  )
             auxN = str2double(targetCh(k).name(end-4));
             fprintf('Getting AUX channel %d ... \n', auxN);
             
@@ -258,11 +257,12 @@ function getfrom_INTAN(opt)
 
             % Convert to volts (from documentation)
             m.accelData(1:nSampl,k) = par.voltsPerCount * double(raw(1:3:end));
-            clear raw
         end
+        clear raw
 
         tsec = (0:size(m.accelData,1)-1)/par.fsAux_Hz{1}; % in sec
     
+        % RAW, uncorrected, 10 KHz figure
         f1 = tiledlayout;
             t1 = nexttile;
             plot(tsec(10000:110000), m.accelData(10000:110000,:)); % sample RAW data
@@ -278,18 +278,20 @@ function getfrom_INTAN(opt)
         % end
 
         % Volts -> accel (m/s^2) + bias calib
-        disp('Processing Accelerometer data. If you have more than one HS, it could take a moment...')
+        disp('Processing Accelerometer data. It could take a moment...')
         nCal = max(1, round(par.calibDur_s * par.fsAux_Hz{1}));
         biasV = median(m.accelData(1:nCal,1:k), 1, 'omitnan');    % robust bias estimate
         accel = par.g0 * ((m.accelData - biasV) ./ par.sensitivity_V_per_g); % m/s^2
         
-        % % Rotate sensor frame to head frame if requested
+        % Rotate sensor frame to head frame if requested 
+        % (DONE at estimate peaking)
         % m.accel_head = (par.sensorToHeadRot * accel.').';  % rows = samples
         m.accel_head = accel;
         clear accel
         
+        % RAW, bias corrected, 10 KHz figure
             t2 = nexttile;
-            plot(tsec(10000:110000), m.accel_head(10000:110000,:)); % sample UNBIAS data
+            plot(tsec(10000:110000), m.accel_head(50000:150000,:)); % sample UNBIAS data
             title(t2, 'RAW, bias corrected, 10 KHz');
             ylabel('m/s^2'), xlabel('session time (s)'), xlim(t2, [1 11]);
         
@@ -330,6 +332,7 @@ function getfrom_INTAN(opt)
     % Decimated time vector
     tsec = (0:size(accel_dwnsmpl,1)-1)/par.fsAux_Hz; % in sec
 
+        % Downsampled, bias corrected, 1 KHz
         t3 = nexttile;
         plot(tsec(1000:11000),accel_dwnsmpl(1000:11000,:)); % sample DWNSMP data
         title(t3, 'Downsampled, bias corrected, 1 KHz');
@@ -344,33 +347,18 @@ function getfrom_INTAN(opt)
     exportgraphics(f1, peak_opt.filename, 'ContentType', 'vector');
 
     else
-        load(fullfile(opt.FolderProcDataMat,'acceldata_raw.mat'), 'accel_dwnsmpl', 'tsec');
+        load(fullfile(opt.FolderProcDataMat,'acceldata_raw.mat'), 'accel_dwnsmpl');
     end
 
 % get eventRecord
 load(fullfile(opt.FolderProcDataMat, 'EventRecord.mat'), 'EventRecord');
 
-    % peak_opts to parse into function 
-        peak_opt.isaccel = 0;
-        peak_opt.fs = 1000;         % Sampling frequency, Hz
-        peak_opt.filter = 'filtfilt'; % 'sgolay'
-            peak_opt.low_cut = 50;    % low-cut, Hz
-            peak_opt.high_cut = 400;  % high-cut, Hz
-        % peak_opt.filter = 'sgolay';
-        %     peak_opt.sgolayOrder = 3; 
-        %     peak_opt.frameLen = 11;    % odd integer, adjust for sampling rate
-        peak_opt.s_around = 30/peak_opt.fs;
-        peak_opt.SDs = 10;
-        peak_opt.ev_minus = 6;
-        peak_opt.ev_plus = 4;
-        peak_opt.stpSize = 50;
-        peak_opt.binSize = 500;
-        peak_opt.limitEvents = {'rwd'}; % 'rwd'
-        peak_opt.eventdef.(peak_opt.limitEvents{1}) = 7; %7;
-        peak_opt.filename = fullfile(opt.FolderProcDataMat, sprintf('Figure_dwn_%s_%dSD_%ds.pdf', peak_opt.limitEvents{1}, peak_opt.SDs, peak_opt.ev_minus+peak_opt.ev_plus));
-
-    % [magnitude_vector, valid_peaks, valid_peaks_wf] = estimate_pecking(accel_dwnsmpl, tsec, EventRecord, peak_opt, []);
-    estimate_pecking(accel_dwnsmpl, tsec, EventRecord, peak_opt, []);
+% Peak Estimation
+peak_opt.SDs = 10;  % Detection threshold, to adjust
+peak_opt.thr = peak_opt.SDs*100;
+peak_opt.peaks_bfEvent = 2; % N-peak-before-event to use as ground truth
+peak_opt.usetemplatedetection = 1; % proceed with template matching and PCA
+estimate_pecking(accel_dwnsmpl, EventRecord, peak_opt);
 
 %% ON THE WORKS
 
@@ -600,6 +588,7 @@ load(fullfile(opt.FolderProcDataMat, 'EventRecord.mat'), 'EventRecord');
 
 end    
 
+% Helpers
 % given yaw_deg returns fraction of gaze points on-screen during fixations
 function [frac, R] = evaluate_yaw_fraction(yaw_deg, pitch_rad, roll_rad, par, halfW, halfH, isFix, screen_u, screen_v)
     yaw_rad = deg2rad(yaw_deg);

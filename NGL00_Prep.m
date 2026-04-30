@@ -49,12 +49,14 @@ if ~exist(projectfolder,"dir")
     % Update result
     txt = sprintf('Folder system for project "%s" created. Done. \n', studyname);    
     fprintf(txt);
+    warning('NOW is a good time to check your CONFIG files. They should go into your analysisCode folder')
     
     clear fileID txt
 else
     % Update result
     txt = sprintf('Folder system for project "%s" located. \n', studyname);
     fprintf(txt);
+    warning('ALWAYS check your CONFIG files. They should be inside your analysisCode folder')
 
     clear txt
 end

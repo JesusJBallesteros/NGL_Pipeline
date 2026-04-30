@@ -1,141 +1,168 @@
 function Intan2Kilosort_fileperch(opt)
 % This function is a dependency of the script Intan2Kilosort_wrapperV2,
-% only necessary if the recording system in use is Intan.
-% Optimized to use only the necessary number of samples (instead of Inf).
+% only necessary if the recording system in use is Intan. Writes the processed 
+% data into a .bin file in time-based chunks.
 %
-% Dependencies: bandfilter
+% If the full data matrix fits within available RAM, it is processed
+% in-memory. Otherwise, a temporary matfile on disk is used as a buffer,
+% and channels are processed one at a time to avoid OOM errors. In disk
+% mode, CAR cannot be applied (requires all channels in RAM simultaneously)
+% and will be skipped with a warning.
 %
-% VERSION HISTORY:
-% Author:         Aylin, Lukas & Sara
-% Version:        1
-%
-% Version 27.02.2026 Jesus
- 
-%% Pre-define .h5 and .bin files
-% Create a complete HDF5 file matching the size needs.
-% opt.filename = fullfile(opt.FolderProcDataMat, [opt.SavFileName + ".h5"]); 
-% if isfile(opt.filename)
-%     delete(opt.filename);
-% end
-% 
-% opt.dataset = '/allChnMat'; % for now, as before.
-% 
-% if opt.HDF5chunkSize > opt.num_samples
-%     opt.HDF5chunkSize = opt.num_samples;
-% end
-% 
-% h5create(opt.filename,                       ... % filename
-%          opt.dataset,                        ... % dataset name
-%          [opt.numChannels opt.num_samples],  ... % prepare data dimensions (nCh x samples).
-%          'ChunkSize', [1 opt.HDF5chunkSize], ... % prepare to write in chunks in time dimension
-%          'Datatype', 'int16');                   % Set data precision
+% Version 27.03.2026 Jesus
 
-%% Get data from INTAN data files, as single channels.
-% Opens neural data file and coverts the ADC steps to microvolts, then
-% write channel-by-channel into .h5 file and the whole array into a .bin
-% file. Filters the data if necessary/requested.  
-data = int16(zeros(opt.numChannels,opt.num_samples));
+%% Check if the full data matrix fits in available RAM
+bytesRequired  = opt.numChannels * opt.num_samples * 2; % int16 = 2 bytes
 
-% Create or open a bin file. Append data at end.
-opt.binfilename = fullfile(opt.FolderProcDataMat,opt.SavFileName + ".bin");
+% Windows: MATLAB built-in
+[~, sys] = memory();
+bytesAvailable = sys.PhysicalMemory.Available;
+useRAM         = (bytesRequired * 3) <= bytesAvailable;
+fprintf('Overestimated RAM needed: %.2f GB\n', bytesRequired*3/1e9);
+
+if useRAM
+    disp('Sufficient RAM available — processing in memory.');
+else
+    disp('Insufficient RAM — falling back to disk-based (matfile) processing.');
+    warning('If CAR was requested it will not be applied in disk mode.');
+end
+
+%% Prepare .bin output file
+opt.binfilename = fullfile(opt.FolderProcDataMat, opt.SavFileName + ".bin");
 if isfile(opt.binfilename)
     delete(opt.binfilename);
 end
 
-fidDataMat = fopen(opt.binfilename, 'a');
+%%  IN-MEMORY
+%  Allocate full matrix, read all channels, apply CAR, filter, write chunks
+if useRAM
+    data = int16(zeros(opt.numChannels, opt.num_samples));
 
-disp('Reading data, filtering if necessary.');
-for i = 1:opt.numChannels
-    % Each sample of neural data is a 16 bit word. Read as int16,
-    % and keep it that way. 
-    fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name));
-        tempdata = fread(fid, [1 opt.num_samples], 'int16=>int16');
-    fclose(fid);
-  
-    % Data comes as channels x samples from INTAN. Convert to microvolts.
-    % By using int16, we round to single digit microvolt values. No practical
-    % effect vs the double, where we would keep down to the hundredth of microvolt.
-    tempdata = tempdata * 0.195;
-   
-    % Back to 'int16'.
-    data(i,:) = int16(tempdata);
-    clear tmp 
-       
-%     % write each channel as a whole into the matrix (hdf5)
-%     h5write(opt.filename, ... % filename
-%             opt.dataset,  ... % dataset name
-%             data,         ... % data to write as ch x smp
-%             [i 1],        ... % channels to write
-%             [1 opt.num_samples]); % samples to write
-end
-
-
-% Proceed with filters. Set variables in output if you want to have the
-% exact values applied during filtering.
-if opt.CAR
-    % In principle, data from a single HS on a single region.
-    disp('Re-referencing by Common Average Referencing (CARing).')
-    data = ft_preproc_rereference(data, 'all', 'median');
-end
-
-% Keep memory usage low doing one channel at a time.
-for i = 1:opt.numChannels
-    chandata = double(data(i,:)); % Convert to double
-
-    % Always Detrend channels (remove DC)
-    fprintf('Detrending Ch %d\n', i)
-    data(i,:) = ft_preproc_detrend(chandata);
-    
-    if opt.highpass > 0
-        % Highpass channel (Butterwort, 6th order, back&forth)
-        fprintf('Highpassing Ch %d at %d Hz\n', i, opt.highpass)
-        [chandata, ~, ~] = ft_preproc_highpassfilter(chandata, opt.sampleRate, opt.highpass, 6, 'but', 'twopass');
-    end
-    if opt.lowpass < 9500
-        % lowpass channel (Butterwort, 6th order, back&forth)
-        fprintf('Lowpassing Ch %d at %d Hz\n', i, opt.lowpass)
-        [chandata, ~, ~] = ft_preproc_lowpassfilter(chandata, opt.sampleRate, opt.lowpass, 6, 'but', 'twopass');
+    disp('Reading data, filtering if necessary.');
+    for i = 1:opt.numChannels
+        fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name));
+            tempdata = fread(fid, [1 opt.num_samples], 'int16=>int16');
+        fclose(fid);
+        data(i,:) = int16(tempdata * 0.195);
     end
 
-    data(i,:) = int16(chandata); % Back to int16
+    % Common Average Referencing. needs all channels, done before filtering
+    if opt.CAR
+        disp('Re-referencing by Common Average Referencing (CARing).')
+        data = ft_preproc_rereference(data, 'all', 'median');
+    end
+
+    % Per-channel filtering (full signal required for twopass and detrend)
+    for i = 1:opt.numChannels
+        chandata = double(data(i,:));
+
+        fprintf('Detrending Ch %d\n', i)
+        chandata = ft_preproc_detrend(chandata);
+
+        if opt.highpass > 0
+            fprintf('Highpassing Ch %d at %d Hz\n', i, opt.highpass)
+            [chandata, ~, ~] = ft_preproc_highpassfilter(chandata, opt.sampleRate, opt.highpass, 6, 'but', 'twopass');
+        end
+        if opt.lowpass < 9500
+            fprintf('Lowpassing Ch %d at %d Hz\n', i, opt.lowpass)
+            [chandata, ~, ~] = ft_preproc_lowpassfilter(chandata, opt.sampleRate, opt.lowpass, 6, 'but', 'twopass');
+        end
+
+        data(i,:) = int16(chandata);
+    end
+
+    % Write to .bin in chunks
+    fidDataMat    = fopen(opt.binfilename, 'a');
+    chunkSize     = opt.StpSz;
+    numFullChunks = floor(opt.num_samples / chunkSize);
+    lastChunkSize = mod(opt.num_samples, chunkSize);
+    totalChunks   = numFullChunks + (lastChunkSize > 0);
+
+    disp('Writing .bin file in chunks...')
+    % fwrite writes column-major: each column (= one time sample across all
+    % channels) is written contiguously. Chunks must therefore be shaped as
+    % [nChannels x chunkSize] so that concatenated chunks reproduce the 
+    % nChannels x nSamples layout on read-back
+    for j = 1:numFullChunks
+        sampleStart = (j - 1) * chunkSize + 1;
+        sampleEnd   =  j      * chunkSize;
+        fwrite(fidDataMat, data(:, sampleStart:sampleEnd), 'int16');
+        fprintf('  Chunk %d/%d written\n', j, totalChunks);
+    end
+    if lastChunkSize > 0
+        sampleStart = numFullChunks * chunkSize + 1;
+        fwrite(fidDataMat, data(:, sampleStart:end), 'int16');
+        fprintf('  Chunk %d/%d written (%d samples)\n', totalChunks, totalChunks, lastChunkSize);
+    end
+    fclose(fidDataMat);
+
+%% IN DISK
+%  Use a temporary matfile. Goes one channel at a time so the full matrix
+%  never fills the RAM. CAR not possible
+else
+    tmpMatPath = fullfile(opt.FolderProcDataMat, opt.SavFileName + "_tmp.mat");
+    if isfile(tmpMatPath)
+        delete(tmpMatPath);
+    end
+    % Pre-allocate the matfile by writing the last element
+    % This extends the file to full size without loading anything into RAM
+    mf = matfile(tmpMatPath, 'Writable', true);
+    mf.data(opt.numChannels, opt.num_samples) = int16(0);
+
+    disp('Reading and filtering data channel by channel (disk mode).');
+    for i = 1:opt.numChannels
+        fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name));
+            tempdata = fread(fid, [1 opt.num_samples], 'int16=>int16');
+        fclose(fid);
+
+        chandata = double(int16(tempdata * 0.195));
+
+        fprintf('Detrending Ch %d\n', i)
+        chandata = ft_preproc_detrend(chandata);
+
+        if opt.highpass > 0
+            fprintf('Highpassing Ch %d at %d Hz\n', i, opt.highpass)
+            [chandata, ~, ~] = ft_preproc_highpassfilter(chandata, opt.sampleRate, opt.highpass, 6, 'but', 'twopass');
+        end
+        if opt.lowpass < 9500
+            fprintf('Lowpassing Ch %d at %d Hz\n', i, opt.lowpass)
+            [chandata, ~, ~] = ft_preproc_lowpassfilter(chandata, opt.sampleRate, opt.lowpass, 6, 'but', 'twopass');
+        end
+
+        % Write processed channel directly to disk
+        mf.data(i, 1:opt.num_samples) = int16(chandata);
+    end
+
+    % Read back from matfile in chunks and write to .bin
+    % Each chunk loads only opt.StpSz samples across all channels
+    fidDataMat    = fopen(opt.binfilename, 'a');
+    chunkSize     = opt.StpSz;
+    numFullChunks = floor(opt.num_samples / chunkSize);
+    lastChunkSize = mod(opt.num_samples, chunkSize);
+    totalChunks   = numFullChunks + (lastChunkSize > 0);
+
+    disp('Writing .bin file in chunks from matfile...')
+    % fwrite writes column-major: each column (= one time sample across all
+    % channels) is written contiguously. Chunks must therefore be shaped as
+    % [nChannels x chunkSize] so that concatenated chunks reproduce the 
+    % nChannels x nSamples layout on read-back
+    for j = 1:numFullChunks
+        sampleStart = (j - 1) * chunkSize + 1;
+        sampleEnd   =  j      * chunkSize;
+        fwrite(fidDataMat, mf.data(:, sampleStart:sampleEnd), 'int16');
+        fprintf('  Chunk %d/%d written\n', j, totalChunks);
+    end
+    if lastChunkSize > 0
+        sampleStart = numFullChunks * chunkSize + 1;
+        fwrite(fidDataMat, mf.data(:, sampleStart:opt.num_samples), 'int16');
+        fprintf('  Chunk %d/%d written (%d samples)\n', totalChunks, totalChunks);
+    end
+    fclose(fidDataMat);
+
+    % Clean up temporary matfile
+    clear mf;
+    delete(tmpMatPath);
 end
+disp('Done writing .bin file.')
 
-%% Write bin file.
-
-% disp('Writting .bin file. Depending on the data size, this may take a while...')
-% iter = 0;
-% lastchunk = mod(opt.num_samples, opt.StpSz)+1;
-% chunks = 1:opt.StpSz:opt.num_samples-lastchunk;
-% 
-% for j = chunks
-%     iter = iter +1;
-%     fprintf('Chunk %d/%d. \n', iter, length(chunks))
-%     Chunk = int16(zeros(opt.numChannels, opt.StpSz));
-% 
-%     for k = 1:opt.numChannels
-%         if j < opt.num_samples-mod(opt.num_samples, opt.StpSz)+1
-%             Chunk(k,:) = h5read(opt.filename, ... % filename
-%                                 opt.dataset,  ... % dataset name
-%                                 [k j],        ... % chunk and channel to write       
-%                                 [1 opt.StpSz]);   % samples to write
-%         else
-%             % Last chunk, normally smaller than stepSize
-%             Chunk(k,:) = h5read(opt.filename, ... % filename
-%                                 opt.dataset,  ... % dataset name
-%                                 [k j],        ... % chunk and channel to write    
-%                                 [1 lastchunk]);   % samples to write
-%         end
-%     end
-%     
-%     fwrite(fidDataMat, Chunk, 'int16');
-% end
-% 
-% % Close the .bin file
-% fclose(fidDataMat);
-% 
-% delete(opt.filename);
-
-fwrite(fidDataMat, data, 'int16');
-fclose(fidDataMat);
-
-end
+end % main function

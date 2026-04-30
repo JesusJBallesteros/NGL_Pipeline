@@ -5,19 +5,6 @@ if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
 end
 
-%% Defaults 
-if ~isfield(opt,'bin'),             opt.bin                 = true;         end
-if ~isfield(opt,'FieldTrip'),       opt.FieldTrip           = false;        end
-if ~isfield(opt,'doNWB'),           opt.doNWB               = false;        end
-if ~isfield(opt,'RetrieveEvents'),  opt.RetrieveEvents      = true;         end
-if ~isfield(opt,'GetMotionSensors'),opt.GetMotionSensors    = false;        end
-if ~isfield(opt,'noise'),           opt.noise               = [];           end
-if ~isfield(opt,'lowpass'),         opt.lowpass             = 10000;        end
-if ~isfield(opt,'lowpassFT'),       opt.lowpassFT           = 250;          end
-if ~isfield(opt,'highpass'),        opt.highpass            = 0;            end
-if ~isfield(opt,'StpSz'),           opt.StpSz               = 1000000;      end
-if ~isfield(opt,'CAR'),             opt.CAR                 = false;        end
-
 %% 01. Find out INTAN settings and header file. Extract info.
 %  Uses a modified Intan function, to make the basic information
 %  available at 'info{ss}' and a more detailed info at
@@ -47,12 +34,16 @@ if opt.doNWB % We want a .NWB file.
     % Requires Python installed in the machine. Requires Neuroconv installed (in proper py enviroment).
     % To check access to Python Modules from MATLAB, look that 'pe' is correctly populated when running the script.
     intan2NWB_neuroconv(input, opt);  
+else
+    warning('Skipping NWB file creation.')
 end 
 
 %% 04. Run wrapper for the INTAN to Kilosort. Creates .bin and .h5 files
 if opt.bin && ~isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '.bin']))
     % Based on Sara, Aylin and Lukas' scripts.
     Intan2Kilosort_wrapper(input.sessions(input.run(1)), opt);
+else
+    warning('Skipping .bin file creation.')
 end
 
 %% 05. Run functions to convert INTAN dat to FIELDTRIP structure.

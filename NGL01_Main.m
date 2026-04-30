@@ -34,7 +34,7 @@
 % There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
 %    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
 
-% Version 28.05.2024 (Jesus)
+% Version 27.03.2026 (Jesus)
 
 %% 00. Check current inputs.
 % Check if input variable exist already. Parse values.
@@ -47,8 +47,9 @@ if ~exist("input","var")
     input.subjects  = subjects; % place as it comes
 end
 
-% Set default inputs and dependencies.
-input = set_default(input, opt);
+% This single call guarantees opt is complete, validated, and consistent.
+% It will error early with a clear message if anything is wrong.
+[input, opt] = set_default(input, opt);
 
 %% 01. Find and list requested sessions and subjects.
 input.sessions = findSessions(input);

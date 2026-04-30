@@ -28,8 +28,6 @@ function [events, trialdef, eventdef, EventRecord] = trialdefGen(EventRecord, op
 %       24.04.2025: timebreak fix implemented
 %       27.02.2026: Removal of timestamp relativization to first trial start
 
-if ~isfield(opt,'trEvents'),        opt.trEvents            = [];                   end
-
 %% 01 Check inputs
 if nargin > 2,  useevents = varargin{1};
                 trialdef = varargin{2};

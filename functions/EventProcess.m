@@ -2,14 +2,12 @@ function [events, trialdef, EventRecord, opt] = EventProcess(input, opt)
 % Function meant to put together all possible ways to extract events from
 % Deuteron and INTAN systems.
 %
-% Jesus 17.10.2024
+% Jesus 27.03.2026
 
 %% Defaults.
 if ~isfield(opt,'useexe'),          opt.useexe              = true;                 end
 if ~isfield(opt,'ext'),             opt.ext                 = 'fileperch';          end
 if ~isfield(opt,'eventdef'),        opt.eventdef            = eventDefinitions(input.sessions.info.fileformat);   end % The script 'eventDefinitions.mat' must be inside your project file system, under 'analisysCode', and a template exists in the folder 'configfiles' of the toolbox
-if ~isfield(opt,'trEvents'),        opt.trEvents            = [];                   end
-if ~isfield(opt,'addtime'),         opt.addtime             = 0;                    end
 opt.newEvent    = {};
 opt.exefile = 'C:\Code\ephys-data-pipeline\toolboxes\Deuteron\software\Event_File_Reader_9_0.exe';
 

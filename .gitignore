@@ -1,1 +1,42 @@
-# ── NGL toolbox — git ignore rules ────
+# ── NGL toolbox — git ignore rules ──────────────────────────────────────────
+
+# Project-specific user files (never committed; each user keeps their own copy)
+NGL_SetAndRunMe.m
+NGL_machineConfig.m
+
+# ── MATLAB-generated noise ────────────────────────────────────────────────────
+
+# Auto-save / crash-recovery files (MATLAB writes these silently)
+*.asv
+
+# Compiled MEX binaries (platform-specific; built locally from source)
+*.mex*
+*.mexw32
+*.mexw64
+*.mexmaci64
+*.mexmaca64
+*.mexa64
+
+# MATLAB Live Script output cache (binary blob, auto-regenerated)
+# Keep *.mlx source files but exclude the derived output cache folder
+*_livescript_outputs/
+
+# Code Analyzer / editor cache
+*.mlprefs
+.matlab/
+
+# Simulink auto-generated code and build artefacts
+slprj/
+*.slxc
+
+# ── OS noise ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Python (kilosort / neuroconv envs, byte-compiled files) ──────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+.venv/

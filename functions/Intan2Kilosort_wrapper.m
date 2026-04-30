@@ -15,9 +15,8 @@ function Intan2Kilosort_wrapper(sessions, varargin)
 % INPUTS:
 %    sessions: struct. Variable containing info about sessions in process
 %    opt:      struct. optional inputs to override the defaults:
-%               opt.StpSz          = 1000000;  int that determines the chunk size to writo into the .h5 file
+%               opt.StpSz          = 1800000;  int that determines the chunk size to writo into the bin file
 %               opt.RetrieveEvents = false;    Logic that determines if we want to retrieve events.
-%               opt.highpass       = [450 5000]; Array of [lowest highest] ends for the band-pass filter, in Hz 
 %
 % OUTPUT:
 %    Binary file, channels(rows) per sample (columns), with channels
@@ -25,16 +24,11 @@ function Intan2Kilosort_wrapper(sessions, varargin)
 % 
 % VERSION HISTORY:
 % Author: Aylin, Lukas & Sara
-% Last MOD. Jesus 27.02.2026
+% Last MOD. Jesus 27.03.2026
 
 if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
 end
-
-%% Defaults
-if ~isfield(opt,'highpass'),       opt.highpass      = 0; end
-if ~isfield(opt,'lowpass'),        opt.lowpass       = 10000; end
-if ~isfield(opt,'StpSz'),          opt.StpSz         = 1000000;    end
 
 %% Main call
 if strcmp(sessions.info.fileformat,'filepertype') || strcmp(sessions.info.fileformat,'fileperch')
@@ -65,8 +59,8 @@ if strcmp(sessions.info.fileformat,'filepertype') || strcmp(sessions.info.filefo
     % Sample rate, from Intan_hdr.
     opt.sampleRate  = sessions.info.amplifier_sample_rate;
     
-    % ChunkSize of HDF5 file (e.g. 5 minutes = 300 s @30000 Hz = 9600000 samples).
-    opt.HDF5chunkSize = 300*opt.sampleRate;
+    % ChunkSize (e.g. 5 minutes = 300 s @30000 Hz = 9600000 samples).
+    opt.StpSz = 300*opt.sampleRate;
         
     % To obtain the number of samples per file, first read file info. Can be a 
     % file per channel or only one for all, it does not matter. Read the first.
