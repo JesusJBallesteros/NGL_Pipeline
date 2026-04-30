@@ -33,4 +33,15 @@ function opts = default_opt()
     opts.bombcell        = true;     % Run Bombcell QC on Kilosort output
     opts.phy             = false;    % Open Phy after sorting (blocks MATLAB)
 
+    % ── NGL02_postPhy options ─────────────────────────────────────────────────
+    opts.doSpikething    = true;     % Process single-unit/spike data
+    opts.doLFPthing      = true;     % Process LFP data
+    opts.offlineTrack    = false;    % Run offline video blob detection
+    opts.FLIP            = false;    % Run vFLIP laminar power analysis
+    opts.useTrack        = false;    % Index spiking against social-tracking events
+    opts.trialparsed     = false;    % Load trial-parsed FT file (vs continuous)
+    opts.artifdet        = false;    % Run LFP artifact detection and rejection
+    opts.spectrogram     = false;    % Run multitaper time-frequency analysis
+    opts.neurDyn.do      = false;    % Run neural-dynamics analysis
+
 end
