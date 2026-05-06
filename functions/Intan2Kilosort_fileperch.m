@@ -59,13 +59,15 @@ if useRAM
         fprintf('Detrending Ch %d\n', i)
         chandata = ft_preproc_detrend(chandata);
 
-        if opt.highpass > 0
-            fprintf('Highpassing Ch %d at %d Hz\n', i, opt.highpass)
-            [chandata, ~, ~] = ft_preproc_highpassfilter(chandata, opt.sampleRate, opt.highpass, 6, 'but', 'twopass');
-        end
-        if opt.lowpass < 9500
-            fprintf('Lowpassing Ch %d at %d Hz\n', i, opt.lowpass)
-            [chandata, ~, ~] = ft_preproc_lowpassfilter(chandata, opt.sampleRate, opt.lowpass, 6, 'but', 'twopass');
+        if opt.set_filter == 1
+            if opt.highpass > 0
+                fprintf('Highpassing Ch %d at %d Hz\n', i, opt.highpass)
+                [chandata, ~, ~] = ft_preproc_highpassfilter(chandata, opt.sampleRate, opt.highpass, 6, 'but', 'twopass');
+            end
+            if opt.lowpass < 9500 && opt.lowpass > 0
+                fprintf('Lowpassing Ch %d at %d Hz\n', i, opt.lowpass)
+                [chandata, ~, ~] = ft_preproc_lowpassfilter(chandata, opt.sampleRate, opt.lowpass, 6, 'but', 'twopass');
+            end
         end
 
         data(i,:) = int16(chandata);
@@ -115,18 +117,21 @@ else
             tempdata = fread(fid, [1 opt.num_samples], 'int16=>int16');
         fclose(fid);
 
-        chandata = double(int16(tempdata * 0.195));
+        %chandata = double(int16(tempdata * 0.195)); % reason: (tempdata*0.195) as double is immediately truncated to int16 and widened to double again.truncation discards sub-integer precision that would otherwise survive to the filter
+        chandata = double(tempdata) * 0.195; % modified 05.05.2026
 
         fprintf('Detrending Ch %d\n', i)
         chandata = ft_preproc_detrend(chandata);
 
-        if opt.highpass > 0
-            fprintf('Highpassing Ch %d at %d Hz\n', i, opt.highpass)
-            [chandata, ~, ~] = ft_preproc_highpassfilter(chandata, opt.sampleRate, opt.highpass, 6, 'but', 'twopass');
-        end
-        if opt.lowpass < 9500
-            fprintf('Lowpassing Ch %d at %d Hz\n', i, opt.lowpass)
-            [chandata, ~, ~] = ft_preproc_lowpassfilter(chandata, opt.sampleRate, opt.lowpass, 6, 'but', 'twopass');
+        if opt.set_filter == 1
+            if opt.highpass > 0
+                fprintf('Highpassing Ch %d at %d Hz\n', i, opt.highpass)
+                [chandata, ~, ~] = ft_preproc_highpassfilter(chandata, opt.sampleRate, opt.highpass, 6, 'but', 'twopass');
+            end
+            if opt.lowpass < 9500 &&  opt.lowpass > 0
+                fprintf('Lowpassing Ch %d at %d Hz\n', i, opt.lowpass)
+                [chandata, ~, ~] = ft_preproc_lowpassfilter(chandata, opt.sampleRate, opt.lowpass, 6, 'but', 'twopass');
+            end
         end
 
         % Write processed channel directly to disk

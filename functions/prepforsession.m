@@ -1,4 +1,4 @@
-function [info, opt] = prepforsession(input, opt)
+function [input, opt] = prepforsession(input, opt)
 % Version 27.03.2026 (Jesus)
 
 % Extract subject and session 
@@ -14,7 +14,10 @@ txt = sprintf('\n --> Subject %s, session %d out of %d: %s \n', ...
 fprintf(txt);
 
 % Check system and version.
-info = chckV();
+input.sessions(input.run(1)).info = chckV();
+
+% % Integrate info in input structure
+% input.sessions(input.run(1)).info = info;
 
 % Collect data to create paths.
 opt.PathRaw             = pwd;
@@ -22,7 +25,7 @@ opt.SavFileName         = session;
 
 % Create paths to session-specific folders
 opt.FolderProcDataMat   = fullfile(input.processed, subject, session);
-opt.KSfolder            = [opt.FolderProcDataMat, '\kilosort', int2str(opt.kilosort)];
+opt.KSfolder            = fullfile(opt.FolderProcDataMat, 'kilosort', int2str(opt.kilosort));
 opt.behavFiles          = fullfile(input.bhvfolder, subject, session);
 opt.spikeSorted         = fullfile(input.spikeSorted, subject, session);
 opt.trialSorted         = fullfile(input.trialSorted, subject, session);
@@ -35,11 +38,20 @@ if ~exist(fullfile(opt.spikeSorted),"dir"), mkdir(opt.spikeSorted); end
 if ~exist(fullfile(opt.trialSorted),"dir"), mkdir(opt.trialSorted); end
 if ~exist(fullfile(opt.analysis),"dir"), mkdir(opt.analysis); end
 
+% Brought here from Intan wrapper, so all header info is available already
+if contains(input.sessions(input.run(1)).info.fileformat,'fileper')
+    % Find out INTAN settings and header file. Extract info.
+    %  Uses a modified Intan function, to make the basic information
+    %  available at 'info{ss}' and a more detailed info at
+    %  the '.INTAN_hdr' sub-structure.
+    input.sessions(input.run(1)) = findSetting(input.sessions(input.run(1)));
+end
+
 % Check number of expected channels vs number of raw files. Create a 
 % reduced channel map if mismatched, and save in preprocessing output dir.
 
 % Only for INTAN (07.01.2026)
-if contains(info.fileformat,'fileper')
+if contains(input.sessions(input.run(1)).info.fileformat,'fileper')
     if length(dir('amp*.dat')) > opt.numChannels
         error('More INTAN files than number of channels specified in NGL_SetAndRunMe.m')
     elseif length(dir('amp*.dat')) < opt.numChannels

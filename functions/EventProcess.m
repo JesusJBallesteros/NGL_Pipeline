@@ -1,15 +1,17 @@
 function [events, trialdef, EventRecord, opt] = EventProcess(input, opt)
 % Function meant to put together all possible ways to extract events from
 % Deuteron and INTAN systems.
+% The script 'eventDefinitions.mat' must be inside your project file system,
+% under 'analisysCode', and a template exists in the folder 'configfiles' of the toolbox
 %
-% Jesus 27.03.2026
+% Jesus 05.05.2026
 
 %% Defaults.
-if ~isfield(opt,'useexe'),          opt.useexe              = true;                 end
-if ~isfield(opt,'ext'),             opt.ext                 = 'fileperch';          end
-if ~isfield(opt,'eventdef'),        opt.eventdef            = eventDefinitions(input.sessions.info.fileformat);   end % The script 'eventDefinitions.mat' must be inside your project file system, under 'analisysCode', and a template exists in the folder 'configfiles' of the toolbox
-opt.newEvent    = {};
-opt.exefile = 'C:\Code\ephys-data-pipeline\toolboxes\Deuteron\software\Event_File_Reader_9_0.exe';
+if ~isfield(opt,'useexe'),          opt.useexe            = true;               end
+% if ~isfield(opt,'ext'),           opt.ext               = 'fileperch';        end % remove, unnecessary
+if ~isfield(opt,'eventdef'),        opt.eventdef          = eventDefinitions(input.sessions.info.fileformat);   end 
+opt.newEvent = {};
+opt.exefile = input.exefile; % Updated to not override defaults
 
 %% Create empty outputs
 events      = []; % If remains empty, data shall be treated as continuous.
@@ -67,7 +69,7 @@ if opt.RetrieveEvents
     if check < 1
         % Proceed to extract all events captured by DEUT/INTAN acquisition system,
         % stored along with the data and synchronized with it (proper timestamped).
-        switch opt.ext
+        switch input.sessions(input.run(1)).info.fileformat % not using opt.ext anymore
             case {'DT2', 'DF1'}
                 disp('Retrieving events from Deuteron Event files using EXE.')
                 [EventRecord, opt] = Deuteron_ExtractEvents(opt);

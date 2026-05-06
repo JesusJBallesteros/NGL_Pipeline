@@ -21,7 +21,7 @@ function opts = default_opt()
 
     % Data preprocessing
     opts.noise           = [];       % Reserved for noise-rejection parameters
-    opts.lowpass         = 0;        % High boundary for low-pass (Hz). 0 = off.
+    opts.lowpass         = 9000;     % High boundary for low-pass (Hz). [] = off.
     opts.lowpassFT       = 250;      % Low-pass for FieldTrip LFP stream (Hz)
     opts.highpass        = 0;        % Low boundary for high-pass (Hz). 0 = off.
     opts.linefilter      = 0;        % Line-noise notch centre frequency. 0 = off.
@@ -33,7 +33,7 @@ function opts = default_opt()
     opts.bombcell        = true;     % Run Bombcell QC on Kilosort output
     opts.phy             = false;    % Open Phy after sorting (blocks MATLAB)
 
-    % ── NGL02_postPhy options ─────────────────────────────────────────────────
+    % NGL02_postPhy options
     opts.doSpikething    = true;     % Process single-unit/spike data
     opts.doLFPthing      = true;     % Process LFP data
     opts.offlineTrack    = false;    % Run offline video blob detection

@@ -96,7 +96,7 @@ clear dIn
 EventRecord.EventType           = double(EventType);
 EventRecord.EventNumber         = double(1:1:length(EventType))';
 EventRecord.TimeStamp           = ts; % Updated 16.02.2026 to always keep original timeStamps (samples)
-EventRecord.TimeMsFromMidnight  = ts/(input.sessions.info.amplifier_sample_rate/1000);
+EventRecord.TimeMsFromMidnight  = ts/(input.sessions(input.run(1)).info.amplifier_sample_rate/1000);
 EventRecord.TimeSource          = nan(length(EventType),1);
 EventRecord.Details             = nan(length(EventType),1);
 EventRecord.TimeBreak           = {[] []};

@@ -28,6 +28,8 @@ else
         formatis = 4; 
     else
         if isfile('settings.xml') 
+            % Possibly, old data in traditional format. Here for specific
+            % case, and to be deprecated
            formatis = 5; 
         else 
            formatis = 0;
@@ -83,38 +85,42 @@ switch formatis
         end
 
     case 3
-       % Here we look for files of each of the bandpass to use as source. 
-       %  'amp' should always exist. Would be used as ultimate source of
-       %  data if 'low' does not. If 'low' exist, the loop breaks and takes
-       %  the indexed file list with such extension.
-       
-       metaData = readstruct('settings.xml');
-       for b = 1:size(metaData.SignalGroup,2)
-        if strlength(metaData.SignalGroup(b).PrefixAttribute)==1
-            % % TODO account for >1 HS per bank (case of 32+32 instead of 64 HS)
-            nchan(b) = size(metaData.SignalGroup(b).Channel,2)-6-2; % always 3 AUX + 1 VDD
+        % Here we look for files of each of the bandpass to use as source. 
+        % 'amp' should always exist. Would be used as primary source of data
+        metaData = readstruct('settings.xml');
+        for b = 1:size(metaData.SignalGroup,2)
+            if strlength(metaData.SignalGroup(b).PrefixAttribute)==1
+                % Read only info from analog inputs, labeled "A", "B", etc
+                if size(metaData.SignalGroup(b).Channel,2)>68
+                    % 2x32 channel HeadStage in same port
+                    nchan(b) = size(metaData.SignalGroup(b).Channel,2)-6-2; % 6 AUX + 2 VDD
+                else % either 32ch or 64ch HS. In any case,
+                    nchan(b) = size(metaData.SignalGroup(b).Channel,2)-3-1; % 3 AUX + 1 VDD
+                end
+            end
         end
-       end
-       info.nChannels     = sum(nchan);
-           
-       % This info is extracted later on, 'findSetting.m'
-           % info.amplifier_sample_rate = metaData.SampleRateHertzAttribute;
-       
+
+        % Add all channels detected across ports
+        info.nChannels     = sum(nchan);
+                  
        for i = 1:2
+           % look for low band data first (legacy need from past for LFP)
            info.files = dir('low*.dat');
            if ~isempty(info.files)
+              % if they exists, will work with them
               info.bandpass = 'low';
               break
            else
+              % If not, expected standard now, go for wideband
               info.files = dir('amp*.dat');
               info.bandpass = 'amp';
            end
        end
+       % Check how many of those files exist
        info.nfiles = length(info.files);
         
-       % How many files exist for this sessions. If we have several types 
-       % with file per channel format, 'fileperch' applies anyways.
        % If there are many files, is 'fileperch', if there is only one, is 'filepertype'
+       % If we have several types with file per channel format, 'fileperch' applies anyways.
        if info.nfiles > 1, info.fileformat = 'fileperch';
        else,               info.fileformat = 'filepertype';  end
 
@@ -122,21 +128,23 @@ switch formatis
         info.fileformat = 'FieldTrip';
         % TODO: Figure out how to work with this files.
         % (most likely, after Allego's self preprocessing tool?)
+
     case 5
        metaData = readstruct('settings.xml');
        for b = 1:size(metaData.SignalGroup,2)
-        if strlength(metaData.SignalGroup(b).PrefixAttribute)==1
-            nchan(b) = size(metaData.SignalGroup(b).Channel,2)-3-1; % always 3 AUX + 1 VDD
-        end
+          if strlength(metaData.SignalGroup(b).PrefixAttribute)==1
+            % Read only info from analog inputs, labeled "A", "B", etc
+            if size(metaData.SignalGroup(b).Channel,2)>68
+                % 2x32 channel HeadStage in same port
+                nchan(b) = size(metaData.SignalGroup(b).Channel,2)-6-2; % 6 AUX + 2 VDD
+            else % either 32ch or 64ch HS. In any case,
+                nchan(b) = size(metaData.SignalGroup(b).Channel,2)-3-1; % 3 AUX + 1 VDD
+            end
+          end
        end
-       info.nChannels     = sum(nchan);
-           
-       % This info is extracted later on, 'findSetting.m'
-           % info.amplifier_sample_rate = metaData.SampleRateHertzAttribute;
-       
+       info.nChannels     = sum(nchan);                  
        info.files = dir('*.rhd');
        info.nfiles = length(info.files);
-
        info.fileformat = 'tradFormat';
        
     case 0

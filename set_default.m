@@ -18,7 +18,7 @@ function [input, opt] = set_default(input, opt)
 defaults   = default_opt();
 userFields = fieldnames(opt);
 
-% Should exist saved under your analysisCode\ folder (together with NGL_SetAndRunMe.m)
+% Should exist saved under 'analysisCode\' folder, together with 'NGL_SetAndRunMe.m'
 % Should match the specifics of the machine your intend to use
 cfg = NGL_machineConfig();
 
@@ -49,7 +49,7 @@ assert(iscell(opt.alignto) && all(cellfun(@ischar, opt.alignto)), ...
 assert(isnumeric(opt.numChannels) && isscalar(opt.numChannels) && opt.numChannels > 0, ...
     'NGL:invalidOption', 'opt.numChannels must be a positive scalar integer.');
 
-% -- lowpass: must be a sensible frequency or empty (= off)
+% lowpass: must be a sensible frequency or empty (off)
 if ~isempty(opt.lowpass)
     assert(isnumeric(opt.lowpass) && isscalar(opt.lowpass) && ...
            opt.lowpass > 0 && opt.lowpass < 9500, ...

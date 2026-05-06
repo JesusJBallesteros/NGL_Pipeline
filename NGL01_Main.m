@@ -58,17 +58,19 @@ for x = 1:input.nsubjects % Subjects.
     for y = 1:input.sessions(x).nsessions % Sessions.
         %% 02. Prepare to proceed with a single session.
         input.run = [x y]; % Current run, to pass to functions.
-        [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);
+        [input, opt] = prepforsession(input, opt);
 
         %% 03. Proceed to appropiated pipeline.
         switch input.sessions(input.run(1)).info.fileformat
             case {'DT2', 'DF1'} 
                % 03.1 Deuteron Pipeline
-               opt = Deuteron_PipelineWrapper(input, opt);
+               % opt = Deuteron_PipelineWrapper(input, opt); % added, keep modified input
+               [input, opt] = Deuteron_PipelineWrapper(input, opt); 
     
             case {'fileperch', 'filepertype', 'tradFormat'}
                % 03.2 INTAN Pipeline
-               input = INTAN_PipelineWrapper(input, opt);
+               % input = INTAN_PipelineWrapper(input, opt); % added, keep modified opt
+               [input, opt] = INTAN_PipelineWrapper(input, opt);
 
             case {'FieldTrip'}   
                % 03.3 FT Pipeline

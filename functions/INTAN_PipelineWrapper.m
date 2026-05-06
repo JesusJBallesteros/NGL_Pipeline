@@ -1,26 +1,27 @@
-function input = INTAN_PipelineWrapper(input, varargin)
-% Version 07.06.2024 (Jesus)
+function [input, opt] = INTAN_PipelineWrapper(input, varargin)
+% Version 06.05.2026 (Jesus)
 
 if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
 end
 
-%% 01. Find out INTAN settings and header file. Extract info.
-%  Uses a modified Intan function, to make the basic information
-%  available at 'info{ss}' and a more detailed info at
-%  the '.INTAN_hdr' sub-structure.
-input.sessions(input.run(1)) = findSetting(input.sessions(input.run(1)));
+% Sent to 'prepforsession', so all header info is available there % 06.05.2026
+% %% 01. Find out INTAN settings and header file. Extract info.
+% %  Uses a modified Intan function, to make the basic information
+% %  available at 'info{ss}' and a more detailed info at
+% %  the '.INTAN_hdr' sub-structure.
+% input.sessions(input.run(1)) = findSetting(input.sessions(input.run(1)));
 
 %% 02. Event data retrieval and trial definition. INTAN version
-if isfile(fullfile(opt.trialSorted, "trialdef.mat"))
-    load(fullfile(opt.trialSorted, "trialdef.mat"))
-    if ~exist("trialdef","var") && exist("trialDefinition","var")
-        trialdef = trialDefinition.trl; clear trialDefinition
-    end
-else
+% if isfile(fullfile(opt.trialSorted, "trialdef.mat")) % Removed ward for saved files
+%     load(fullfile(opt.trialSorted, "trialdef.mat"))
+%     if ~exist("trialdef","var") && exist("trialDefinition","var")
+%         trialdef = trialDefinition.trl; clear trialDefinition
+%     end
+% else
     % 'trialdef' outputted for later feed into fieldtrip transf.
     [~, trialdef, ~, opt] = EventProcess(input, opt);
-end
+% end
 
 %% 03. Create NWB file
 if opt.doNWB % We want a .NWB file.
