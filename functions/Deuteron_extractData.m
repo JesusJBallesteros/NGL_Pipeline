@@ -1,8 +1,44 @@
 function data = Deuteron_extractData(fid, opt)
-% This extracts data from Deuteron's block file format files.
-% Determines how to proceed depending on the value of the 'stream' variable.
-
-% Jesus 05.01.2024. Modified from Deuteron's
+% Deuteron_extractData  Read and parse a single Deuteron DF1 block-format file.
+%
+% PURPOSE:
+%   Low-level reader for Deuteron DF1 files. Reads the entire file as raw
+%   bytes, locates block boundaries using Deuteron block header constants,
+%   extracts the requested data stream (neural / motion sensor / audio) from
+%   each block, and returns scaled physical-unit data.
+%   Dispatches on opt.stream to select which data type to extract.
+%
+% USAGE:
+%   data = Deuteron_extractData(fid, opt)
+%   Called from Deuteron2Kilosort and Deuteron2Fieldtrip (stream=1) and
+%   from getfrom_Deuteron inside GetMotionSensors (stream=2).
+%
+% INPUTS:
+%   fid  - file identifier from fopen on a NEUR*.DF1 file (must be open)
+%   opt  - struct with fields:
+%            .stream     integer: 1=neural, 2=motion sensor, 3=audio
+%            .acclMax    accelerometer full-scale range (m/s²)   [stream=2 only]
+%            .gyroMax    gyroscope full-scale range (deg/s)      [stream=2 only]
+%            .magMax     magnetometer full-scale range (Tesla)   [stream=2 only]
+%
+% OUTPUTS:
+%   stream=1 (neural):
+%     data   - [1 × nSamples single] raw ADC values (uint16 cast to single).
+%              Caller applies ADC→µV conversion after this call.
+%   stream=2 (motion sensor):
+%     data   - struct with fields:
+%                .Accelerometer.Data  [N × 3 single] in m/s²
+%                .Gyroscope.Data      [N × 3 single] in deg/s
+%                .Magnetometer.Data   [N × 3 single] in Tesla
+%                .<sensor>.timestamps [N × 1 double] in ms
+%
+% CALLS:
+%   Deuteron toolbox: HeaderConstants, FindDataBlockStart, ExtractHeaderData,
+%   ExtractDataByType, FindMotionSensorBlockStart, ExtractMotionSensorDataByType,
+%   ScaleMotionSensorData, SortDataByAxis, GetMotionSensorTimestamp,
+%   MotionSensorConstants, MotionSensorEnum, DataTypeEnum
+%
+% Last modified 08.05.2026 (Jesus)
 
 %% Parse file
 rawData = uint8(fread(fid, Inf, 'uint8'));

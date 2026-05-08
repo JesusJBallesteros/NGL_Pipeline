@@ -53,10 +53,6 @@ function [input, opt] = set_default(input, opt)
 defaults   = default_opt();
 userFields = fieldnames(opt);
 
-% Should exist under 'analysisCode\' folder, together with 'NGL_SetAndRunMe.m'
-% and match the specifics of the machine your intend to use
-cfg = NGL_machineConfig();
-
 % Proceed 
 for i = 1:numel(userFields)
     f = userFields{i};
@@ -146,6 +142,11 @@ input.trialSorted   = fullfile(base, 'data', 'trialSorted');
 input.processed     = fullfile(base, 'data', 'preprocessing');
 
 % Toolbox and external tool paths (from cfg)
+% Should exist under 'analysisCode\' folder, together with 'NGL_SetAndRunMe.m'
+% and match the specifics of the machine your intend to use
+addpath(input.analysisCode)
+cfg = NGL_machineConfig();
+
 input.toolbox     = cfg.toolbox;
 input.KSpythonExe = cfg.KSpythonExe;
 input.KSpyfolder  = fullfile(cfg.KSpythonExe, 'Lib', 'site-packages', 'kilosort');
@@ -196,7 +197,6 @@ input.nsubjects = numel(input.subjects);
 cd(input.toolbox)
 
 addpath('functions')
-addpath(input.analysisCode)
 
 addpath(fullfile('toolboxes', 'Intan'))
 addpath(fullfile('toolboxes', 'fieldtrip_light'))

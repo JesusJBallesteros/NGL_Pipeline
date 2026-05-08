@@ -1,30 +1,42 @@
 function [EventRecord, opt] = Deuteron_ExtractEvents(input, opt)
-%   Uses the Deuteron's application without invoking the GUI.
+% Deuteron_ExtractEvents  Extract and parse the event log from a Deuteron session.
 %
-% PURPOUSE
-%   This example creates a struct called EventRecords that has a length of the 
-%   number of records in the event log file. Produces an EventRecord struct in 
-%   the same format as INTAN_ExtractEvents for downstream compatibility.
-%   A security check at the end looks for the first 0/8 appearance. If
-%   neither are the first event, all other events until the first 8
-%   are removed.
+% PURPOSE:
+%   Produces an EventRecord struct in the same format as INTAN_ExtractEvents
+%   for downstream compatibility. Dispatches on opt.uselog:
+%     false (default) — invokes Event_File_Reader_9_0.exe on NEUR*.DF1 files
+%                       to generate an EventRecord.CSV, then parses it.
+%                       Also sets opt.channelOrder and opt.numChannels from
+%                       the channel-mapping entry in the CSV.
+%     true            — parses a logevents.txt text log directly; used when
+%                       events were not transmitted to the system but were logged.
+%   A session-start sanity check trims any events preceding the first
+%   EventType 0 or 8 (recording start).
 %
 % USAGE:
-%   EventRecord = Deuteron_ExtractEvents(opt)
+%   [EventRecord, opt] = Deuteron_ExtractEvents(input, opt)
+%   Called from EventProcess when input format is 'DF1' or 'DT2'.
 %
 % INPUTS:
-%   input  - struct with input.exefile
-%   opt    - struct with options
+%   input  - struct; must contain:
+%              .exefile   full path to Event_File_Reader_9_0.exe
+%   opt    - options struct; relevant fields:
+%              .uselog        false = use EXE (default); true = use logevents.txt
+%              .PathRaw       raw data folder (NEUR*.DF1 files location)
+%              .FolderProcDataMat  output folder for EventRecord.CSV
 %
-% OUTPUT:
-%       EventRecords: struct with all events recorded during session.
-%           EventNumber (double)
-%           EventType (string)  
-%           TimeStamp (string)
-%           TimeMsFromMidnight (double)
-%           TimeSource (string)
-%           Details (string)
-%           TimeBreak (Nx2 cell array)
+% OUTPUTS:
+%   EventRecord  - struct with fields:
+%                    .EventNumber          (double)
+%                    .EventType            (double)
+%                    .TimeStamp            (string)
+%                    .TimeMsFromMidnight   (double)
+%                    .TimeSource           (string)
+%                    .Details              (string)
+%                    .TimeBreak            (Nx2 cell) — populated by check_timebreaks
+%   opt          - updated with (EXE path only):
+%                    .channelOrder   active channel IDs from the channel-map log entry
+%                    .numChannels    numel(opt.channelOrder)
 %
 % Last modified 07.05.2026 (Jesus)
 
@@ -55,13 +67,13 @@ function [EventRecord, opt] = extractFromExe(input, opt)
     % from a Deuteron recording with Block Format.
 
     %% Hardcoded variables
-    maxFileIndex     = length(dir([opt.PathRaw '\NEUR*'])) - 1; % cero indexed, so [0:Nfiles-1]
+    maxFileIndex     = length(dir([opt.PathRaw '\NEUR*']));
     count            = 1; % just a counter
     
     %% Set up files to load 
-    listOfFilesToLoad =  cell(maxFileIndex + 1, 1);
+    listOfFilesToLoad =  cell(maxFileIndex, 1);
     
-    for fileIdx = 1:maxFileIndex
+    for fileIdx = 0:maxFileIndex-1
         indexStr = num2str(fileIdx,'%04.f');
         % if opt.useexe
             listOfFilesToLoad{count} = strcat('NEUR', indexStr, '.DF1');
@@ -72,11 +84,11 @@ function [EventRecord, opt] = extractFromExe(input, opt)
     end
     
     % Create list of final files to process.
-    numberOfFiles = length(listOfFilesToLoad);
+    % numberOfFiles = length(listOfFilesToLoad);
     
     % Executable requires a list as char array: 'NEUR0001 NEUR0001 ... NEURNNNN'
     listOfFilesToLoadchar = [];
-    for i=1:numberOfFiles
+    for i=1:maxFileIndex
         listOfFilesToLoadchar = [listOfFilesToLoadchar ' ' cell2mat(listOfFilesToLoad(i))];
     end
     

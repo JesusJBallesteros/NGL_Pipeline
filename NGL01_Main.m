@@ -76,7 +76,6 @@ for x = 1:input.nsubjects % Subjects.
         switch input.sessions(input.run(1)).info.fileformat
             case {'DT2', 'DF1'} 
                % 03.1 Deuteron Pipeline
-               % opt = Deuteron_PipelineWrapper(input, opt); % added, keep modified input
                [input, opt] = Deuteron_PipelineWrapper(input, opt); 
     
             case {'fileperch', 'filepertype', 'tradFormat'}

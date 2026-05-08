@@ -1,9 +1,34 @@
 function Deuteron_PlotMotionSensors(data, timestamps, opt, stream, varargin)
-% Description is progress
+% Deuteron_PlotMotionSensors  Visualise Deuteron motion-sensor or orientation data.
 %
+% PURPOSE:
+%   Produces static or dynamic figures from processed Deuteron motion-sensor
+%   output. Two display modes are supported:
+%     stream = 1 — raw sensor time-series (Accelerometer, Gyroscope, Magnetometer)
+%     stream = 2 — AHRS orientation estimate as Euler angles (roll/yaw/pitch)
+%   An optional dynamic 3-D rotation animation can be recorded to video.
 %
+% USAGE:
+%   Deuteron_PlotMotionSensors(data, timestamps, opt, stream)
+%   Deuteron_PlotMotionSensors(data, timestamps, opt, stream, visual)
+%   Deuteron_PlotMotionSensors(data, timestamps, opt, stream, visual, record)
+%   Called from the getfrom_Deuteron subfunction inside GetMotionSensors.
 %
-% Jesus 22.04.2025
+% INPUTS:
+%   data        - for stream=1: struct with fields .acc, .gyr, .mag,
+%                               each containing .X, .Y, .Z, .max
+%               - for stream=2: quaternion array (AHRS filter output)
+%   timestamps  - [1 × N double] time vector in seconds
+%   opt         - options struct (uses opt.deadtime for masking, if set)
+%   stream      - 1 = raw sensor timeseries plot; 2 = orientation estimate plot
+%   visual      - (optional, logical) show dynamic rotation animation (default false)
+%   record      - (optional, logical) record animation to video (default false;
+%                  only active when visual = true)
+%
+% OUTPUTS:
+%   Figure(s) displayed on screen. No files saved directly.
+%
+% Last modified 08.05.2026 (Jesus)
 
 %% Check input variables
 if nargin < 5

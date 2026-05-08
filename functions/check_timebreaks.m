@@ -1,24 +1,31 @@
 function [timebreak] = check_timebreaks(data)
-% By analyzing the trial definition timings or a event log from Deuteron, 
-% we can check for consistency or continuity in the recorded timing 
-% across the session. 
-% For trialdef, regular ITIs should stay close to a median value,
-% while deviations could occur at block or phase changes. If so, those
-% would probably happen multiple times, again in a consistent fashion. If
-% yet any other deviation happens, it could mean a break in the recording
-% session, i.e. a a time where perhaps there is not actual data
-% acquisition, for a number of reasons. In that case, it would be at least
-% advisable to check if the spike timing has become de-synchronised due to
-% this time break.
-% For Event records, the detection of a 'Stopped recording' should suffice
-% to locate those when unespected, i.e. not at the end.
-% INPUT: a Nx3 numerical array (trialdef)
-%        or
-%        a Nx10 string array (myRecord)
-% OUTPUT: 
-% 'timebreak': cell array with {1} the trial number after the break
-%                          and {2} the trial definition for that trial
-% Jesus 24.04.2025
+% check_timebreaks  Detect recording breaks from trial definitions or Deuteron event logs.
+%
+% PURPOSE:
+%   Analyses recording continuity using one of two input types:
+%     trialdef (numeric) — checks inter-trial intervals against the session
+%       median; statistical outliers that stand out above all regular long ITIs
+%       are flagged as potential recording breaks.
+%     Deuteron event log (string matrix) — scans column 6 for 'Stopped recording'
+%       entries that appear before the final record; each such entry indicates
+%       a gap during which acquisition was paused.
+%
+% USAGE:
+%   timebreak = check_timebreaks(data)
+%   Called from Deuteron_ExtractEvents (event-log path) and trialdefGen (trialdef path).
+%
+% INPUT:
+%   data  - [N × 3 double]  trial definition array [start end t0] in ms
+%           OR
+%           [N × 10 string] Deuteron event log CSV matrix (column 6 = Details)
+%
+% OUTPUT:
+%   timebreak  - {1 × 2} cell array:
+%                  {1} trial index (or event row) immediately after the break
+%                  {2} trial-definition row (or timing info) at that point
+%                Returns {[] []} when no break is detected.
+%
+% Last modified 08.05.2026 (Jesus)
 
 %% A variable will determine if there is need for correction. Create empty.
 timebreak = {[] []};

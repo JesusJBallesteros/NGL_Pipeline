@@ -1,11 +1,55 @@
 function [data] = Deuteron2Fieldtrip(opt)
-% The function will extract data from Deuteron files, rearrange it as needed
-% and filter one channel at a time. For FieldTrip, so far, we want the
-% lowpass signal for LFP studies and we want to downsample to reduce
-% the amount of data. We convert this into a flat .mat file that will be
-% feeded into 'mat2FieldTrip'.
-
-% Jesus 11.06.2024
+% Deuteron2Fieldtrip  Read and preprocess Deuteron DF1 data into pseudo-FieldTrip struct.
+%
+% PURPOSE:
+%   Reads NEUR*.DF1 files block by block via Deuteron_extractData, applies the
+%   LFP preprocessing chain (ADC→µV → optional CAR → detrend → low-pass →
+%   optional line-noise filter → downsample), and assembles the result into
+%   a pseudo-FieldTrip data struct. Intermediate filtered/downsampled data is
+%   cached to <SavFileName>_filt_dwn.mat to avoid reprocessing on re-runs.
+%   This struct is passed to MAT2FieldTrip to produce the final FT file.
+%
+% USAGE:
+%   data = Deuteron2Fieldtrip(opt)
+%   Called from Deuteron_PipelineWrapper when opt.FieldTrip = true.
+%
+% INPUTS:
+%   opt  - options struct; relevant fields:
+%            .ext               file format ('DF1')
+%            .myFiles           dir-struct of NEUR*.DF1 files
+%            .numChannels       electrode count (set by EventProcess via opt.channelOrder)
+%            .sampleRate        raw sample rate (Hz, typically 32000)
+%            .dwnsmplRate       LFP target sample rate; set internally to sampleRate/32 = 1000 Hz
+%            .lowpassFT         LFP low-pass cutoff (Hz, default 200)
+%            .linefilter        line-noise centre frequency (Hz, 0 = off)
+%            .CAR               common-average re-referencing flag (0 = off)
+%            .voltageResolution, .offset  ADC-to-µV conversion parameters
+%            .PathRaw           raw data folder path
+%            .FolderProcDataMat folder for intermediate .mat cache
+%            .trialSorted       folder checked for existing FT output (skip guard)
+%            .SavFileName       session name used for output filenames
+%
+% OUTPUT:
+%   data  - pseudo-FieldTrip struct:
+%             .label      {nChannels × 1 cell} zero-padded channel indices ('001'…'NNN')
+%             .trial      {1 × 1 cell} [nChannels × nSamples double] LFP data (µV)
+%             .time       {1 × 1 cell} [1 × nSamples double] time vector (s, 0-indexed)
+%             .sampleinfo [1 2] = [1, nSamples]
+%           Returns empty [] if a complete FT file already exists (re-run safety).
+%
+% PREPROCESSING:
+%   1. ADC→µV: int16((voltageResolution × (data − offset)) × 1e6)
+%   2. CAR (optional): ft_preproc_rereference with 'all'/'median'
+%   3. Detrend: ft_preproc_detrend (removes DC offset per channel)
+%   4. Low-pass: ft_preproc_lowpassfilter (Butterworth 4th order, twopass) at opt.lowpassFT
+%   5. Line-noise: ft_preproc_bandstopfilter (opt.linefilter ±2 Hz, if > 0)
+%   6. Downsample: downsampleVolt at opt.dwnsmplRate
+%
+% CALLS:
+%   Deuteron_extractData, ft_preproc_detrend, ft_preproc_lowpassfilter,
+%   ft_preproc_bandstopfilter, ft_preproc_rereference, downsampleVolt
+%
+% Last modified 08.05.2026 (Jesus)
 
 %% Check existence of a FieldTrip file.
 % If existing, load it instead and return to main script
@@ -16,48 +60,48 @@ if isfile(fullfile(opt.trialSorted, strcat(opt.SavFileName,'_FTcont.mat')))
 end
 
 %% Filter preparations
-% Gather info to create and apply the lowpass filter
+% Gather info to create and apply the lowpassFT filter
 opt.dwnsmplRate = opt.sampleRate/32; % Matches INTAN's 32x downsample factor.
 
 %% Find pre-processed data if any
 if ~isfile(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_filt_dwn.mat']))
     %% Proceed for DT2 Format. Deprecating.
-    if strcmp(opt.ext, 'DT2')
-        disp('Converting DT2 files to pseudo-FieldTrip.')
-        
-        % Initiate matrix and sample index.
-        tmp = int16([]);
-        indexPos  = 0;
-    
-        disp('Obtaining data from Deuteron files.')
-        for i = 1:length(opt.myFiles)
-            % Neural data points are 16 bit words
-            fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name));
-                tempdata = fread(fid, 'uint16');
-            fclose(fid);
-            
-            % Remove trailing zeroes in last file
-            if i == length(opt.myFiles)
-                tempdata(tempdata==0) = [];
-            end
-    
-            % Reshape concatenated channels to channels x samples.
-            tempdata = reshape(tempdata', opt.numChannels, []);
-    
-            % Convert ADC steps into microvolts, so conversion to int16 is
-            % possible without loss.
-            tempdata = int16((opt.voltageResolution * (tempdata - opt.offset)) * 1000000);
-            
-            % Get nSamples coming from this file. Shouls stay constant. 
-            nSamples = size(tempdata,2);
-    
-            % Collect chunks into full matrix for further treatment.
-            tmp(:,indexPos+1:indexPos+nSamples) = tempdata;
-           
-            % Get to next starting sample
-            indexPos = indexPos+nSamples;
-        end
-    end
+    % if strcmp(opt.ext, 'DT2')
+    %     disp('Converting DT2 files to pseudo-FieldTrip.')
+    % 
+    %     % Initiate matrix and sample index.
+    %     tmp = int16([]);
+    %     indexPos  = 0;
+    % 
+    %     disp('Obtaining data from Deuteron files.')
+    %     for i = 1:length(opt.myFiles)
+    %         % Neural data points are 16 bit words
+    %         fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name));
+    %             tempdata = fread(fid, 'uint16');
+    %         fclose(fid);
+    % 
+    %         % Remove trailing zeroes in last file
+    %         if i == length(opt.myFiles)
+    %             tempdata(tempdata==0) = [];
+    %         end
+    % 
+    %         % Reshape concatenated channels to channels x samples.
+    %         tempdata = reshape(tempdata', opt.numChannels, []);
+    % 
+    %         % Convert ADC steps into microvolts, so conversion to int16 is
+    %         % possible without loss.
+    %         tempdata = int16((opt.voltageResolution * (tempdata - opt.offset)) * 1000000);
+    % 
+    %         % Get nSamples coming from this file. Shouls stay constant. 
+    %         nSamples = size(tempdata,2);
+    % 
+    %         % Collect chunks into full matrix for further treatment.
+    %         tmp(:,indexPos+1:indexPos+nSamples) = tempdata;
+    % 
+    %         % Get to next starting sample
+    %         indexPos = indexPos+nSamples;
+    %     end
+    % end
     %% Proceed for DF1 Format.
     if strcmp(opt.ext, 'DF1') % opt.ext = DF1
         tmp = int16([]); % Create empty variable to store all data (do not pre-allocate the whole matrix)
@@ -83,18 +127,18 @@ if ~isfile(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_filt_dwn.mat']))
     end 
 
     %% Re-reference channels
-    if opt.CAR == 2
+    if opt.CAR
         % Check for pre-treated files
-        if ~isfile(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CARed.mat']))
+        if ~isfile(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CAR.mat']))
             % In principle, data from a single HS on a single region.
-            disp('Re-referencing by Common Average Referencing (CARing).')
+            disp('Re-referencing by Common Average Referencing (CAR).')
             tmp = ft_preproc_rereference(tmp, 'all', 'median');
     
             disp('Saving CARed file, will take a while.')
-            save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CARed.mat']), 'tmp', '-v7.3');
+            save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CAR.mat']), 'tmp', '-v7.3');
         else
             disp('CARed data existing, loading.')
-            load(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CARed.mat']));
+            load(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CAR.mat']));
         end
     end
 
@@ -108,9 +152,9 @@ if ~isfile(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_filt_dwn.mat']))
         disp('Detrending...')
         tmp(b,:) = ft_preproc_detrend(tmp(b,:));
     
-        % Lowpass filter channel (Butterwort, 6th order, back&forth)
-        disp('Lowpassing...')
-        [tmp(b,:), ~, ~] = ft_preproc_lowpassfilter(tmp(b,:), opt.sampleRate, opt.lowpass, 6, 'but', 'twopass');
+        % Lowpass filter channel (Butterwort, 4th order, back&forth)
+        disp('Lowpass for FT...')
+        [tmp(b,:), ~, ~] = ft_preproc_lowpassfilter(tmp(b,:), opt.sampleRate, opt.lowpassFT, 4, 'but', 'twopass');
                     
         % FT's bandstop filter (btw 50 +-2 Hz, Butterwort, 2nd order, back&forth)
         if opt.linefilter > 0
@@ -135,7 +179,7 @@ end
 
 %% Get time series
 % We simply create a time-vector from samples and divide it by the sampling rate.
-time = (1:length(volt)) / opt.dwnsmplRate; % in Seconds
+time = (0:length(volt)-1) / opt.dwnsmplRate; % in Seconds
         
 %% Convert to pseudo-FieldTrip
 % It's only pseudo until we run the proper FT tool to check for format and

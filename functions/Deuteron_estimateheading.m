@@ -1,10 +1,39 @@
 function [heading, position] = Deuteron_estimateheading(Accelerometer, Gyroscope, Magnetometer)
+% Deuteron_estimateheading  Estimate animal heading and position from MPU-9250 data.
 %
+% PURPOSE:
+%   Uses an AHRS (Attitude and Heading Reference System) filter to fuse
+%   accelerometer, gyroscope, and magnetometer readings from the Deuteron
+%   MPU-9250 sensor into a heading estimate (orientation quaternion → rotation
+%   vector) and a dead-reckoning position estimate.
+%   Magnetometer hard/soft-iron distortion is corrected via MATLAB's magcal
+%   before AHRS fusion.
 %
+% USAGE:
+%   [heading, position] = Deuteron_estimateheading(Accelerometer, Gyroscope, Magnetometer)
+%   Called from getfrom_Deuteron inside GetMotionSensors.
 %
+% INPUTS:
+%   Accelerometer  - struct with fields .X, .Y, .Z (m/s²) and .t (timestamps)
+%   Gyroscope      - struct with fields .X, .Y, .Z (deg/s)
+%   Magnetometer   - struct with fields .X, .Y, .Z (Tesla)
+%   All sensor arrays must be the same length (1000 Hz sample rate assumed).
 %
+% OUTPUTS:
+%   heading   - [N × 3 double] rotation vector in radians at each time step
+%   position  - [N × 2 double] dead-reckoning [x, y] displacement in meters
 %
+% NOTES:
+%   - Sensor axes are remapped to NED-like convention before AHRS fusion:
+%       gyr = [X, Z, −Y], acc = [−X, −Z, Y]
+%   - magcal corrects for hard-iron (offset b) and soft-iron (matrix A) effects.
+%   - Noise parameters (Gyro_Noise, Accel_Noise) are MPU-9250 datasheet values.
+%   - Dead-reckoning from acceleration is coarse; treat position as qualitative.
 %
+% CALLS:
+%   magcal, ahrsfilter, rotvec (Sensor Fusion and Tracking Toolbox)
+%
+% Last modified 08.05.2026 (Jesus)
 
     % sample rate for motion sensors is 1000Hz. GyroscopeNoise and AccelerometerNoise
     % are determined from the hardware specifications .

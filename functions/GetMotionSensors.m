@@ -28,11 +28,8 @@ function GetMotionSensors(opt, input)
 % NOTES:
 %   - Head-direction interpretation from AHRS requires careful calibration;
 %     results should be verified manually before use in analysis.
-%   - The fileformat check on input.sessions.info.fileformat currently lacks
-%     subject indexing (uses input.sessions rather than input.sessions(x)) —
-%     this is a known minor issue for multi-subject batch runs.
 %
-% Jesus 06.03.2026
+% Jesus 08.05.2026
     
 % options to parse into estimation functions
     % User decided
@@ -49,13 +46,15 @@ function GetMotionSensors(opt, input)
     peak_opt.binSize = 100; % for PSH calculation 
     peak_opt.s_around = 100/peak_opt.fs; % 100ms around peaks seem OK
 
-if strcmp(input.sessions.info.fileformat, 'fileperch')
+if strcmp(input.sessions(input.run(1)).info.fileformat, 'fileperch')
+    
     peak_opt.AlignMode = 'intan'; % for Intan
-
     getfrom_INTAN(opt, peak_opt)
-elseif strcmp(input.sessions.info.fileformat, 'DTF') || strcmp(input.sessions.info.fileformat, 'DF1')
-    peak_opt.AlignMode = 'mpu9250_nedlike'; % for Deuteron
 
+elseif strcmp(input.sessions(input.run(1)).info.fileformat, 'DT2') || ...
+       strcmp(input.sessions(input.run(1)).info.fileformat, 'DF1')
+
+    peak_opt.AlignMode = 'mpu9250_nedlike'; % for Deuteron
     getfrom_Deuteron(opt, peak_opt)
 end
 

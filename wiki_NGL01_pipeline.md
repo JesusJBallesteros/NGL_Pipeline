@@ -215,6 +215,7 @@ Every field must be set in `default_opt.m`. If you set a field in `NGL_SetAndRun
 | `alignto` | `{'itiOn'}` | Event(s) to use as trial time-zero. Single char or cell array of chars matching names in `eventDefinitions`. At minimum keep `'itiOn'`. |
 | `trEvents` | `{}` | "Special" ITI events (e.g. drug treatments, tutor calls). Cell array of event names. |
 | `addtime` | `0` | Extra padding in ms added around each trial's start and end. |
+| `uselog` | `false` | **Deuteron only.** `false` = use `Event_File_Reader_9_0.exe` (default). `true` = parse `logevents.txt` directly; use when events were logged but not transmitted to the recording system. |
 
 ### Motion sensors
 
@@ -227,8 +228,8 @@ Every field must be set in `default_opt.m`. If you set a field in `NGL_SetAndRun
 | Field | Default | Description |
 |---|---|---|
 | `lowpass` | `9000` | High-cut frequency (Hz) for the spike-band low-pass filter. `[]` = off. Must be < 9500. |
-| `lowpassFT` | `250` | Low-pass cutoff (Hz) for the FieldTrip LFP stream (Butterworth 6th order). |
-| `highpass` | `0` | High-pass cutoff (Hz). `0` = off. |
+| `lowpassFT` | `200` | Low-pass cutoff (Hz) for the FieldTrip LFP stream (Butterworth 4th order, twopass). |
+| `highpass` | `[]` | High-pass cutoff (Hz). `[]` = off. **For Deuteron wideband (Kilosort input), set to 300 Hz** — no high-pass is applied to the raw DF1 data by default. |
 | `linefilter` | `0` | Line-noise notch centre (Hz). `0` = off. Applies a ±2 Hz band-stop filter. |
 | `CAR` | `0` | Common-average re-referencing. `0` = off. When on, uses median reference. For > 32 channels, applies per 32-channel bank. |
 | `dwnsmplRate` | `[]` | LFP downsample target (Hz). `[]` = auto → 937.5 Hz (= 30000/32, integer factor from standard INTAN rate). Must be an integer divisor of the raw sample rate. |
@@ -238,7 +239,7 @@ Every field must be set in `default_opt.m`. If you set a field in `NGL_SetAndRun
 
 | Field | Default | Description |
 |---|---|---|
-| `kilosort` | `4` | Kilosort version. `2` or `4`. |
+| `kilosort` | `1` | Boolean flag: `1` = run Kilosort 4; `0` = skip spike sorting. Only Kilosort 4 is supported. |
 | `KSchanMapFile` | `''` | Channel map filename (`.mat`). `''` = linear array (no custom map). Otherwise, place the file in `analysisCode/` and give its name here (e.g. `'chanMap_P32.mat'`). |
 | `bombcell` | `true` | Run Bombcell automatic QC on Kilosort output. |
 | `phy` | `false` | Open Phy after sorting. **Blocks MATLAB until Phy is closed.** |
@@ -383,7 +384,29 @@ The switch dispatches on `info.fileformat`:
 
 #### Deuteron (`DT2`, `DF1`) → `Deuteron_PipelineWrapper`
 
-Analogous steps using Deuteron-specific readers. Event extraction uses the Deuteron EXE (`Event_File_Reader_9_0.exe`).
+1. **Metadata** (`Deuteron_GetMetaData`): reads hardware constants (32 kHz sample rate, 16-bit ADC, 1.95 × 10⁻⁷ V/bit for DF1). Channel count is **not** available in the file header — it is inferred from the event log in the next step.
+
+2. **Event extraction** (`EventProcess` → `Deuteron_ExtractEvents`): by default (`opt.uselog = false`) invokes `Event_File_Reader_9_0.exe` on all `NEUR*.DF1` files to produce an `EventRecord.CSV`. The CSV is parsed into the `EventRecord` struct. The channel-mapping entry in the CSV is used to set `opt.channelOrder` and `opt.numChannels` — these are critical for correct data reshaping downstream. If the EXE path is unavailable or events were only logged (not transmitted), set `opt.uselog = true` to parse `logevents.txt` instead. After extraction, `trialdefGen` and `conditions_script` run identically to the INTAN path.
+
+3. **Wideband `.bin`** (`Deuteron2Kilosort`): only if `opt.bin = true`. Reads each `NEUR*.DF1` file block by block via `Deuteron_extractData` (stream = 1), converts raw ADC samples to int16 µV using `int16((voltageResolution × (data − offset)) × 1e6)`, optionally applies CAR, detrends each channel, applies a high-pass filter if `opt.highpass` is set (recommended: 300 Hz for Kilosort 4), and appends to a flat interleaved `.bin` file in channels × samples layout. Skips if a non-empty `.bin` already exists.
+
+4. **FieldTrip LFP** (`Deuteron2Fieldtrip` + `MAT2FieldTrip`): only if `opt.FieldTrip = true`. Reads the same `NEUR*.DF1` files, converts to µV, optionally applies CAR, then filters channel by channel (detrend → low-pass at `opt.lowpassFT` = 200 Hz → optional line-noise band-stop), and downsamples to `sampleRate / 32` = **1000 Hz** (Deuteron's integer factor, analogous to INTAN's 937.5 Hz). Intermediate output is cached as `<session>_filt_dwn.mat` to avoid reprocessing on re-runs. The pseudo-FieldTrip struct is then passed to `MAT2FieldTrip`, which produces `_FTcont.mat` and per-alignment-event `.mat` files identically to the INTAN path.
+
+5. **Motion sensors** (`GetMotionSensors` → `getfrom_Deuteron`): only if `opt.GetMotionSensors = true`. Reads the motion-sensor stream (stream = 2) from each `NEUR*.DF1` file via `Deuteron_extractData`, extracting Accelerometer, Gyroscope, and Magnetometer data from the embedded MPU-9250 blocks at 1000 Hz. Applies `magcal` for hard/soft-iron magnetometer correction, runs an AHRS filter (`Deuteron_estimateheading`) to estimate heading and dead-reckoning position, plots raw sensor timeseries (`Deuteron_PlotMotionSensors`), and saves `MotionData.mat`.
+
+**Key differences from INTAN:**
+
+| Property | INTAN | Deuteron |
+|---|---|---|
+| Raw sample rate | 30 000 Hz | 32 000 Hz |
+| LFP downsample target | 937.5 Hz (30000/32) | 1000 Hz (32000/32) |
+| Channel count source | RHD header / `.dat` file count | Event log (`opt.channelOrder`) |
+| Event source | `board-DIGITAL-IN*.dat` pin transitions | `NEUR*.DF1` via EXE or `logevents.txt` |
+| Pin state convention | starts at `[0 0 0 0]` | starts at `[1 1 0 0]`, cumulative tracking |
+| File layout | one `.dat` per channel (flat) | block format, all channels per file |
+| Wideband creator | `Intan2Kilosort_wrapper` | `Deuteron2Kilosort` |
+| LFP creator | `intan2MAT_wrapper` | `Deuteron2Fieldtrip` |
+| Motion sensors | AUX*.dat (3-axis accelerometer) | MPU-9250 (accel + gyro + magnetometer) |
 
 ### Stage 04 — Spike sorting (`master_kilosort4`)
 
@@ -406,15 +429,17 @@ Only if `opt.phy = true`. Changes directory to `opt.FolderProcDataMat` and calls
 
 | File | Location | Created by | Notes |
 |---|---|---|---|
-| `<session>.bin` | `preprocessing/<subj>/<session>/` | `Intan2Kilosort_wrapper` | Flat int16 interleaved binary for KS4 |
+| `<session>.bin` | `preprocessing/<subj>/<session>/` | `Intan2Kilosort_wrapper` (INTAN) · `Deuteron2Kilosort` (Deuteron) | Flat int16 interleaved binary for KS4 |
 | `kilosort/4/` folder | `preprocessing/<subj>/<session>/` | `master_kilosort4` | KS4 templates, spike times, amplitudes |
-| `EventRecord.mat` | `preprocessing/<subj>/<session>/` | `EventProcess` | Raw event list with timestamps |
+| `EventRecord.CSV` | `preprocessing/<subj>/<session>/` | `Deuteron_ExtractEvents` (EXE path) | Raw Deuteron event log generated by Event_File_Reader_9_0.exe |
+| `EventRecord.mat` | `preprocessing/<subj>/<session>/` | `EventProcess` | Parsed event struct (both INTAN and Deuteron) |
 | `trialdef.mat` | `trialSorted/<subj>/<session>/` | `trialdefGen` | Trial boundaries in ms per alignment event |
 | `events.mat` | `trialSorted/<subj>/<session>/` | `trialdefGen` | Trial-aligned event struct |
 | `condition.mat` | `trialSorted/<subj>/<session>/` | `conditions_script` | Condition grouping |
 | `<session>_FTcont.mat` | `trialSorted/<subj>/<session>/` | `MAT2FieldTrip` | Continuous FieldTrip LFP data |
 | `<session>_<event>.mat` | `trialSorted/<subj>/<session>/` | `MAT2FieldTrip` | Trial-parsed FieldTrip LFP per alignment event |
-| `MotionData.mat` | `preprocessing/<subj>/<session>/` | `GetMotionSensors` | Head-direction / accelerometer |
+| `<session>_filt_dwn.mat` | `preprocessing/<subj>/<session>/` | `Deuteron2Fieldtrip` | Intermediate filtered+downsampled LFP cache (Deuteron only); re-used on re-runs |
+| `MotionData.mat` | `preprocessing/<subj>/<session>/` | `GetMotionSensors` | Head-direction / accelerometer (INTAN: 3-axis acc; Deuteron: acc + gyro + magnetometer) |
 | `<session>.nwb` | `preprocessing/<subj>/<session>/` | `intan2NWB_neuroconv` | NWB format (if `doNWB=true`) |
 | `<session>_reduced.mat` | `analysisCode/` and KSfolder | `reduceChanMap` | Reduced channel map if fewer files than channels |
 
@@ -487,6 +512,24 @@ The downsample target must divide evenly into the raw sample rate. With a 30 kHz
 ### Sessions are skipped with "Something went wrong during format verification"
 
 `chckV()` could not determine the file format in the raw folder. Check that the raw folder contains `amp*.dat` files (INTAN) or `.DT2`/`.DF1` files (Deuteron), and that `settings.xml` is present for INTAN recordings.
+
+### Deuteron: `opt.numChannels` is zero or wrong after event extraction
+
+`opt.numChannels` is set by `Deuteron_ExtractEvents` from the channel-mapping entry in the `EventRecord.CSV`. If this entry is missing or malformed (e.g. the EXE produced an incomplete CSV), `opt.channelOrder` will be empty. Check the CSV for a "Channel" log entry. If the EXE is unavailable, try `opt.uselog = true` to parse the text log instead — but note that `logevents.txt` may not contain channel-mapping information, in which case you must set `opt.numChannels` manually before the run.
+
+### Deuteron: `Deuteron_ExtractEvents` fails with EXE error
+
+- Confirm `input.exefile` points to a valid `Event_File_Reader_9_0.exe`.
+- The EXE requires the NEUR*.DF1 files to be in `opt.PathRaw` and will write `EventRecord.CSV` to `opt.FolderProcDataMat` — confirm both folders exist.
+- If the EXE crashes silently (produces an empty CSV), fall back to `opt.uselog = true`.
+
+### Deuteron: `Deuteron2Kilosort` produces a zero-byte `.bin`
+
+An error during file writing leaves a zero-byte `.bin`. The pipeline detects this on re-run and overwrites it. If the error recurs, check: (1) `opt.numChannels` is correct (must be set before this call); (2) `opt.highpass` is a scalar, not `[]`, if you want high-pass filtering; (3) disk space in `opt.FolderProcDataMat`.
+
+### Deuteron: LFP output has incorrect bandwidth
+
+Ensure `opt.lowpassFT` is set (default 200 Hz). If you see the full 32 kHz bandwidth in the FieldTrip file, `Deuteron2Fieldtrip` may have run with a stale cached `_filt_dwn.mat`. Delete the cache file from `preprocessing/<subj>/<session>/` and re-run.
 
 ### Git: only commit project files, not toolboxes
 

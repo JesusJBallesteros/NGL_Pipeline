@@ -49,9 +49,11 @@ function opts = default_opt()
     opts.linefilter      = 0;        % Line-noise notch centre frequency. 0 = off.
     opts.CAR             = 0;        % Common-average re-referencing. 0 = off.
     opts.dwnsmplRate     = [];       % LFP downsample target (Hz). [] = auto (937.5 Hz).
+    opts.timebreak       = false;    % If a break in the recording is expected (e.g. Deuteron battery change)
+    % opts.noise           = [];       % Needed?
 
     % Sorting & curation
-    opts.kilosort        = 1;        % Default to Kilosort 4
+    opts.kilosort        = 1;        % Default to Kilosort4
     opts.KSchanMapFile   = '';       % Empty = linear array; set to 'chanMapXXX.mat' for custom
     opts.bombcell        = true;     % Run Bombcell QC on Kilosort output
     opts.phy             = false;    % Open Phy after sorting (blocks MATLAB)

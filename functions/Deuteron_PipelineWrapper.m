@@ -1,50 +1,44 @@
 function [input, opt] = Deuteron_PipelineWrapper(input, varargin)
-% Adaptation from the common pipeline for Deuteron. Wraps up the most common 
-% processing lines necessary to get data from Deuteron raw files. This
-% includes the Neural data and the motion sensors, so far. Could be
-% expanded to extract audio as well.
+% Deuteron_PipelineWrapper  Entry point for Deuteron raw data processing.
 %
-% DEPENDENCIES
-%   % Deuteron_EventFileReaderDll: To extract Event Record from Deuteron Block format.
-%   Deuteron2Kilosort: To compile recorded data in a single file per channel.
-%                      Can also split the data based on event codes. 
-%   Deuteron_GetMotionSensors: To extract data from motion sensors.
-%   Deuteron_PlotMotionSensors: To process and visualize data from motion sensors.
+% PURPOSE:
+%   Orchestrates the complete Deuteron processing chain for a single session:
+%   event extraction → wideband .bin creation (Kilosort input) →
+%   LFP pseudo-FieldTrip file → optional motion-sensor extraction.
+%   Sets session-specific fields on opt (myFiles, ext, sampleRate, ADC
+%   parameters) before delegating to specialised sub-functions.
+%
+% USAGE:
+%   [input, opt] = Deuteron_PipelineWrapper(input)
+%   [input, opt] = Deuteron_PipelineWrapper(input, opt)
+%   Called from NGL01_Main inside the session loop.
 %
 % INPUTS:
-%    sessions: struct. Variable containing info about sessions in process
-%    ss:       int. Current session ordinal in the pipeline
-%    opt:      struct. optional inputs to override the defaults:
-%                   h5:     logic. Creation of .h5 file. Normally 'false'
-%                   bin:    logic. Creation of .bin file. Normally 'true'
-%                   FTfile: logic. Creation of Fieltrip-formatted .mat file.
-%                   RetrieveEvents:   logic. Retrieve eventlog from Deuteron (and extract eventcodes and timestamps from it).
-%                   GetMotionSensors: logic. Extraction and processing of motion sensor data.
-%                   lowpass:    int array. upper boundary for lowpass filter. e.g. 200
-%                   highpass:   int array. lower boundary for highpass filter. e.g. 450
-%                   DllFolder:  string. Location of the .dll file to process events in Deuteron.
-%                   set_filter: logic. Filtering (and downsampling) request.
-%                   StpSz:      int. Number of samples to be written per chunck.
+%   input  - struct built by set_default and findSessions; must contain:
+%              .sessions(x).info.files                  dir-struct of NEUR*.DF1 files
+%              .sessions(x).info.fileformat             'DF1' (or legacy 'DT2')
+%              .sessions(x).info.amplifier_sample_rate  Hz (typically 32000)
+%              .sessions(x).info.numADCBits             ADC bit depth (16)
+%              .sessions(x).info.voltageRes             V/bit scaling factor
+%              .run                                     index into sessions being processed
+%   opt    - (optional) options struct; all fields default via default_opt if omitted
 %
 % OUTPUTS:
-%    EventRecord.mat file. If requested.
-%    .bin file, as channels x samples. If requested.
-%    .h5 file, as channels x sample. If requested.
-%       (both with channels in increasing order as required for Kilosort.)
-%    MotionData.mat file, with [Accelerometer, Gyroscope, Magnetometer] variables
-%       containing timeseries for each sensor readings, in physical units. Plus
-%       a 'rotators' variable, containing the quaternions to create the
-%       rotation matrices and other transformations.
-% Version 12.06.2024 (Jesus)
+%   input  - passed through unchanged
+%   opt    - updated with session-specific fields:
+%              .myFiles, .ext, .sampleRate, .numberOfAdcBits,
+%              .voltageResolution, .offset, .channelOrder, .numChannels,
+%              .eventdef, .timebreak
+%
+% CALLS:
+%   EventProcess, Deuteron2Kilosort, Deuteron2Fieldtrip,
+%   MAT2FieldTrip, GetMotionSensors
+%
+% Last modified 08.05.2026 (Jesus)
 
 if nargin < 2, opt = struct();
 elseif nargin == 2, opt = varargin{1};
 end
-
-%% Default options.
-if ~isfield(opt,'timebreak'),       opt.timebreak           = false;        end
-if ~isfield(opt,'noise'),           opt.noise               = [];           end
-if ~isfield(opt,'parsetrial'),      opt.parsetrial          = false;        end
 
 %% Set local options.
 % Collect parameters to proceed with file creation. List all files.
@@ -62,7 +56,7 @@ opt.offset            = 2^(opt.numberOfAdcBits-1);
 %% Event data retrieval and trial definition.
 % 'trialdef' outputted for later feed into fieldtrip transf.
 % An empty output means that data shall be treated as continuous.
-[events, trialdef, EventRecord] = EventProcess(input, opt);
+[events, trialdef, EventRecord, opt] = EventProcess(input, opt);
 
 % Register a timebreak if detected
 if isfield(EventRecord,'TimeBreak')
@@ -75,7 +69,7 @@ end
 if opt.bin
     % Converts Deuteron DT2/DF1 files into .bin and/or .h5 files.
     disp('Converting Deuteron files to .bin format.');
-    Deuteron2Kilosort(opt);
+    Deuteron2Kilosort(opt)
 end
 
 %% Low-pass Neural Data Conversion to FT format.

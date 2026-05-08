@@ -72,8 +72,16 @@ ephys-data-pipeline/
 │   ├── MAT2FieldTrip.m           continuous + trial-parsed FT .mat creator
 │   ├── trialdefGen.m             trial boundary builder from EventRecord
 │   ├── events2align.m            event-name to decimal-value resolver
-│   ├── GetMotionSensors.m        Deuteron/INTAN accelerometer reader
-│   ├── master_kilosort4.m        MATLAB → Python KS4 caller
+│   ├── Deuteron_PipelineWrapper.m  Deuteron stage orchestrator
+│   ├── Deuteron_ExtractEvents.m    Deuteron event log reader (EXE or text log)
+│   ├── Deuteron2Kilosort.m         DF1 → Kilosort .bin file creator
+│   ├── Deuteron2Fieldtrip.m        DF1 → pseudo-FieldTrip LFP struct
+│   ├── Deuteron_GetMetaData.m      Deuteron hardware constants lookup
+│   ├── Deuteron_extractData.m      Low-level DF1 block reader (neural/motion/audio)
+│   ├── GetMotionSensors.m          Deuteron/INTAN motion sensor dispatcher
+│   ├── Deuteron_estimateheading.m  AHRS heading + dead-reckoning from MPU-9250
+│   ├── Deuteron_PlotMotionSensors.m  Motion sensor / orientation visualiser
+│   ├── master_kilosort4.m          MATLAB → Python KS4 caller
 │   ├── Bombcell_Main.m           Bombcell QC wrapper
 │   ├── downsampleVolt.m          integer-factor voltage downsampler
 │   ├── binvec2dec.m              LSB-first binary vector to decimal
@@ -123,9 +131,11 @@ Set these in `NGL_SetAndRunMe.m`. All unset fields receive safe defaults from `d
 | `bombcell` | `true` | Run Bombcell QC after sorting |
 | `phy` | `false` | Open Phy after KS4 (blocks MATLAB) |
 | `lowpass` | `9000` | Spike-band low-pass Hz (`[]` = off) |
-| `lowpassFT` | `250` | LFP low-pass Hz |
+| `lowpassFT` | `200` | LFP low-pass Hz (Butterworth 4th order) |
+| `highpass` | `[]` | High-pass Hz (`[]` = off; set to 300 for Deuteron Kilosort input) |
 | `CAR` | `0` | Common-average re-referencing |
-| `GetMotionSensors` | `false` | Extract accelerometer data |
+| `uselog` | `false` | **Deuteron only** — `true` = parse `logevents.txt` instead of using EXE |
+| `GetMotionSensors` | `false` | Extract head-direction / accelerometer data |
 
 → Full reference in [Wiki §6](wiki_NGL01_pipeline.md#6-all-options-reference-opt-fields)
 

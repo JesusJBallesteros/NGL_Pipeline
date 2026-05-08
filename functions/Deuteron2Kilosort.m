@@ -1,15 +1,44 @@
 function Deuteron2Kilosort(opt)
-% This function is a dependency of the script Deuteron2Kilosort_wrapper.
-% It compiles the data saved DF/DT2 in mat file channel by channel.
-% It performs high-pass filtering when the data is not already like that.
+% Deuteron2Kilosort  Convert Deuteron DF1 files to a Kilosort-ready .bin file.
 %
-% DEPENDENCIES:
-%  Deuteron_extractData: For new .DF1 format, data is extracted by this
-%                 function.
-%  bandFilter: to filter the highpass signal, since signal is intended to
-%                 Kilosort.
-
-% Jesus 12.06.2024
+% PURPOSE:
+%   Reads NEUR*.DF1 files block by block via Deuteron_extractData, converts
+%   ADC counts to µV (int16), applies optional CAR and DC removal, applies
+%   a high-pass filter if opt.highpass is set, and writes the result as a
+%   single int16 binary file (<SavFileName>.bin) in channels × samples layout
+%   as required by Kilosort.
+%
+% USAGE:
+%   Deuteron2Kilosort(opt)
+%   Called from Deuteron_PipelineWrapper when opt.bin = true.
+%
+% INPUTS:
+%   opt  - options struct; relevant fields:
+%            .ext               file format ('DF1')
+%            .myFiles           dir-struct of NEUR*.DF1 files
+%            .numChannels       electrode count (set by EventProcess via opt.channelOrder)
+%            .sampleRate        raw sample rate (Hz, typically 32000)
+%            .highpass          high-pass cutoff (Hz); [] = skip filtering
+%            .CAR               common-average re-referencing flag (0 = off)
+%            .voltageResolution, .offset  ADC-to-µV conversion parameters
+%            .PathRaw           raw data folder path
+%            .FolderProcDataMat output folder for the .bin file
+%            .SavFileName       session name used for output filename
+%
+% OUTPUT:
+%   <SavFileName>.bin written to opt.FolderProcDataMat; int16, channels × samples,
+%   little-endian. Skipped if a non-empty .bin already exists (re-run safety).
+%
+% NOTES:
+%   - For Kilosort 4 a high-pass filter (300–600 Hz) is strongly recommended;
+%     set opt.highpass accordingly (e.g. 300).
+%   - ADC conversion: int16((voltageResolution × (data − offset)) × 1e6)
+%
+% CALLS:
+%   Deuteron_extractData, ft_preproc_rereference, ft_preproc_detrend,
+%   ft_preproc_highpassfilter
+%
+% Last modified 08.05.2026 (Jesus)
 
 %% Check bin file existence and completion.
 % If an error happens during processing, the bin file persists created but with zero size
@@ -96,41 +125,43 @@ if strcmp(opt.ext, 'DF1')
         try
             data_mat = [data_mat tempdata]; % Concatenate.
         catch
-            disp('found non-matching file') % If size does not match (tipically last chunck).
+            if i==length(opt.myFiles)
+                disp('The last data chunk could not be concatenated')
+            else
+                disp('A non-matching file was found during data creation')
+            end
         end
     end
     clear tempdata fid
 
     % Reshape to channels x samples.
     data_mat = reshape(data_mat, opt.numChannels, []);
-
 end
 
 %% Common methods of preprocessing. Re-Referencing, DC substraction and filter.
 if opt.CAR
     % In principle, data from a single HS on a single region.
-    disp('Re-referencing by Common Average Referencing (CARing).')
+    disp('Re-referencing by Common Average Referencing (CAR).')
     data_mat = ft_preproc_rereference(data_mat, 'all', 'median');
 end
 
 % Enforce int16
 filt_data_mat = int16([]);
 
-txt = sprintf('Highpass filter set at %d Hz. It may take a moment.\n', opt.highpass);
-fprintf(txt);
-
 % Keep memory usage low doing one channel at a time.
 for b = 1:opt.numChannels
-    fprintf('- Filtering channel %d of %d.\n', b, opt.numChannels);
+    fprintf('- Channel %d of %d.\n', b, opt.numChannels);
     
     % Detrend channel (remove DC)
     disp('Detrending...')
     filt_data_mat(b,:) = ft_preproc_detrend(data_mat(b,:));
 
-    % Highpass channel (Butterwort, 6th order, back&forth)
-    disp('Filtering...')
-    [filt_data_mat(b,:), ~, ~] = ft_preproc_highpassfilter(data_mat(b,:), opt.sampleRate, opt.highpass, 6, 'but', 'twopass');
-                
+    % Highpass channel (Butterwort, 4th order, back&forth)
+    if ~isempty(opt.highpass)
+        txt = sprintf('Highpass at %d Hz.\n', opt.highpass);
+        fprintf(txt);
+        [filt_data_mat(b,:), ~, ~] = ft_preproc_highpassfilter(data_mat(b,:), opt.sampleRate, opt.highpass, 4, 'but', 'twopass');
+    end       
 end
 
 %% Write bin file.
