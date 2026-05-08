@@ -1,32 +1,51 @@
 function [events, trialdef, eventdef, EventRecord] = trialdefGen(EventRecord, opt, varargin)
-% The Event system and descritipions are based on a probably-to-be standard, as
-% Deuteron current capabilities include reading single pin changes, limited
-% to four input pins only. Therefore we are restricted to a sucession of
-% 4-pin states achieved by single-bit changes at a time. This makes for a
-% total of 16 possible states (decimal integers 0:15).
+% trialdefGen  Build trial boundaries and NGL-standard event struct from EventRecord.
 %
-% INPUT: EventRecords: struct with all events recorded during session.
-%           EventNumber (double)
-%           EventType (string)  
-%           TimeStamp (string or double)
-%           TimeMsFromMidnight (double) --> Converted to SECONDS
-%           TimeSource (string)
-%           Details (string)
-%        opt: struct with optional field 'eventdef' and all necessary
-%               subfields to define all possible eventcodes, as well as the event
-%               code use to align to time zero.
-%       
-% OUTPUT: events: struct with fields
-%           code {numtrials,1}, in decimal values as the standard from first event
-%                 belonging to the trial t to the last one.
-%           time {numtrials,1}, in seconds, aligned to a cero time fixed to an 
-%                 specific event (normally, itiOn).
-%         trialdef: array (ntrials,3) columns being [trial startTime, trial endTime, trial ZeroTime]
-%         eventdef: the event definitions used to create trials, 
-%                   either defaulted or the ones given by the user.
-% Jesus 11.07.2024
-%       24.04.2025: timebreak fix implemented
-%       27.02.2026: Removal of timestamp relativization to first trial start
+% PURPOSE:
+%   Converts a flat EventRecord into structured per-trial data. Finds trial
+%   start (itiOn) and end (end1/end2/end3) events, validates start-end
+%   consistency, removes outlier-length trials, and builds:
+%     'trialdef' - FieldTrip-compatible trial-boundary arrays in ms
+%     'events'   - NGL-standard per-trial event and timestamp struct
+%
+% USAGE:
+%   [events, trialdef, eventdef, EventRecord] = trialdefGen(EventRecord, opt)
+%   [events, trialdef, eventdef, EventRecord] = trialdefGen(EventRecord, opt, useevents, trialdef)
+%     (second form adds new alignment events to an existing events struct)
+%
+% INPUTS:
+%   EventRecord - struct from INTAN_ExtractEvents / Deuteron_ExtractEvents
+%                   .EventType, .EventNumber, .TimeStamp,
+%                   .TimeMsFromMidnight, .TimeSource, .Details, .TimeBreak
+%   opt         - complete options struct; relevant fields:
+%                   .eventdef    event name to decimal mapping (from eventDefinitions)
+%                   .alignto     (cell, n×2) [name, decimal] pairs from events2align
+%                   .addtime     (ms) padding around trial boundaries
+%                   .trEvents    (cell) special ITI event names
+%   varargin{1} - useevents: existing events struct (adding new alignments)
+%   varargin{2} - existing trialdef cell (adding new alignments)
+%
+% OUTPUTS:
+%   events      - struct; one field per alignment event (e.g. events.itiOn,
+%                   events.stimOn1). Each field contains:
+%                   .code {nTrials × 1} decimal event codes within the trial
+%                   .time {nTrials × 1} event times in seconds, zero = alignment event
+%                   Special ITI events (opt.trEvents) get additional .trial field.
+%   trialdef    - (2 × nAlignments) cell array:
+%                   {1,i} alignment event name (char)
+%                   {2,i} [nTrials × 3] double: [start end t0] all in ms
+%   eventdef    - copy of opt.eventdef with t0 field added
+%   EventRecord - (possibly trimmed) EventRecord; TimeSecFromMidnight added
+%
+% OUTLIER TRIAL DETECTION:
+%   Trials longer than 1.5× the median trial length are flagged. If exactly
+%   one such trial exists it is automatically removed. Multiple such trials
+%   trigger a warning but are retained for manual review.
+%
+% CALLS:
+%   events2align
+%
+% Last modified 07.05.2026 (Jesus)
 
 %% 01 Check inputs
 if nargin > 2,  useevents = varargin{1};
@@ -50,70 +69,74 @@ if isempty(useevents)
     end
     
     if ~(length(idx.start)==length(idx.end)) % matching start-end events
-        warning('A mismatch between number of start/end trials found.')
+        warning('A mismatch between number of start/end trials found.\n')
         if exist(fullfile(opt.behavFiles,"EventRecord.mat"),"file") 
             load(fullfile(opt.behavFiles,"EventRecord.mat"), 'EventRecord');
-            warning('A fixed EventRecord variable found.')
+            warning('A fixed EventRecord variable found.\n')
         else
-            warning('Trying to fix it.')
-            % Possible sources of start-end mismatch:
-            if any(idx.end(idx.end<idx.start(1)))
-                % trialend events BEFORE first trialstart. Possible error ending
-                % a previous session, leaving the pins in a different state than 
-                % the expected [1 1 0 0], generating succesive arbitrary events 
-                % until a point where the preIni state is enforced. 
-                % Solution, remove all events before first star trial event.
-                EventRecord.EventNumber(1:idx.end(1))   = [];
-                EventRecord.EventType(1:idx.end(1))     = [];
-                EventRecord.TimeStamp(1:idx.end(1))     = [];
-                EventRecord.TimeMsFromMidnight(1:idx.end(1)) = [];
-                EventRecord.TimeSource(1:idx.end(1))    = [];
-                EventRecord.Details(1:idx.end(1))       = [];
-                % Possible FIX to recover these initial trials? Assume first sent event
-                % is start trial. MANUAL CHECK!
-	            warning('Events before first start trial removed. Check if these trials are recoverable.')
+            warning('Recommended to manually check this sessions event files to find out why.\n')
+            % % Some common causes could be fixed using one of the approached below.
+            % %  Delete the bad files produced by this function and try re
+            % %  running it with one of the blocks commented below:
+            %
+            % % Possible sources of start-end mismatch:
+            %
+            % if any(idx.end(idx.end<idx.start(1)))
+            %     % trialend events BEFORE first trialstart. Possible error ending
+            %     % a previous session, leaving the pins in a different state than 
+            %     % the expected [1 1 0 0], generating succesive arbitrary events 
+            %     % until a point where the preIni state is enforced. 
+            %     % Solution, remove all events before first star trial event.
+            %     EventRecord.EventNumber(1:idx.end(1))   = [];
+            %     EventRecord.EventType(1:idx.end(1))     = [];
+            %     EventRecord.TimeStamp(1:idx.end(1))     = [];
+            %     EventRecord.TimeMsFromMidnight(1:idx.end(1)) = [];
+            %     EventRecord.TimeSource(1:idx.end(1))    = [];
+            %     EventRecord.Details(1:idx.end(1))       = [];
+            %     % Possible FIX to recover these initial trials? Assume first sent event
+            %     % is start trial. MANUAL CHECK!
+	        %     warning('Events before first start trial removed. Check if these trials are recoverable.')
+            % 
+            % elseif any(idx.start(idx.start>idx.end(end)))
+            %     % This is a lonely trial start with no apparent end. Error
+            %     % at session level or at event reading? Get rid of this
+            %     % lonely last trial.
+            %     EventRecord.EventNumber(idx.start(end):end)   = [];
+            %     EventRecord.EventType(idx.start(end):end)     = [];
+            %     EventRecord.TimeStamp(idx.start(end):end)     = [];
+            %     EventRecord.TimeMsFromMidnight(idx.start(end):end) = [];
+            %     EventRecord.TimeSource(idx.start(end):end)    = [];
+            %     EventRecord.Details(idx.start(end):end)       = [];
+            % 
+            % elseif opt.invalidTrls 
+            %     % points out line to check
+            %     st = dbstack; fname = st(1).file; lnum  = st(1).line + 3;  
+            %     msg = sprintf('<a href="matlab: opentoline(''%s'', %d)">Double check before proceeding!!! %s (line %d)</a>', fname, lnum, st(1).file, lnum);
+            %     disp(msg);
+            % 
+            %     invalidTrls = invalidTrials(EventRecord.EventType); % double check output before proceeding
+            % 
+            %     EventRecord.EventNumber(invalidTrls)   = [];
+            %     EventRecord.EventType(invalidTrls)     = [];
+            %     EventRecord.TimeStamp(invalidTrls)     = [];
+            %     EventRecord.TimeMsFromMidnight(invalidTrls) = [];
+            %     EventRecord.TimeSource(invalidTrls)    = [];
+            %     EventRecord.Details(invalidTrls)       = [];
+            % end
         
-            elseif any(idx.start(idx.start>idx.end(end)))
-                % This is a lonely trial start with no apparent end. Error
-                % at session level or at event reading? Get rid of this
-                % lonely last trial.
-                EventRecord.EventNumber(idx.start(end):end)   = [];
-                EventRecord.EventType(idx.start(end):end)     = [];
-                EventRecord.TimeStamp(idx.start(end):end)     = [];
-                EventRecord.TimeMsFromMidnight(idx.start(end):end) = [];
-                EventRecord.TimeSource(idx.start(end):end)    = [];
-                EventRecord.Details(idx.start(end):end)       = [];
-
-            elseif opt.invalidTrls 
-                % points out line to check
-                st = dbstack; fname = st(1).file; lnum  = st(1).line + 3;  
-                msg = sprintf('<a href="matlab: opentoline(''%s'', %d)">Double check before proceeding!!! %s (line %d)</a>', fname, lnum, st(1).file, lnum);
-                disp(msg);
-
-                invalidTrls = invalidTrials(EventRecord.EventType); % double check output before proceeding
-
-                EventRecord.EventNumber(invalidTrls)   = [];
-                EventRecord.EventType(invalidTrls)     = [];
-                EventRecord.TimeStamp(invalidTrls)     = [];
-                EventRecord.TimeMsFromMidnight(invalidTrls) = [];
-                EventRecord.TimeSource(invalidTrls)    = [];
-                EventRecord.Details(invalidTrls)       = [];
+            % After any of the fixes, re-run idexing to recover the changes
+            idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 
+            idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
+                               EventRecord.EventType==opt.eventdef.end2 | ...
+                               EventRecord.EventType==opt.eventdef.end3);
+            % Remove INTAN's 'sessionsStart' event again if re-captured
+            if idx.start(1)==1 
+                idx.start(1)=[];
             end
-        end
-        
-        % re-run idexing to recover the changes
-        idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 
-        idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
-                           EventRecord.EventType==opt.eventdef.end2 | ...
-                           EventRecord.EventType==opt.eventdef.end3);
     
-        % Remove INTAN's 'sessionsStart' event again if re-captured
-        if idx.start(1)==1 
-            idx.start(1)=[];
+            % Final check for start/end trial consistency. Throw error upen mismatch
+            assert(length(idx.start)==length(idx.end), 'Mismatch in start/end trials unsolved. Check the EventRecord to find the problem.\n')
         end
-
-        % Final check for start/end trial consistency. Throw error upen mismatch
-        assert(length(idx.start)==length(idx.end), 'Mismatch in start/end trials unsolved. Check the EventRecord to find the problem.')
 
         % If there was a timebreak, relativize it to the first timestamp
         % Also, all times after the break need to be adjusted for the actual
@@ -225,7 +248,7 @@ else
 end
     
 %% Go over every event and create the required trialdef aligned for that event
-% or else %% Go over every New Event and create the required alignment
+    % or else %% Go over every New Event and create the required alignment
 if isempty(useevents)
     for i=1:size(opt.alignto,1)
         correction = 0;
@@ -267,7 +290,7 @@ if isempty(useevents)
                     if trl > size(idx,1), break, end
                 % else TODO
                 % To find out if some trials are missing in trialdef, that
-                % are in EvenrRecord (idx). This could mean the trialdef
+                % are in EventRecord (idx). This could mean the trialdef
                 % generation has been modified somewhere here, due to
                 % mismatch on start-end events.
                 %     trialdef{2,i}(td,3) = nan;
@@ -422,8 +445,5 @@ end
 %% 07 Outputs
 opt.eventdef.t0 = opt.alignto;
 eventdef = opt.eventdef; % To keep track of definitions used
-
-% trialdef % trial definition array for FieldTrip
-% events % Event structure as NGL standard for spike processing
 
 end

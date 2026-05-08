@@ -1,16 +1,37 @@
 function Bombcell_Main(input, opt)
-% Adapted Bombcell pipeline 
-% Set the paths here and the parameters in 'bc_qualityParamValues'
-% This pipeline will:
-%   (1) load your kilosorted data, 
-%   (2) run bombcell on it, save the output and
-%   (3) bring up summary plots.
-% The first time, this pipeline will be significantly slower (10-20' more)
-% than after because it extracts raw waveforms. Subsequent times these
-% pre-extracted waveforms are simply loaded in.
-% We recommend running this pipeline on a few datasets and deciding on
-% quality metric thresholds depending on the summary plots (histograms 
-% of the distributions of quality metrics for each unit) and GUI. 
+% Bombcell_Main  Run Bombcell automatic quality metrics on Kilosort output.
+%
+% PURPOSE:
+%   Called from NGL01_Main stage 05 (when opt.bombcell = true). Loads the
+%   Kilosort 4 output and the raw .bin file, runs bc.qm.runAllQualityMetrics
+%   (from the Bombcell toolbox), saves QC results to the bombcell/ subfolder,
+%   and optionally shows the Bombcell GUI for interactive review.
+%
+% USAGE:
+%   Bombcell_Main(input, opt)
+%   Do not call directly; gated by opt.bombcell in NGL01_Main.
+%
+% INPUTS:
+%   input  - struct (not used directly; reserved for future path resolution)
+%   opt    - options struct; relevant fields:
+%              .FolderProcDataMat   preprocessing folder (contains .bin file)
+%              .KSfolder            Kilosort output folder
+%
+% OUTPUTS:
+%   <KSfolder>/bombcell/            Bombcell QC results directory
+%     unitType.npy                  unit classification (good/MUA/noise)
+%     qMetrics.mat                  full quality metrics struct
+%     (+ Bombcell standard output files)
+%
+% PARAMETERS:
+%   Bombcell quality metric thresholds are set in bombcellConfig.m (stored
+%   in analysisCode/). Copy the template from the toolbox and adjust
+%   per-dataset after reviewing the QC histograms and GUI.
+%   On first run, raw waveforms are extracted from the .bin file (~10–20 min
+%   extra). On re-runs, pre-extracted waveforms are loaded from disk.
+%
+% CITE:
+%   Bombcell: https://github.com/Julie-Fabre/bombcell
 %
 % Jesus 21.05.2025
 

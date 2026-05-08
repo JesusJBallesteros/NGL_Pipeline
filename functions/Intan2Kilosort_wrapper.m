@@ -1,41 +1,46 @@
 function Intan2Kilosort_wrapper(sessions, varargin)
-% Adaptation from the common pipeline for Intan. Prepares recorded data in 
-% the high pass for spike sorting with Kilosort. Uses the high-pass files 
-% from INTAN to create .h5 and .bin files. It reads the INTAN file, either 
-% a file per channel or a file for the whole bunch. Then, converts the ADC 
-% step values to microvolts by multiplying by 0.195. The data comes out as 
-% ch x samples in int16 format, ready for Kilosort. 
-% This data is saved channel by channel and in chunks to a .h5 file. 
-% This data is saved as a whole into a .bin file. 
+% Intan2Kilosort_wrapper  Create flat binary .bin file for Kilosort spike sorting.
 %
-% DEPENDENCIES: 
-%   Intan2Kilosort_filepertype
-%   Intan2Kilosort_fileperchannel
+% PURPOSE:
+%   Wrapper for .bin file creation. Reads INTAN amp*.dat (or high*.dat)
+%   files, scales ADC values to µV (×0.195), optionally filters, and writes
+%   a flat int16 interleaved binary file (channels × samples) for Kilosort.
+%   Dispatches to format-specific implementations based on sessions.info.fileformat.
+%
+% USAGE:
+%   Intan2Kilosort_wrapper(sessions, opt)
+%   Intan2Kilosort_wrapper(sessions)    % opt defaulted
 %
 % INPUTS:
-%    sessions: struct. Variable containing info about sessions in process
-%    opt:      struct. optional inputs to override the defaults:
-%               opt.StpSz          = 1800000;  int that determines the chunk size to writo into the bin file
-%               opt.RetrieveEvents = false;    Logic that determines if we want to retrieve events.
+%   sessions  - struct from input.sessions(x), must contain:
+%                 .info.fileformat        ('fileperch' | 'filepertype' | 'tradFormat')
+%                 .info.nChannels         electrode count from header
+%                 .info.nfiles            number of .dat files found
+%                 .info.amplifier_sample_rate (Hz)
+%   opt       - options struct; relevant fields:
+%                 .myFiles      list of .dat files to read
+%                 .set_filter   1 = apply detrend+highpass+lowpass; 0 = skip
+%                 .numChannels  overrides sessions.info.nChannels if mismatch
+%                 .sampleRate   sample rate (Hz)
+%                 .StpSz        chunk size in samples (default = 300 × sampleRate)
+%                 .num_samples  total samples per channel (set per format)
 %
 % OUTPUT:
-%    Binary file, channels(rows) per sample (columns), with channels
-%    in increasing order ? as required for processing with Kilosort 
-% 
-% VERSION HISTORY:
-% Author: Aylin, Lukas & Sara
-% Last MOD. Jesus 27.03.2026
+%   <session>.bin file written to opt.FolderProcDataMat (set by prepforsession)
+%   File format: int16, [nChannels × nSamples]
+%
+% CALLS:
+%   Intan2Kilosort_fileperch, Intan2Kilosort_filepertype, Intan2Kilosort_tradFormat
+%
+% Last modified 07.05.2026 (Jesus)
 
-if nargin < 2, opt = struct();
-elseif nargin == 2, opt = varargin{1};
+if nargin < 2,  opt = struct();
+else, opt = varargin{1};
 end
 
-%% Main call
-if strcmp(sessions.info.fileformat,'filepertype') || strcmp(sessions.info.fileformat,'fileperch')
+if contains(sessions.info.fileformat, 'fileper')
     % Collect parameters that not need to necessarily defaulted to a given value. 
-    % To proceed, list all files (multiple or single, depending on filetype).
-    % For highpass files, no further filtering is necessary (In priciple! make
-    % sure you are recording a proper, useful, highpass within INTAN).
+    % To proceed, list files depending on filetype.
     opt.myFiles = dir('high*.dat');
     opt.set_filter = 0;
     
@@ -70,17 +75,15 @@ if strcmp(sessions.info.fileformat,'filepertype') || strcmp(sessions.info.filefo
         % To get the number of samples, divide the file size by number of 
         % channels, times bytes that each int16 word takes (int16 = 2 bytes).
         opt.num_samples = fileinfo.bytes/(opt.numChannels * 2); 
-        
         Intan2Kilosort_filepertype(opt);
     
-        elseif strcmp(sessions.info.fileformat,'fileperch')
-    
+    elseif strcmp(sessions.info.fileformat,'fileperch')
         % To get the number of samples, divide the file size by the bytes 
         % each int16 word takes (int16 = 2 bytes).
         opt.num_samples = fileinfo.bytes/2;
-    
         Intan2Kilosort_fileperch(opt);
     end
+    
 elseif strcmp(sessions.info.fileformat,'tradFormat')
     opt.myFiles = sessions.info.files;
     opt.set_filter = 0;

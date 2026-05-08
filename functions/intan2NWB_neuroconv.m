@@ -1,11 +1,13 @@
 function intan2NWB_neuroconv(input, opt)
 % Makes sure there is no '.nwb' files in directory. Then, runs the wrapper
 % for the INTANtoNWB tool.
+%
 % INPUT:    
 %   input        struct, general inputs to script. Needs the path to python folder.
 %   opt.sessions struct, info for sessions: folder, name and number of sessions.
 %   opt.ss       int, numeral of processing session
-% OUTPUT:   none explicit.
+%
+% OUTPUT:   no explicit output.
 %           It generates a new file with extension .nwb in the /processed folder
 %
 % Version 16.01.2025 Jesus

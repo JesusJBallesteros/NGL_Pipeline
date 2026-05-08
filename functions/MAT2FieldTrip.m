@@ -1,16 +1,45 @@
 function MAT2FieldTrip(data, opt, varargin)
-% Wraps the process to transform a simple .mat file into one with
-% appropiate format for further processing with FieldTrip toolbox.
-% Options are, to create a 'continuous' FT file, (one, large trial) or to
-% create a trial-parsed FT file, for which we need the eventcodes.
+% MAT2FieldTrip  Convert pseudo-FieldTrip struct to proper FT format and save.
 %
-% INPUT: data, data struct as pseudo-FT format (from previous step)
-%        opt, parameters and paths (needed only to save files)
-%        trialdef, a (trials,3) array with start/end/t0 times. Optional
-%        cont, logic, to force continuous data treatment if true. Optional.
+% PURPOSE:
+%   Takes the pseudo-FieldTrip struct produced by intan2MAT_wrapper and
+%   calls ft_checkdata + ft_redefinetrial to produce:
+%   (1) A continuous FT file (*_FTcont.mat) — always produced unless skipped
+%   (2) Trial-parsed FT files (*_<event>.mat) — one per alignment event in trialdef
+%   Both outputs are saved to opt.trialSorted. Skips if the continuous file
+%   already exists (re-run safety).
 %
-% OUTPUT: 
-
+% USAGE:
+%   MAT2FieldTrip(data, opt)                    % continuous only
+%   MAT2FieldTrip(data, opt, trialdef)          % continuous + trial-parsed
+%   MAT2FieldTrip(data, opt, trialdef, cont)    % explicit control
+%     cont = true  → force continuous output even if trialdef is supplied
+%
+% INPUTS:
+%   data      - pseudo-FieldTrip struct from intan2MAT_wrapper (.label,
+%               .trial, .time, .sampleinfo)
+%   opt       - options struct; must contain:
+%                 .trialSorted    output folder for .mat files
+%                 .SavFileName    session name for output filenames
+%   trialdef  - (optional) (2 × nAlignments) cell array from trialdefGen:
+%                 {1,i} alignment event name (char)
+%                 {2,i} [nTrials × 3] double [start end t0] in MILLISECONDS
+%   cont      - (optional, logical) if true, force continuous processing
+%               even when trialdef is provided (produces both outputs)
+%
+% OUTPUTS (saved to opt.trialSorted):
+%   <SavFileName>_FTcont.mat          continuous FieldTrip data (FT_data)
+%   <SavFileName>_<event>.mat         trial-parsed FieldTrip data per alignment
+%
+% NOTES:
+%   - trialdef times are in ms; conversion to samples uses fs_lfp derived
+%     from data.time{1} directly (not from opt.dwnsmplRate).
+%   - cfg.trl offset is set so that FieldTrip's t=0 aligns to the t0 column
+%     of trialdef: cfg.trl(:,3) = cfg.trl(:,1) - round(t0/1000 * fs_lfp).
+%
+% CALLS:
+%   ft_checkdata, ft_redefinetrial (FieldTrip)
+%
 % Jesus 12.06.2024
 
 %% Check existence of FT files
@@ -18,6 +47,9 @@ if isempty(data)
     disp('Fieldtrip proper formatting was skipped too.')
     return
 end
+
+% get sample rate
+fs_lfp = 1 / (data.time{1}(2) - data.time{1}(1));
 
 %% Check inputs
 if nargin < 3
@@ -57,7 +89,7 @@ if cont
     clear cfg
     
     % Save this session data.
-    save(fullfile(opt.trialSorted, strcat(opt.SavFileName,'_FTcont.mat')), 'FT_data', '-v7.3');
+    save(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_FTcont.mat')), 'FT_data', '-v7.3');
     clear data
 end
 
@@ -75,7 +107,8 @@ if ~isempty(trialdef)
     for i=1:size(trialdef,2)
         % Then proceed to trial-parse the FT_data. Use 'ft_redefinetrial'
         cfg = [];
-        cfg.trl = trialdef{2,i};
+        % cfg.trl = trialdef{2,i}; trial boundaries passed in ms instead of samples
+        cfg.trl = round(trialdef{2,i} / 1000 * fs_lfp);
 
         % Re-set the offset of the trial definition for FT to get it.
         cfg.trl(:,3) = cfg.trl(:,1) - cfg.trl(:,3);

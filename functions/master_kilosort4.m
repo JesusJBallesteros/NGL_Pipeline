@@ -1,13 +1,45 @@
 function master_kilosort4(input, varargin)
-% Implementation of a MATLAB wrapper to the newly developed Kilosort4, which runs
-% completely under python. To be used with the API version, programatically, 
-% during a regular session processing.
+% master_kilosort4  MATLAB → Python wrapper for Kilosort 4 spike sorting.
 %
-% Fundamental algorithm from MOUSELAND KILOSORT GITHUB. Cite the toolbox and paper:
-% https://github.com/MouseLand/Kilosort
-% General documentation: https://kilosort.readthedocs.io/en/latest/
+% PURPOSE:
+%   Calls Kilosort 4 (which runs entirely in Python) from MATLAB via pyrunfile.
+%   Activates the KS4 Python environment, copies the wrapper script and
+%   parameters file into it, then executes Kilosort on the session's .bin file.
+%   KS4 output (templates, spike times, cluster assignments) is written to
+%   opt.KSfolder.
 %
-% This function and the python wrapper by Jesus J. Ballesteros 08.2024
+% USAGE:
+%   master_kilosort4(input, opt)
+%   master_kilosort4(input)    % opt defaults used
+%   Called from NGL01_Main stage 04; do not call directly.
+%
+% INPUTS:
+%   input  - struct from set_default + prepforsession; relevant fields:
+%              .KSpythonExe   path to Kilosort 4 Conda environment
+%              .KSpyfolder    path to kilosort package inside that env
+%   opt    - (optional) struct; relevant fields:
+%              .FolderProcDataMat  folder containing the .bin file
+%              .KSfolder           output folder for KS4 results
+%              .SavFileName        session name
+%              .numChannels        number of electrode channels
+%              .KSchanMapFile      channel map filename ('' = linear)
+%
+% OUTPUT:
+%   Kilosort 4 output directory at opt.KSfolder containing:
+%     spike_times.npy, spike_templates.npy, templates.npy,
+%     cluster_group.tsv, params.py, and associated files.
+%
+% REQUIREMENTS:
+%   - Kilosort 4 installed in the KS Python environment:
+%       conda activate kilosort && pip install kilosort[gui]
+%   - GPU (CUDA) strongly recommended for performance.
+%   - Only one pyenv can be active per MATLAB session; restart MATLAB between
+%     runs if switching Python environments.
+%
+% CITE:
+%   Pachitariu et al. (2024). Kilosort4: https://github.com/MouseLand/Kilosort
+%
+% MATLAB wrapper: Jesus J. Ballesteros, 08.2024
 
 %% INSTALL Python requirements and kilosort4
 %  1. To be able to use Kilosort4 at all. This will be setup once per

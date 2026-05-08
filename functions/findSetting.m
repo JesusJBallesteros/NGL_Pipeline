@@ -1,9 +1,45 @@
-function sessions = findSetting(sessions)
-% Find out INTAN settings and header file. Extracts the info.
-% Using 'specs' and 'getField' as a more comprehensive parameter field, in
-% case things change in the future. Still rigid in a way.
+function input = findSetting(input)
+% findSetting  Read INTAN RHD header and settings.xml for the current session.
 %
-% Version 05.05.2026 Jesus
+% PURPOSE:
+%   Called from prepforsession (while in the session's raw-data folder) for
+%   INTAN 'fileperch' and 'filepertype' formats. Reads 'info.rhd' via
+%   mod_read_Intan_RHD2000_file and, if present, parses 'settings.xml' to
+%   extract amplifier sample rate, lowpass downsample factor, firmware
+%   version, and the full parameter tree. Results are merged into
+%   input.sessions(x).info so all downstream functions have header access.
+%
+% USAGE:
+%   input = findSetting(input)
+%   Requires input.run to be set and CWD to be the session's raw-data folder.
+%
+% INPUT:
+%   input  - struct with input.run and input.sessions(input.run(1)).info
+%            already populated by chckV()
+%
+% OUTPUT:
+%   input  - input.sessions(input.run(1)).info extended with:
+%              .INTAN_hdr             full RHD header struct
+%              .nChannels             active channel count (from header)
+%              .amplifier_sample_rate (Hz) from settings.xml or header
+%              .lowpass_downsample    downsample factor (or [] if unavailable)
+%              .lowpass_sample_rate   amplifier_sample_rate / downsample factor
+%              .Version               firmware/software version string
+%              .Name                  system name
+%              .Children              raw settings.xml parameter tree
+%
+% NOTES:
+%   - settings.xml is present in recordings made with INTAN RHX software.
+%   - Older datasets (RHD GUI) may only have info.rhd; lowpass fields will
+%     be [] in that case.
+%   - The helper function getField (local) traverses nested structs via a
+%     dot-path string, e.g. 'Children(2).Attributes(85).Value'.
+%
+% CALLS:
+%   mod_read_Intan_RHD2000_file, parseXML
+%
+% Last modified 05.05.2026 (Jesus)
+sessions = input.sessions(input.run(1));
 
     if isfile('info.rhd')
         %  Uses a modified Intan function, to make the information output more
@@ -34,7 +70,6 @@ function sessions = findSetting(sessions)
                      'Children',             'Children',                             [] % Set of parameters from recording
                     };
             
-            sessions.info = struct();
             for i = 1:size(specs,1)
                 sessions.info.(specs{i,1}) = getField(settingStruct, specs{i,2}, specs{i,3});
             end
@@ -55,6 +90,8 @@ function sessions = findSetting(sessions)
             sessions.info.lowpass_sample_rate     = [];
         end
     end
+
+input.sessions(input.run(1)) = sessions;
 end
 
 function val = getField(s, pathStr, converter)

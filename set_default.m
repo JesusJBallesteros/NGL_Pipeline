@@ -1,43 +1,80 @@
 function [input, opt] = set_default(input, opt)
-% set_default  Merge options with defaults, validate inputs, set paths and dependencies.
+% set_default  Merge options with defaults, validate inputs, resolve paths.
+%
+% PURPOSE:
+%   validation and preparation of options for the NGL toolbox.
+%   Must be called once, at the top of every pipeline script (NGL01_Main,
+%   NGL02_postPhy, etc.), before any session loop begins.
+%   After this call, 'opt' should be complete and validated, and
+%   'input' carries all resolved paths, the subject list, and Python env
+%   paths needed by downstream functions.
+%
+% USAGE:
 %   [input, opt] = set_default(input, opt)
 %
-%   This is the single validation and preparation gateway for the NGL toolbox.
-%   It should be called once, early in each top-level pipeline script.
-%   After this call:
-%       - 'opt'   is guaranteed to be complete, validated, and consistent.
-%       - 'input' carries all resolved paths and the subject list.
+% INPUTS:
+%   input - struct with at minimum:
+%             .datadrive  (char) drive letter, e.g. 'D'
+%             .studyName  (char) project folder name
+%             .subjects   (char 'all' | cell of IDs)
+%             .dates      (char 'all' | cell of YYYYMMDD strings)
+%   opt   - struct of user-specified options (can be empty struct)
 %
-%   Jesus. 27.03.2026
+% OUTPUTS:
+%   input - struct with resolved IKN path fields:
+%             .analysisCode, .datafolder, .analysis, .bhvfolder,
+%             .spikeSorted, .trialSorted, .processed, .toolbox,
+%             .KSpythonExe, .KSpyfolder, .PHYpythonExe, .PHYpyfolder
+%             .ReaderDll, .exefile
+%             .subjects   (dir-struct array)
+%             .nsubjects  (scalar count)
+%   opt   - complete options struct; all fields from default_opt present,
+%           user values override defaults, unknown fields warned and dropped.
+%
+% SECTIONS:
+%   1. Merge user opt with defaults (default_opt)
+%   2. Validate and normalise fields
+%   3. Resolve dependencies (warn on conflicts)
+%   4. Validate and normalise input struct
+%   5. Build IKN standard path structure
+%   6. Resolve subject list
+%   7. Add all dependency folders to MATLAB path, call ft_defaults
+%
+% REQUIRES:
+%   default_opt.m, NGL_machineConfig.m (in analysisCode/)
+%
+% Last modified 06.05.2026 (Jesus)
 
 %% SECTION 1: Merge user-provided opt with canonical defaults
 % Pull the full default set from the single source of truth, then overwrite
 % only the fields the user actually specified. Fields left unset by the user
 % silently receive their safe default. Unrecognised fields trigger a warning
-% so typos surface immediately rather than being silently ignored.
+% so typos error immediately rather than stay silent.
 defaults   = default_opt();
 userFields = fieldnames(opt);
 
-% Should exist saved under 'analysisCode\' folder, together with 'NGL_SetAndRunMe.m'
-% Should match the specifics of the machine your intend to use
+% Should exist under 'analysisCode\' folder, together with 'NGL_SetAndRunMe.m'
+% and match the specifics of the machine your intend to use
 cfg = NGL_machineConfig();
 
+% Proceed 
 for i = 1:numel(userFields)
     f = userFields{i};
     if isfield(defaults, f)
-        defaults.(f) = opt.(f);           % user value wins
+        defaults.(f) = opt.(f); % user value wins
     else
-        warning('NGL:unknownOption', ...
-            'Option ''%s'' is not recognised by default_opt() and will be ignored.', f);
+        warning('NGL:unknownOption', 'Option ''%s'' is not recognised by default_opt() and will be ignored.', f);
     end
 end
-opt = defaults; % opt is now guaranteed to be complete
+
+% opt is now complete
+opt = defaults;
 
 %% SECTION 2: Validate and normalise opt fields
-% Catch type errors and common mistakes early, with clear messages,
-% rather than letting them surface as cryptic errors deep in a pipeline.
+% Catch type errors and oher mistakes early, with clear messages,
+% rather than becoming errors deep in a pipeline.
 
-% alignto: forgive the very common mistake of passing a plain char
+% alignto: forgive passing a plain char
 if ischar(opt.alignto)
     opt.alignto = {opt.alignto};
 end
@@ -45,11 +82,11 @@ assert(iscell(opt.alignto) && all(cellfun(@ischar, opt.alignto)), ...
     'NGL:invalidOption', ...
     'opt.alignto must be a char array or cell array of char arrays (e.g. {''itiOn'', ''rwd''}).');
 
-% numChannels
+% numChannels: must be a positive scalar integer
 assert(isnumeric(opt.numChannels) && isscalar(opt.numChannels) && opt.numChannels > 0, ...
     'NGL:invalidOption', 'opt.numChannels must be a positive scalar integer.');
 
-% lowpass: must be a sensible frequency or empty (off)
+% lowpass: must be a non-zero or empty (off)
 if ~isempty(opt.lowpass)
     assert(isnumeric(opt.lowpass) && isscalar(opt.lowpass) && ...
            opt.lowpass > 0 && opt.lowpass < 9500, ...
@@ -57,11 +94,10 @@ if ~isempty(opt.lowpass)
         'opt.lowpass must be a scalar between 0 and 9500 Hz, or empty (= off).');
 end
 
-% Kilosort version must be 2 or 4
-assert(ismember(opt.kilosort, [2, 4]), ...
-    'NGL:invalidOption', 'opt.kilosort must be 2 or 4.');
+% Kilosort version must be 4. TO DEPRECATE, AS ONLY OPTION NOW
+assert(isnumeric(opt.kilosort) && isscalar(opt.lowpass), 'NGL:invalidOption', 'opt.kilosort must be 1 or 0.');
 
-%% SECTION 3: Resolve inter-option dependencies
+%% SECTION 3: Resolve dependencies
 % These are logical consistency checks across pairs of options.
 
 % NWB and H5 pipelines conflict due to a DLL collision; warn clearly.
@@ -76,7 +112,7 @@ end
 if opt.phy && ~opt.bombcell
     warning('NGL:phyWithoutBombcell', ...
         ['opt.phy=true but opt.bombcell=false. ', ...
-         'Manual curation will proceed without Bombcell QC pre-filtering.']);
+         'Manual curation will proceed without Bombcell screening.']);
 end
 
 % Asking for multiple alignment events without extracting events is contradictory.
@@ -98,13 +134,13 @@ assert(ischar(input.datadrive) && length(input.datadrive) == 3, ...
 assert(ischar(input.studyName) && ~isempty(strtrim(input.studyName)), ...
     'NGL:invalidInput', 'input.studyName must be a non-empty character array.');
 
-%% SECTION 5: Build standard IKN path structure
+%% SECTION 5: Build standard path structure
 base = fullfile(input.datadrive, input.studyName);
 
-input.analysisCode  = fullfile(base, 'analysisCode');
-input.datafolder    = fullfile(base, 'data', 'raw');
+input.analysisCode  = fullfile(base, 'analysisCode');       % Configuration files need to be checked
+input.datafolder    = fullfile(base, 'data', 'raw');        % Data needs to be manually added here
 input.analysis      = fullfile(base, 'data', 'analysis');
-input.bhvfolder     = fullfile(base, 'data', 'behaviour');   % candidate for deprecation
+input.bhvfolder     = fullfile(base, 'data', 'behaviour');
 input.spikeSorted   = fullfile(base, 'data', 'spikeSorted');
 input.trialSorted   = fullfile(base, 'data', 'trialSorted');
 input.processed     = fullfile(base, 'data', 'preprocessing');
@@ -117,12 +153,10 @@ input.PHYpythonExe = cfg.PHYpythonExe;
 input.PHYpyfolder  = fullfile(cfg.PHYpythonExe, 'Lib', 'site-packages', 'phy');
 
 % Deuteron reader binaries
-input.ReaderDll = fullfile(input.toolbox, 'toolboxes', 'Deuteron', 'software', ...
-    'Event_File_Reader_9_0.dll');
-input.exefile   = fullfile(input.toolbox, 'toolboxes', 'Deuteron', 'software', ...
-    'Event_File_Reader_9_0.exe');
+input.ReaderDll = fullfile(input.toolbox, 'toolboxes', 'Deuteron', 'software', 'Event_File_Reader_9_0.dll');
+input.exefile   = fullfile(input.toolbox, 'toolboxes', 'Deuteron', 'software', 'Event_File_Reader_9_0.exe');
 
-% NWB/NeuroConv path (only needed if requested)
+% NWB/NeuroConv path
 if opt.doNWB
     input.NCfolder = cfg.NCpythonExe;
 end
@@ -135,11 +169,11 @@ end
 
 % Determine the search root: jump to 'preprocessing' if a server flag exists
 searchRoot = input.datafolder;
-if isfile(fullfile(searchRoot, '_findatserver'))
+if isfile(fullfile(searchRoot, '_findatserver')) % A file named as this should be created. Very exceptional cases.
     searchRoot = input.processed;
 end
 
-% Read all available subject folders (3+ character names)
+% Read all available subject folders (3 character names)
 cd(searchRoot)
 available = dir('???*');
 
@@ -149,7 +183,7 @@ elseif iscell(input.subjects)
     idx = ismember({available.name}, input.subjects);
     input.subjects = available(idx);
 else
-    % Assume subjects was already a processed struct from a previous run
+    % Assume subjects is already a processed struct from a previous run
     warning('NGL:subjectFormat', ...
         ['input.subjects was neither ''all'' nor a cell array. ', ...
          'Assuming it was set from a previous NGL01 run. Re-assign to change the subset.']);
@@ -176,4 +210,5 @@ addpath(genpath(fullfile('toolboxes', 'spikes')))
 
 ft_defaults   % initialise FieldTrip
 
+disp('Defaults and User Options successfully merged.')
 end

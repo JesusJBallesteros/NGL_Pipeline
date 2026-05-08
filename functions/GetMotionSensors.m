@@ -1,13 +1,37 @@
 function GetMotionSensors(opt, input)
-% This function allows for Motion Data extraction from raw data
-% format. Uses a few fixed parameters to give proper units to the extracted
-% timeseries and sorts each sensor's data to its respective variable.
-% It plots the extracted raw data and saves it into separated file.
-% It processes the data using an attitude and heading reference system
-% (AHRS) to hopefully put the data in a meaningful reference system that
-% can be used to predict/estimate the animal's position/heading.
-% 
-% Last: Fix in timestamp to seconds calculation
+% GetMotionSensors  Extract and process head-direction / accelerometer data.
+%
+% PURPOSE:
+%   Dispatches motion-sensor extraction based on recording format:
+%   - INTAN (fileperch): reads AUX*.dat accelerometer channels
+%   - Deuteron (DT2/DF1): reads NEUR*.dat via Deuteron_extractData
+%   Converts raw ADC values to physical units, applies AHRS processing to
+%   estimate animal heading/position, plots the raw timeseries, and saves
+%   a MotionData.mat file to opt.FolderProcDataMat.
+%
+% USAGE:
+%   GetMotionSensors(opt, input)
+%   Only called when opt.GetMotionSensors = true (gated in INTAN_PipelineWrapper
+%   and Deuteron_PipelineWrapper).
+%
+% INPUTS:
+%   opt    - options struct; relevant fields:
+%              .FolderProcDataMat  output folder for MotionData.mat
+%              .PathRaw            raw data folder (INTAN AUX*.dat location)
+%   input  - struct; relevant field:
+%              .sessions.info.fileformat  ('fileperch' | 'DT2' | 'DF1')
+%
+% OUTPUT:
+%   MotionData.mat saved to opt.FolderProcDataMat; contains per-sensor
+%   timeseries and AHRS-processed heading estimates.
+%
+% NOTES:
+%   - Head-direction interpretation from AHRS requires careful calibration;
+%     results should be verified manually before use in analysis.
+%   - The fileformat check on input.sessions.info.fileformat currently lacks
+%     subject indexing (uses input.sessions rather than input.sessions(x)) —
+%     this is a known minor issue for multi-subject batch runs.
+%
 % Jesus 06.03.2026
     
 % options to parse into estimation functions

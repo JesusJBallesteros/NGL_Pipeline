@@ -1,4 +1,4 @@
-function [opt] = Deuteron_PipelineWrapper(input, varargin)
+function [input, opt] = Deuteron_PipelineWrapper(input, varargin)
 % Adaptation from the common pipeline for Deuteron. Wraps up the most common 
 % processing lines necessary to get data from Deuteron raw files. This
 % includes the Neural data and the motion sensors, so far. Could be

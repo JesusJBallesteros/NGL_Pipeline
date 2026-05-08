@@ -1,9 +1,33 @@
-%% 0) READ. THIS FILE MUST EXIST ON YOUR PROJECT'S analisysCode FOLDER
-% SET AND RUN. 
-% Input file where there is no access to any of the running code, making
-% this the only file that needs to be modified, and that could call all
-% pipelines as a sequence of easily swichable runs by simply commenting 
-% lines. Could be ran line-by-line (F9) or all at once (F5).
+%% NGL_SetAndRunMe  — User Configuration and Run Script (TEMPLATE)
+%
+% PURPOSE:
+%   The single file a user must edit to drive the entire NGL pipeline.
+%   Copy this template from the toolbox root into your project's
+%   analysisCode/ folder and edit it there. Never run it from the toolbox
+%   root itself.
+%
+% USAGE:
+%   Run section-by-section (F9) or all at once (F5) from MATLAB.
+%   All subsequent pipeline scripts (NGL01_Main, NGL02_postPhy, etc.) are
+%   called from within this file — they should never be opened directly.
+%
+% SECTIONS:
+%   1) PREPARE   — set study metadata, drive and project name, run NGL00_Prep
+%   2) SET       — choose subjects/sessions and configure opt struct
+%   3) RUN       — call NGL01_Main, NGL02_postPhy, and optional stages
+%
+% REQUIRED CONFIG FILES (place in analysisCode/ alongside this script):
+%   NGL_machineConfig.m   — machine-specific Python env and toolbox paths
+%   eventDefinitions.m    — project event code definitions
+%   conditions_script.m   — condition grouping logic
+%   chanMapXXX.mat        — custom Kilosort channel map (if applicable)
+%
+% NOTES:
+%   - opt fields not listed here receive safe defaults from default_opt.m.
+%   - See wiki_NGL01_pipeline.md for a full opt field reference.
+%   - NGL_machineConfig.m is machine-specific; do not commit it to git.
+%
+% Last modified 06.05.2026 (Jesus)
 
 %% 1) PREPARE.
 clear all
@@ -40,12 +64,12 @@ opt = struct();
         opt.alignto         = {'itiOn', 'stimOn1', 'rwd'};  % single char array e.g. 'itiOn', or cell array e.g. {'itiOn', 'rwd'}. 'itiON' should be the very least to align to.
     opt.GetMotionSensors    = false;   % Retrieve data from motion sensors in Deuteron. NEEDS IMPROVEMENT on head direction interpretation.
     opt.FieldTrip           = false;   % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
-    opt.bombcell            = true;    % Run bombcell on the KS output. =2 (KS2) or =4 (KS4). Previous step to manual curation.
-    % opt.lowpass             = 10000;   % If < 9500, high boundary frequency value for low-pass.
+    opt.bombcell            = true;    % Run bombcell on the KS output. Previous step to manual curation.
+    opt.lowpass             = 10000;   % If < 9500, high boundary frequency value for low-pass.
 
     % Change only with good reasons.
     opt.addtime             = 0;       % Expands the trial definition around start/end by X ms in both directions. 
-    opt.trEvents            = {};      % 'Special events' i.e. events at the ITI like treatments, tutors, etc...
+    opt.trEvents            = {};      % Add inter-trial events, if any, to delimit e.g. block changes 
     opt.phy                 = false;   % Open phy for manual inspection or curation. !! It puts MATLAB on HOLD! Needs bin file in same folder.
         % !! Realize that manual curation via PHY must be PERFORMED, to use Post-Phy scripts.
         % But it does NOT need to be IMMEDIATELY after KS-BC automatic job.
@@ -54,7 +78,6 @@ opt = struct();
     % opt.doNWB               = false;   % TESTING INTAN-NEUROCONV (python) with a Matlab wrapping for no python-user interaction
     % opt.CAR                 = 0;       % If not 0, removes fast-ample transients and other noise. (KS4 should do this)
     % opt.linefilter          = 0;       % If not 0, filter line noise at given value +-2 (Hz)
-    % opt.highpass            = 0;       % If not 0, low boundary frequency value for high-pass.
     % opt.lowpassFT           = 250;     % Give as high boundary frequency value for FT.
                         
 %% 3) RUN.

@@ -1,18 +1,45 @@
 function [info] = chckV(varargin)
-% Once in the session folder, checks for existence of any of the following
-% characteristic files, determinant of the recording format:
-%   'EVENTLOG.NLE': characteristic of Deuteron flat format
-%   'EVENT000.DF1': characteristic of Deuteron block format
-%   'info.rhd': characteristic of INTAN file-per-channel or file-per-type
-%                formats. They differenciate based on number of files.
-%   '*xdat.json': Base format from Allego. Prob can be converted to .H5 and
-%                take it from there as well.
+% chckV  Detect recording format and extract basic session metadata.
 %
-% Any other would just throw a warning and skip the session.
+% PURPOSE:
+%   Called from prepforsession while in the session's raw-data directory.
+%   Identifies the recording format by characteristic file presence, then
+%   reads enough metadata to populate the 'info' struct used by all
+%   downstream pipeline functions.
 %
-% Calls to: 'Deuteron_GetMetaData'
+% USAGE:
+%   info = chckV()
+%   Must be called from within the session's raw-data folder (cd there first).
 %
-% 07.11.2023. Jesus
+% FORMAT DETECTION (in priority order):
+%   EVENTLOG.NLE present  → Deuteron flat format   (DT2)
+%   EVENT000.DF1 present  → Deuteron block format  (DF1)
+%   info.rhd present      → INTAN RHX format       (fileperch | filepertype)
+%     fileperch  : multiple amp*.dat files (one per channel)
+%     filepertype: single amp*.dat file (all channels interleaved)
+%   *FTcont.mat present   → Pre-processed FieldTrip (FieldTrip)
+%   settings.xml present  → INTAN traditional/legacy format (tradFormat)
+%   None of the above     → error; info.fileformat = 'NAN'
+%
+% OUTPUT:
+%   info - struct with fields (populated vary by format):
+%     .fileformat           (char)  one of: 'DT2','DF1','fileperch',
+%                                   'filepertype','tradFormat','FieldTrip','NAN'
+%     .files                (dir-struct) relevant data files
+%     .nfiles               (scalar) number of data files
+%     .nChannels            (scalar) active recording channel count
+%     .amplifier_sample_rate (scalar, Hz)
+%     .numADCBits           (scalar) ADC resolution bits
+%     .voltageRes           (scalar) voltage resolution
+%     .HDF5chunkSize        (scalar) chunk size for HDF5 output (300 s × Fs)
+%     .bandpass             (char, INTAN only) 'low' or 'amp'
+%     .INTAN_hdr            (struct, added by findSetting) full RHD header
+%
+% CALLS:
+%   Deuteron_GetMetaData (for Deuteron formats)
+%   findSetting (called separately from prepforsession after chckV returns)
+%
+% Last modified 07.11.2023 (Jesus)
 
 err = 0;
 % Evaluate if file exist with full name and assign case.

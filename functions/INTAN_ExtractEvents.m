@@ -1,40 +1,46 @@
 function EventRecord = INTAN_ExtractEvents(input, opt)
-% Based on original function readEvents()
-% Use this function to read event-codes saved in Intan (one file per channel).
-%   Current version looks for any change in a digital pin, using that time
-%   as event start. It controls for inconsistencies by considering 28
-%   samples after this time (0.9ms). Unit of time is sample index (not
-%   seconds) and it is relativized to the first event (start of session).
-%   This version is NOT backwards compatible.
+% INTAN_ExtractEvents  Read digital-input pin states and convert to EventRecord.
 %
-% INPUTS-OPTIONAL
-%  * opt           : struct with options and parameter for the current run
+% PURPOSE:
+%   Reads all board-DIGITAL-IN*.dat files from the current session folder,
+%   detects rising and falling pin transitions (any pin changes), applies a
+%   debounce window (28 samples, hardcoded) to suppress glitches, and 
+%   converts each stable 16-bit pin state to a decimal event code using
+%   binvec2dec (LSB-first). Produces an EventRecord struct in the same format
+%   as Deuteron_ExtractEvents for downstream compatibility.
+%   A security check at the end looks for the first 0/8 appearance. If
+%   neither are the first event, all other events until the first 8
+%   are removed.
 %
-% OUTPUTS
-%  * EventRecord   : Vector containing all event-codes.
-
-% VERSION HISTORY:
-% Author:        Jonas Rose
-% Version:       2.0
-% Last Change:
-% 08.05.2016, Jonas: Release version
-% 17.05.2016, Jonas: sampling rate is picked up from header file or input
-% 17.05.2016, Jonas: bugfix, read events as uint16
-% 05.05.2022, Aylin: corrected code for new Intan System
-% 25.05.2022, Aylin: corrected code for standard and extra event codes
-% 11.10.2022, Jesus: Testing old format compatibility (Does not affect new format)
-% 23.08.2024, Jesus: V 2.0 Reduced input/output to basics. General modification
-%                   of digital pins reading to accomodate the unification of standard and
-%                   extra events into just events, as we will use whole 16 bit words. This
-%                   unifies the standard coding between Deuteron and Intan. Implies that the
-%                   decimal integer 0 now has a meaning, and it is not just a reset.
-% 24.04.2025, Jesus: Added output field .TimeBreak to match the detection
-%                   from Deuteron System. Unlikely that they will happen on
-%                   Intan Systems, so it will just be an empty 1x2 cell array.
+% USAGE:
+%   EventRecord = INTAN_ExtractEvents(input, opt)
+%
+% INPUTS:
+%   input  - struct with input.run and
+%              input.sessions(input.run(1)).info.amplifier_sample_rate
+%   opt    - struct with opt.PathRaw (session raw-data folder)
+%
+% OUTPUT:
+%   EventRecord - struct with fields:
+%     .EventType           (nEvents × 1 double) decimal event codes (0–65535)
+%     .EventNumber         (nEvents × 1 double) sequential event index
+%     .TimeStamp           (nEvents × 1 double) sample indices of transitions
+%     .TimeMsFromMidnight  (nEvents × 1 double) timestamps in ms
+%     .TimeSource          (nEvents × 1 double) NaN (INTAN has no source field)
+%     .Details             (nEvents × 1 double) NaN
+%     .TimeBreak           (1 × 2 cell) {[] []} placeholder (no breaks on INTAN)
+%
+% EVENT CODING:
+%   All 16 digital-input pins are read simultaneously. The 4 LSBs encode the
+%   16 reserved events (codes 0–15); higher pins encode project-specific events
+%   (codes ≥ 16). See eventDefinitions.m for the full vocabulary.
+%   Decimal 0 (itiOn, all pins low) is a valid event — it marks trial start.
+%
+% Last modified 07.05.2026 (Jesus)
 
 %% Defaults
 pth     = opt.PathRaw; % folder for reading events
-smpDel  = 14*2;       % an event code is read after smpDel since first pin change, for additional smpDel since (to catch instabilities)
+smpDel  = 28;       % an event code is read after smpDel since first pin change, for additional smpDel since (to catch instabilities)
 
 %% Initialize
 INfiles = string(ls(fullfile(pth,"board-DIGITAL-IN*")));
@@ -101,15 +107,16 @@ EventRecord.TimeSource          = nan(length(EventType),1);
 EventRecord.Details             = nan(length(EventType),1);
 EventRecord.TimeBreak           = {[] []};
 
-% if EventType(1)~=8
-%     warning( 'Error found extracting events from Intan data. First event is NOT 0')
-%     firstEv = find(EventRecord.EventType==8,1,"first");
-%     EventRecord.EventType(1:firstEv-1)           = [];
-%     EventRecord.EventNumber(1:firstEv-1)         = [];
-%     EventRecord.TimeStamp(1:firstEv-1)           = [];
-%     EventRecord.TimeMsFromMidnight(1:firstEv-1)  = [];
-%     EventRecord.TimeSource(1:firstEv-1)          = [];
-%     EventRecord.Details(1:firstEv-1)             = [];
-% end
+if ~ismember(EventType(1),[0,8])
+    firstEv = find(EventRecord.EventType==8,1,"first");
+    EventRecord.EventType(1:firstEv-1)           = [];
+    EventRecord.EventNumber(1:firstEv-1)         = [];
+    EventRecord.TimeStamp(1:firstEv-1)           = [];
+    EventRecord.TimeMsFromMidnight(1:firstEv-1)  = [];
+    EventRecord.TimeSource(1:firstEv-1)          = [];
+    EventRecord.Details(1:firstEv-1)             = [];
+    warning('While extracting events, first event was neither 0 nor 8. Every event before the first 8 was removed.\n')
+end
 
+fprintf('Successfully created ''EventRecord'' structure.\n');
 end

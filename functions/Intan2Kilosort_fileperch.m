@@ -1,31 +1,50 @@
 function Intan2Kilosort_fileperch(opt)
-% This function is a dependency of the script Intan2Kilosort_wrapperV2,
-% only necessary if the recording system in use is Intan. Writes the processed 
-% data into a .bin file in time-based chunks.
+% Intan2Kilosort_fileperch  Convert INTAN fileperch amp*.dat to Kilosort .bin file.
 %
-% If the full data matrix fits within available RAM, it is processed
-% in-memory. Otherwise, a temporary matfile on disk is used as a buffer,
-% and channels are processed one at a time to avoid OOM errors. In disk
-% mode, CAR cannot be applied (requires all channels in RAM simultaneously)
-% and will be skipped with a warning.
+% PURPOSE:
+%   Reads one-file-per-channel INTAN recordings (amp-A-000.dat, amp-A-001.dat, …),
+%   scales to µV (×0.195), optionally applies detrend + high-pass + low-pass
+%   filtering, and writes a flat int16 interleaved binary file for Kilosort. 
+%   Uses an adaptive RAM-vs-disk strategy to handle large datasets.
 %
-% Version 27.03.2026 Jesus
+% USAGE:
+%   Intan2Kilosort_fileperch(opt)
+%   Called from Intan2Kilosort_wrapper; do not call directly.
+%
+% INPUT:
+%   opt  - options struct set by Intan2Kilosort_wrapper; must contain:
+%            .numChannels    number of channels to process
+%            .num_samples    samples per channel (from file size)
+%            .PathRaw        raw data folder
+%            .myFiles        dir-struct list of amp*.dat files
+%            .FolderProcDataMat  output folder
+%            .SavFileName    session name (output file = <name>.bin)
+%            .set_filter     1 = apply filtering pipeline; 0 = raw pass-through
+%            .sampleRate     raw sample rate (Hz)
+%            .lowpass        spike-band low-pass cutoff (Hz), [] = off
+%            .highpass       high-pass cutoff (Hz), 0 = off
+%            .CAR            common-average referencing flag (0 = off)
+%            .StpSz          chunk size in samples for .bin write loop
+%
+% OUTPUT:
+%   <opt.SavFileName>.bin written to opt.FolderProcDataMat
+%   Format: int16, channels interleaved [nChannels × nSamples], no header.
+%
+% MEMORY STRATEGY:
+%   If 3× the data matrix fits in available physical RAM, processes in memory
+%   (faster, supports CAR). Otherwise falls back to disk (matfile) mode,
+%   processing one channel at a time (CAR not possible in disk mode).
+%
+% Version 07.05.2026 (Jesus)
 
 %% Check if the full data matrix fits in available RAM
 bytesRequired  = opt.numChannels * opt.num_samples * 2; % int16 = 2 bytes
 
-% Windows: MATLAB built-in
+% check memory in Windows. MATLAB built-in
 [~, sys] = memory();
 bytesAvailable = sys.PhysicalMemory.Available;
-useRAM         = (bytesRequired * 3) <= bytesAvailable;
 fprintf('Overestimated RAM needed: %.2f GB\n', bytesRequired*3/1e9);
-
-if useRAM
-    disp('Sufficient RAM available — processing in memory.');
-else
-    disp('Insufficient RAM — falling back to disk-based (matfile) processing.');
-    warning('If CAR was requested it will not be applied in disk mode.');
-end
+useRAM = (bytesRequired * 3) <= bytesAvailable;
 
 %% Prepare .bin output file
 opt.binfilename = fullfile(opt.FolderProcDataMat, opt.SavFileName + ".bin");
@@ -33,12 +52,13 @@ if isfile(opt.binfilename)
     delete(opt.binfilename);
 end
 
-%%  IN-MEMORY
-%  Allocate full matrix, read all channels, apply CAR, filter, write chunks
+%% IN-MEMORY
+% Allocate full matrix, read all channels, apply CAR, filter, write chunks
 if useRAM
+    disp('Sufficient RAM available — processing in memory.');
     data = int16(zeros(opt.numChannels, opt.num_samples));
 
-    disp('Reading data, filtering if necessary.');
+    disp('Reading data, filtering if necessary.\n');
     for i = 1:opt.numChannels
         fid = fopen(fullfile(opt.PathRaw, opt.myFiles(i).name));
             tempdata = fread(fid, [1 opt.num_samples], 'int16=>int16');
@@ -48,7 +68,7 @@ if useRAM
 
     % Common Average Referencing. needs all channels, done before filtering
     if opt.CAR
-        disp('Re-referencing by Common Average Referencing (CARing).')
+        disp('Re-referencing by Common Average Referencing (CAR).\n')
         data = ft_preproc_rereference(data, 'all', 'median');
     end
 
@@ -89,12 +109,13 @@ if useRAM
         sampleStart = (j - 1) * chunkSize + 1;
         sampleEnd   =  j      * chunkSize;
         fwrite(fidDataMat, data(:, sampleStart:sampleEnd), 'int16');
-        fprintf('  Chunk %d/%d written\n', j, totalChunks);
+        fprintf(' Chunk %d/%d written\n', j, totalChunks);
     end
+
     if lastChunkSize > 0
         sampleStart = numFullChunks * chunkSize + 1;
         fwrite(fidDataMat, data(:, sampleStart:end), 'int16');
-        fprintf('  Chunk %d/%d written (%d samples)\n', totalChunks, totalChunks, lastChunkSize);
+        fprintf(' Chunk %d/%d written (%d samples)\n', totalChunks, totalChunks, lastChunkSize);
     end
     fclose(fidDataMat);
 
@@ -102,6 +123,9 @@ if useRAM
 %  Use a temporary matfile. Goes one channel at a time so the full matrix
 %  never fills the RAM. CAR not possible
 else
+    disp('Insufficient RAM, using in-disk (matfile) processing.');
+    warning('If CAR was requested, it will not be applied.');
+
     tmpMatPath = fullfile(opt.FolderProcDataMat, opt.SavFileName + "_tmp.mat");
     if isfile(tmpMatPath)
         delete(tmpMatPath);

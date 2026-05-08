@@ -1,10 +1,21 @@
-function [EventRecord, opt] = Deuteron_ExtractEvents(opt)
-% Use the Deuteron's application without invoking the GUI.
-% This example creates a struct called EventRecords that has a length of the 
-% number of records in the event log file with the following fields:
-% The dll requires a set of dark commands to perform the same as exe, much clearer
-% INPUT: 
-%       opt: struct with relevant info about paths and requirements.
+function [EventRecord, opt] = Deuteron_ExtractEvents(input, opt)
+%   Uses the Deuteron's application without invoking the GUI.
+%
+% PURPOUSE
+%   This example creates a struct called EventRecords that has a length of the 
+%   number of records in the event log file. Produces an EventRecord struct in 
+%   the same format as INTAN_ExtractEvents for downstream compatibility.
+%   A security check at the end looks for the first 0/8 appearance. If
+%   neither are the first event, all other events until the first 8
+%   are removed.
+%
+% USAGE:
+%   EventRecord = Deuteron_ExtractEvents(opt)
+%
+% INPUTS:
+%   input  - struct with input.exefile
+%   opt    - struct with options
+%
 % OUTPUT:
 %       EventRecords: struct with all events recorded during session.
 %           EventNumber (double)
@@ -15,55 +26,48 @@ function [EventRecord, opt] = Deuteron_ExtractEvents(opt)
 %           Details (string)
 %           TimeBreak (Nx2 cell array)
 %
-% 23.08.2024, Jesus: Consolidation and integration in pipeline, with two
-%                    possible ways to get the session information.
-% 24.04.2025, Jesus: Added function to detect time breaks when getting 
-%                    information from Event logs. Can detect more than one.
-%                    Only implemented for 'extractFromExe' function.
-%                    Added output field .TimeBreak to match the detection
-%                    from Deuteron System. Unlikely that they will happen on
-%                    Intan Systems, so it will just be an empty 1x2 cell array.
-    
+% Last modified 07.05.2026 (Jesus)
+
 %% Case
-if opt.useexe,  [EventRecord, opt] = extractFromExe(opt);
-else,           EventRecord = extractFromLog(opt);
+if opt.uselog, EventRecord = extractFromLog(opt);
+else,          [EventRecord, opt] = extractFromExe(input, opt);
 end
+
+% Expected session start check
+if ~ismember(EventRecord.EventType(1),[0,8])
+    firstEv = find(EventRecord.EventType==8,1,"first");
+    EventRecord.EventType(1:firstEv-1)           = [];
+    EventRecord.EventNumber(1:firstEv-1)         = [];
+    EventRecord.TimeStamp(1:firstEv-1)           = [];
+    EventRecord.TimeMsFromMidnight(1:firstEv-1)  = [];
+    EventRecord.TimeSource(1:firstEv-1)          = [];
+    EventRecord.Details(1:firstEv-1)             = [];
+    warning('While extracting events, first event was neither 0 nor 8. Every event before the first 8 was removed.\n')
+    fprintf('Successfully created ''EventRecord'' structure.\n');
+end
+
 
 end
 
 %% Actual functions
-function [EventRecord, opt] = extractFromExe(opt)
+function [EventRecord, opt] = extractFromExe(input, opt)
     % Use the Event_File_Reader_X_X or the .exe application without invoking the GUI
     % from a Deuteron recording with Block Format.
-    % This example creates a struct called EventRecords that has a length of the 
-    % number of records in the event log file with the following fields:
-    % The dll requires a set of dark commands to perform the same as exe, much clearer
-    % INPUT: 
-    %       opt: struct with relevant info about paths and requirements.
-    % OUTPUT:
-    %       EventRecords: struct with all events recorded during session.
-    %           EventNumber (double)
-    %           EventType (string)  
-    %           TimeStamp (string)
-    %           TimeMsFromMidnight (double)
-    %           TimeSource (string)
-    %           Details (string)
-    % Jesus. 23.08.2024
 
     %% Hardcoded variables
     maxFileIndex     = length(dir([opt.PathRaw '\NEUR*'])) - 1; % cero indexed, so [0:Nfiles-1]
-    count            = 1; % just a counter for processed files
+    count            = 1; % just a counter
     
     %% Set up files to load 
-    listOfFilesToLoad =  cell(maxFileIndex + 1, 1); % cell(maxFileIndex - 1 + 2, 1);
+    listOfFilesToLoad =  cell(maxFileIndex + 1, 1);
     
     for fileIdx = 1:maxFileIndex
         indexStr = num2str(fileIdx,'%04.f');
-        if opt.useexe
+        % if opt.useexe
             listOfFilesToLoad{count} = strcat('NEUR', indexStr, '.DF1');
-        else
-            listOfFilesToLoad{count} = fullfile(opt.PathRaw, strcat('NEUR', indexStr, '.DF1'));
-        end
+        % else
+        %     listOfFilesToLoad{count} = fullfile(opt.PathRaw, strcat('NEUR', indexStr, '.DF1'));
+        % end
         count = count + 1;
     end
     
@@ -80,7 +84,7 @@ function [EventRecord, opt] = extractFromExe(opt)
     % For executable just command system('file.exe, [char array of files], output.csv').
     % Input to system is actually a single one of class char array. The spaces in between 'subinputs' need to be explicited.
     % if opt.useexe % Preferred way to go, due to simplicity.
-    s = system([opt.exefile, ...                              % use full path to executable
+    s = system([input.exefile, ...                              % use full path to executable
                 listOfFilesToLoadchar, ' ', ...               % use char vector of full list of files
                 opt.FolderProcDataMat, '\EventRecord.CSV']);  % export to .cvs 
         
@@ -161,30 +165,12 @@ function [EventRecord, opt] = extractFromExe(opt)
         tbidx = EventRecord.TimeMsFromMidnight > EventRecord.TimeBreak{1,2}(1);
         EventRecord.TimeMsFromMidnight(tbidx) = EventRecord.TimeMsFromMidnight(tbidx) - tbreakdur;
         warning('The timebreak has been fixed and the EventRecord will be saved for check.')
-    end
-
-    fprintf('Successfully created ''EventRecord'' structure.\n');
-    
-    % %% Save event record and DigIn events (TODO) at session folder
-    % save((opt.FolderProcDataMat + "\EventRecord.mat"),"EventRecord","-mat");
+    end    
 end
 
 function EventRecord = extractFromLog(opt)
     % Use this customized function to extract events from a text file
     % containing the log from a Deuteron recording with Block Format.
-    % This example creates a struct called EventRecords that has a length of the 
-    % number of records in the event log file with the OUTPUT fields.
-    % INPUT: 
-    %       opt: struct with relevant info about paths and options.
-    % OUTPUT:
-    %       EventRecords: struct with all events recorded during session.
-    %           EventNumber (double)
-    %           EventType (single)  
-    %           TimeStamp (string)
-    %           TimeMsFromMidnight (double)
-    %           TimeSource (NaN)
-    %           Details (NaN)
-    % Jesus. 30.05.2024
     
     if ~isfield(opt,'delimiters'),  opt.delimiters  = {',','='};    end
     if ~isfield(opt,'outputas'),    opt.outputas    = 'string';     end
@@ -242,5 +228,4 @@ function EventRecord = extractFromLog(opt)
     EventRecord.TimeSource          = nan(length(stateLog),1);
     EventRecord.Details             = nan(length(stateLog),1);
     EventRecord.TimeBreak           = {[] []};
-
 end

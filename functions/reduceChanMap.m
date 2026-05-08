@@ -1,18 +1,43 @@
 function opt = reduceChanMap(input,opt)
-% This function is used when the number of raw data files do not match the
-% intended/expected number of channels specified in NGL_SetAndRunMe.m, and
-% a reduced channel map needs to be created for Kilosort to correctly
-% assign data to channels (coordinates, etc.)
+% reduceChanMap  Generate a reduced Kilosort channel map for partial recordings.
+%
+% PURPOSE:
+%   Called from prepforsession when the number of amp*.dat files in the
+%   session folder is fewer than opt.numChannels. This happens when some
+%   electrode channels were disabled before the recording. Reads settings.xml
+%   to identify which channels were enabled, removes disabled channels from
+%   the original channel map, and saves the reduced map to both analysisCode/
+%   and the Kilosort preprocessing folder.
+%
+% USAGE:
+%   opt = reduceChanMap(input, opt)
+%   opt.KSchanMapFile must point to the original (non-reduced) map file.
+%
+% INPUTS:
+%   input  - struct with:
+%              .analysisCode  path to analysisCode folder (map file lives here)
+%   opt    - struct with:
+%              .PathRaw       session raw-data folder (settings.xml is here)
+%              .KSchanMapFile original channel map filename (.mat)
+%              .KSfolder      Kilosort output folder (receives a copy)
+%              .SavFileName   session name (tagged into the reduced map)
 %
 % OUTPUT:
-% A reduced version of the original channel map excluding inactive channels
-% specified by "settings.xml" in the raw data folder,
-% "[Channel_Map_Name]_reduced.mat" is created (or overwritten) in the same
-% analysisCode folder specified in input.analysisCode for Kilosort. 
-% Another copy is saved to the preprocessing folder for the current 
-% data/recording specified in opt.KSfolder, for future use in analysis and
-% plotting. Channel IDs (not indices) corresponding to location on
-% probe are saved in the new chanID variable
+%   opt    - updated:
+%              .KSchanMapFile  new filename: '<original>_reduced.mat'
+%
+% SAVED FILES:
+%   <analysisCode>/<map>_reduced.mat  — for Kilosort use on this session
+%   <KSfolder>/<map>_reduced.mat      — for post-hoc analysis reference
+%   Both files contain the original map fields with inactive channels removed,
+%   plus 'chanID' (original probe channel IDs, 0- or 1-indexed as per source
+%   map) and 'session' (recording session name for traceability).
+%
+% NOTES:
+%   - chanMap is reindexed as a sort-order (1..nActive) after removing
+%     inactive channels; Kilosort requires contiguous 1-based channel indices.
+%   - Safe to re-run: if opt.KSchanMapFile already ends in '_reduced', the
+%     '_reduced' suffix is stripped before loading the original.
 %
 % Version 09.10.2025 (Winston)
 

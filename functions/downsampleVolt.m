@@ -1,34 +1,41 @@
 function [data,t,downsmpFactor] = downsampleVolt(data,FsInp,FsOut,dim,t,alignTime)
-%DOWNSAMPLESIGNAL Downsamples signal to given sampling frequency
+% downsampleVolt  Downsample voltage data by an integer factor.
 %
-% [data,t,downsmpFactor] = downsampleSignal(data,FsInp,FsOut,dim,t,alignTime)
-% 
-% NOTE: Currently no low-pass filtering is performed here, 
-% it's up to user to make sure no aliasing might occur (no signal > Nyquist limit)
-% 
-% INPUT
-% data    Array (any arbitrary size). Data to downsample.
+% PURPOSE:
+%   Reduces the sample rate of a multi-dimensional data array by retaining
+%   every Nth sample along the specified dimension. No anti-aliasing filter
+%   is applied here — the caller is responsible for low-pass filtering before
+%   calling this function to prevent aliasing (intan2MAT_wrapper does this).
 %
-% FsInp   Scalar. Original data sampling frequency (Hz)
+% USAGE:
+%   [data, t, downsmpFactor] = downsampleVolt(data, FsInp, FsOut)
+%   [data, t, downsmpFactor] = downsampleVolt(data, FsInp, FsOut, dim)
+%   [data, t, downsmpFactor] = downsampleVolt(data, FsInp, FsOut, dim, t)
+%   [data, t, downsmpFactor] = downsampleVolt(data, FsInp, FsOut, dim, t, alignTime)
 %
-% FsOut   Scalar. Desired final sampling frequency after downsampling (Hz)
+% INPUTS:
+%   data       - array of arbitrary size; data to downsample
+%   FsInp      - (scalar, Hz) original sample rate
+%   FsOut      - (scalar, Hz) target sample rate; must satisfy:
+%                  FsInp/FsOut is an integer (asserted, no fractional resampling)
+%   dim        - (optional, scalar) dimension along which to downsample
+%                  default = first non-singleton dimension
+%                  use dim=2 for [nChannels × nSamples] data
+%   t          - (optional, [1 × nSamples]) original time vector to downsample
+%   alignTime  - (optional, scalar) reference time point (e.g. 0) to preserve
+%                  in the output; if [], starts at t(1)
 %
-% dim     Scalar (optional). Sampling (eg, time) dimension of data. Downsampling will
-%         be performed along this dim, all other treated as independent time series
+% OUTPUTS:
+%   data         - downsampled array (same ndims, 'dim' reduced)
+%   t            - downsampled time vector (or [] if t was not supplied)
+%   downsmpFactor - integer downsample factor = round(FsInp / FsOut)
 %
-% t       [1 x nTIn] (optional). Original sampled time points
+% NOTES:
+%   - Asserts FsInp > FsOut (upsampling not supported).
+%   - Asserts FsInp/FsOut is an integer to floating-point tolerance (1e-9).
+%   - For INTAN LFP: standard is FsInp=30000, FsOut=937.5 → factor=32.
 %
-% alignTime Scalar (optional). Can set reference timepoint w/in time vector (eg, t=0) 
-%         to align sampling to. This sample will be always be preserved in output, 
-%         and samples will be taken relative to it. Set = [] to just start at t(1).
-%         Default = [] (no specific reference timepoint; start at t(1))
-% 
-% OUTPUT
-% data    Array (same size as input, but with 'dim' downsampled). Downsampled data.
-%
-% t       [1 x nTIn]. Downsampled time sampling vector.
-%
-% downsmpFactor Scalar. Factor to downsample original data by (= FsInp / FsOut)
+% Originally: downsampleSignal (author unknown)
 
 % todo  add filtering here?
  

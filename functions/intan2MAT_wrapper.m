@@ -1,27 +1,69 @@
 function [data] = intan2MAT_wrapper(sessions, opt)
-% Obtain data files and read whole or file by file. In any case, process in
-% a channel by channel basis through: detrending, lowpass filtering, line
-% noise filtering, re-referencing (if requested) and downsampling to 1KHz.
-% All that gets into a single variable and given a pseudo_FT format, ready
-% to get a 'continuous', 'trial-parsed' or both treatments in the next
-% step.
+% intan2MAT_wrapper  Read and preprocess INTAN data into pseudo-FieldTrip struct.
 %
-% Version 16.06.2023 Jesus
+% PURPOSE:
+%   Reads INTAN amp*.dat files, applies the LFP preprocessing chain (scale - CAR -
+%   detrend - low-pass - line-noise filter - downsample), and assembles the
+%   result into a pseudo-FieldTrip data struct. This is the input to
+%   MAT2FieldTrip, which concludes the FieldTrip format.
+%
+% USAGE:
+%   data = intan2MAT_wrapper(sessions, opt)
+%   Called from INTAN_PipelineWrapper.
+%
+% INPUTS:
+%   sessions  - struct from input.sessions(x), must contain:
+%                 .info.files               dir-struct of amp*.dat files
+%                 .info.nChannels           electrode count
+%                 .info.nfiles              number of .dat files
+%                 .info.INTAN_hdr           full RHD header (for channel labels)
+%                 .info.amplifier_sample_rate (Hz)
+%   opt       - options struct; relevant fields:
+%                 .dwnsmplRate   target LFP sample rate (Hz); [] -> 937.5 Hz
+%                 .lowpassFT     LFP low-pass cutoff (Hz, default 250)
+%                 .linefilter    line-noise frequency (Hz, 0 = off)
+%                 .CAR           common-average referencing flag (0 = off)
+%
+% OUTPUT:
+%   data  - pseudo-FieldTrip struct:
+%             .label      {nChannels × 1 cell} channel name strings
+%             .trial      {1 × 1 cell} [nChannels × nSamples double] LFP data (µV)
+%             .time       {1 × 1 cell} [1 × nSamples double] time vector (s, 0-indexed)
+%             .sampleinfo [1 2] = [1, nSamples]
+%
+% PREPROCESSING (if opt.set_filter == 1):
+%   1. Scale to uV, ×0.195
+%   2. CAR (optional): ft_preproc_rereference with 'all'/'median'
+%   3. Detrend: ft_preproc_detrend (removes DC offset per channel)
+%   4. Low-pass: ft_preproc_lowpassfilter (Butterworth 6th order, twopass)
+%   5. Line-noise: ft_preproc_bandstopfilter (opt.linefilter ±2 Hz, if > 0)
+%   6. Downsample: downsampleVolt (integer factor only)
+%
+% NOTES:
+%   - Time vector is 0-indexed: (0:N-1)/dwnsmplRate in seconds.
+%   - For CAR with > 32 channels, applies per-bank (1:32, 33:64) referencing.
+%   - Downsample default 937.5 Hz = 30000/32; must be integer divisor of Fs.
+%
+% Version 07.05.2026 (Jesus)
 
 %% Collect parameters to proceed with file creation
 % List all files (multiple or single depending on type). If No lowpass
 % files found, we will use the raw data, and filtering will be applied.
 disp('Will convert raw data to preprocessed pseudo-FT format.');
-% opt.myFiles = dir('low*.dat');
-opt.myFiles = dir('amp*.dat');
+
+% opt.myFiles = dir('low*.dat'); % low files won;t need processing
+% opt.myFiles = dir('amp*.dat'); % no need for re-reading
+opt.myFiles = sessions.info.files; % use collected files
 
 if ~isempty(opt.myFiles)
     opt.set_filter = 1; % it's raw, needs lowpassing and downsampling
 
     % Gather info to create and apply the lowpass filter
     opt.sampleRate  = sessions.info.amplifier_sample_rate;
-    opt.dwnsmplRate = 937.5; % would match the INTAN lowpass files
-
+    if isempty(opt.dwnsmplRate) % if downsample rate is set to 1, we won't downsample anything
+        % The lowpass data (250Hz) can be sampled at 1KHz, or 937.5 to fit INTAN's numbers
+        opt.dwnsmplRate = 937.5; % would match the INTAN lowpass files
+    end
 else
     error('No raw data to process found')
 %     opt.set_filter = 0; % If the files are already lowpassed and downsampled
@@ -44,7 +86,7 @@ if nfiles == 1
     tmp = doScale(tmp);
 
     % Common Median referencing
-    if opt.CAR, tmp = doCar(tmp);  end
+    if opt.CAR, tmp = doCar(tmp, sessions);  end
 
     % Filtering
     if opt.set_filter, tmp = doFilters(tmp, opt); end
@@ -131,7 +173,8 @@ data.trial{1} = volt;
 
 % The only trial is the whole time-series.
 % We simply create a time-vector from samples and divide it by the sampling rate.
-data.time{1} = (1:length(volt)) / opt.dwnsmplRate; % in Seconds
+% data.time{1} = (1:length(volt)) / opt.dwnsmplRate; % Fixed 1-idexed, when FT expects 0-indexed
+data.time{1} = (0:length(volt)-1) / opt.dwnsmplRate; % in Seconds
 
 % Therefore, trial starts at first sample and ends at last sample
 data.sampleinfo(1,:) = [1 length(volt)];

@@ -1,16 +1,30 @@
 function [t0] = events2align(opt)
-% This function is used to adquire equivalences between given event names
-% to align to, and their decimal value automatically, following the event
-% definitions for the project.
+% events2align  Convert opt.alignto event names to {name, decimal} pairs.
 %
-% INPUT
-% 'opt.alignto': a char array with the name of the event, e.g. 'itiOn'
-%          a decimal value that represents an event, e.g. [8]
-%          a cell array of strings with several event definitions, e.g. {'itiOn', 'rwd'}
+% PURPOSE:
+%   Resolves the user-supplied opt.alignto (event name strings) to their
+%   decimal integer codes from opt.eventdef, producing the t0 cell array
+%   consumed by trialdefGen. Supports a single char array or a cell of chars.
 %
-% OUTPUT
-% 't0': cell array containing the equivalences decimal value and 'event_name'
-%       to be used consequently.
+% USAGE:
+%   t0 = events2align(opt)
+%
+% INPUT:
+%   opt.alignto   - char (single event name, e.g. 'itiOn')
+%                   OR cell of chars (e.g. {'itiOn', 'rwd', 'stimOn1'})
+%   opt.eventdef  - struct from eventDefinitions; field names are event names,
+%                   values are decimal integers
+%
+% OUTPUT:
+%   t0  - (n × 2) or (n × 3) cell array:
+%           column 1: event name (char)
+%           column 2: decimal event code (double, from opt.eventdef)
+%           column 3: qualifier string '0' (or last char of name for bhv variants)
+%
+% NOTES:
+%   - For bhvN-style variants (e.g. 'bhv1', 'bhv2'), the name is truncated to
+%     'bhv' for eventdef lookup and the digit becomes column 3.
+%   - Output row count equals numel(opt.alignto).
 %
 % Jesus 30.05.2024
 

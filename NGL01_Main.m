@@ -1,40 +1,52 @@
-%% Pipeline process INTAN and Deuteron continous data.
-% Will read and process INTAN, DEUTERON (or ALLEGO) data, from selected sessions for a given animal.
-% The main pipeline will be: INTAN/DEUTERON raw formats to be located, then
-% converted to .bin files (spike sorting), and Fieldtrip .mat structures
-% (for LFP). Once sorted, spike data will be attached to the FieldTrip
-% structure. For Arena experiments, motion sensor data will be extracted and
-% interpreted. Data will be trial-parsed using EventCodes.
+%% NGL01_Main. NGL Electrophysiology Preprocessing Pipeline (Stage 1)
 %
-% The hard disk data structure SHOULD fit the IKN standard published at:
-% gitlab.ruhr-uni-bochum.de/ikn/howto/-/wikis/Neurophysiology/hard-disk-data-structure
+% PURPOSE:
+%   Main script. Processes one or more recording sessions from raw INTAN
+%   or Deuteron data into spike-sorting (.bin) and LFP (FieldTrip .mat)
+%   formats, extracts event codes and trial definitions, runs Kilosort 4
+%   spike sorting, and optionally runs Bombcell and opens Phy for manual
+%   curation.
+%
+% USAGE:
+%   Do NOT run or edit this script directly. Instead, configure and run from
+%   your project's copy of NGL_SetAndRunMe.m (stored in analysisCode\).
+%   NGL_SetAndRunMe defines 'datadrive', 'studyname', 'subjects', 'dates',
+%   and 'opt' before calling this script.
+%
+% REQUIRED WORKSPACE VARIABLES (set at NGL_SetAndRunMe):
+%   datadrive   - char, drive letter (e.g. 'D')
+%   studyname   - char, project folder name
+%   subjects    - char 'all' or cell array of subject IDs (e.g. {'ABC'})
+%   dates       - char 'all' or cell array of session dates (e.g. {'20260101'})
+%   opt         - struct, user options (merged with non-explicit defaults)
+%
+% PIPELINE:
+%   00. set_default     - validate opt, build paths, load dependencies
+%   01. findSessions    - discover session folders on disk
+%   02. prepforsession  - per-session path setup and format detection
+%   03. processing      - INTAN or Deuteron Wrappers
+%   04. master_kilosort4  - Kilosort 4 spike sorting
+%   05. Bombcell_Main   - automatic cluster (if opt.bombcell)
+%   06. Phy             - manual curation GUI (if opt.phy; blocks MATLAB)
+%
+% OUTPUTS (per session, paths set in prepforsession):
+%   <session>.bin       - flat int16 binary for Kilosort (preprocessing\)
+%   kilosort\           - KS4 output folder (preprocessing\)
+%   EventRecord.mat     - raw event list (preprocessing\)
+%   trialdef.mat        - trial boundaries definitions, in ms (trialSorted\)
+%   events.mat          - trial-aligned event struct (trialSorted\)
+%   *_FTcont.mat        - continuous FieldTrip LFP (trialSorted\, if FieldTrip)
+%   *_<event>.mat       - trial-parsed FieldTrip LFP (trialSorted\, if FieldTrip)
 %
 % DEPENDENCIES:
-% Requires that all pipeline dependencies are properly located. 
-% I suggest to include the 'mainfolder' in Matlab's permanent path system.
-% The function 'set_default' will take care of the rest of folders on each run.
+%   set_default, findSessions, prepforsession, INTAN_PipelineWrapper,
+%   Deuteron_PipelineWrapper, master_kilosort4, Bombcell_Main
+%   All toolbox paths are added automatically by set_default.
 %
-% OUTPUTS:
-% For one single session or for a batch of sessions, from one single animal:
-%       Fieldtrip (.mat), binary (.bin) and/or HDF5 (.h5) and .nwb files from
-%           1. Deuteron .DT2 or .DF1 data.
-%           2. INTAN file-per-type and file-per-channel format data.
-%           3. (ALLEGO data?)
-%       EventRecord.mat file, from Deuteron session.
-%       MotionData.mat file, From Deuteron sensors.
-%       Plots snippets of time- and frequency-domain data, from FieldTrip
-%       
-% Last modified 05.03.2024 (Jesus)
-
-% TODO LIST
-% Order channels as incremental ordinals. (in 'Deuteron_ExtractEvents' ~136)
-% If Deuteron2Kilosort(opt) filter for DF1 format works, set filter out of format cases (generalize)
-% Check for FT trial-parsing using EventRecord with MAT2FieldTrip(data, opt, varargin)
-%    Create a 'trial-parsed' stream in 'mat2FieldTrip' VS. add post-hoc parsing
-% There seems to be an ERROR on 2nd and following runs of the NWB functionalities.
-%    Figure out what's going on with the NWB/H5 DLLs that block either when the other has been performed...
-
-% Version 27.03.2026 (Jesus)
+% IKN folder standard:
+%   gitlab.ruhr-uni-bochum.de/ikn/howto/-/wikis/Neurophysiology/hard-disk-data-structure
+%
+% Last modified 06.05.2026 (Jesus)
 
 %% 00. Check current inputs.
 % Check if input variable exist already. Parse values.
@@ -48,7 +60,7 @@ if ~exist("input","var")
 end
 
 % This single call guarantees opt is complete, validated, and consistent.
-% It will error early with a clear message if anything is wrong.
+% It will break here if anything is wrong.
 [input, opt] = set_default(input, opt);
 
 %% 01. Find and list requested sessions and subjects.
@@ -69,7 +81,6 @@ for x = 1:input.nsubjects % Subjects.
     
             case {'fileperch', 'filepertype', 'tradFormat'}
                % 03.2 INTAN Pipeline
-               % input = INTAN_PipelineWrapper(input, opt); % added, keep modified opt
                [input, opt] = INTAN_PipelineWrapper(input, opt);
 
             case {'FieldTrip'}   
@@ -90,11 +101,12 @@ for x = 1:input.nsubjects % Subjects.
         end 
         
         %% 04. Kilosort
-        % Kilosort 4 will run without GUI.
-        master_kilosort4(input, opt)
-        
-        close all
-        
+        if opt.kilosort
+            % Kilosort 4 will run without GUI.
+            master_kilosort4(input, opt)
+            close all
+        end
+
         %% 05. Bombcell
         if opt.bombcell
             % Kilosort will run without GUI.

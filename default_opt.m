@@ -1,13 +1,32 @@
 function opts = default_opt()
-% default_opt: Returns the default options for the NGL toolbox.
-% Every recognized option must appear here. Downstream functions should
-% NEVER hard-code a default value themselves, they should rely on this
-% struct already being complete and validated.
+% default_opt  Return the canonical default options struct for the NGL toolbox.
+%
+% PURPOSE:
+%   Single source of truth for every configurable option. Every recognised
+%   option name MUST appear here with a safe default value. Downstream
+%   functions must never hard-code their own defaults — they rely on this
+%   struct already being complete and validated before they are called.
+%
+% USAGE:
+%   opts = default_opt();
+%   Called internally by set_default. Users should not call this directly;
+%   instead, set options in the opt struct inside NGL_SetAndRunMe.m.
+%
+% OUTPUT:
+%   opts - struct with all NGL option fields pre-filled to safe defaults.
+%          Field names are the canonical names recognised by set_default.
+%
+% ADDING A NEW OPTION:
+%   1. Add the field here with its default value and a comment.
+%   2. Add validation logic in set_default (Section 2) if needed.
+%   3. Document it in wiki_NGL01_pipeline.md (Section 6).
+%
+% Last modified 07.05.2026 (Jesus)
 
     % Data format
-    opts.numChannels     = 32;       % Expected channel count (override for 32-ch Deuteron)
-    opts.bin             = true;     % Normally, we always check if the .bin file exists
-    opts.FieldTrip       = false;    % Produce a FieldTrip-ready .mat file
+    opts.numChannels     = 32;      % Expected channel count (override for 32-ch Deuteron)
+    opts.bin             = true;    % Normally, we always check if the .bin file exists
+    opts.FieldTrip       = true;    % Produce a FieldTrip-ready .mat file
     opts.doNWB           = false;    % INTAN-NeuroConv NWB export (testing)
 
     % Events
@@ -15,20 +34,24 @@ function opts = default_opt()
     opts.alignto         = {'itiOn'};% Alignment events; cell array of char vectors
     opts.trEvents        = {};       % 'Special' ITI events (treatments, tutors, etc.)
     opts.addtime         = 0;        % Padding around trial start/end in ms
+    opts.uselog          = false;    % By default, use Deuteron data files to extract events. 
+                                      % When true, uses the text log. For cases when the events 
+                                      % were not properly transmitted to the system but logged.
 
     % Motion sensors
-    opts.GetMotionSensors = false;   % Extract Deuteron head-direction sensor data
+    opts.GetMotionSensors = false;   % Extract head-direction sensor data
 
     % Data preprocessing
     opts.noise           = [];       % Reserved for noise-rejection parameters
     opts.lowpass         = 9000;     % High boundary for low-pass (Hz). [] = off.
-    opts.lowpassFT       = 250;      % Low-pass for FieldTrip LFP stream (Hz)
-    opts.highpass        = 0;        % Low boundary for high-pass (Hz). 0 = off.
+    opts.lowpassFT       = 200;      % Low-pass for FieldTrip LFP stream (Hz)
+    opts.highpass        = [];       % Low boundary for high-pass (Hz). [] = off.
     opts.linefilter      = 0;        % Line-noise notch centre frequency. 0 = off.
     opts.CAR             = 0;        % Common-average re-referencing. 0 = off.
+    opts.dwnsmplRate     = [];       % LFP downsample target (Hz). [] = auto (937.5 Hz).
 
     % Sorting & curation
-    opts.kilosort        = 4;        % Default to Kilosort 4
+    opts.kilosort        = 1;        % Default to Kilosort 4
     opts.KSchanMapFile   = '';       % Empty = linear array; set to 'chanMapXXX.mat' for custom
     opts.bombcell        = true;     % Run Bombcell QC on Kilosort output
     opts.phy             = false;    % Open Phy after sorting (blocks MATLAB)

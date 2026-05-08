@@ -1,24 +1,67 @@
 function [events, trialdef, EventRecord, opt] = EventProcess(input, opt)
-% Function meant to put together all possible ways to extract events from
-% Deuteron and INTAN systems.
-% The script 'eventDefinitions.mat' must be inside your project file system,
-% under 'analisysCode', and a template exists in the folder 'configfiles' of the toolbox
+% EventProcess  Extract and structure behavioural events from INTAN or Deuteron.
 %
-% Jesus 05.05.2026
+% PURPOSE:
+%   Central extraction of events. Checks for already cached EventRecord,
+%   trialdef, and events files; only re-extracts what is missing or newly
+%   requested. After extraction, calls trialdefGen to build trial boundaries
+%   and runs conditions_script.m to group trials into experimental conditions.
+%   Results are saved to disk.
+%
+% USAGE:
+%   [events, trialdef, EventRecord, opt] = EventProcess(input, opt)
+%
+% INPUTS:
+%   input  - struct with input.run, input.sessions(x).info.fileformat,
+%              input.exefile, and path fields
+%   opt    - complete options struct; relevant:
+%              .RetrieveEvents  (logical) whether to extract events at all
+%              .alignto         (cell of char) event names for trial zero
+%              .trEvents        (cell of char) ITI-period special events
+%              .FolderProcDataMat, .trialSorted  output paths
+%
+% OUTPUTS:
+%   events      - struct; one field per alignment event, each containing
+%                   trial-aligned timestamps in ms (NGL convention)
+%   trialdef    - (2 × n_alignments) cell array:
+%                   row 1: event names (char)
+%                   row 2: (nTrials × 3) arrays [start end t0] in ms
+%   EventRecord - struct; raw event list with timestamps
+%   conditions  - NOT OUTPUT, but SAVED to disk directly.
+%   opt         - updated with opt.eventdef and opt.newEvent
+%
+% CACHING:
+%   If EventRecord.mat, trialdef.mat, and events.mat all exist and all
+%   requested alignto events are present in events, returns immediately
+%   without re-extraction or re-computation. Only re-runs the parts that
+%   are missing or newly requested.
+%
+% SAVED FILES to opt.FolderProcDataMat and opt.trialSorted:
+%   EventRecord.mat, trialdef.mat, events.mat, condition.mat
+%
+% REQUIRES:
+%   eventDefinitions.m and conditions_script.m in analysisCode\
+%
+% CALLS:
+%   INTAN_ExtractEvents, Deuteron_ExtractEvents, trialdefGen
+%
+% Jesus 07.05.2026
 
-%% Defaults.
-if ~isfield(opt,'useexe'),          opt.useexe            = true;               end
-% if ~isfield(opt,'ext'),           opt.ext               = 'fileperch';        end % remove, unnecessary
-if ~isfield(opt,'eventdef'),        opt.eventdef          = eventDefinitions(input.sessions.info.fileformat);   end 
-opt.newEvent = {};
-opt.exefile = input.exefile; % Updated to not override defaults
+%% Prepare.
+% Read eventcode list
+if ~isfield(opt,'eventdef')       
+    opt.eventdef  = eventDefinitions(input.sessions(input.run(1)).info.fileformat);
+end 
+
+% Empty petition for new events
+opt.newEvent = {}; % see if check==3
 
 %% Create empty outputs
 events      = []; % If remains empty, data shall be treated as continuous.
 trialdef    = [];
 EventRecord = [];
 conditions  = [];
-condition  = [];
+condition   = [];
 
 %% Check for alredy collected events
 check = 0;
@@ -69,15 +112,16 @@ if opt.RetrieveEvents
     if check < 1
         % Proceed to extract all events captured by DEUT/INTAN acquisition system,
         % stored along with the data and synchronized with it (proper timestamped).
-        switch input.sessions(input.run(1)).info.fileformat % not using opt.ext anymore
+        switch input.sessions(input.run(1)).info.fileformat
             case {'DT2', 'DF1'}
                 disp('Retrieving events from Deuteron Event files using EXE.')
-                [EventRecord, opt] = Deuteron_ExtractEvents(opt);
+                [EventRecord, opt] = Deuteron_ExtractEvents(input, opt);
             
             case {'fileperch', 'filepertype'}
                 % INTAN
                 disp('Retrieving events from INTAN Dig-IN channels.')
                 EventRecord = INTAN_ExtractEvents(input, opt);
+
             otherwise
                 % It is FT, keep going.
         end
