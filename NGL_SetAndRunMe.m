@@ -55,6 +55,15 @@ NGL00_Prep
 subjects    = {'XXX'}; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
 dates       = {'YYYYMMDD', 'YYYYMMDD'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
 
+% A2) MULTI-AREA (optional).
+% Uncomment and fill in if your probe spans more than one brain area.
+% One label per kcoords group in the chanMap (kcoords==1 → Areas{1}, etc.).
+% Repeated labels indicate shanks from the same area (processed together).
+% Kilosort will run once per unique area; results go to preprocessing\<session>\<Area>\.
+% Leave commented out for standard single-area behaviour.
+%
+%   input.Areas = {'NCL', 'NCL', 'STR'};   % 2 NCL shanks (kcoords 1-2) + 1 STR shank (kcoords 3)
+
 % B) OPTIONS.
 opt = struct();
     % NECESSARY options for NGL01_Main
@@ -84,44 +93,4 @@ opt = struct();
 % 3.1 Continue with the Main script, which locate sessions, determine formats, extract
 % EventCodes and Motion data, convert to Kilosort and FieldTtrip formats, 
 % and perform Kilosort automatic sorting. 
-% Additionally it can launch Phy for manual curation after each sessions, or first
-% run Bombcell to semi-automatize this porcess (only once appropiate
-% parameters are known) and then launch Phy.
-NGL01_Main
-
-%% 3.2 Proceed with post-Phy processing. Once data is curated.
-% Includes steps towards spike/trial sorting of the curated data. Uses
-% events and trial definitions obtained before to trial-parse the spike or
-% LFP data, creating the variables into the lab standard.
-
-% General options for NGL02_postPhy
-cd(input.analysisCode)
-postPhy_param();
-
-% *IMPORTANT*: phy2 must have been run beforehand, so a key file exists to
-% extract information from
-cd(toolbox)
-NGL02_postPhy
-
-%% 3.3 Plotting.
-% Having all necessary variables ('neurons', 'events', 'conditions',
-% 'spike', 'trialdef', etc...) proceed to plot data. 
-%
-% Some basic plots are provided for exploratory-descriptive plotting, 
-% either for the day-to-day data check or for the whole of sessions
-% plotting, to obtain examples of clusters, effects, etc.)
-% Othert elaborated or dedicated plots could be added on a personal basis,
-% or implemented as default if decided as standard.
-
-% TODO
-% NGL03_plotting01
-% NGL03_plotting02
-
-%% 3.4 Aggregating. (IN PROGRESS)
-% Get data from all specified animals and sessions and aggregate them into
-% single variables.
-
-NGL04_aggregate % So far, only living inside 'SocialLearning'
-
-%% 2.XX More...
-% NGLXX_something
+% Additionally it can launch Phy for manual curation afte
