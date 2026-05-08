@@ -152,41 +152,4 @@ elseif stream == 2
             c.LineWidth = 2; % Arroy line width
             xlabel('X');  ylabel('Y');  zlabel('Z'); % Label axes
             xlim([-2,2]); ylim([-2,2]); zlim([-2,2]); % Fix axes scale
-            daspect([1 1 1]); % Set the aspect ratio to be equal.
-            title('Estimated Heading');
-
-        % Timer
-        ts = tic; % start timer
-        pause(0.0009) % Let clock tic to a first milisecond
-        % Run until elapsed time reaches set 'stopTimer' (-5 msec to avoid breaks)
-        while(toc(ts) < stopTimer-0.005) 
-            t = round(toc(ts)*1000); % takes the approximated msec of the run.
-            % Get the rotation matrix at the current time point and rotate the previous position by the rotation matrix.
-            txt = ['Time: ', num2str(t/1000), ' sec'];
-            % curr_pos = rotMat(:,:,t) * curr_pos; % Get current position and rotate according to 'rotMat' step
-            curr_pos = rotatepoint(data(t), curr_pos); % Get current position and rotate according to 'quaternion' step
-            % Collect new datapoints 
-            c.UData = curr_pos(1);
-            c.VData = curr_pos(2);
-            c.WData = curr_pos(3);
-
-            % Update figure.
-            drawnow;
-                title(txt);
-
-            % Get the frame and write it to video.
-            if record
-                F = getframe;           % Capture the frame
-                writeVideo(writerObj,F) % add the frame to the movie
-            end
-            pause(framerate) % pause the run to an approx. framerate.
-        end
-
-        if record
-            % Close video file.
-            close(writerObj);
-        end
-    end
-end
-
-end
+            daspe

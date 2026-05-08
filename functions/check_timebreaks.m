@@ -65,7 +65,4 @@ switch datatype
                 % Get the times for the last and first, to obtain real time
                 % passed in between them.
                 timebreak{b,1} = []; %
-                timebreak{b,2} = [str2double(data(breakDect(b,1), 3)) str2double(data(breakDect(b,2), 3))]; % Keep 3rd field
-            end
-        end
-end
+                timebr

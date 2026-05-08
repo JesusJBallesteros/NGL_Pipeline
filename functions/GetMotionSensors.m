@@ -646,23 +646,4 @@ function [frac, R] = evaluate_yaw_fraction(yaw_deg, pitch_rad, roll_rad, par, ha
     
     % count only fixation frames
     onScreen_fix = onScreen & isFix;
-    frac = sum(onScreen_fix) / max(1, sum(isFix));
-end
-
-% Compose rotation matrices for each time sample.
-function R = composeRotationMatrix(yaw_rad, pitch_rad_vec, roll_rad_vec)
-    % R = R_yaw * R_pitch * R_roll (intrinsic rotations about z,y,x respectively),
-    % returned as 3x3xN where N = length(pitch_rad_vec)
-    N = numel(pitch_rad_vec);
-    R = zeros(3,3,N);
-    % constant yaw for all samples (yaw_rad scalar)
-    cy = cos(yaw_rad); sy = sin(yaw_rad);
-    Ryaw = [cy -sy 0; sy cy 0; 0 0 1];
-    for k = 1:N
-        cp = cos(pitch_rad_vec(k)); sp = sin(pitch_rad_vec(k));
-        cr = cos(roll_rad_vec(k)); sr = sin(roll_rad_vec(k));
-        Rp = [cp 0 sp; 0 1 0; -sp 0 cp];      % rotation about y
-        Rr = [1 0 0; 0 cr -sr; 0 sr cr];      % rotation about x
-        R(:,:,k) = Ryaw * Rp * Rr;
-    end
-end
+    frac = sum(onScreen_fix) / max(1, sum(isFix

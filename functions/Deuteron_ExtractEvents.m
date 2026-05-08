@@ -240,4 +240,4 @@ function EventRecord = extractFromLog(opt)
     EventRecord.TimeSource          = nan(length(stateLog),1);
     EventRecord.Details             = nan(length(stateLog),1);
     EventRecord.TimeBreak           = {[] []};
-end
+end                                                                                                                                      
