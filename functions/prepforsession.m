@@ -66,9 +66,9 @@ opt.spikeSorted       = fullfile(input.spikeSorted, subject, session);
 opt.trialSorted       = fullfile(input.trialSorted, subject, session);
 opt.analysis          = fullfile(input.analysis, subject, session);
 
-% Kilosort output folder(s).
-% Single-area (default): one folder under <session>/kilosort/<version>
-% Multi-area: one sub-folder per unique area under <session>/<AreaLabel>/
+% Kilosort output folder(s):
+%  Single-area (default): one folder under <session>/kilosort/<version>
+%  Multi-area: one sub-folder per unique area under <session>/<AreaLabel>/
 % opt.KSfolder is always set to the single-area path for backward-compatible
 % code; opt.KSfolders carries the per-area map when input.areaMap is present.
 opt.KSfolder = fullfile(opt.FolderProcDataMat, 'kilosort', int2str(opt.kilosort));

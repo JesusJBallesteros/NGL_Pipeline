@@ -48,7 +48,7 @@ function [input, opt] = set_default(input, opt)
 % REQUIRES:
 %   default_opt.m, NGL_machineConfig.m (in analysisCode/)
 %
-% Last modified 08.05.2026 (Jesus)
+% Last modified 11.05.2026 (Jesus)
 
 %% SECTION 1: Merge user-provided opt with canonical defaults
 defaults   = default_opt();
@@ -140,7 +140,7 @@ if opt.doNWB
     input.NCfolder = cfg.NCpythonExe;
 end
 
-%% SECTION 4b: Build area map if input.Areas is defined (multi-area)
+% 5b: Build area map if input.Areas is defined (multi-area)
 % When the user supplies input.Areas (e.g. {'NCL','NCL','STR'}), each entry
 % labels the kcoords group at that index in the chanMap. buildAreaMap derives
 % per-area channel masks and writes per-area chanMap .mat files to analysisCode.

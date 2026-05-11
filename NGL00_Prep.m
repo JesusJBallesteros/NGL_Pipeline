@@ -1,10 +1,12 @@
 %% NGL00_Prep
-% Running this script will create and set a complete folder structure in the
-% PC, to store and process new projects. It is necessary to have the right 
-% folder system, so the following scripts can find the data and store it
-% according to the lab standards.
+% Running this script at the time of setting up a project will create and 
+% set a complete folder structure in the PC, to store and process data within.
+% It is necessary to have the right folder system, so the following scripts 
+% can find the data and store it according to the lab standards.
+% A call during other NGLXX scripts will collect and sort the user inputs into
+% proper structures expected by the pipeline.
 % 
-% JESUS 04.01.2023
+% Last Version. 11.05.2026
 
 %% The folder system will be created under 'datadrive:\studyname\'
 % Data is stored in a main HD or SSD unit. 
@@ -61,4 +63,20 @@ else
     clear txt
 end
 
-clear projectfolder
+% At the beggining of any other NGLXX script, the existence of opt and input
+% structs will be checked.
+if exist('opt','var')
+    if ~exist("input","var")
+        input = struct( 'datadrive' , datadrive , ...
+                        'studyName' , studyname , ...
+                        'subjects'  , [], ...
+                        'dates'     , [], ...
+                        'Areas'     , []        );
+        input.dates    = dates;
+        input.subjects = subjects;
+        input.Areas    = areas;
+    end
+
+    clear areas subjects dates datadrive studyname
+end
+ clear projectfolder readmecontent

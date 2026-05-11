@@ -44,7 +44,7 @@ function master_kilosort4(input, varargin)
 %
 % MATLAB wrapper: Jesus J. Ballesteros, 08.2024
 % Last modified 08.05.2026 (Jesus)
-
+%
 %% INSTALL Python requirements and kilosort4
 %  1. To be able to use Kilosort4 at all. This will be setup once per
 %  computer and, in principle, not anymore.
@@ -58,14 +58,14 @@ function master_kilosort4(input, varargin)
 %   - Install GPU pytorch:
 %       'pip uninstall torch'
 %       'conda install pytorch pytorch-cuda=11.7 -c pytorch -c nvidia'
-
+%
 %% USE
 % Python script wrapper calls run_kilosort with:
 %   settings['n_chan_bin'] = numChannels
 %   filename = /path/to/session.bin
 %   probe_name = /path/to/chanMap.mat
 %   results_dir = opt.KSfolder
-
+%
 %% DESCRIPTION
 % 'run_kilosort' key parameters (see kilosort/parameters.py for full list):
 %   'n_chan_bin'    - MUST be set; total channels in binary file (incl. disconnected)

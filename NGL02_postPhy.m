@@ -10,16 +10,7 @@
 
 %% 00. Check current inputs.
 % Check if input variable exist already. Parse values.
-if ~exist("input","var")
-    input = struct( 'datadrive' , datadrive , ...   % force char array
-                    'studyName' , studyname , ...   % force char array
-                    'subjects'  , [], ...           % do NOT force char array
-                    'dates'     , []        );      % do NOT force char array
-    input.dates     = dates;    % place as it comes
-    input.subjects  = subjects; % place as it comes
-else
-    disp('Using INPUTS from NGL01_MAIN.')
-end
+NGL00_Prep
 
 % This single call guarantees opt is complete, validated, and consistent.
 % It will error early with a clear message if anything is wrong.

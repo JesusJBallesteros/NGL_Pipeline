@@ -49,15 +49,7 @@
 % Last modified 08.05.2026 (Jesus)
 
 %% 00. Check current inputs.
-if ~exist("input","var")
-    input = struct( 'datadrive' , datadrive , ...
-                    'studyName' , studyname , ...
-                    'subjects'  , [], ...
-                    'dates'     , []        );
-    input.dates    = dates;
-    input.subjects = subjects;
-end
-
+NGL00_Prep
 [input, opt] = set_default(input, opt);
 
 %% 01. Find and list requested sessions and subjects.
@@ -81,7 +73,7 @@ for x = 1:input.nsubjects % Subjects.
 
             case {'FieldTrip'}
                % 03.3 FT Pipeline — session already preprocessed, events only.
-               [events, trialdef, EventRecord] = EventProcess(input, opt);
+               EventProcess(input, opt);
                disp('Session skipped because continuous FT file was found')
                continue
 
@@ -98,7 +90,7 @@ for x = 1:input.nsubjects % Subjects.
                 % connected mask (via chanMap) and output folder differ.
                 for a = 1:numel(input.areaMap.uniqueAreas)
                     areaName              = input.areaMap.uniqueAreas{a};
-                    fprintf('\n --- Kilosort: area %s ---\n', areaName);
+                    fprintf('\n Kilosort: area %s \n', areaName);
                     optArea               = opt;
                     optArea.KSfolder      = opt.KSfolders.(areaName);
                     optArea.KSchanMapFile = input.areaMap.chanMapFiles{a};
@@ -117,7 +109,7 @@ for x = 1:input.nsubjects % Subjects.
                 % Multi-area: run Bombcell for each area's KS output folder.
                 for a = 1:numel(input.areaMap.uniqueAreas)
                     areaName         = input.areaMap.uniqueAreas{a};
-                    fprintf('\n --- Bombcell: area %s ---\n', areaName);
+                    fprintf('\n Bombcell: area %s \n', areaName);
                     optArea          = opt;
                     optArea.KSfolder = opt.KSfolders.(areaName);
                     Bombcell_Main(input, optArea)
@@ -129,6 +121,10 @@ for x = 1:input.nsubjects % Subjects.
         end
 
         %% 06. Open Phy to manual curation or just inspection
+        % This is BEST done manually, once all your sessions have been processed
+        % by opening Phy one by one. This automatization after a session is 
+        % processed could be useful in specific cases at the time of parameter 
+        % optimization, or checking specific datasets one by one. 
         if opt.phy
             % Will change to current session directory and open phy.
             % ! Keeps MATLAB busy until interface is closed.
@@ -137,7 +133,7 @@ for x = 1:input.nsubjects % Subjects.
         end
 
         %% Clean up to move on to next session
-        clear FT_data INTANdata txt events EventRecord trialdef
+        clear FT_data INTANdata txt
 
     end % sessions loop
 end % subjects loop

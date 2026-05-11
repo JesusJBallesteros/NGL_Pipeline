@@ -50,7 +50,7 @@ function areaMap = buildAreaMap(Areas, chanMapPath)
 % CALLS:
 %   load, save (built-in MATLAB file I/O)
 %
-% Last modified 08.05.2026 (Jesus)
+% Last modified 11.05.2026 (Jesus)
 
 %% Input validation
 assert(iscell(Areas) && ~isempty(Areas), ...
@@ -85,7 +85,7 @@ assert(nGroups >= kMax, ...
 [uniqueAreas, firstIdx] = unique(Areas(1:kMax), 'stable');
 nAreas = numel(uniqueAreas);
 
-fprintf('buildAreaMap: %d kcoords groups → %d unique areas (%s)\n', ...
+fprintf('buildAreaMap: %d kcoords groups -> %d unique areas (%s)\n', ...
     kMax, nAreas, strjoin(uniqueAreas, ', '));
 
 %% Pre-allocate output
@@ -127,6 +127,6 @@ for a = 1:nAreas
     save(outFile, '-struct', 'mArea');
     areaMap.chanMapFiles{a} = outFile;
 
-    fprintf('  Area %-6s: kcoords [%s], %d channels → %s\n', ...
+    fprintf('  Area %-6s: kcoords [%s], %d channels -> %s\n', ...
         label, num2str(kgroups), numel(chanIdx), outFile);
 end
