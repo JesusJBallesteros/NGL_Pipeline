@@ -140,22 +140,6 @@ if opt.doNWB
     input.NCfolder = cfg.NCpythonExe;
 end
 
-% 5b: Build area map if input.Areas is defined (multi-area)
-% When the user supplies input.Areas (e.g. {'NCL','NCL','STR'}), each entry
-% labels the kcoords group at that index in the chanMap. buildAreaMap derives
-% per-area channel masks and writes per-area chanMap .mat files to analysisCode.
-% If input.Areas is absent this section is skipped and the pipeline runs in
-% backward-compatible single-area mode.
-if isfield(input, 'Areas') && ~isempty(input.Areas)
-    assert(~isempty(opt.KSchanMapFile), ...
-        'NGL:areaMap', ...
-        'input.Areas is set but opt.KSchanMapFile is empty. Provide a chanMap filename.');
-    chanMapFullPath = fullfile(input.analysisCode, opt.KSchanMapFile);
-    input.areaMap   = buildAreaMap(input.Areas, chanMapFullPath);
-    fprintf('Multi-area mode: %d unique areas (%s)\n', ...
-        numel(input.areaMap.uniqueAreas), strjoin(input.areaMap.uniqueAreas, ', '));
-end
-
 %% SECTION 6: Resolve subject list
 if ~isfield(input, 'subjects') || isempty(input.subjects)
     input.subjects = 'all';
@@ -200,4 +184,20 @@ addpath(genpath(fullfile('toolboxes', 'spikes')))
 ft_defaults
 
 disp('Defaults and User Options successfully merged.')
+
+%% 8: Build area map if input.Areas is defined (multi-area)
+% When the user supplies input.Areas (e.g. {'NCL','NCL','STR'}), each entry
+% labels the kcoords group at that index in the chanMap. buildAreaMap derives
+% per-area channel masks and writes per-area chanMap .mat files to analysisCode.
+% If input.Areas is absent this section is skipped and the pipeline runs in
+% backward-compatible single-area mode.
+if isfield(input, 'Areas') && ~isempty(input.Areas)
+    assert(~isempty(opt.KSchanMapFile), ...
+        'NGL:areaMap', ...
+        'input.Areas is set but opt.KSchanMapFile is empty. Provide a chanMap filename.');
+    chanMapFullPath = fullfile(input.analysisCode, opt.KSchanMapFile);
+    input.areaMap   = buildAreaMap(input.Areas, chanMapFullPath);
+    fprintf('Multi-area mode: %d unique areas (%s)\n', ...
+        numel(input.areaMap.uniqueAreas), strjoin(input.areaMap.uniqueAreas, ', '));
+end
 end
