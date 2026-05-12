@@ -6,7 +6,7 @@
 % A call during other NGLXX scripts will collect and sort the user inputs into
 % proper structures expected by the pipeline.
 % 
-% Last Version. 11.05.2026
+% Last Version. 12.05.2026
 
 %% The folder system will be created under 'datadrive:\studyname\'
 % Data is stored in a main HD or SSD unit. 

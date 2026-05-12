@@ -163,7 +163,18 @@ input.nsubjects = numel(input.subjects);
 %% SECTION 7: Add dependencies to MATLAB path
 cd(input.toolbox)
 
-addpath('functions')
+% functions/ subfolders — one addpath per logical group.
+% Keeping them explicit (rather than genpath) avoids pulling in _deprecated/.
+addpath(fullfile('functions', 'pipeline'))
+addpath(fullfile('functions', 'intan'))
+addpath(fullfile('functions', 'deuteron'))
+addpath(fullfile('functions', 'sorting'))
+addpath(fullfile('functions', 'events'))
+addpath(fullfile('functions', 'analysis'))
+addpath(fullfile('functions', 'video'))
+addpath(fullfile('functions', 'plotting'))
+addpath(fullfile('functions', 'ethology'))
+addpath(fullfile('functions', 'utils'))
 
 addpath(fullfile('toolboxes', 'Intan'))
 addpath(fullfile('toolboxes', 'fieldtrip_light'))
@@ -176,6 +187,10 @@ addpath(genpath(fullfile('toolboxes', 'prettify_matlab')))
 addpath(genpath(fullfile('toolboxes', 'spikes')))
 
 ft_defaults
+
+% Validate that all required config files are present in analysisCode\.
+% Raises an error listing every gap at once so nothing is silently missing.
+checkAnalysisCode(input, opt)
 
 disp('Defaults and User Options successfully merged.')
 

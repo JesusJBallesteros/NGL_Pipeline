@@ -56,18 +56,21 @@ cd(opt.FolderProcDataMat)
         end
         
         %% Prepare argument to send to the python script
-        % Arguments (2 only — NCfolder is not needed; neuroconv is pip-installed):
+        % Arguments:
         %   var1  absolute path to the INTAN header file (info.rhd)
         %   var2  absolute path for the output .nwb file
+        %   var3  absolute path to the project nwb_metadata.yaml in analysisCode\
         command.script = "master_neuroconv.py";
         command.s1     = " '";
         command.s2     = "'";
         command.var1   = string(fullfile(opt.PathRaw, 'info.rhd'));
         command.var2   = string(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '.nwb']));
+        command.var3   = string(fullfile(input.analysisCode, 'nwb_metadata.yaml'));
 
         command.full = append(command.script, ...
             command.s1, command.var1, command.s2, ...
-            command.s1, command.var2, command.s2  ...
+            command.s1, command.var2, command.s2, ...
+            command.s1, command.var3, command.s2  ...
             );
 
         %% Copy wrapper script to the NC environment folder, then run from there.
