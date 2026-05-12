@@ -154,26 +154,49 @@ command.full = append(command.script, ...
     );
 
 %% RUN
+% Select and copy parameters file into the KS4 environment folder.
+% Priority order:
+%   1. parameters_<Area>.py  — area-specific settings (e.g. parameters_NCL.py)
+%   2. parameters.py         — single shared parameters file
+%   3. def_parameters.py     — project default, fallback
+% The area label is the last path component of opt.KSfolder (e.g. 'NCL', 'STR').
+% In single-area mode opt.KSfolders is absent and areaLabel stays empty,
+% so the area-specific lookup is skipped.
 cd(input.analysisCode)
-projfiles = string(ls("*.py"));
 
-% Some projects might use more than one probe.
-if length(projfiles) > 3
-    if contains(opt.KSchanMapFile, 'S2')
-        copyfile(string(fullfile(input.analysisCode,projfiles{3})), string(fullfile(input.KSpyfolder, 'parameters.py')),'f');
-    elseif contains(opt.KSchanMapFile, 'Poly3')
-        copyfile(projfiles{2}, [input.KSpyfolder '\parameters.py'],'f');
-    else
-        error('Your specific configuration for Kilosort4 does not seem to be listed.')
-    end
+% Determine area label
+if isfield(opt, 'KSfolders')
+    [~, areaLabel] = fileparts(opt.KSfolder);
 else
-    copyfile(projfiles{3}, input.KSpyfolder,'f');
+    areaLabel = '';
 end
 
-copyfile(projfiles{1}, input.KSpyfolder,'f');
+% Find the best-matching parameters file
+paramFile = '';
+if ~isempty(areaLabel)
+    candidate = fullfile(input.analysisCode, sprintf('parameters_%s.py', areaLabel));
+    if isfile(candidate), paramFile = candidate; end
+end
+if isempty(paramFile)
+    candidate = fullfile(input.analysisCode, 'parameters.py');
+    if isfile(candidate), paramFile = candidate; end
+end
+if isempty(paramFile)
+    candidate = fullfile(input.analysisCode, 'def_parameters.py');
+    if isfile(candidate), paramFile = candidate; end
+end
+assert(~isempty(paramFile), 'NGL:noParameters', ...
+    'No parameters .py file found in %s. Expected parameters_<Area>.py, parameters.py, or def_parameters.py.', ...
+    input.analysisCode);
+
+% Copy parameters file into KS env (always as "parameters.py")
+copyfile(paramFile, fullfile(input.KSpyfolder, 'parameters.py'), 'f');
+fprintf('KS4 parameters: %s\n', paramFile);
+
+% Copy the MATLAB->Python run script
+copyfile(fullfile(input.analysisCode, 'master_kilosort4.py'), input.KSpyfolder, 'f');
 
 cd(input.KSpyfolder)
-
 if isfolder("__pycache__")
     rmdir __pycache__ s
 end
@@ -181,3 +204,24 @@ end
 pyrunfile(command.full)
 
 terminate(pyenv)
+
+%% Post-run: relocate KS4 output to the intended area folder if needed.
+% Some KS4 versions ignore results_dir and always write to
+% <data_dir>\kilosort4. When that happens and this is a multi-area run
+% (detectable by opt.KSfolders being present), move the output folder.
+% Conditions for the move:
+%   - the default kilosort4\ folder exists and has actual files
+%   - opt.KSfolder differs from that default location (area run)
+%   - the intended area folder exists but is empty (pre-created by prepforsession)
+defaultKSout = fullfile(opt.FolderProcDataMat, 'kilosort4');
+if isfield(opt, 'KSfolders') && isfolder(defaultKSout) && ~strcmp(defaultKSout, opt.KSfolder)
+    defaultContent = dir(defaultKSout);
+    areaContent    = dir(opt.KSfolder);
+    if length(defaultContent) > 3 && length(areaContent) <= 4
+        rmdir(opt.KSfolder);                  % remove the pre-created empty area folder
+        movefile(defaultKSout, opt.KSfolder); % rename kilosort4\ -> <Area>\ ("move")
+        fprintf('KS4 output relocated: kilosort4/ -> %s\n', opt.KSfolder);
+    end
+end
+
+end
