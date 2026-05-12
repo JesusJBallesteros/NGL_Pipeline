@@ -22,7 +22,7 @@ cd(opt.FolderProcDataMat)
     files = dir('*.nwb'); 
 
     %% 01. If there is none, proceed
-    if isempty(files)
+    if isempty(files) || files.bytes < 1e6
         % Warn about file being process.
         disp('- Will convert session to NWB format. This may take a moment.');
 
@@ -56,33 +56,33 @@ cd(opt.FolderProcDataMat)
         end
         
         %% Prepare argument to send to the python script
-        % The argument is given as a single string, so we can prepare the pieces to
-        % put them all together at the end.
-        command.script = "master_neuroconv.py"; % Our script that wraps the call to neuroconv
-        command.s1 = " '"; % To introduce the necessary 's before the argument.
-        command.s2 = "'"; % To introduce the necessary 's after the argument.
-        command.var1 = input.NCfolder; % var1 is the absolute path to the kilosort library in the python enviroment
-        command.var2 = string(fullfile(opt.PathRaw, 'info.rhd')); %,  % var2 is the absolute path to the INTAN header file
-        command.var3 = string(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '.nwb'])); %,  % var3 is the absolute path to the .bin file has been created
-        % command.var4 = string();
-        
-        % Put all strings together for a full argument
+        % Arguments (2 only — NCfolder is not needed; neuroconv is pip-installed):
+        %   var1  absolute path to the INTAN header file (info.rhd)
+        %   var2  absolute path for the output .nwb file
+        command.script = "master_neuroconv.py";
+        command.s1     = " '";
+        command.s2     = "'";
+        command.var1   = string(fullfile(opt.PathRaw, 'info.rhd'));
+        command.var2   = string(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '.nwb']));
+
         command.full = append(command.script, ...
             command.s1, command.var1, command.s2, ...
-            command.s1, command.var2, command.s2, ...
-            command.s1, command.var3, command.s2 ... % If you add more varX, this one needs a comma at the end, before '...'
-            ); % Add more 'command.s1, command.varX, command.s2 ...' for new variables, and make sure you collect them in the python script
+            command.s1, command.var2, command.s2  ...
+            );
 
-%         cd(input.NCfolder)
-        
-        % Clear cache
+        %% Copy wrapper script to the NC environment folder, then run from there.
+        % pyrunfile resolves scripts relative to the current directory, so we
+        % copy master_neuroconv.py next to python.exe (same pattern as
+        % master_kilosort4.m copies its script to input.KSpyfolder).
+        copyfile(fullfile(input.analysisCode, 'master_neuroconv.py'), input.NCfolder, 'f');
+
+        % Clear any stale bytecode cache
         if isfolder("__pycache__")
             rmdir __pycache__ s
         end
 
-        % Run the routine
+        % Run the conversion
         disp('- Conversion in progress...');
-        % Run the wrapper script with the given arguments
         pyrunfile(command.full)
         
         % Terminate python process
