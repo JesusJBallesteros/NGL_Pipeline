@@ -12,10 +12,12 @@ function Bombcell_Main(input, opt)
 %   Do not call directly; gated by opt.bombcell in NGL01_Main.
 %
 % INPUTS:
-%   input  - struct (not used directly; reserved for future path resolution)
+%   input  - struct from set_default; relevant fields:
+%              .toolbox             root toolbox path (for mex compilation check)
 %   opt    - options struct; relevant fields:
 %              .FolderProcDataMat   preprocessing folder (contains .bin file)
-%              .KSfolder            Kilosort output folder
+%              .KSfolder            Kilosort output folder for this run
+%                                   (single-area: kilosort\4\; multi-area: <Area>\)
 %
 % OUTPUTS:
 %   <KSfolder>/bombcell/            Bombcell QC results directory
@@ -33,13 +35,15 @@ function Bombcell_Main(input, opt)
 % CITE:
 %   Bombcell: https://github.com/Julie-Fabre/bombcell
 %
-% Jesus 21.05.2025
+% Jesus 12.05.2026
 
 %% Paths and other
-% Find .bin files.
-ephysKilosortPath  = fullfile(opt.FolderProcDataMat, 'kilosort4'); % the raw data binary file is in this folder (for current subject and session)
-ephysRawDir        = dir([opt.FolderProcDataMat, '\*.*bin']); % your raw .bin data
-savePath           = fullfile(ephysKilosortPath, 'bombcell'); % where you want to save the quality metrics
+% KS output folder: use opt.KSfolder so single-area and multi-area runs both
+% resolve correctly. In single-area mode this equals kilosort\4\; in
+% multi-area mode it is the per-area sub-folder (e.g. preprocessing\NCL\).
+ephysKilosortPath  = opt.KSfolder;
+ephysRawDir        = dir([opt.FolderProcDataMat, '\*.*bin']); % raw .bin lives in the preprocessing folder (shared across areas)
+savePath           = fullfile(ephysKilosortPath, 'bombcell'); % quality metrics saved alongside the KS output for this area
 ephysMetaDir       = []; % path to your .meta or .oebin meta file
 % Detect whether data is compressed. Decompress locally, if necessary.
 ephysRawFile    = [ephysRawDir.folder, filesep, ephysRawDir.name]; % Ours is never .cbin, so far.
@@ -71,7 +75,46 @@ end
 [qMetric, unitType] = bc.qm.runAllQualityMetrics(param, spikeTimes_samples, spikeClusters, ...
                     templateWaveforms, templateAmplitudes, pcFeatures, pcFeatureIdx, channelPositions, savePath);
 
-%% view units + quality metrics in GUI 
+%% Tag area of origin (multi-area mode only)
+% Derive area label from the last path component of opt.KSfolder.
+% opt.KSfolders being present is the reliable multi-area guard (same
+% convention used in master_kilosort4 and NGL01_Main).
+if isfield(opt, 'KSfolders')
+    [~, areaLabel] = fileparts(opt.KSfolder);
+else
+    areaLabel = '';
+end
+
+if ~isempty(areaLabel)
+    nUnits = numel(qMetric.clusterID);
+
+    % 1. Add .area field to qMetric struct and re-save qMetrics.mat.
+    %    Enables filtering / concatenation in MATLAB analysis (e.g.
+    %    strcmp(qMetric.area, 'NCL')).
+    qMetric.area = repmat({areaLabel}, nUnits, 1);
+    save(fullfile(savePath, 'qMetrics.mat'), 'qMetric');
+
+    % 2. Write cluster_area.tsv to the KS output folder.
+    %    Phy auto-loads any cluster_*.tsv it finds there and displays it
+    %    as a column in the cluster table — no Phy config changes needed.
+    %    cluster_id must be 0-indexed (phy_clusterID).
+    T = table(qMetric.phy_clusterID(:), repmat({areaLabel}, nUnits, 1), ...
+              'VariableNames', {'cluster_id', 'area'});
+    writetable(T, fullfile(opt.KSfolder, 'cluster_area.tsv'), ...
+               'FileType', 'text', 'Delimiter', '\t');
+
+    % 3. Write area_label.txt alongside the bombcell .npy files.
+    %    Python analysis scripts that load unitType.npy, etc. can read
+    %    this one-liner to know which area the arrays belong to.
+    fid = fopen(fullfile(savePath, 'area_label.txt'), 'w');
+    fprintf(fid, '%s\n', areaLabel);
+    fclose(fid);
+
+    fprintf('Area label ''%s'' written to qMetrics.mat, cluster_area.tsv, and area_label.txt (%d units).\n', ...
+            areaLabel, nUnits);
+end
+
+%% view units + quality metrics in GUI
 if opt.callBcGUI
     % load data for GUI
     loadRawTraces = 0; % default: don't load in raw data (this makes the GUI significantly faster)
