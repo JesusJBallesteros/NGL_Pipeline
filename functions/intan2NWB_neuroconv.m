@@ -31,21 +31,20 @@ cd(opt.FolderProcDataMat)
         
         %% Check NeuroConv enviroment
         % Call enviroment status
-        pe = pyenv('Version', input.NCfolder);
+        pe = pyenv(Version=fullfile(input.NCfolder,'python.exe'), ExecutionMode="OutOfProcess");
         
         % Check if pyenv is set, or kill any residual process running
         if pe.ExecutionMode && pe.Status > 0
-            terminate(pyenv) % Terminate process
-            pe = pyenv; % Recall enviroment status
+            terminate(pyenv)
+            pe = pyenv;
         
-            % Proceed to start enviroment
             if pe.Status == "Terminated"
-                % And only if properl'y terminated, reset it
                 pe = pyenv('ExecutionMode', 'OutOfProcess');
-                py.list; % a call to restart the Interpreter
-                pe = pyenv; % Recall enviroment status
+                py.list;
+                pe = pyenv;
             else
-                error('Something went wrong while reloading Python Interpreter. Restart Matlab.')
+                py.list;
+                pe = pyenv;
             end
         end
         
@@ -53,7 +52,7 @@ cd(opt.FolderProcDataMat)
         if pe.Status == "Loaded"
             disp(append('Python enviroment set as version: ', pe.Version))
         else
-            error('Something went wrong with the Python enviroment setup.')    
+            error('Something went wrong with the Python enviroment setup.')
         end
         
         %% Prepare argument to send to the python script
@@ -62,7 +61,7 @@ cd(opt.FolderProcDataMat)
         command.script = "master_neuroconv.py"; % Our script that wraps the call to neuroconv
         command.s1 = " '"; % To introduce the necessary 's before the argument.
         command.s2 = "'"; % To introduce the necessary 's after the argument.
-        command.var1 = "C:\Code\miniconda3\envs\neuroconv\Lib\site-packages\neuroconv"; % var1 is the absolute path to the kilosort library in the python enviroment
+        command.var1 = input.NCfolder; % var1 is the absolute path to the kilosort library in the python enviroment
         command.var2 = string(fullfile(opt.PathRaw, 'info.rhd')); %,  % var2 is the absolute path to the INTAN header file
         command.var3 = string(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '.nwb'])); %,  % var3 is the absolute path to the .bin file has been created
         % command.var4 = string();

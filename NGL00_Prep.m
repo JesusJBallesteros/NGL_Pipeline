@@ -10,57 +10,59 @@
 
 %% The folder system will be created under 'datadrive:\studyname\'
 % Data is stored in a main HD or SSD unit. 
-if ~contains(datadrive,':\')
-    datadrive = [datadrive ':\'];
-end
+if exist('datadrive','var')
+    if ~contains(datadrive,':\')
+        datadrive = [datadrive ':\'];
+    end
 
-% Project folder.
-projectfolder = fullfile(datadrive, studyname);
+    % Project folder.
+    projectfolder = fullfile(datadrive, studyname);
 
-if ~exist(projectfolder,"dir")
-    txt = sprintf('Folder system for project "%s" will be created. \n', studyname);
-    fprintf(txt);
-
-    % Create project folder and change current directory to it.
-    mkdir(projectfolder);
-    cd(projectfolder);
+    if ~exist(projectfolder,"dir")
+        txt = sprintf('Folder system for project "%s" will be created. \n', studyname);
+        fprintf(txt);
     
-    % Create 'readme.txt' file.
-    fileID = fopen('readme.txt','w');
+        % Create project folder and change current directory to it.
+        mkdir(projectfolder);
+        cd(projectfolder);
+        
+        % Create 'readme.txt' file.
+        fileID = fopen('readme.txt','w');
+        
+        % Fill content into txt file and close it.
+        fprintf(fileID,'%s \r\n', readmecontent);
+        fclose(fileID);
+        
+        % Create first level subfolders.
+        mkdir(projectfolder, 'analysisCode');
+        mkdir(projectfolder, 'data');
+        mkdir(projectfolder, 'manuscript');
+        mkdir(projectfolder, 'paradigmCode');
+        mkdir(projectfolder, 'training');
+        
+        % Create data secondary subfolders.
+        cd(fullfile(projectfolder, 'data'))
+        mkdir('analysis');
+        mkdir('preprocessing');
+        mkdir('raw');
+        mkdir('spikesorted');
+        mkdir('trialsorted');
+        mkdir('behaviour');
+        
+        % Update result
+        txt = sprintf('Folder system for project "%s" created. Done. \n', studyname);    
+        fprintf(txt);
+        warning('NOW is a good time to check your CONFIG files. They should go into your analysisCode folder')
+        
+        clear fileID txt
+    else
+        % Update result
+        txt = sprintf('Folder system for project "%s" located. \n', studyname);
+        fprintf(txt);
+        warning('ALWAYS check your CONFIG files. They should be inside your analysisCode folder')
     
-    % Fill content into txt file and close it.
-    fprintf(fileID,'%s \r\n', readmecontent);
-    fclose(fileID);
-    
-    % Create first level subfolders.
-    mkdir(projectfolder, 'analysisCode');
-    mkdir(projectfolder, 'data');
-    mkdir(projectfolder, 'manuscript');
-    mkdir(projectfolder, 'paradigmCode');
-    mkdir(projectfolder, 'training');
-    
-    % Create data secondary subfolders.
-    cd(fullfile(projectfolder, 'data'))
-    mkdir('analysis');
-    mkdir('preprocessing');
-    mkdir('raw');
-    mkdir('spikesorted');
-    mkdir('trialsorted');
-    mkdir('behaviour');
-    
-    % Update result
-    txt = sprintf('Folder system for project "%s" created. Done. \n', studyname);    
-    fprintf(txt);
-    warning('NOW is a good time to check your CONFIG files. They should go into your analysisCode folder')
-    
-    clear fileID txt
-else
-    % Update result
-    txt = sprintf('Folder system for project "%s" located. \n', studyname);
-    fprintf(txt);
-    warning('ALWAYS check your CONFIG files. They should be inside your analysisCode folder')
-
-    clear txt
+        clear txt
+    end
 end
 
 % At the beggining of any other NGLXX script, the existence of opt and input
