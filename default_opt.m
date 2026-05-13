@@ -27,7 +27,7 @@ function opts = default_opt()
     opts.numChannels     = 32;      % Expected channel count (override for 32-ch Deuteron)
     opts.bin             = true;    % Normally, we always check if the .bin file exists
     opts.FieldTrip       = true;    % Produce a FieldTrip-ready .mat file
-    opts.doNWB           = false;    % INTAN-NeuroConv NWB export (testing)
+    opts.doNWB           = false;    % NWB export: INTAN via NeuroConv (Python), Deuteron via matNWB (MATLAB)
 
     % Events
     opts.RetrieveEvents  = true;     % Extract event log from session

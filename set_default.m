@@ -82,7 +82,7 @@ if ~isempty(opt.lowpass)
         'opt.lowpass must be a scalar between 0 and 9500 Hz, or empty (= off).');
 end
 
-assert(isnumeric(opt.kilosort) && isscalar(opt.lowpass), 'NGL:invalidOption', 'opt.kilosort must be 1 or 0.');
+assert(islogical(opt.kilosort) && isscalar(opt.lowpass), 'NGL:invalidOption', 'opt.kilosort must be true or false.');
 
 %% SECTION 3: Resolve dependencies
 if opt.phy && ~opt.bombcell

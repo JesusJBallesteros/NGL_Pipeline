@@ -39,18 +39,12 @@ missing_required    = {};
 missing_recommended = {};
 
 %% Always required
-
-if ~isfile(fullfile(ac, 'NGL_machineConfig.m'))
-    missing_required{end+1} = 'NGL_machineConfig.m  (machine-specific paths)';
-end
-
 chanMaps = dir(fullfile(ac, 'chanMap*.mat'));
 if isempty(chanMaps)
     missing_required{end+1} = 'chanMap*.mat  (at least one Kilosort channel map)';
 end
 
 %% Kilosort
-
 if opt.kilosort
     if ~isfile(fullfile(ac, 'master_kilosort4.py'))
         missing_required{end+1} = 'master_kilosort4.py  (Kilosort 4 Python wrapper)';
@@ -66,7 +60,6 @@ if opt.kilosort
 end
 
 %% Bombcell
-
 if opt.bombcell
     if ~isfile(fullfile(ac, 'bombcellConfig.m'))
         missing_required{end+1} = 'bombcellConfig.m  (Bombcell quality metric thresholds)';
@@ -74,7 +67,6 @@ if opt.bombcell
 end
 
 %% NWB
-
 if opt.doNWB
     if ~isfile(fullfile(ac, 'master_neuroconv.py'))
         missing_required{end+1} = 'master_neuroconv.py  (NeuroConv NWB conversion wrapper)';
@@ -85,7 +77,6 @@ if opt.doNWB
 end
 
 %% Event retrieval
-
 if opt.RetrieveEvents
     if ~isfile(fullfile(ac, 'eventDefinitions.m'))
         missing_required{end+1} = 'eventDefinitions.m  (event code definitions)';
@@ -93,7 +84,6 @@ if opt.RetrieveEvents
 end
 
 %% Recommended (always)
-
 if ~isfile(fullfile(ac, 'conditions_script.m'))
     missing_recommended{end+1} = 'conditions_script.m  (trial condition labels)';
 end
