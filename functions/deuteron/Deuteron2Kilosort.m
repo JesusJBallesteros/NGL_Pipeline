@@ -122,4 +122,50 @@ if strcmp(opt.ext, 'DF1')
         % Convert ADC bit steps into microvolts to convert to int16 without loss.
         tempdata = int16((opt.voltageResolution * (tempdata - opt.offset)) * 1000000);
 
-        try
+        try
+            data_mat = [data_mat tempdata]; % Concatenate.
+        catch
+            if i==length(opt.myFiles)
+                disp('The last data chunk could not be concatenated')
+            else
+                disp('A non-matching file was found during data creation')
+            end
+        end
+    end
+    clear tempdata fid
+
+    % Reshape to channels x samples.
+    data_mat = reshape(data_mat, opt.numChannels, []);
+end
+
+%% Common methods of preprocessing. Re-Referencing, DC substraction and filter.
+if opt.CAR
+    % In principle, data from a single HS on a single region.
+    disp('Re-referencing by Common Average Referencing (CAR).')
+    data_mat = ft_preproc_rereference(data_mat, 'all', 'median');
+end
+
+% Enforce int16
+filt_data_mat = int16([]);
+
+% Keep memory usage low doing one channel at a time.
+for b = 1:opt.numChannels
+    fprintf('- Channel %d of %d.\n', b, opt.numChannels);
+    
+    % Detrend channel (remove DC)
+    disp('Detrending...')
+    filt_data_mat(b,:) = ft_preproc_detrend(data_mat(b,:));
+
+    % Highpass channel (Butterwort, 4th order, back&forth)
+    if ~isempty(opt.highpass)
+        txt = sprintf('Highpass at %d Hz.\n', opt.highpass);
+        fprintf(txt);
+        [filt_data_mat(b,:), ~, ~] = ft_preproc_highpassfilter(data_mat(b,:), opt.sampleRate, opt.highpass, 4, 'but', 'twopass');
+    end       
+end
+
+%% Write bin file.
+fwrite(fidDataMat, filt_data_mat, 'int16');
+fclose(fidDataMat);
+
+end  
