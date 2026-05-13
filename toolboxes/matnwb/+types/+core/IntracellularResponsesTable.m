@@ -42,17 +42,22 @@ methods
         addParameter(p, 'response',[]);
         misc.parseSkipInvalidName(p, varargin);
         obj.response = p.Results.response;
-        if strcmp(class(obj), 'types.core.IntracellularResponsesTable')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.IntracellularResponsesTable') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-        end
-        if strcmp(class(obj), 'types.core.IntracellularResponsesTable')
             types.util.dynamictable.checkConfig(obj);
         end
     end
     %% SETTERS
     function set.response(obj, val)
         obj.response = obj.validate_response(val);
+        obj.postset_response()
+    end
+    function postset_response(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'response');
     end
     %% VALIDATORS
     
@@ -64,15 +69,15 @@ methods
         end
     end
     function val = validate_response(obj, val)
-        val = types.util.checkDtype('response', 'types.core.TimeSeriesReferenceVectorData', val);
+        types.util.checkType('response', 'types.core.TimeSeriesReferenceVectorData', val);
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.hdmf_common.DynamicTable(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.hdmf_common.DynamicTable(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.response.export(fid, [fullpath '/response'], refs);
+        refs = obj.response.export(writer, [fullpath '/response'], refs);
     end
 end
 

@@ -1,4 +1,4 @@
-classdef FilteredEphys < types.core.NWBDataInterface & types.untyped.GroupClass
+classdef FilteredEphys < types.core.NWBDataInterface & types.untyped.GroupClass & matnwb.mixin.HasUnnamedGroups
 % FILTEREDEPHYS - Electrophysiology data from one or more channels that has been subjected to filtering. Examples of filtered data include Theta and Gamma (LFP has its own interface). FilteredEphys modules publish an ElectricalSeries for each filtered channel or set of channels. The name of each ElectricalSeries is arbitrary but should be informative. The source of the filtered data, whether this is from analysis of another time series or as acquired by hardware, should be noted in each's TimeSeries::description field. There is no assumed 1::1 correspondence between filtered ephys signals and electrodes, as a single signal can apply to many nearby electrodes, and one electrode may have different filtered (e.g., theta and/or gamma) signals represented. Filter properties should be noted in the ElectricalSeries 'filtering' attribute.
 %
 % Required Properties:
@@ -8,6 +8,9 @@ classdef FilteredEphys < types.core.NWBDataInterface & types.untyped.GroupClass
 % REQUIRED PROPERTIES
 properties
     electricalseries; % REQUIRED (ElectricalSeries) ElectricalSeries object(s) containing filtered electrophysiology data.
+end
+properties (Access = protected)
+    GroupPropertyNames = {'electricalseries'}
 end
 
 methods
@@ -34,9 +37,13 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        if strcmp(class(obj), 'types.core.FilteredEphys')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.FilteredEphys') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
+            obj.setupHasUnnamedGroupsMixin();
         end
     end
     %% SETTERS
@@ -51,12 +58,12 @@ methods
         types.util.checkSet('electricalseries', namedprops, constrained, val);
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.core.NWBDataInterface(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.core.NWBDataInterface(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.electricalseries.export(fid, fullpath, refs);
+        refs = obj.electricalseries.export(writer, fullpath, refs);
     end
 end
 

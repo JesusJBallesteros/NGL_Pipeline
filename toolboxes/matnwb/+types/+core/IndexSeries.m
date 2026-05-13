@@ -1,5 +1,5 @@
 classdef IndexSeries < types.core.TimeSeries & types.untyped.GroupClass
-% INDEXSERIES - Stores indices to image frames stored in an ImageSeries. The purpose of the IndexSeries is to allow a static image stack to be stored in an Images object, and the images in the stack to be referenced out-of-order. This can be for the display of individual images, or of movie segments (as a movie is simply a series of images). The data field stores the index of the frame in the referenced Images object, and the timestamps array indicates when that image was displayed.
+% INDEXSERIES - Stores indices that reference images defined in other containers. The primary purpose of the IndexSeries is to allow images stored in an Images container to be referenced in a specific sequence through the 'indexed_images' link. This approach avoids duplicating image data when the same image needs to be presented multiple times or when images need to be shown in a different order than they are stored. Since images in an Images container do not have an inherent order, the Images container needs to include an 'order_of_images' dataset (of type ImageReferences) when being referenced by an IndexSeries. This dataset establishes the ordered sequence that the indices in IndexSeries refer to. The 'data' field stores the index into this ordered sequence, and the 'timestamps' array indicates the precise presentation time of each indexed image during an experiment. This can be used for displaying individual images or creating movie segments by referencing a sequence of images with the appropriate timestamps. While IndexSeries can also reference frames from an ImageSeries through the 'indexed_timeseries' link, this usage is discouraged and will be deprecated in favor of using Images containers with 'order_of_images'.
 %
 % Required Properties:
 %  data
@@ -52,7 +52,7 @@ methods
         % Output Arguments:
         %  - indexSeries (types.core.IndexSeries) - A IndexSeries object
         
-        varargin = [{'data_unit' 'N/A'} varargin];
+        varargin = [{'data_conversion' types.util.correctType(1, 'single') 'data_offset' types.util.correctType(0, 'single') 'data_resolution' types.util.correctType(-1, 'single') 'data_unit' 'N/A'} varargin];
         obj = obj@types.core.TimeSeries(varargin{:});
         
         
@@ -65,7 +65,10 @@ methods
         misc.parseSkipInvalidName(p, varargin);
         obj.indexed_images = p.Results.indexed_images;
         obj.indexed_timeseries = p.Results.indexed_timeseries;
-        if strcmp(class(obj), 'types.core.IndexSeries')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.IndexSeries') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -103,40 +106,22 @@ methods
         end
     end
     function val = validate_indexed_images(obj, val)
-        if isa(val, 'types.untyped.SoftLink')
-            if isprop(val, 'target')
-                types.util.checkDtype('indexed_images', 'types.core.Images', val.target);
-            end
-        else
-            val = types.util.checkDtype('indexed_images', 'types.core.Images', val);
-            if ~isempty(val)
-                val = types.untyped.SoftLink(val);
-            end
-        end
+        val = types.util.validateSoftLink('indexed_images', val, 'types.core.Images');
     end
     function val = validate_indexed_timeseries(obj, val)
-        if isa(val, 'types.untyped.SoftLink')
-            if isprop(val, 'target')
-                types.util.checkDtype('indexed_timeseries', 'types.core.ImageSeries', val.target);
-            end
-        else
-            val = types.util.checkDtype('indexed_timeseries', 'types.core.ImageSeries', val);
-            if ~isempty(val)
-                val = types.untyped.SoftLink(val);
-            end
-        end
+        val = types.util.validateSoftLink('indexed_timeseries', val, 'types.core.ImageSeries');
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.core.TimeSeries(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.core.TimeSeries(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if ~isempty(obj.indexed_images)
-            refs = obj.indexed_images.export(fid, [fullpath '/indexed_images'], refs);
+            refs = obj.indexed_images.export(writer, [fullpath '/indexed_images'], refs);
         end
         if ~isempty(obj.indexed_timeseries)
-            refs = obj.indexed_timeseries.export(fid, [fullpath '/indexed_timeseries'], refs);
+            refs = obj.indexed_timeseries.export(writer, [fullpath '/indexed_timeseries'], refs);
         end
     end
 end

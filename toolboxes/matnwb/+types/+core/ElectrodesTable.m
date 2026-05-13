@@ -1,0 +1,338 @@
+classdef ElectrodesTable < types.hdmf_common.DynamicTable & types.untyped.GroupClass
+% ELECTRODESTABLE - A table of all electrodes (i.e. channels) used for recording. Introduced in NWB 2.8.0. Replaces the "electrodes" table (neurodata_type_inc DynamicTable, no neurodata_type_def) that is part of NWBFile.
+%
+% Required Properties:
+%  colnames, description, group, id, location
+
+
+% REQUIRED PROPERTIES
+properties
+    group; % REQUIRED (VectorData) Reference to the ElectrodeGroup this electrode is a part of.
+    location; % REQUIRED (VectorData) Location of the electrode (channel). Specify the area, layer, comments on estimation of area/layer, stereotaxic coordinates if in vivo, etc. Use standard atlas names for anatomical regions when possible.
+end
+% OPTIONAL PROPERTIES
+properties
+    filtering; %  (VectorData) Description of hardware filtering, including the filter name and frequency cutoffs.
+    group_name; %  (VectorData) Name of the ElectrodeGroup this electrode is a part of.
+    imp; %  (VectorData) Impedance of the channel, in ohms.
+    reference; %  (VectorData) Description of the reference electrode and/or reference scheme used for this electrode, e.g., "stainless steel skull screw" or "online common average referencing".
+    rel_x; %  (VectorData) x coordinate in electrode group
+    rel_y; %  (VectorData) y coordinate in electrode group
+    rel_z; %  (VectorData) z coordinate in electrode group
+    x; %  (VectorData) x coordinate of the channel location in the brain (+x is posterior).
+    y; %  (VectorData) y coordinate of the channel location in the brain (+y is inferior).
+    z; %  (VectorData) z coordinate of the channel location in the brain (+z is right).
+end
+
+methods
+    function obj = ElectrodesTable(varargin)
+        % ELECTRODESTABLE - Constructor for ElectrodesTable
+        %
+        % Syntax:
+        %  electrodesTable = types.core.ELECTRODESTABLE() creates a ElectrodesTable object with unset property values.
+        %
+        %  electrodesTable = types.core.ELECTRODESTABLE(Name, Value) creates a ElectrodesTable object where one or more property values are specified using name-value pairs.
+        %
+        % Input Arguments (Name-Value Arguments):
+        %  - colnames (char) - The names of the columns in this table. This should be used to specify an order to the columns.
+        %
+        %  - description (char) - Description of what is in this dynamic table.
+        %
+        %  - filtering (VectorData) - Description of hardware filtering, including the filter name and frequency cutoffs.
+        %
+        %  - group (VectorData) - Reference to the ElectrodeGroup this electrode is a part of.
+        %
+        %  - group_name (VectorData) - Name of the ElectrodeGroup this electrode is a part of.
+        %
+        %  - id (ElementIdentifiers) - Array of unique identifiers for the rows of this dynamic table.
+        %
+        %  - imp (VectorData) - Impedance of the channel, in ohms.
+        %
+        %  - location (VectorData) - Location of the electrode (channel). Specify the area, layer, comments on estimation of area/layer, stereotaxic coordinates if in vivo, etc. Use standard atlas names for anatomical regions when possible.
+        %
+        %  - reference (VectorData) - Description of the reference electrode and/or reference scheme used for this electrode, e.g., "stainless steel skull screw" or "online common average referencing".
+        %
+        %  - rel_x (VectorData) - x coordinate in electrode group
+        %
+        %  - rel_y (VectorData) - y coordinate in electrode group
+        %
+        %  - rel_z (VectorData) - z coordinate in electrode group
+        %
+        %  - vectordata (VectorData) - Vector columns, including index columns, of this dynamic table.
+        %
+        %  - x (VectorData) - x coordinate of the channel location in the brain (+x is posterior).
+        %
+        %  - y (VectorData) - y coordinate of the channel location in the brain (+y is inferior).
+        %
+        %  - z (VectorData) - z coordinate of the channel location in the brain (+z is right).
+        %
+        % Output Arguments:
+        %  - electrodesTable (types.core.ElectrodesTable) - A ElectrodesTable object
+        
+        obj = obj@types.hdmf_common.DynamicTable(varargin{:});
+        
+        
+        p = inputParser;
+        p.KeepUnmatched = true;
+        p.PartialMatching = false;
+        p.StructExpand = false;
+        addParameter(p, 'filtering',[]);
+        addParameter(p, 'group',[]);
+        addParameter(p, 'group_name',[]);
+        addParameter(p, 'imp',[]);
+        addParameter(p, 'location',[]);
+        addParameter(p, 'reference',[]);
+        addParameter(p, 'rel_x',[]);
+        addParameter(p, 'rel_y',[]);
+        addParameter(p, 'rel_z',[]);
+        addParameter(p, 'x',[]);
+        addParameter(p, 'y',[]);
+        addParameter(p, 'z',[]);
+        misc.parseSkipInvalidName(p, varargin);
+        obj.filtering = p.Results.filtering;
+        obj.group = p.Results.group;
+        obj.group_name = p.Results.group_name;
+        obj.imp = p.Results.imp;
+        obj.location = p.Results.location;
+        obj.reference = p.Results.reference;
+        obj.rel_x = p.Results.rel_x;
+        obj.rel_y = p.Results.rel_y;
+        obj.rel_z = p.Results.rel_z;
+        obj.x = p.Results.x;
+        obj.y = p.Results.y;
+        obj.z = p.Results.z;
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.ElectrodesTable') %#ok<STISA>
+            cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
+            types.util.checkUnset(obj, unique(cellStringArguments));
+            types.util.dynamictable.checkConfig(obj);
+        end
+    end
+    %% SETTERS
+    function set.filtering(obj, val)
+        obj.filtering = obj.validate_filtering(val);
+        obj.postset_filtering()
+    end
+    function postset_filtering(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'filtering');
+    end
+    function set.group(obj, val)
+        obj.group = obj.validate_group(val);
+        obj.postset_group()
+    end
+    function postset_group(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'group');
+    end
+    function set.group_name(obj, val)
+        obj.group_name = obj.validate_group_name(val);
+        obj.postset_group_name()
+    end
+    function postset_group_name(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'group_name');
+    end
+    function set.imp(obj, val)
+        obj.imp = obj.validate_imp(val);
+        obj.postset_imp()
+    end
+    function postset_imp(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'imp');
+    end
+    function set.location(obj, val)
+        obj.location = obj.validate_location(val);
+        obj.postset_location()
+    end
+    function postset_location(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'location');
+    end
+    function set.reference(obj, val)
+        obj.reference = obj.validate_reference(val);
+        obj.postset_reference()
+    end
+    function postset_reference(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'reference');
+    end
+    function set.rel_x(obj, val)
+        obj.rel_x = obj.validate_rel_x(val);
+        obj.postset_rel_x()
+    end
+    function postset_rel_x(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'rel_x');
+    end
+    function set.rel_y(obj, val)
+        obj.rel_y = obj.validate_rel_y(val);
+        obj.postset_rel_y()
+    end
+    function postset_rel_y(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'rel_y');
+    end
+    function set.rel_z(obj, val)
+        obj.rel_z = obj.validate_rel_z(val);
+        obj.postset_rel_z()
+    end
+    function postset_rel_z(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'rel_z');
+    end
+    function set.x(obj, val)
+        obj.x = obj.validate_x(val);
+        obj.postset_x()
+    end
+    function postset_x(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'x');
+    end
+    function set.y(obj, val)
+        obj.y = obj.validate_y(val);
+        obj.postset_y()
+    end
+    function postset_y(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'y');
+    end
+    function set.z(obj, val)
+        obj.z = obj.validate_z(val);
+        obj.postset_z()
+    end
+    function postset_z(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'z');
+    end
+    %% VALIDATORS
+    
+    function val = validate_filtering(obj, val)
+        types.util.checkType('filtering', 'types.hdmf_common.VectorData', val);
+        if ~isempty(val)
+            [val, originalVal] = types.util.unwrapValue(val);
+            val = types.util.checkDtype('filtering', 'char', val);
+            val = types.util.rewrapValue(val, originalVal);
+        end
+    end
+    function val = validate_group(obj, val)
+        types.util.checkType('group', 'types.hdmf_common.VectorData', val);
+        if ~isempty(val)
+            [val, originalVal] = types.util.unwrapValue(val);
+            % Reference to type `ElectrodeGroup`
+            val = types.util.validateReferenceType('group', val, 'types.core.ElectrodeGroup', 'types.untyped.ObjectView');
+            val = types.util.rewrapValue(val, originalVal);
+        end
+    end
+    function val = validate_group_name(obj, val)
+        types.util.checkType('group_name', 'types.hdmf_common.VectorData', val);
+        if ~isempty(val)
+            [val, originalVal] = types.util.unwrapValue(val);
+            val = types.util.checkDtype('group_name', 'char', val);
+            val = types.util.rewrapValue(val, originalVal);
+        end
+    end
+    function val = validate_imp(obj, val)
+        types.util.checkType('imp', 'types.hdmf_common.VectorData', val);
+        if ~isempty(val)
+            [val, originalVal] = types.util.unwrapValue(val);
+            val = types.util.checkDtype('imp', 'single', val);
+            val = types.util.rewrapValue(val, originalVal);
+        end
+    end
+    function val = validate_location(obj, val)
+        types.util.checkType('location', 'types.hdmf_common.VectorData', val);
+        if ~isempty(val)
+            [val, originalVal] = types.util.unwrapValue(val);
+            val = types.util.checkDtype('location', 'char', val);
+            val = types.util.rewrapValue(val, originalVal);
+        end
+    end
+    function val = validate_reference(obj, val)
+        types.util.checkType('reference', 'types.hdmf_common.VectorData', val);
+        if ~isempty(val)
+            [val, originalVal] = types.util.unwrapValue(val);
+            val = types.util.checkDtype('reference', 'char', val);
+            val = types.util.rewrapValue(val, originalVal);
+        end
+    end
+    function val = validate_rel_x(obj, val)
+        types.util.checkType('rel_x', 'types.hdmf_common.VectorData', val);
+        if ~isempty(val)
+            [val, originalVal] = types.util.unwrapValue(val);
+            val = types.util.checkDtype('rel_x', 'single', val);
+            val = types.util.rewrapValue(val, originalVal);
+        end
+    end
+    function val = validate_rel_y(obj, val)
+        types.util.checkType('rel_y', 'types.hdmf_common.VectorData', val);
+        if ~isempty(val)
+            [val, originalVal] = types.util.unwrapValue(val);
+            val = types.util.checkDtype('rel_y', 'single', val);
+            val = types.util.rewrapValue(val, originalVal);
+        end
+    end
+    function val = validate_rel_z(obj, val)
+        types.util.checkType('rel_z', 'types.hdmf_common.VectorData', val);
+        if ~isempty(val)
+            [val, originalVal] = types.util.unwrapValue(val);
+            val = types.util.checkDtype('rel_z', 'single', val);
+            val = types.util.rewrapValue(val, originalVal);
+        end
+    end
+    function val = validate_x(obj, val)
+        types.util.checkType('x', 'types.hdmf_common.VectorData', val);
+        if ~isempty(val)
+            [val, originalVal] = types.util.unwrapValue(val);
+            val = types.util.checkDtype('x', 'single', val);
+            val = types.util.rewrapValue(val, originalVal);
+        end
+    end
+    function val = validate_y(obj, val)
+        types.util.checkType('y', 'types.hdmf_common.VectorData', val);
+        if ~isempty(val)
+            [val, originalVal] = types.util.unwrapValue(val);
+            val = types.util.checkDtype('y', 'single', val);
+            val = types.util.rewrapValue(val, originalVal);
+        end
+    end
+    function val = validate_z(obj, val)
+        types.util.checkType('z', 'types.hdmf_common.VectorData', val);
+        if ~isempty(val)
+            [val, originalVal] = types.util.unwrapValue(val);
+            val = types.util.checkDtype('z', 'single', val);
+            val = types.util.rewrapValue(val, originalVal);
+        end
+    end
+    %% EXPORT
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.hdmf_common.DynamicTable(obj, writer, fullpath, refs);
+        if any(strcmp(refs, fullpath))
+            return;
+        end
+        if ~isempty(obj.filtering)
+            refs = obj.filtering.export(writer, [fullpath '/filtering'], refs);
+        end
+        refs = obj.group.export(writer, [fullpath '/group'], refs);
+        if ~isempty(obj.group_name)
+            refs = obj.group_name.export(writer, [fullpath '/group_name'], refs);
+        end
+        if ~isempty(obj.imp)
+            refs = obj.imp.export(writer, [fullpath '/imp'], refs);
+        end
+        refs = obj.location.export(writer, [fullpath '/location'], refs);
+        if ~isempty(obj.reference)
+            refs = obj.reference.export(writer, [fullpath '/reference'], refs);
+        end
+        if ~isempty(obj.rel_x)
+            refs = obj.rel_x.export(writer, [fullpath '/rel_x'], refs);
+        end
+        if ~isempty(obj.rel_y)
+            refs = obj.rel_y.export(writer, [fullpath '/rel_y'], refs);
+        end
+        if ~isempty(obj.rel_z)
+            refs = obj.rel_z.export(writer, [fullpath '/rel_z'], refs);
+        end
+        if ~isempty(obj.x)
+            refs = obj.x.export(writer, [fullpath '/x'], refs);
+        end
+        if ~isempty(obj.y)
+            refs = obj.y.export(writer, [fullpath '/y'], refs);
+        end
+        if ~isempty(obj.z)
+            refs = obj.z.export(writer, [fullpath '/z'], refs);
+        end
+    end
+end
+
+end

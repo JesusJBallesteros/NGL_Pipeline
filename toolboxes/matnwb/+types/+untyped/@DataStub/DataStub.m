@@ -13,89 +13,53 @@ classdef (Sealed) DataStub < handle
         ndims;
         dataType;
     end
+
+    properties (Dependent, SetAccess = private, GetAccess = ?types.untyped.datapipe.BoundPipe)
+        maxDims
+    end
+
+    properties (Access = private)
+        lazyArray io.backend.base.LazyArray = io.backend.base.LazyArray.empty
+    end
     
     methods
-        function obj = DataStub(filename, path)
-            validateattributes(filename, {'char', 'string'}, {'scalartext'} ...
-                , 'types.untyped.DataStub', 'filename', 1);
-            validateattributes(path, {'char', 'string'}, {'scalartext'} ...
-                , 'types.untyped.DataStub', 'path', 2);
+        function obj = DataStub(filename, path, dims, dataType, lazyArray)
+            arguments
+                filename (1,1) string
+                path (1,1) string
+                dims double = []
+                dataType = []  % Can be string/char or struct
+                lazyArray io.backend.base.LazyArray = io.backend.base.LazyArray.empty
+            end
             obj.filename = char(filename);
             obj.path = char(path);
+
+            if isempty(lazyArray)
+                lazyArray = io.backend.BackendFactory.createLazyArray(...
+                    filename, path, dims, dataType);
+            end
+            obj.lazyArray = lazyArray;
         end
-        
-        function sid = get_space(obj)
-            fid = H5F.open(obj.filename);
-            did = H5D.open(fid, obj.path);
-            sid = H5D.get_space(did);
-            H5D.close(did);
-            H5F.close(fid);
-        end
-        
+
         function dims = get.dims(obj)
-            sid = obj.get_space();
-            [~, h5_dims, ~] = H5S.get_simple_extent_dims(sid);
-            dims = fliplr(h5_dims);
-            H5S.close(sid);
+            dims = obj.lazyArray.dims;
         end
-        
+
+        function maxDims = get.maxDims(obj)
+            maxDims = obj.lazyArray.maxDims;
+        end
+
         function nd = get.ndims(obj)
             nd = length(obj.dims);
         end
 
         function matType = get.dataType(obj)
-            fid = H5F.open(obj.filename);
-            did = H5D.open(fid, obj.path);
-            tid = H5D.get_type(did);
-            matType = io.getMatType(tid);
-            H5D.close(did);
-            H5F.close(fid);
+            matType = obj.lazyArray.dataType;
         end
         
         %can be called without arg, with H5ML.id, or (dims, offset, stride)
         function data = load_h5_style(obj, varargin)
-            %LOAD  Read data from HDF5 dataset.
-            %   DATA = LOAD_H5_STYLE() retrieves all of the data.
-            %
-            %   DATA = LOAD_H5_STYLE(START,COUNT) reads a subset of data. START is
-            %   the one-based index of the first element to be read.
-            %   COUNT defines how many elements to read along each dimension.  If a
-            %   particular element of COUNT is Inf, data is read until the end of the
-            %   corresponding dimension.
-            %
-            %   DATA = LOAD_H5_STYLE(START,COUNT,STRIDE) reads a strided subset of
-            %   data. STRIDE is the inter-element spacing along each
-            %   data set extent and defaults to one along each extent.
-            assert(length(varargin) ~= 1, 'NWB:DataStub:InvalidNumArguments',...
-                'calling load_h5_style with a single space id is no longer supported.');
-            
-            data = h5read(obj.filename, obj.path, varargin{:});
-                        
-            if isstruct(data)
-                fid = H5F.open(obj.filename);
-                did = H5D.open(fid, obj.path);
-                fsid = H5D.get_space(did);
-                data = H5D.read(did, 'H5ML_DEFAULT', fsid, fsid,...
-                    'H5P_DEFAULT');
-                data = io.parseCompound(did, data);
-                H5S.close(fsid);
-                H5D.close(did);
-                H5F.close(fid);
-            else
-                switch obj.dataType
-                    case 'char'
-                        % dataset strings are defaulted to cell arrays regardless of size
-                        if iscellstr(data) && isscalar(data)
-                            data = data{1};
-                        elseif isstring(data)
-                            data = convertStringsToChars(data);
-                        end
-                    case 'logical'
-                        % data assumed to be cell array of enum string
-                        % values.
-                        data = strcmp('TRUE', data);
-                end
-            end
+            data = obj.lazyArray.load_h5_style(varargin{:});
         end
         
         function data = load(obj, varargin)
@@ -149,17 +113,16 @@ classdef (Sealed) DataStub < handle
 
         data = load_mat_style(obj, varargin);
         
-        refs = export(obj, fid, fullpath, refs);
+        refs = export(obj, writer, fullpath, refs);
         
-        function B = subsref(obj, S)
+        function varargout = subsref(obj, S)
             CurrentSubRef = S(1);
             if ~isscalar(obj) || strcmp(CurrentSubRef.type, '.')
-                B = builtin('subsref', obj, S);
+                [varargout{1:nargout}] = builtin('subsref', obj, S);
                 return;
             end
             
-            dims = obj.dims;
-            rank = length(dims);
+            rank = length(obj.dims);
             selectionRank = length(CurrentSubRef.subs);
             assert(rank >= selectionRank,...
                 'NWB:DataStub:InvalidDimIndex',...
@@ -167,9 +130,9 @@ classdef (Sealed) DataStub < handle
                 selectionRank, rank);
             data = obj.load_mat_style(CurrentSubRef.subs{:});
             if isscalar(S)
-                B = data;
+                varargout = {data};
             else
-                B = subsref(data, S(2:end));
+                [varargout{1:nargout}] = subsref(data, S(2:end));
             end
         end
         
@@ -180,11 +143,36 @@ classdef (Sealed) DataStub < handle
                 ind = builtin('end', obj, expressionIndex, numTotalIndices);
                 return;
             end
-            dims = obj.dims;
-            rank = length(dims);
+            rank = length(obj.dims);
             assert(rank >= expressionIndex, 'NWB:DataStub:InvalidEndIndex',...
                 'Cannot index into index %d when max rank is %d', expressionIndex, rank);
-            ind = dims(expressionIndex);
+            ind = obj.dims(expressionIndex);
+        end
+        
+        function tf = isCompoundType(obj)
+            %ISCOMPOUNDTYPE Returns true if this DataStub represents a compound type
+            dt = obj.dataType;  % Trigger lazy loading if needed
+            tf = isstruct(dt);
+        end
+    end
+
+    methods % Custom indexing
+        function n = numArgumentsFromSubscript(obj, subs, indexingContext)
+            if ~isscalar(subs) && strcmp(subs(1).type, '()')
+                % Typical indexing pattern into compound data type, i.e
+                % data(1:3).fieldName. Assume/expect one output.
+                n = 1;
+            else
+                n = builtin('numArgumentsFromSubscript', obj, subs, indexingContext);
+            end
+        end
+    end
+
+    methods (Access = {?types.untyped.DataStub, ?types.untyped.datapipe.BoundPipe})
+        function updateSize(obj)
+        % updateSize - Should be called to initialize values or when dataset 
+        % space is expanded
+            obj.lazyArray.refreshSizeInfo();
         end
     end
 end

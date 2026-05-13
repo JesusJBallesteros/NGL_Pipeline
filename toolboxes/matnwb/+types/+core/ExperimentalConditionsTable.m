@@ -48,17 +48,22 @@ methods
         misc.parseSkipInvalidName(p, varargin);
         obj.repetitions = p.Results.repetitions;
         obj.repetitions_index = p.Results.repetitions_index;
-        if strcmp(class(obj), 'types.core.ExperimentalConditionsTable')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.ExperimentalConditionsTable') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-        end
-        if strcmp(class(obj), 'types.core.ExperimentalConditionsTable')
             types.util.dynamictable.checkConfig(obj);
         end
     end
     %% SETTERS
     function set.repetitions(obj, val)
         obj.repetitions = obj.validate_repetitions(val);
+        obj.postset_repetitions()
+    end
+    function postset_repetitions(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'repetitions');
     end
     function set.repetitions_index(obj, val)
         obj.repetitions_index = obj.validate_repetitions_index(val);
@@ -66,19 +71,23 @@ methods
     %% VALIDATORS
     
     function val = validate_repetitions(obj, val)
-        val = types.util.checkDtype('repetitions', 'types.hdmf_common.DynamicTableRegion', val);
+        types.util.checkType('repetitions', 'types.hdmf_common.DynamicTableRegion', val);
+        if ~isempty(val)
+            types.util.validateReferenceType('repetitions.table', val.table, 'types.core.RepetitionsTable', 'types.untyped.ObjectView');
+            types.util.validateShape('repetitions.table', {[1]}, val.table)
+        end
     end
     function val = validate_repetitions_index(obj, val)
-        val = types.util.checkDtype('repetitions_index', 'types.hdmf_common.VectorIndex', val);
+        types.util.checkType('repetitions_index', 'types.hdmf_common.VectorIndex', val);
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.hdmf_common.DynamicTable(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.hdmf_common.DynamicTable(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.repetitions.export(fid, [fullpath '/repetitions'], refs);
-        refs = obj.repetitions_index.export(fid, [fullpath '/repetitions_index'], refs);
+        refs = obj.repetitions.export(writer, [fullpath '/repetitions'], refs);
+        refs = obj.repetitions_index.export(writer, [fullpath '/repetitions_index'], refs);
     end
 end
 

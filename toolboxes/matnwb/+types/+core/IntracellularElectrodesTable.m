@@ -42,17 +42,22 @@ methods
         addParameter(p, 'electrode',[]);
         misc.parseSkipInvalidName(p, varargin);
         obj.electrode = p.Results.electrode;
-        if strcmp(class(obj), 'types.core.IntracellularElectrodesTable')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.IntracellularElectrodesTable') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-        end
-        if strcmp(class(obj), 'types.core.IntracellularElectrodesTable')
             types.util.dynamictable.checkConfig(obj);
         end
     end
     %% SETTERS
     function set.electrode(obj, val)
         obj.electrode = obj.validate_electrode(val);
+        obj.postset_electrode()
+    end
+    function postset_electrode(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'electrode');
     end
     %% VALIDATORS
     
@@ -64,15 +69,21 @@ methods
         end
     end
     function val = validate_electrode(obj, val)
-        val = types.util.checkDtype('electrode', 'types.hdmf_common.VectorData', val);
+        types.util.checkType('electrode', 'types.hdmf_common.VectorData', val);
+        if ~isempty(val)
+            [val, originalVal] = types.util.unwrapValue(val);
+            % Reference to type `IntracellularElectrode`
+            val = types.util.validateReferenceType('electrode', val, 'types.core.IntracellularElectrode', 'types.untyped.ObjectView');
+            val = types.util.rewrapValue(val, originalVal);
+        end
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.hdmf_common.DynamicTable(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.hdmf_common.DynamicTable(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.electrode.export(fid, [fullpath '/electrode'], refs);
+        refs = obj.electrode.export(writer, [fullpath '/electrode'], refs);
     end
 end
 

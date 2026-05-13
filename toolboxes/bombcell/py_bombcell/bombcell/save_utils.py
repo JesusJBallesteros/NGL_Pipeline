@@ -32,11 +32,12 @@ def get_metric_keys():
             "troughToPeak2Ratio",
             "mainPeak_before_width",
             "mainTrough_width",
-            # MUA metrics 
+            # MUA metrics
             "percentageSpikesMissing_gaussian",
             "percentageSpikesMissing_symmetric",
             "RPV_window_index",
             "fractionRPVs_estimatedTauR",
+            "estimatedTauR",  # Estimated refractory period in seconds
             "presenceRatio",
             "maxDriftEstimate",
             "cumDriftEstimate",
@@ -203,11 +204,11 @@ def save_dict_as_parquet_and_csv(
     quality_metrics_df.to_csv(file_path + ".csv")
 
 
-def save_params_as_parquet(
+def save_params_as_parquet_and_csv(
     param, save_path, file_name="_bc_parameters._bc_qMetrics"
 ):
     """
-    This function save the whole param dictionary as a parquet file
+    This function saves the whole param dictionary as both parquet and CSV files
 
     Parameters
     ----------
@@ -216,22 +217,29 @@ def save_params_as_parquet(
     save_path : str
         The path to the save directory
     file_name : str, optional
-        The name of the file, by default '_bc_parameters._bc_qMetrics.parquet'
+        The name of the file, by default '_bc_parameters._bc_qMetrics'
     """
     # Create save_path if it does not exist
     save_path = path_handler(save_path)
 
-    # PyArrow cant save Path type objects as a parquet
-    param_save = param.copy()
+    # PyArrow cant save Path type objects or numpy arrays as a parquet
+    param_save = {}
     for key, value in param.items():
+        # Skip numpy arrays (can't be saved to parquet)
+        if isinstance(value, np.ndarray):
+            continue
+        # Convert Path objects to strings
         if key == 'ephysKilosortPath':
             param_save[key] = str(value)
-        if type(value) == Path:
+        elif isinstance(value, Path):
             param_save[key] = str(value)
+        else:
+            param_save[key] = value
 
     file_path = save_path / file_name
     param_df = pd.DataFrame.from_dict([param_save])
     param_df.to_parquet(str(file_path) + ".parquet")
+    param_df.to_csv(str(file_path) + ".csv", index=False)
 
 
 def save_waveforms_as_npy(raw_waveforms_full, raw_waveforms_peak_channel, raw_waveforms_id_match, save_path):
@@ -247,6 +255,12 @@ def save_waveforms_as_npy(raw_waveforms_full, raw_waveforms_peak_channel, raw_wa
     save_path : str
         The path to the save directory
     """
+    # Don't save if waveforms are None - this preserves existing valid files
+    # This can happen when raw_data_file is not available but existing waveforms exist
+    if raw_waveforms_full is None:
+        print("  Skipping waveform save (raw_waveforms_full is None)")
+        return
+
     # Create save_path if it does not exist
     save_path = path_handler(save_path)
 
@@ -296,17 +310,18 @@ def save_results(
 
     save_quality_metrics_and_verify(quality_metrics, unit_type_string, unique_templates, save_path, param, ks_dir)
 
-    # Get rid of peak channels of empty rows, which were kept for convenient indexing up to here
+    # maxChannels and other arrays all have same size (all templates, including empty ones)
     quality_metrics_save = quality_metrics.copy()
-    quality_metrics_save["maxChannels"] = quality_metrics["maxChannels"][
-        quality_metrics["phy_clusterID"].astype(int)
-    ]
 
-    # Save full quality metrics table
+    # Add BombCell unit type label to quality metrics (updated when re-running classification)
+    quality_metrics_save["bc_unitType"] = unit_type_string
+
+    # Save full quality metrics table (including BombCell label)
     save_dict_as_parquet_and_csv(
         quality_metrics_save, save_path, file_name="templates._bc_qMetrics"
     )
-    save_params_as_parquet(
+    # Save parameters as both parquet and CSV
+    save_params_as_parquet_and_csv(
         param, save_path, file_name="_bc_parameters._bc_qMetrics"
     )
 

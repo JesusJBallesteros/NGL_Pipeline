@@ -4,6 +4,7 @@ from pathlib import Path
 from joblib import Parallel, delayed
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 try:
     from mtscomp import Reader
@@ -14,6 +15,131 @@ except ImportError:
 from scipy.signal import detrend
 from scipy.ndimage import gaussian_filter
 from tqdm.auto import tqdm
+
+
+# DEBUG FLAG - set to True to enable debug plots
+DEBUG_WAVEFORMS = False
+DEBUG_UNIT_IDX = 0  # Which unit index to debug (0 = first unit)
+DEBUG_EXIT_AFTER_PLOT = False  # Exit after showing debug plot (don't run full extraction)
+
+
+def debug_plot_raw_waveforms(raw_data, spike_times, spike_clusters, unit_idx, n_channels_rec,
+                              n_sync_channels, spike_width, half_width, channel_map=None,
+                              template_peak_channel=None, save_path=None):
+    """
+    Debug function to plot raw waveforms across ALL channels for a specific unit.
+    """
+    unique_clusters = np.unique(spike_clusters)
+    if unit_idx >= len(unique_clusters):
+        print(f"DEBUG: unit_idx {unit_idx} out of range")
+        return
+
+    cid = unique_clusters[unit_idx]
+    unit_spike_times = spike_times[spike_clusters == cid]
+
+    # Sample up to 100 spikes
+    n_spikes = min(100, len(unit_spike_times))
+    if n_spikes == 0:
+        print(f"DEBUG: No spikes for unit {cid}")
+        return
+
+    spike_idx = unit_spike_times[np.linspace(0, len(unit_spike_times)-1, n_spikes, dtype=int)]
+
+    # Extract raw snippets
+    all_snippets = []
+    for sid in spike_idx:
+        start = int(sid - half_width - 1)
+        end = int(sid + spike_width - half_width - 1)
+        if start < 0 or end > raw_data.shape[0]:
+            continue
+        snippet = raw_data[start:end, :n_channels_rec - n_sync_channels]
+        if snippet.shape[0] == spike_width:
+            all_snippets.append(snippet)
+
+    if len(all_snippets) == 0:
+        print(f"DEBUG: No valid snippets for unit {cid}")
+        return
+
+    snippets = np.array(all_snippets)  # (n_spikes, spike_width, n_channels)
+    mean_waveform = np.mean(snippets, axis=0)  # (spike_width, n_channels)
+
+    n_channels = mean_waveform.shape[1]
+
+    # Plot 1: Heatmap of mean waveform across all channels
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+
+    # Heatmap
+    ax = axes[0, 0]
+    im = ax.imshow(mean_waveform.T, aspect='auto', cmap='RdBu_r',
+                   vmin=-np.percentile(np.abs(mean_waveform), 99),
+                   vmax=np.percentile(np.abs(mean_waveform), 99))
+    ax.set_xlabel('Time (samples)')
+    ax.set_ylabel('Channel')
+    ax.set_title(f'Unit {cid}: Mean waveform heatmap (all {n_channels} channels)')
+    plt.colorbar(im, ax=ax)
+
+    # Mark peak channel if provided
+    if template_peak_channel is not None:
+        ax.axhline(template_peak_channel, color='green', linestyle='--', label=f'Template peak ch: {template_peak_channel}')
+        ax.legend()
+
+    # Plot 2: Waveform on peak channel (calculated from data)
+    ax = axes[0, 1]
+    ptp = np.ptp(mean_waveform, axis=0)
+    calc_peak_ch = np.argmax(ptp)
+    ax.plot(mean_waveform[:, calc_peak_ch], 'b-', linewidth=2, label=f'Calc peak ch: {calc_peak_ch}')
+    if template_peak_channel is not None and template_peak_channel != calc_peak_ch:
+        ax.plot(mean_waveform[:, template_peak_channel], 'g--', linewidth=2, label=f'Template peak ch: {template_peak_channel}')
+    ax.set_xlabel('Time (samples)')
+    ax.set_ylabel('Amplitude (raw)')
+    ax.set_title(f'Unit {cid}: Waveform at peak channel')
+    ax.legend()
+
+    # Plot 3: Peak-to-peak amplitude per channel
+    ax = axes[1, 0]
+    ax.plot(ptp, 'k-')
+    ax.axvline(calc_peak_ch, color='blue', linestyle='--', label=f'Calc peak: {calc_peak_ch}')
+    if template_peak_channel is not None:
+        ax.axvline(template_peak_channel, color='green', linestyle=':', label=f'Template peak: {template_peak_channel}')
+    ax.set_xlabel('Channel')
+    ax.set_ylabel('Peak-to-peak amplitude')
+    ax.set_title('Peak-to-peak amplitude per channel')
+    ax.legend()
+
+    # Plot 4: First 10 raw snippets on calculated peak channel
+    ax = axes[1, 1]
+    for i in range(min(10, len(all_snippets))):
+        ax.plot(all_snippets[i][:, calc_peak_ch], alpha=0.3)
+    ax.plot(mean_waveform[:, calc_peak_ch], 'r-', linewidth=2, label='Mean')
+    ax.set_xlabel('Time (samples)')
+    ax.set_ylabel('Amplitude (raw)')
+    ax.set_title(f'Individual spikes at calc peak channel {calc_peak_ch}')
+    ax.legend()
+
+    plt.suptitle(f'DEBUG: Unit {cid} (idx {unit_idx}) | n_channels_rec={n_channels_rec}, n_sync={n_sync_channels}\n'
+                 f'channel_map loaded: {channel_map is not None}', fontsize=12)
+    plt.tight_layout()
+
+    if save_path:
+        debug_file = Path(save_path) / f'DEBUG_waveforms_unit{cid}.png'
+        plt.savefig(debug_file, dpi=150)
+        print(f"DEBUG: Saved plot to {debug_file}")
+
+    plt.show()
+
+    # Print some stats
+    print(f"\nDEBUG STATS for unit {cid}:")
+    print(f"  n_channels_rec: {n_channels_rec}")
+    print(f"  n_sync_channels: {n_sync_channels}")
+    print(f"  n_channels used: {n_channels}")
+    print(f"  spike_width: {spike_width}")
+    print(f"  n_spikes sampled: {len(all_snippets)}")
+    print(f"  Calculated peak channel: {calc_peak_ch}")
+    print(f"  Template peak channel: {template_peak_channel}")
+    print(f"  Mean waveform range: [{mean_waveform.min():.2f}, {mean_waveform.max():.2f}]")
+    print(f"  Peak-to-peak at calc peak ch: {ptp[calc_peak_ch]:.2f}")
+    if template_peak_channel is not None and template_peak_channel < len(ptp):
+        print(f"  Peak-to-peak at template peak ch: {ptp[template_peak_channel]:.2f}")
 
 def path_handler(path: str) -> None:
     path = Path(path).expanduser()
@@ -41,71 +167,123 @@ def read_meta(meta_path):
         # Open Ephys Binary format - JSON file
         with meta_path.open() as f:
             oebin_data = json.load(f)
-        
-        # Extract relevant metadata from Open Ephys format
-        # We need to find the continuous data recording info
-        if 'continuous' in oebin_data and len(oebin_data['continuous']) > 0:
-            # Usually the first continuous recording is the neural data
-            continuous_data = oebin_data['continuous'][0]
-            
-            # Get the number of channels from the continuous data
-            n_channels = continuous_data.get('num_channels', 384)
-            
-            # Get sample rate
-            sample_rate = continuous_data.get('sample_rate', 30000.0)
-            
-            # Get bit volts for scaling (microvolts per bit)
-            # Default to 0.195 for Open Ephys if not specified
-            bit_volts = 0.195
-            if 'channels' in continuous_data and len(continuous_data['channels']) > 0:
-                # Get bit_volts from first channel if available
-                bit_volts = continuous_data['channels'][0].get('bit_volts', 0.195)
-            
-            # Calculate file size from the binary file
-            # The binary file is usually in the same directory with name continuous.dat
-            binary_file = meta_path.parent / continuous_data.get('folder_name', 'continuous') / 'continuous.dat'
-            if binary_file.exists():
-                file_size_bytes = os.path.getsize(binary_file)
-            else:
-                # Try to find any .dat file in the parent directory
-                dat_files = list(meta_path.parent.glob('**/*.dat'))
-                if dat_files:
-                    file_size_bytes = os.path.getsize(dat_files[0])
-                else:
-                    # Default to a large value if we can't find the file
-                    file_size_bytes = 0
-            
-            # Create meta_dict in SpikeGLX format for compatibility
-            meta_dict['fileTimeSecs'] = file_size_bytes / (2 * n_channels * sample_rate) if file_size_bytes > 0 else 0
-            meta_dict['fileSizeBytes'] = str(file_size_bytes)
-            meta_dict['nSavedChans'] = str(n_channels)  # In Open Ephys, this is total channels
-            meta_dict['sRateHz'] = str(sample_rate)
-            meta_dict['imAiRangeMax'] = '1'  # Not used but kept for compatibility
-            meta_dict['imAiRangeMin'] = '-1'  # Not used but kept for compatibility
-            
-            # For Open Ephys, we use the bit_volts directly
-            # The conversion factor is bit_volts * 1e6 to get from volts to microvolts
-            # But since bit_volts is already in microvolts, we use it directly
-            meta_dict['imMaxInt'] = '32768'  # 2^15 for int16
-            meta_dict['bitVolts'] = str(bit_volts)  # Store bit_volts for later use
-            
-        else:
+
+        # Extract channel counts and metadata for each stream
+        streams = {}
+        for stream in oebin_data.get('continuous', []):
+            stream_name = stream.get('stream_name', '')
+            streams[stream_name] = stream
+
+        if not streams:
             raise ValueError(f"Could not find continuous data in {meta_path}")
+
+        # Get AP stream (primary neural data)
+        ap_stream = next((s for name, s in streams.items() if 'AP' in name), None)
+        # Get NI-DAQmx stream (analog inputs - separate from AP sync channels)
+        nidaq_stream = next((s for name, s in streams.items() if 'PXIe' in name or 'DAQ' in name), None)
+
+        # Use AP stream as primary, fall back to first available
+        primary_stream = ap_stream or list(streams.values())[0]
+
+        sample_rate = primary_stream.get('sample_rate', 30000.0)
+
+        # Get bit volts for scaling
+        bit_volts = 0.195
+        if 'channels' in primary_stream and len(primary_stream['channels']) > 0:
+            bit_volts = primary_stream['channels'][0].get('bit_volts', 0.195)
+
+        # Calculate file size from the binary file.
+        # Open Ephys layout: <recording>/continuous/<folder_name>/continuous.dat
+        # `folder_name` from the stream is usually just the leaf (e.g. "Acquisition_Board-100.acquisition_board/").
+        folder_name = primary_stream.get('folder_name', 'continuous').strip('/')
+        candidates = [
+            meta_path.parent / 'continuous' / folder_name / 'continuous.dat',
+            meta_path.parent / folder_name / 'continuous.dat',
+            meta_path.parent / 'continuous' / 'continuous.dat',
+        ]
+        binary_file = next((p for p in candidates if p.exists()), None)
+        if binary_file is not None:
+            file_size_bytes = os.path.getsize(binary_file)
+        else:
+            # Fall back to globbing — prefer continuous.dat, and otherwise pick the largest
+            # .dat file (events/timestamps .dat files are tiny and would mislead downstream sizing).
+            dat_files = list(meta_path.parent.glob('**/continuous.dat'))
+            if not dat_files:
+                dat_files = list(meta_path.parent.glob('**/*.dat'))
+            if dat_files:
+                dat_files.sort(key=lambda p: os.path.getsize(p), reverse=True)
+                file_size_bytes = os.path.getsize(dat_files[0])
+            else:
+                file_size_bytes = 0
+
+        # For Open Ephys: determine neural vs sync channel split from channel names.
+        # Convention: CH* = neural channels, anything else (ADC*, AUX*, etc.) = sync/aux.
+        n_channels_stream = primary_stream['num_channels']
+        channel_names = [c.get('channel_name', '') for c in primary_stream.get('channels', [])]
+        n_neural_channels = sum(1 for n in channel_names if n.startswith('CH'))
+        if n_neural_channels == 0:
+            # No CH-prefixed channels found — assume all channels are neural
+            n_neural_channels = n_channels_stream
+
+        # Total channel count in file: trust num_channels from oebin (this is the count in continuous.dat).
+        # Cross-check against file size when possible.
+        n_channels_actual = n_channels_stream
+        if file_size_bytes > 0 and file_size_bytes % (2 * n_channels_stream) != 0:
+            # File size doesn't match num_channels — try common alternatives
+            for n_test in [n_channels_stream + 1, n_channels_stream + 2, 385, 384, 383]:
+                if file_size_bytes % (2 * n_test) == 0:
+                    n_channels_actual = n_test
+                    break
+
+        n_channels_sync = max(0, n_channels_actual - n_neural_channels)
+
+        # Total channels and AP channels
+        n_channels = n_channels_actual  # Total in file (including sync)
+        n_channels_ap = n_neural_channels  # Neural channels only
+
+        # Create meta_dict in SpikeGLX format for compatibility
+        meta_dict['fileTimeSecs'] = file_size_bytes / (2 * n_channels * sample_rate) if file_size_bytes > 0 else 0
+        meta_dict['fileSizeBytes'] = str(file_size_bytes)
+        meta_dict['nSavedChans'] = str(n_channels)  # Total channels in file
+        meta_dict['nSavedChansAP'] = str(n_channels_ap)  # Neural channels only
+        meta_dict['nChansSync'] = str(n_channels_sync)  # Sync channels in AP stream
+        meta_dict['sRateHz'] = str(sample_rate)
+        # meta_dict['imAiRangeMax'] = '1'
+       #  meta_dict['imAiRangeMin'] = '-1'
+        # meta_dict['imMaxInt'] = '32768'
+        meta_dict['bitVolts'] = str(bit_volts)
+        
             
     else:
         # SpikeGLX format - key=value pairs
         with meta_path.open() as f:
             mdat_list = f.read().splitlines()
-            # convert the list entries into key value pairs
             for m in mdat_list:
                 cs_list = m.split(sep="=")
-                if len(cs_list) >= 2:  # Ensure we have at least key=value
+                if len(cs_list) >= 2:
                     if cs_list[0][0] == "~":
-                        curr_key = cs_list[0][1 : len(cs_list[0])]
+                        curr_key = cs_list[0][1:]
                     else:
                         curr_key = cs_list[0]
-                    # Handle cases where value might contain '=' 
                     meta_dict.update({curr_key: '='.join(cs_list[1:])})
+
+        # Calculate nChansSync for SpikeGLX if not directly present
+        # Newer SpikeGLX versions don't have nChansSync directly, but it can be
+        # derived from snsApLfSy (format: AP,LFP,Sync) or acqApLfSy
+        if 'nChansSync' not in meta_dict:
+            n_sync = 0
+            # Try snsApLfSy first (saved channels), then acqApLfSy (acquired channels)
+            for key in ['snsApLfSy', 'acqApLfSy']:
+                if key in meta_dict:
+                    try:
+                        # Format is "nAP,nLFP,nSync" e.g. "384,0,1"
+                        parts = meta_dict[key].split(',')
+                        if len(parts) >= 3:
+                            n_sync = int(parts[2])
+                            break
+                    except (ValueError, IndexError):
+                        continue
+            meta_dict['nChansSync'] = str(n_sync)
 
     return meta_dict
 
@@ -188,13 +366,13 @@ def process_a_unit(
         # option to remove a linear in time trends
         if detrendWaveform:
             if n_sync_channels > 0:
-                detrended = detrend(tmp[:, :-n_sync_channels], axis=0).swapaxes(0, 1)
+                detrended = detrend((tmp[:, :-n_sync_channels] if n_sync_channels > 0 else tmp), axis=0).swapaxes(0, 1)
             else:
                 detrended = detrend(tmp[:, :], axis=0).swapaxes(0, 1)
             
             spike_map[:, :, i] = detrended
         else:
-            spike_map[:, :, i] = tmp[:, :-n_sync_channels].swapaxes(0, 1)
+            spike_map[:, :, i] = (tmp[:, :-n_sync_channels] if n_sync_channels > 0 else tmp).swapaxes(0, 1)
 
     # Save average waveforms for unitmatch
     # create the waveforms now, save later
@@ -217,12 +395,12 @@ def process_a_unit(
 
             # option to remove a linear in time trends for UnitMatch (separate from BombCell)
             if detrendForUnitMatch:
-                detrended = detrend(tmp[:, :-n_sync_channels], axis=0).swapaxes(
+                detrended = detrend((tmp[:, :-n_sync_channels] if n_sync_channels > 0 else tmp), axis=0).swapaxes(
                     0, 1
                 )
                 unitmatch_spike_map[:, :, i] = detrended
             else:
-                unitmatch_spike_map[:, :, i] = tmp[:, :-n_sync_channels].swapaxes(0, 1)
+                unitmatch_spike_map[:, :, i] = (tmp[:, :-n_sync_channels] if n_sync_channels > 0 else tmp).swapaxes(0, 1)
         
         tmp_spike_map = unitmatch_spike_map.swapaxes(0, 1)  # align with UnitMatch
 
@@ -411,6 +589,23 @@ def extract_raw_waveforms(
     save_multiple_raw = param.get("saveMultipleRaw", False)  # get and save data for UnitMatch
     waveform_baseline_noise = param.get("waveformBaselineNoiseWindow", 20)
     spike_width = param["spike_width"]
+
+    # Load channel_map.npy if available (maps site index -> hardware index)
+    # This is needed for sparse Neuropixels configurations where hardware and site indices differ
+    kilosort_path = Path(param["ephysKilosortPath"])
+    channel_map_file = kilosort_path / "channel_map.npy"
+    channel_map = None
+    if channel_map_file.exists():
+        channel_map = np.load(channel_map_file).squeeze()
+        # channel_map[site_index] = hardware_index
+
+        # Map template peak channels from Kilosort coordinates to binary file coordinates
+        # This is needed for zigzag/non-sequential channel configurations
+        if template_peak_channels is not None:
+            template_peak_channels = np.array([
+                channel_map[int(ch)] if int(ch) < len(channel_map) else int(ch)
+                for ch in template_peak_channels
+            ])
     
 
     # if data exists and re_extract_waveforms is false, load in data
@@ -426,15 +621,26 @@ def extract_raw_waveforms(
             baseline_noise_idx = np.load(snr_noise_idx_file)
             print(f"\rLoading file {raw_waveforms_file}... Done!") 
 
-            check = check_extracted_waveforms(
-                raw_waveforms_id_match, raw_waveforms_peak_channel, spike_clusters, spike_times, baseline_noise_all, param, save_path)
+            try:
+                check = check_extracted_waveforms(
+                    raw_waveforms_id_match, raw_waveforms_peak_channel, spike_clusters, spike_times, baseline_noise_all, param, save_path)
+            except (ValueError, IndexError) as e:
+                # Cached waveforms are inconsistent with current spike clusters
+                # (e.g. empty/all-NaN cache from a previous failed run).
+                print(f"\rCached raw waveforms unusable ({e}); recomputing.")
+                check = None
+                recompute = True
 
-            if check != (None, None, None, None, None):
+            if check is not None and check != (None, None, None, None, None):
                 raw_waveforms_id_match, raw_waveforms_peak_channel, raw_waveforms_full, baseline_noise_all, baseline_noise_idx = check
             # Check whether number of clusters changed
             # assumes that raw_waveforms_full has empty rows for jumps in unit indices
-            if raw_waveforms_full.shape[0] != n_clusters:
-                print("\rSome units' raw waveforms are not extracted. Extracting now ...") 
+            if not recompute and raw_waveforms_full.shape[0] != n_clusters:
+                print("\rSome units' raw waveforms are not extracted. Extracting now ...")
+                recompute = True
+            # Force recompute if cache is mostly NaN (e.g. from a previous failed extraction).
+            if not recompute and np.isnan(raw_waveforms_full).mean() > 0.99:
+                print("\rCached raw waveforms are nearly all NaN; recomputing.")
                 recompute = True
         else:
             recompute = True
@@ -456,10 +662,12 @@ def extract_raw_waveforms(
 
         if meta_path is not None and meta_path.exists():
             meta_dict = read_meta(meta_path)
-            n_elements = (int(meta_dict["fileSizeBytes"]) / 2)  # int16 so 2 bytes per data point
             n_channels_rec = int(meta_dict["nSavedChans"])  # Total channels including sync
+            n_sync_channels = int(meta_dict["nChansSync"])  # Sync channels
+            # Update n_channels to match meta file value
+            n_channels = n_channels_rec
             param["n_channels_rec"] = n_channels_rec
-            
+
             # For Open Ephys files, adjust the raw data file path if needed
             if str(meta_path).endswith('.oebin'):
                 # In Open Ephys, nSavedChans is already the total channel count
@@ -472,22 +680,26 @@ def extract_raw_waveforms(
                         param["raw_data_file"] = raw_data_file
                         print(f"Using Open Ephys raw data file: {raw_data_file}")
                     else:
-                        # Look for any .dat file
+                        # Look for any .dat file — pick the largest (avoid events/timestamps .dat files)
                         dat_files = list(meta_path.parent.glob('**/*.dat'))
                         if dat_files:
+                            dat_files.sort(key=lambda p: os.path.getsize(p), reverse=True)
                             raw_data_file = str(dat_files[0])
                             param["raw_data_file"] = raw_data_file
                             print(f"Using Open Ephys raw data file: {raw_data_file}")
+
+            # Trust the actual raw data file size over whatever read_meta inferred —
+            # the user-supplied path is authoritative.
+            n_elements = os.path.getsize(raw_data_file) / 2  # int16 so 2 bytes per data point
         else:
             # Use default values when no metafile is available
             print("Warning: No meta file found. Using default parameters...")
             # Get file size directly from the raw data file
-            import os
             file_size_bytes = os.path.getsize(raw_data_file)
             n_elements = file_size_bytes / 2  # int16 so 2 bytes per data point
-            
+
             # When no metafile, nChannels already includes sync channels
-            n_channels_rec = n_channels  # Should be 385 (384 neural + 1 sync)
+            n_channels_rec = n_channels
             print(f"Using {n_channels_rec} total channels in recording")
             param["n_channels_rec"] = n_channels_rec
 
@@ -528,6 +740,52 @@ def extract_raw_waveforms(
                 all_spikes_idxs[i, : len(clus_spike_times[i])] = clus_spike_times[i]
                 all_spikes_idxs[i, len(clus_spike_times[i]) :] = np.nan
 
+        # Always check file size vs expected channel count
+        actual_file_size = os.path.getsize(raw_data_file)
+        expected_samples = actual_file_size // (2 * n_channels_rec)  # int16 = 2 bytes
+        remainder = actual_file_size % (2 * n_channels_rec)
+        if remainder != 0:
+            print(f"\nWARNING: File size not divisible by n_channels_rec!")
+            print(f"  Actual file size: {actual_file_size:,} bytes")
+            print(f"  n_channels_rec (from meta): {n_channels_rec}")
+            print(f"  Remainder bytes: {remainder}")
+            print(f"  Trying to find correct channel count...")
+            for test_ch in range(380, 390):
+                if actual_file_size % (2 * test_ch) == 0:
+                    test_samples = actual_file_size // (2 * test_ch)
+                    print(f"    {test_ch} channels -> {test_samples:,} samples (WORKS)")
+
+        # DEBUG: Plot raw waveforms for one unit to diagnose issues
+        if DEBUG_WAVEFORMS:
+            print(f"\n{'='*60}")
+            print("DEBUG MODE: Plotting raw waveforms for diagnosis")
+            print(f"{'='*60}")
+            print(f"raw_data shape: {raw_data.shape}")
+            print(f"n_channels_rec: {n_channels_rec}")
+            print(f"n_sync_channels: {n_sync_channels}")
+            print(f"n_channels: {n_channels}")
+            print(f"spike_width: {spike_width}, half_width: {half_width}")
+            print(f"channel_map loaded: {channel_map is not None}")
+            if channel_map is not None:
+                print(f"channel_map shape: {channel_map.shape}")
+                print(f"channel_map[:10]: {channel_map[:10]}")
+            if template_peak_channels is not None:
+                print(f"template_peak_channels[:10]: {template_peak_channels[:10]}")
+
+            debug_peak_ch = template_peak_channels[DEBUG_UNIT_IDX] if template_peak_channels is not None and DEBUG_UNIT_IDX < len(template_peak_channels) else None
+            debug_plot_raw_waveforms(
+                raw_data, spike_times_filt, spike_clusters_filt,
+                DEBUG_UNIT_IDX, n_channels_rec, n_sync_channels,
+                spike_width, half_width, channel_map,
+                template_peak_channel=debug_peak_ch,
+                save_path=save_path
+            )
+            print(f"{'='*60}\n")
+
+            if DEBUG_EXIT_AFTER_PLOT:
+                print("DEBUG_EXIT_AFTER_PLOT is True, exiting early...")
+                return None, None, None, None
+
         all_waveforms = Parallel(n_jobs=-1, verbose=10, mmap_mode="r", max_nbytes=None)(
             delayed(process_a_unit)(
                 raw_data,
@@ -543,7 +801,7 @@ def extract_raw_waveforms(
                 waveform_baseline_noise,
                 raw_waveforms_dir,
                 save_multiple_raw,
-                template_peak_channels[i] if template_peak_channels is not None and i < len(template_peak_channels) else None,
+                template_peak_channels[cid] if template_peak_channels is not None and cid < len(template_peak_channels) else None,
             )
             for i, cid in tqdm(enumerate(unique_clusters))
         )
@@ -560,6 +818,47 @@ def extract_raw_waveforms(
                             n_channels,
                             n_sync_channels,
                             waveform_baseline_noise)
+
+        # Reorder waveforms from hardware order to site order if channel_map exists
+        # This is needed for sparse Neuropixels configurations where not all hardware
+        # channels are used, and the site indices don't match hardware indices
+        if channel_map is not None:
+            n_sites = len(channel_map)
+            n_hardware_channels = raw_waveforms_full.shape[1]
+
+            # Check if channel_map is a non-identity mapping
+            # This handles both sparse configs (n_sites < n_hardware_channels) and
+            # one-column-per-shank configs where n_sites == n_hardware_channels but
+            # the mapping is non-trivial (e.g., site 58 -> hardware 116)
+            is_identity_map = (n_sites == n_hardware_channels and
+                               np.array_equal(channel_map, np.arange(n_sites)))
+
+            if not is_identity_map:
+                print(f"Reordering waveforms from hardware order to site order ({n_sites} sites, {n_hardware_channels} hardware channels)")
+                raw_waveforms_site_order = np.full((n_clusters, n_sites, spike_width), np.nan)
+
+                # Create inverse channel map: hardware_idx -> site_idx
+                # This is needed to remap raw_waveforms_peak_channel from hardware to site order
+                inverse_channel_map = np.full(n_hardware_channels, -1, dtype=int)
+                for site_idx in range(n_sites):
+                    hardware_idx = int(channel_map[site_idx])
+                    if hardware_idx < n_hardware_channels:
+                        raw_waveforms_site_order[:, site_idx, :] = raw_waveforms_full[:, hardware_idx, :]
+                        inverse_channel_map[hardware_idx] = site_idx
+
+                raw_waveforms_full = raw_waveforms_site_order
+
+                # Remap raw_waveforms_peak_channel from hardware indices to site indices
+                # This ensures peak channel indices match the reordered waveform array
+                for i in range(len(raw_waveforms_peak_channel)):
+                    hw_peak = int(raw_waveforms_peak_channel[i])
+                    if 0 <= hw_peak < n_hardware_channels and inverse_channel_map[hw_peak] >= 0:
+                        raw_waveforms_peak_channel[i] = inverse_channel_map[hw_peak]
+                    # If mapping fails, keep original (will be caught by bounds check later)
+
+                # Update n_channels to reflect site count for downstream processing
+                n_channels = n_sites + n_sync_channels
+
         # Final processing and saving data
         # NOTE not +1 !
         baseline_noise_all = baseline_noise_all.reshape(-1)
@@ -591,7 +890,9 @@ def extract_raw_waveforms(
 
 
     #Save a copy of the waveforms were the row number matches the cluster index
-    raw_waveforms_id_match = np.full((max_cluster_id + 1, n_channels - n_sync_channels, spike_width), np.nan)
+    # Use actual shape from raw_waveforms_full to handle sparse configurations correctly
+    n_waveform_channels = raw_waveforms_full.shape[1]
+    raw_waveforms_id_match = np.full((max_cluster_id + 1, n_waveform_channels, spike_width), np.nan)
     for i, idx in enumerate(unique_clusters):
         raw_waveforms_id_match[idx] = raw_waveforms_full[i]
 
@@ -628,8 +929,8 @@ def decompress_data_if_needed(raw_file_path, decompress_data=True):
     raw_file_path = Path(raw_file_path)
     ephys_raw_dir = raw_file_path.parent
     
-    # If the file is already .bin and exists, just return it
-    if raw_file_path.suffix == '.bin' and raw_file_path.exists():
+    # If the file is already an uncompressed binary (.bin or Open Ephys .dat) and exists, just return it
+    if raw_file_path.suffix in ('.bin', '.dat') and raw_file_path.exists():
         return str(raw_file_path)
     
     # Look for data files in the directory
@@ -863,9 +1164,17 @@ def check_extracted_waveforms(raw_waveforms_id_match, raw_waveforms_peak_channel
         n_sync_channels = param["nSyncChannels"]
         n_spikes_to_extract = param["nRawSpikesToExtract"]
         detrendWaveform = param["detrendWaveform"]
+        detrendForUnitMatch = param.get("detrendForUnitMatch", False)
         waveform_baseline_noise = param.get("waveformBaselineNoiseWindow", 20)
         spike_width = param["spike_width"]
         save_multiple_raw = param.get("saveMultipleRaw", False)  # get and save data for UnitMatch
+
+        # Load channel_map.npy if available (maps site index -> hardware index)
+        kilosort_path = Path(param["ephysKilosortPath"])
+        channel_map_file = kilosort_path / "channel_map.npy"
+        channel_map = None
+        if channel_map_file.exists():
+            channel_map = np.load(channel_map_file).squeeze()
     
 
         # half_width is the number of sample before spike_time which are recorded,
@@ -881,10 +1190,12 @@ def check_extracted_waveforms(raw_waveforms_id_match, raw_waveforms_peak_channel
 
         if meta_path is not None and meta_path.exists():
             meta_dict = read_meta(meta_path)
-            n_elements = (int(meta_dict["fileSizeBytes"]) / 2)  # int16 so 2 bytes per data point
             n_channels_rec = int(meta_dict["nSavedChans"])  # Total channels including sync
+            n_sync_channels = int(meta_dict["nChansSync"])  # Sync channels
+            # Update n_channels to match meta file value
+            n_channels = n_channels_rec
             param["n_channels_rec"] = n_channels_rec
-            
+
             # For Open Ephys files, adjust the raw data file path if needed
             if str(meta_path).endswith('.oebin'):
                 # In Open Ephys, nSavedChans is already the total channel count
@@ -897,20 +1208,24 @@ def check_extracted_waveforms(raw_waveforms_id_match, raw_waveforms_peak_channel
                         param["raw_data_file"] = raw_data_file
                         print(f"Using Open Ephys raw data file: {raw_data_file}")
                     else:
-                        # Look for any .dat file
+                        # Look for any .dat file — pick the largest (avoid events/timestamps .dat files)
                         dat_files = list(meta_path.parent.glob('**/*.dat'))
                         if dat_files:
+                            dat_files.sort(key=lambda p: os.path.getsize(p), reverse=True)
                             raw_data_file = str(dat_files[0])
                             param["raw_data_file"] = raw_data_file
                             print(f"Using Open Ephys raw data file: {raw_data_file}")
+
+            # Trust the actual raw data file size over whatever read_meta inferred —
+            # the user-supplied path is authoritative.
+            n_elements = os.path.getsize(raw_data_file) / 2  # int16 so 2 bytes per data point
         else:
             # Use default values when no metafile is available
             print("Warning: No meta file found. Using inputed parameters...")
             # Get file size directly from the raw data file
-            import os
             file_size_bytes = os.path.getsize(raw_data_file)
             n_elements = file_size_bytes / 2  # int16 so 2 bytes per data point
-            
+
             # When no metafile, nChannels already includes sync channels
             n_channels_rec = n_channels  # Should be 385 (384 neural + 1 sync)
             print(f"Using {n_channels_rec} total channels in recording")
@@ -980,7 +1295,21 @@ def check_extracted_waveforms(raw_waveforms_id_match, raw_waveforms_peak_channel
                 save_multiple_raw,
                 template_peak_ch,
             )
-            new_raw_waveforms_matching_ids[id] = tmp_raw_waveform_info['raw_waveforms_full']
+
+            # Reorder waveform from hardware order to site order if channel_map exists
+            raw_waveform_full = tmp_raw_waveform_info['raw_waveforms_full']
+            if channel_map is not None:
+                n_sites = len(channel_map)
+                n_hardware_channels = raw_waveform_full.shape[0]
+                if n_sites < n_hardware_channels:
+                    raw_waveform_site_order = np.full((n_sites, spike_width), np.nan)
+                    for site_idx in range(n_sites):
+                        hardware_idx = int(channel_map[site_idx])
+                        if hardware_idx < n_hardware_channels:
+                            raw_waveform_site_order[site_idx, :] = raw_waveform_full[hardware_idx, :]
+                    raw_waveform_full = raw_waveform_site_order
+
+            new_raw_waveforms_matching_ids[id] = raw_waveform_full
             new_peak_channels_matching_ids[id] = tmp_raw_waveform_info['raw_waveforms_peak_channel']
 
         #remove all empty rows

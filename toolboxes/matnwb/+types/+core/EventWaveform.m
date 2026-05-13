@@ -1,13 +1,16 @@
-classdef EventWaveform < types.core.NWBDataInterface & types.untyped.GroupClass
+classdef EventWaveform < types.core.NWBDataInterface & types.untyped.GroupClass & matnwb.mixin.HasUnnamedGroups
 % EVENTWAVEFORM - DEPRECATED. Represents either the waveforms of detected events, as extracted from a raw data trace in /acquisition, or the event waveforms that were stored during experiment acquisition.
 %
 % Required Properties:
-%  None
+%  spikeeventseries
 
 
-% OPTIONAL PROPERTIES
+% REQUIRED PROPERTIES
 properties
-    spikeeventseries; %  (SpikeEventSeries) SpikeEventSeries object(s) containing detected spike event waveforms.
+    spikeeventseries; % REQUIRED (SpikeEventSeries) SpikeEventSeries object(s) containing detected spike event waveforms.
+end
+properties (Access = protected)
+    GroupPropertyNames = {'spikeeventseries'}
 end
 
 methods
@@ -34,9 +37,13 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        if strcmp(class(obj), 'types.core.EventWaveform')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.EventWaveform') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
+            obj.setupHasUnnamedGroupsMixin();
         end
     end
     %% SETTERS
@@ -51,14 +58,12 @@ methods
         types.util.checkSet('spikeeventseries', namedprops, constrained, val);
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.core.NWBDataInterface(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.core.NWBDataInterface(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        if ~isempty(obj.spikeeventseries)
-            refs = obj.spikeeventseries.export(fid, fullpath, refs);
-        end
+        refs = obj.spikeeventseries.export(writer, fullpath, refs);
     end
 end
 

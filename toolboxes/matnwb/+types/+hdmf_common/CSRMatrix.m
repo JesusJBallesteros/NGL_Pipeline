@@ -8,9 +8,9 @@ classdef CSRMatrix < types.hdmf_common.Container & types.untyped.GroupClass
 % REQUIRED PROPERTIES
 properties
     data; % REQUIRED (any) The non-zero values in the matrix.
-    indices; % REQUIRED (uint) The column indices.
-    indptr; % REQUIRED (uint) The row index pointer.
-    shape; % REQUIRED (uint) The shape (number of rows, number of columns) of this sparse matrix.
+    indices; % REQUIRED (uint8) The column indices.
+    indptr; % REQUIRED (uint8) The row index pointer.
+    shape; % REQUIRED (uint8) The shape (number of rows, number of columns) of this sparse matrix.
 end
 
 methods
@@ -25,11 +25,11 @@ methods
         % Input Arguments (Name-Value Arguments):
         %  - data (any) - The non-zero values in the matrix.
         %
-        %  - indices (uint) - The column indices.
+        %  - indices (uint8) - The column indices.
         %
-        %  - indptr (uint) - The row index pointer.
+        %  - indptr (uint8) - The row index pointer.
         %
-        %  - shape (uint) - The shape (number of rows, number of columns) of this sparse matrix.
+        %  - shape (uint8) - The shape (number of rows, number of columns) of this sparse matrix.
         %
         % Output Arguments:
         %  - cSRMatrix (types.hdmf_common.CSRMatrix) - A CSRMatrix object
@@ -50,7 +50,10 @@ methods
         obj.indices = p.Results.indices;
         obj.indptr = p.Results.indptr;
         obj.shape = p.Results.shape;
-        if strcmp(class(obj), 'types.hdmf_common.CSRMatrix')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.hdmf_common.CSRMatrix') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -71,42 +74,43 @@ methods
     %% VALIDATORS
     
     function val = validate_data(obj, val)
+        val = types.util.checkDtype('data', 'any', val);
         types.util.validateShape('data', {[Inf]}, val)
     end
     function val = validate_indices(obj, val)
-        val = types.util.checkDtype('indices', 'uint', val);
+        val = types.util.checkDtype('indices', 'uint8', val);
         types.util.validateShape('indices', {[Inf]}, val)
     end
     function val = validate_indptr(obj, val)
-        val = types.util.checkDtype('indptr', 'uint', val);
+        val = types.util.checkDtype('indptr', 'uint8', val);
         types.util.validateShape('indptr', {[Inf]}, val)
     end
     function val = validate_shape(obj, val)
-        val = types.util.checkDtype('shape', 'uint', val);
+        val = types.util.checkDtype('shape', 'uint8', val);
         types.util.validateShape('shape', {[2]}, val)
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.hdmf_common.Container(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.hdmf_common.Container(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if startsWith(class(obj.data), 'types.untyped.')
-            refs = obj.data.export(fid, [fullpath '/data'], refs);
+            refs = obj.data.export(writer, [fullpath '/data'], refs);
         elseif ~isempty(obj.data)
-            io.writeDataset(fid, [fullpath '/data'], obj.data, 'forceArray');
+            writer.writeValue([fullpath '/data'], obj.data, 'forceArray');
         end
         if startsWith(class(obj.indices), 'types.untyped.')
-            refs = obj.indices.export(fid, [fullpath '/indices'], refs);
+            refs = obj.indices.export(writer, [fullpath '/indices'], refs);
         elseif ~isempty(obj.indices)
-            io.writeDataset(fid, [fullpath '/indices'], obj.indices, 'forceArray');
+            writer.writeValue([fullpath '/indices'], obj.indices, 'forceArray');
         end
         if startsWith(class(obj.indptr), 'types.untyped.')
-            refs = obj.indptr.export(fid, [fullpath '/indptr'], refs);
+            refs = obj.indptr.export(writer, [fullpath '/indptr'], refs);
         elseif ~isempty(obj.indptr)
-            io.writeDataset(fid, [fullpath '/indptr'], obj.indptr, 'forceArray');
+            writer.writeValue([fullpath '/indptr'], obj.indptr, 'forceArray');
         end
-        io.writeAttribute(fid, [fullpath '/shape'], obj.shape, 'forceArray');
+        writer.writeAttribute([fullpath '/shape'], obj.shape, 'forceArray');
     end
 end
 

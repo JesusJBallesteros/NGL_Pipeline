@@ -51,9 +51,52 @@ def precompute_gui_data(ephys_data, quality_metrics, param, save_path=None):
     """
     if param.get("verbose", False):
         print("Pre-computing GUI visualization data...")
-    
-    unique_units = np.unique(ephys_data['spike_clusters'])
-    n_units = len(unique_units)
+
+    # Filter quality_metrics to only include units with enough spikes
+    # Units with < minNumSpikes have NaN metrics and can't be visualized
+    if 'phy_clusterID' in quality_metrics:
+        qm_cluster_ids = np.array(quality_metrics['phy_clusterID'])
+
+        # Detect invalid units by checking nSpikes (< minNumSpikes means NaN metrics)
+        min_spikes = param.get('minNumSpikes', 50) if param else 50
+        if 'nSpikes' in quality_metrics:
+            nspikes = np.array(quality_metrics['nSpikes'])
+            # Filter out units with too few spikes - they have NaN metrics
+            non_empty_mask = (nspikes >= min_spikes) & ~np.isnan(nspikes)
+        else:
+            # Fallback: check if unit has spikes in spike_clusters
+            unique_spike_units = np.unique(ephys_data['spike_clusters'])
+            non_empty_mask = np.isin(qm_cluster_ids, unique_spike_units)
+
+        n_filtered = np.sum(~non_empty_mask)
+        if n_filtered > 0 and param.get("verbose", False):
+            print(f"   Filtering out {n_filtered} units with < {min_spikes} spikes")
+
+        # Get unique_units from filtered cluster IDs (in quality_metrics order)
+        unique_units = qm_cluster_ids[non_empty_mask]
+        n_units = len(unique_units)
+
+        # Filter quality_metrics to non-empty units
+        if hasattr(quality_metrics, 'iloc'):
+            # DataFrame format - filter rows and reset index
+            quality_metrics = quality_metrics.loc[non_empty_mask].reset_index(drop=True)
+        else:
+            # Dict format - filter each array
+            filtered_qm = {}
+            for key, value in quality_metrics.items():
+                if hasattr(value, '__len__') and len(value) == len(qm_cluster_ids):
+                    if isinstance(value, np.ndarray):
+                        filtered_qm[key] = value[non_empty_mask]
+                    elif hasattr(value, 'values'):  # pandas Series
+                        filtered_qm[key] = value.values[non_empty_mask]
+                    else:
+                        filtered_qm[key] = np.array(value)[non_empty_mask]
+                else:
+                    filtered_qm[key] = value
+            quality_metrics = filtered_qm
+    else:
+        unique_units = np.unique(ephys_data['spike_clusters'])
+        n_units = len(unique_units)
     
     gui_data = {
         'peak_locations': {},
@@ -77,24 +120,30 @@ def precompute_gui_data(ephys_data, quality_metrics, param, save_path=None):
     except ImportError:
         SCIPY_AVAILABLE = False
         print("Warning: SciPy not available, using simplified computations")
-    
+
+    # Compute max channels from UNFILTERED template_waveforms (indexed by unit_id)
+    # This avoids issues with filtered quality_metrics['maxChannels'] which gets reindexed
+    from .quality_metrics import get_waveform_peak_channel
+    template_waveforms_key = 'template_waveforms' if 'template_waveforms' in ephys_data else 'templates'
+    all_max_channels = get_waveform_peak_channel(ephys_data[template_waveforms_key])
+
     for unit_idx in range(n_units):
         if unit_idx % 50 == 0 and param.get("verbose", False):
             print(f"Processing unit {unit_idx}/{n_units}")
-            
+
         unit_id = unique_units[unit_idx]
-        
-        # Get unit data
-        if 'templates' in ephys_data and unit_idx < len(ephys_data['templates']):
-            template = ephys_data['templates'][unit_idx]
-        elif 'template_waveforms' in ephys_data and unit_idx < len(ephys_data['template_waveforms']):
-            template = ephys_data['template_waveforms'][unit_idx]
+
+        # Get unit data - index by unit_id since template_waveforms is indexed by unit ID, not sequential
+        if 'templates' in ephys_data and unit_id < len(ephys_data['templates']):
+            template = ephys_data['templates'][unit_id]
+        elif 'template_waveforms' in ephys_data and unit_id < len(ephys_data['template_waveforms']):
+            template = ephys_data['template_waveforms'][unit_id]
         else:
             continue
-            
-        # Get max channel
-        if 'maxChannels' in quality_metrics and unit_idx < len(quality_metrics['maxChannels']):
-            max_ch = int(quality_metrics['maxChannels'][unit_idx])
+
+        # Get max channel from all_max_channels (indexed by unit_id, not affected by filtering)
+        if unit_id < len(all_max_channels):
+            max_ch = int(all_max_channels[unit_id])
         else:
             max_ch = 0
             
@@ -106,22 +155,17 @@ def precompute_gui_data(ephys_data, quality_metrics, param, save_path=None):
             # Use the same waveform_shape function as quality metrics to get consistent results
             try:
                 from .quality_metrics import waveform_shape
-                
-                # Get max channels for all units (quality metrics has this)
-                if 'maxChannels' in quality_metrics and len(quality_metrics['maxChannels']) > unit_idx:
-                    all_max_channels = quality_metrics['maxChannels']
-                else:
-                    # Fallback: compute max channels  
-                    all_max_channels = np.argmax(np.max(np.abs(ephys_data['template_waveforms']), axis=1), axis=1)
-                
+
                 # Get waveform baseline window from param
-                baseline_window = [param.get('waveform_baseline_window_start', 21), 
+                baseline_window = [param.get('waveform_baseline_window_start', 21),
                                  param.get('waveform_baseline_window_stop', 31)]
-                
+
                 # Run waveform_shape to get the actual peak/trough locations
+                # Use unit_id (not unit_idx) since template_waveforms is indexed by unit_id
+                # all_max_channels was computed before the loop from unfiltered template_waveforms
                 result = waveform_shape(
-                    template_waveforms=ephys_data['template_waveforms'],
-                    this_unit=unit_idx,
+                    template_waveforms=ephys_data[template_waveforms_key],
+                    this_unit=unit_id,
                     maxChannels=all_max_channels,
                     channel_positions=ephys_data.get('channel_positions', np.array([[0, 0]])),
                     waveform_baseline_window=baseline_window,
@@ -464,13 +508,72 @@ class InteractiveUnitQualityGUI:
                 print(f"   {status}")
         else:
             print("No pre-computed GUI data found - will compute everything real-time")
-        
-        # Get unique units
-        self.unique_units = np.unique(ephys_data['spike_clusters'])
+
+        # Compute max channels from UNFILTERED template_waveforms (indexed by unit_id)
+        # This must be done BEFORE filtering quality_metrics, as filtering breaks unit_id indexing
+        from .quality_metrics import get_waveform_peak_channel
+        template_waveforms_key = 'template_waveforms' if 'template_waveforms' in ephys_data else 'templates'
+        self.all_max_channels = get_waveform_peak_channel(ephys_data[template_waveforms_key])
+
+        # Filter quality_metrics and unit_types to only include units with spikes
+        # This handles cases where quality_metrics includes empty units (0 spikes after duplicate removal)
+        # Empty units have nSpikes == 0 or NaN values in essential metrics
+        if 'phy_clusterID' in quality_metrics:
+            qm_cluster_ids = np.array(quality_metrics['phy_clusterID'])
+
+            # Detect empty/invalid units by checking nSpikes
+            # Units with 0 spikes or < minNumSpikes have NaN metrics and can't be visualized
+            min_spikes = self.param.get('minNumSpikes', 50) if self.param else 50
+            if 'nSpikes' in quality_metrics:
+                nspikes = np.array(quality_metrics['nSpikes'])
+                # Filter out units with too few spikes (< minNumSpikes) - they have NaN metrics
+                non_empty_mask = (nspikes >= min_spikes) & ~np.isnan(nspikes)
+            else:
+                # Fallback: check if unit has spikes in spike_clusters
+                unique_spike_units = np.unique(ephys_data['spike_clusters'])
+                non_empty_mask = np.isin(qm_cluster_ids, unique_spike_units)
+
+            n_filtered = np.sum(~non_empty_mask)
+            if n_filtered > 0:
+                print(f"   Note: Filtering out {n_filtered} units with < {min_spikes} spikes (have NaN metrics)")
+
+            # Filter quality_metrics to non-empty units
+            if hasattr(quality_metrics, 'iloc'):
+                # DataFrame format - filter rows and reset index
+                self.quality_metrics = quality_metrics.loc[non_empty_mask].reset_index(drop=True)
+            else:
+                # Dict format - filter each array
+                filtered_qm = {}
+                for key, value in quality_metrics.items():
+                    if hasattr(value, '__len__') and len(value) == len(qm_cluster_ids):
+                        if isinstance(value, np.ndarray):
+                            filtered_qm[key] = value[non_empty_mask]
+                        elif hasattr(value, 'values'):  # pandas Series
+                            filtered_qm[key] = value.values[non_empty_mask]
+                        else:
+                            filtered_qm[key] = np.array(value)[non_empty_mask]
+                    else:
+                        filtered_qm[key] = value
+                self.quality_metrics = filtered_qm
+
+            # Also filter unit_types using the same mask
+            if self.unit_types is not None and len(self.unit_types) == len(qm_cluster_ids):
+                self.unit_types = self.unit_types[non_empty_mask]
+
+            # Get filtered cluster IDs as unique_units (in the same order as quality_metrics)
+            self.unique_units = qm_cluster_ids[non_empty_mask]
+        else:
+            # No phy_clusterID - fall back to spike_clusters
+            self.unique_units = np.unique(ephys_data['spike_clusters'])
+            self.quality_metrics = quality_metrics
+            # Ensure DataFrame index is reset for proper integer indexing
+            if hasattr(self.quality_metrics, 'iloc'):
+                self.quality_metrics = self.quality_metrics.reset_index(drop=True)
+
         self.n_units = len(self.unique_units)
         print(f"Total units: {self.n_units}")
         self.current_unit_idx = 0
-        
+
         # Initialize manual classifications (separate from bombcell unit_types)
         self._initialize_manual_classifications()
         
@@ -664,10 +767,10 @@ class InteractiveUnitQualityGUI:
         )
         self.unit_slider.observe(self.on_unit_change, names='value')
         
-        # Unit number input
+        # Unit ID input (accepts cluster IDs, not indices)
         self.unit_input = widgets.IntText(
-            value=0, min=0, max=self.n_units-1,
-            description='Go to:', placeholder='Enter unit #'
+            value=self.unique_units[0], min=0, max=int(self.unique_units.max()),
+            description='Go to ID:', placeholder='Enter unit ID'
         )
         self.goto_unit_btn = widgets.Button(description='Go', button_style='primary')
         
@@ -825,6 +928,8 @@ class InteractiveUnitQualityGUI:
     def on_unit_change(self, change):
         """Handle unit slider change"""
         self.current_unit_idx = change['new']
+        # Update the unit ID input to show current unit ID
+        self.unit_input.value = int(self.unique_units[self.current_unit_idx])
         self.update_display()
         
     def prev_unit(self, b=None):
@@ -840,10 +945,28 @@ class InteractiveUnitQualityGUI:
             self.unit_slider.value = self.current_unit_idx
             
     def goto_unit_number(self, b=None):
-        """Go to specific unit number"""
-        unit_num = self.unit_input.value
-        if 0 <= unit_num < self.n_units:
-            self.current_unit_idx = unit_num
+        """Go to specific unit ID (cluster ID). If unit doesn't exist, go to nearest valid unit."""
+        requested_id = self.unit_input.value
+
+        # Check if the requested unit ID exists
+        if requested_id in self.unique_units:
+            # Find the index of this unit ID
+            unit_idx = np.where(self.unique_units == requested_id)[0][0]
+            self.current_unit_idx = unit_idx
+            self.unit_slider.value = self.current_unit_idx
+            self.update_display()
+        else:
+            # Find the nearest valid unit ID (next one >= requested)
+            valid_ids_above = self.unique_units[self.unique_units >= requested_id]
+            if len(valid_ids_above) > 0:
+                nearest_id = valid_ids_above[0]
+                unit_idx = np.where(self.unique_units == nearest_id)[0][0]
+                print(f"Unit {requested_id} doesn't exist (no spikes). Going to unit {nearest_id} instead.")
+            else:
+                # If no unit above, go to the last unit
+                unit_idx = self.n_units - 1
+                print(f"Unit {requested_id} doesn't exist. Going to last unit {self.unique_units[unit_idx]}.")
+            self.current_unit_idx = unit_idx
             self.unit_slider.value = self.current_unit_idx
             self.update_display()
             
@@ -1115,9 +1238,9 @@ class InteractiveUnitQualityGUI:
         spike_mask = self.ephys_data['spike_clusters'] == unit_id
         spike_times = self.ephys_data['spike_times'][spike_mask]
         
-        # Get template waveform
-        if unit_idx < len(self.ephys_data['template_waveforms']):
-            template = self.ephys_data['template_waveforms'][unit_idx]
+        # Get template waveform - index by unit_id since template_waveforms is indexed by unit ID
+        if unit_id < len(self.ephys_data['template_waveforms']):
+            template = self.ephys_data['template_waveforms'][unit_id]
         else:
             template = np.zeros((82, 1))
             
@@ -1143,8 +1266,17 @@ class InteractiveUnitQualityGUI:
             else:
                 # Dict with metric keys: {'metric1': [val0, val1, ...], 'metric2': [...]}
                 for key, values in self.quality_metrics.items():
-                    if hasattr(values, '__len__') and len(values) > unit_idx:
-                        unit_metrics[key] = values[unit_idx]
+                    if hasattr(values, '__len__'):
+                        # maxChannels is indexed by unit_id (cluster ID), not unit_idx
+                        if key == 'maxChannels':
+                            if unit_id < len(values):
+                                unit_metrics[key] = values[unit_id]
+                            else:
+                                unit_metrics[key] = np.nan
+                        elif len(values) > unit_idx:
+                            unit_metrics[key] = values[unit_idx]
+                        else:
+                            unit_metrics[key] = np.nan
                     else:
                         unit_metrics[key] = np.nan
         elif hasattr(self.quality_metrics, 'iloc'):
@@ -1155,7 +1287,12 @@ class InteractiveUnitQualityGUI:
                 unit_metrics = {}
         else:
             unit_metrics = {}
-                
+
+        # Override maxChannels with correct value from all_max_channels (indexed by unit_id)
+        # This fixes issues where filtered quality_metrics has wrong indexing for maxChannels
+        if hasattr(self, 'all_max_channels') and unit_id < len(self.all_max_channels):
+            unit_metrics['maxChannels'] = self.all_max_channels[unit_id]
+
         return {
             'unit_id': unit_id,
             'spike_times': spike_times,
@@ -1202,7 +1339,7 @@ class InteractiveUnitQualityGUI:
             classification_text = f"{bombcell_type_str}"
         
         info_html = f"""
-        <h1 style="color: {title_color}; text-align: center; font-size: 24px; margin: 10px 0;">Unit {unit_data['unit_id']} (phy ID = {self.current_unit_idx}, unit # {self.current_unit_idx+1}/{self.n_units}) - {classification_text}</h1>
+        <h1 style="color: {title_color}; text-align: center; font-size: 24px; margin: 10px 0;">Unit {self.current_unit_idx+1}/{self.n_units} (phy ID = {unit_data['unit_id']}) - {classification_text}</h1>
         """
         
         self.unit_info.value = info_html
@@ -1385,13 +1522,15 @@ class InteractiveUnitQualityGUI:
         """Plot template waveform using BombCell MATLAB spatial arrangement"""
         template = unit_data['template']
         metrics = unit_data['metrics']
-        
+        unit_id = unit_data['unit_id']
+
         if template.size > 0 and len(template.shape) > 1:
-            # Get peak channel from quality metrics
-            if 'maxChannels' in self.quality_metrics and self.current_unit_idx < len(self.quality_metrics['maxChannels']):
-                max_ch = int(self.quality_metrics['maxChannels'][self.current_unit_idx])
+            # Get peak channel from all_max_channels (computed from unfiltered template_waveforms, indexed by unit_id)
+            if hasattr(self, 'all_max_channels') and unit_id < len(self.all_max_channels):
+                max_ch = int(self.all_max_channels[unit_id])
             else:
                 max_ch = int(metrics.get('maxChannels', 0))
+
             
             n_channels = template.shape[1]
             
@@ -1494,15 +1633,25 @@ class InteractiveUnitQualityGUI:
             raw_wf = self.raw_waveforms.get('average', None)
             if raw_wf is not None:
                 try:
-                    if hasattr(raw_wf, '__len__') and self.current_unit_idx < len(raw_wf):
-                        waveforms = raw_wf[self.current_unit_idx]
+                    # Determine index based on whether raw_waveforms is indexed by unit_id or sequential
+                    unit_id = self.unique_units[self.current_unit_idx]
+                    if self.raw_waveforms.get('indexed_by_unit_id', False):
+                        # Use unit_id to index (raw_waveforms_id_match format)
+                        wf_idx = unit_id
+                    else:
+                        # Use sequential index (legacy raw_waveforms_full format)
+                        wf_idx = self.current_unit_idx
+
+                    if hasattr(raw_wf, '__len__') and wf_idx < len(raw_wf):
+                        waveforms = raw_wf[wf_idx]
                         
                         if hasattr(waveforms, 'shape') and len(waveforms.shape) > 1:
                             # waveforms shape is (channels, time), need to transpose for plotting
                             waveforms = waveforms.T  # Now (time, channels)
                             # Multi-channel raw waveforms - use MATLAB spatial arrangement
-                            if 'maxChannels' in self.quality_metrics and self.current_unit_idx < len(self.quality_metrics['maxChannels']):
-                                max_ch = int(self.quality_metrics['maxChannels'][self.current_unit_idx])
+                            # Use all_max_channels (computed from unfiltered template_waveforms, indexed by unit_id)
+                            if hasattr(self, 'all_max_channels') and unit_id < len(self.all_max_channels):
+                                max_ch = int(self.all_max_channels[unit_id])
                             else:
                                 max_ch = int(metrics.get('maxChannels', 0))
                             n_channels = waveforms.shape[1]  # Number of channels (after ensuring time x channels)
@@ -2434,20 +2583,19 @@ class InteractiveUnitQualityGUI:
             'non-somatic': [0, 0, 1]    # Blue
         }
         
-        if 'channel_positions' in self.ephys_data and 'maxChannels' in self.quality_metrics:
+        if 'channel_positions' in self.ephys_data and hasattr(self, 'all_max_channels'):
             positions = self.ephys_data['channel_positions']
-            max_channels = self.quality_metrics['maxChannels']
-            
+
             # Get all unit classifications and firing rates
             all_units = []
             all_depths = []
             all_firing_rates = []
             all_colors = []
-            
+
             for i, unit_id in enumerate(self.unique_units):
-                # Get max channel for this unit
-                if i < len(max_channels):
-                    max_ch = int(max_channels[i])
+                # Get max channel from all_max_channels (indexed by unit_id, not affected by filtering)
+                if unit_id < len(self.all_max_channels):
+                    max_ch = int(self.all_max_channels[unit_id])
                     if max_ch < len(positions):
                         # Use Y position as depth - deeper channels have higher index, should be at bottom
                         depth = positions[max_ch, 1]  # Keep original - deeper = lower y values
@@ -2747,8 +2895,15 @@ class InteractiveUnitQualityGUI:
                     max_baseline = param.get('maxWvBaselineFraction', 0.3)
                     return 'red' if val > max_baseline else 'black'
                 elif metric_name == 'spatialDecaySlope':
-                    min_slope = param.get('minSpatialDecaySlope', 0.001)
-                    return 'red' if val < min_slope else 'black'
+                    # Threshold depends on linear vs exponential fit
+                    if param.get('spDecayLinFit', False):
+                        min_slope = param.get('minSpatialDecaySlope', -0.008)
+                        return 'red' if val < min_slope else 'black'
+                    else:
+                        # Exponential fit: check both min and max thresholds
+                        min_slope_exp = param.get('minSpatialDecaySlopeExp', 0.01)
+                        max_slope_exp = param.get('maxSpatialDecaySlopeExp', 0.1)
+                        return 'red' if (val < min_slope_exp or val > max_slope_exp) else 'black'
                 elif metric_name == 'scndPeakToTroughRatio':
                     max_ratio = param.get('maxScndPeakToTroughRatio_noise', 0.5)
                     return 'red' if val > max_ratio else 'black'
@@ -2799,6 +2954,7 @@ class InteractiveUnitQualityGUI:
                 ('waveformDuration_peakTrough', f"Duration: {format_metric(metrics.get('waveformDuration_peakTrough'), 1)} ms"),
                 ('scndPeakToTroughRatio', f"Peak2/Trough: {format_metric(metrics.get('scndPeakToTroughRatio'), 2)}"),
                 ('waveformBaselineFlatness', f"Baseline: {format_metric(metrics.get('waveformBaselineFlatness'), 3)}"),
+                ('spatialDecaySlope', f"Spatial decay: {format_metric(metrics.get('spatialDecaySlope'), 3)}"),
                 ('peak1ToPeak2Ratio', f"Peak1/Peak2: {format_metric(metrics.get('peak1ToPeak2Ratio'), 2)}"),
                 ('mainPeakToTroughRatio', f"Main P/T: {format_metric(metrics.get('mainPeakToTroughRatio'), 2)}")
             ]
@@ -3007,16 +3163,19 @@ class InteractiveUnitQualityGUI:
     
     def mark_peaks_and_troughs(self, ax, waveform, x_offset, y_offset, metrics, amp_range):
         """Mark all peaks and troughs on waveform with duration line"""
-        
-        if (self.gui_data and 
-            'peak_locations' in self.gui_data and 
+
+
+        # Use real-time peak/trough detection (more reliable than precomputed gui_data)
+        use_gui_data_for_peaks = False
+
+        if (use_gui_data_for_peaks and self.gui_data and
+            'peak_locations' in self.gui_data and
             'trough_locations' in self.gui_data and
             self.current_unit_idx in self.gui_data['peak_locations']):
-            
+
             peaks = list(self.gui_data['peak_locations'][self.current_unit_idx])
             troughs = list(self.gui_data['trough_locations'][self.current_unit_idx])
-            
-            
+
         else:
             # Fallback to real-time computation
             try:
@@ -3077,15 +3236,15 @@ class InteractiveUnitQualityGUI:
         main_trough_idx = None
         
         
-        # Use pre-computed duration indices from quality metrics if available
-        if (self.gui_data and 
-            'peak_loc_for_duration' in self.gui_data and 
+        # Use pre-computed duration indices if gui_data is enabled
+        if (use_gui_data_for_peaks and self.gui_data and
+            'peak_loc_for_duration' in self.gui_data and
             'trough_loc_for_duration' in self.gui_data and
             self.current_unit_idx in self.gui_data['peak_loc_for_duration']):
-            
+
             main_peak_idx = self.gui_data['peak_loc_for_duration'][self.current_unit_idx]
             main_trough_idx = self.gui_data['trough_loc_for_duration'][self.current_unit_idx]
-            
+
         else:
             # Fallback: Use largest absolute values among detected peaks/troughs
             # Main peak: peak with largest absolute value among detected peaks
@@ -3117,7 +3276,7 @@ class InteractiveUnitQualityGUI:
             main_peak_idx = int(main_peak_idx)
         if main_trough_idx is not None:
             main_trough_idx = int(main_trough_idx)
-        
+
         # Plot all peaks with red dots
         legend_elements = []
         for i, peak_idx in enumerate(peaks):
@@ -3636,14 +3795,29 @@ def load_metrics_for_gui(ks_dir, quality_metrics, ephys_properties=None, param=N
         bombcell_path = Path(save_path)
     
     # Load raw waveforms if available
+    # Prefer _bc_rawWaveforms_kilosort_format.npy which is indexed by unit_id (handles gaps in cluster IDs)
+    # Fall back to templates._bc_rawWaveforms.npy (sequential indexing) if not available
     raw_waveforms = None
+    raw_wf_id_match_path = bombcell_path / "_bc_rawWaveforms_kilosort_format.npy"
     raw_wf_path = bombcell_path / "templates._bc_rawWaveforms.npy"
-    if raw_wf_path.exists():
+
+    if raw_wf_id_match_path.exists():
+        try:
+            raw_waveforms = {
+                'average': np.load(raw_wf_id_match_path, allow_pickle=True),
+                'peak_channels': np.load(bombcell_path / "templates._bc_rawWaveformPeakChannels.npy", allow_pickle=True),
+                'indexed_by_unit_id': True  # Flag to indicate unit_id indexing
+            }
+        except FileNotFoundError:
+            raw_waveforms = None
+    elif raw_wf_path.exists():
         try:
             raw_waveforms = {
                 'average': np.load(raw_wf_path, allow_pickle=True),
-                'peak_channels': np.load(bombcell_path / "templates._bc_rawWaveformPeakChannels.npy", allow_pickle=True)
+                'peak_channels': np.load(bombcell_path / "templates._bc_rawWaveformPeakChannels.npy", allow_pickle=True),
+                'indexed_by_unit_id': False  # Sequential indexing (legacy)
             }
+            print("   Warning: Using legacy raw waveforms file (sequential indexing). Consider re-running BombCell.")
         except FileNotFoundError:
             raw_waveforms = None
     

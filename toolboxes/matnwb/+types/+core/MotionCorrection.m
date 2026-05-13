@@ -1,4 +1,4 @@
-classdef MotionCorrection < types.core.NWBDataInterface & types.untyped.GroupClass
+classdef MotionCorrection < types.core.NWBDataInterface & types.untyped.GroupClass & matnwb.mixin.HasUnnamedGroups
 % MOTIONCORRECTION - An image stack where all frames are shifted (registered) to a common coordinate system, to account for movement and drift between frames. Note: each frame at each point in time is assumed to be 2-D (has only x & y dimensions).
 %
 % Required Properties:
@@ -8,6 +8,9 @@ classdef MotionCorrection < types.core.NWBDataInterface & types.untyped.GroupCla
 % REQUIRED PROPERTIES
 properties
     correctedimagestack; % REQUIRED (CorrectedImageStack) Results from motion correction of an image stack.
+end
+properties (Access = protected)
+    GroupPropertyNames = {'correctedimagestack'}
 end
 
 methods
@@ -34,9 +37,13 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        if strcmp(class(obj), 'types.core.MotionCorrection')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.MotionCorrection') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
+            obj.setupHasUnnamedGroupsMixin();
         end
     end
     %% SETTERS
@@ -51,12 +58,12 @@ methods
         types.util.checkSet('correctedimagestack', namedprops, constrained, val);
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.core.NWBDataInterface(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.core.NWBDataInterface(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.correctedimagestack.export(fid, fullpath, refs);
+        refs = obj.correctedimagestack.export(writer, fullpath, refs);
     end
 end
 

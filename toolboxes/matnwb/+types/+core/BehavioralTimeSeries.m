@@ -1,13 +1,16 @@
-classdef BehavioralTimeSeries < types.core.NWBDataInterface & types.untyped.GroupClass
-% BEHAVIORALTIMESERIES - TimeSeries for storing Behavoioral time series data. See description of <a href="#BehavioralEpochs">BehavioralEpochs</a> for more details.
+classdef BehavioralTimeSeries < types.core.NWBDataInterface & types.untyped.GroupClass & matnwb.mixin.HasUnnamedGroups
+% BEHAVIORALTIMESERIES - TimeSeries for storing behavioral time series data. See description of BehavioralEpochs for more details.
 %
 % Required Properties:
-%  None
+%  timeseries
 
 
-% OPTIONAL PROPERTIES
+% REQUIRED PROPERTIES
 properties
-    timeseries; %  (TimeSeries) TimeSeries object containing continuous behavioral data.
+    timeseries; % REQUIRED (TimeSeries) TimeSeries object containing continuous behavioral data.
+end
+properties (Access = protected)
+    GroupPropertyNames = {'timeseries'}
 end
 
 methods
@@ -34,9 +37,13 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        if strcmp(class(obj), 'types.core.BehavioralTimeSeries')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.BehavioralTimeSeries') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
+            obj.setupHasUnnamedGroupsMixin();
         end
     end
     %% SETTERS
@@ -51,14 +58,12 @@ methods
         types.util.checkSet('timeseries', namedprops, constrained, val);
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.core.NWBDataInterface(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.core.NWBDataInterface(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        if ~isempty(obj.timeseries)
-            refs = obj.timeseries.export(fid, fullpath, refs);
-        end
+        refs = obj.timeseries.export(writer, fullpath, refs);
     end
 end
 

@@ -56,11 +56,12 @@ methods
         obj.electrodes = p.Results.electrodes;
         obj.responses = p.Results.responses;
         obj.stimuli = p.Results.stimuli;
-        if strcmp(class(obj), 'types.core.IntracellularRecordingsTable')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.IntracellularRecordingsTable') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-        end
-        if strcmp(class(obj), 'types.core.IntracellularRecordingsTable')
             types.util.dynamictable.checkConfig(obj);
         end
     end
@@ -93,14 +94,14 @@ methods
         val = types.util.checkDtype('stimuli', 'types.core.IntracellularStimuliTable', val);
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.hdmf_common.AlignedDynamicTable(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.hdmf_common.AlignedDynamicTable(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.electrodes.export(fid, [fullpath '/electrodes'], refs);
-        refs = obj.responses.export(fid, [fullpath '/responses'], refs);
-        refs = obj.stimuli.export(fid, [fullpath '/stimuli'], refs);
+        refs = obj.electrodes.export(writer, [fullpath '/electrodes'], refs);
+        refs = obj.responses.export(writer, [fullpath '/responses'], refs);
+        refs = obj.stimuli.export(writer, [fullpath '/stimuli'], refs);
     end
 end
 

@@ -17,7 +17,10 @@ methods
         %  - nWBContainer (types.core.NWBContainer) - A NWBContainer object
         
         obj = obj@types.hdmf_common.Container(varargin{:});
-        if strcmp(class(obj), 'types.core.NWBContainer')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.NWBContainer') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -27,8 +30,8 @@ methods
     %% VALIDATORS
     
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.hdmf_common.Container(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.hdmf_common.Container(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
