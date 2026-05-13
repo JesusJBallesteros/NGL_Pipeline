@@ -1,9 +1,33 @@
-%% 0) READ. THIS FILE MUST EXIST ON YOUR PROJECT'S analisysCode FOLDER
-% SET AND RUN. 
-% Input file where there is no access to any of the running code, making
-% this the only file that needs to be modified, and that could call all
-% pipelines as a sequence of easily swichable runs by simply commenting 
-% lines. Could be ran line-by-line (F9) or all at once (F5).
+%% NGL_SetAndRunMe. User Configuration and Run Script (TEMPLATE)
+%
+% PURPOSE:
+%   The single file a user must edit to drive the entire NGL pipeline.
+%   Copy this template from the toolbox root into your project's
+%   analysisCode\ folder and edit it there. Never run it from the toolbox
+%   root itself.
+%
+% USAGE:
+%   Run section-by-section (F9) or all at once (F5) from MATLAB.
+%   All subsequent pipeline scripts (NGL01_Main, NGL02_postPhy, etc.) are
+%   called from within this file — they should never be opened directly.
+%
+% SECTIONS:
+%   1) PREPARE   - set study metadata, drive and project name, run NGL00_Prep
+%   2) SET       - choose subjects/sessions and configure opt struct
+%   3) RUN       - call NGL01_Main, NGL02_postPhy, and optional stages
+%
+% REQUIRED CONFIG FILES (place in analysisCode\ alongside this script):
+%   NGL_machineConfig.m   - machine-specific Python env and toolbox paths
+%   eventDefinitions.m    - project event code definitions
+%   conditions_script.m   - condition grouping logic
+%   chanMapXXX.mat        - custom Kilosort channel map (if applicable)
+%
+% NOTES:
+%   - opt fields not listed here receive safe defaults from default_opt.m.
+%   - See wiki_NGL01_pipeline.md for a full opt field reference.
+%   - NGL_machineConfig.m is machine-specific; do not commit it to git.
+%
+% Last modified 12.05.2026 (Jesus)
 
 %% 1) PREPARE.
 clear all
@@ -18,7 +42,7 @@ readmecontent = ["Study name: DefaultName", ...
 
 % B) DATA LOCATION
 % ADD the toolbox folder to MATLAB folder system !!
-datadrive   = 'D';                   % The LETTER of the drive where the data structure is/will be created.
+datadrive   = 'D';            % The LETTER of the drive where the data structure is/will be created.
 studyname   = 'ProjectName';  % Name of the study to be used (main folder for the data)
 
 % Before any data exists, the folder for the raw data is created here.
@@ -31,32 +55,34 @@ NGL00_Prep
 subjects    = {'XXX'}; % char array 'all', or cell with a single subject denomination e.g. {'DOE'} or {'042'}.
 dates       = {'YYYYMMDD', 'YYYYMMDD'}; % char array 'all', or cell array of dates for a single subject e.g. {'YYYYMMDD' ...}.
 
+% A2) MULTI-AREA (optional).
+% Uncomment and fill in if your probe spans more than one brain area.
+% One label per kcoords group in the chanMap (kcoords==1 -> Areas{1}, etc.).
+% Repeated labels indicate shanks from the same area (processed together).
+% Kilosort will run once per unique area; results go to preprocessing\<session>\<Area>\.
+% Comment it out for standard single-area behaviour.
+input.Areas = {'NCL', 'NCL', 'STR'};   % e.g. 2 NCL shanks (kcoords 1-2) + 1 STR shank (kcoords 3)
+
 % B) OPTIONS.
 opt = struct();
     % NECESSARY options for NGL01_Main
     opt.numChannels         = 32;      % For now, explicit 32 if not SpikeLog-64C was used (Deuteron). INTAN: comment.
     opt.KSchanMapFile       = 'chanMap_XXX.mat';  % Empty '' to use non-mapped, linear array. Or e.g.'chanMapXXX.mat' for custom maps saved under 'studyName\analysisCode\'
+    opt.bin                 = true;    % Create a .bin file with the high-pass data, to be passed to Kilosort for spike sorting
+        opt.lowpass         = [];      % For BIN file creation. If needed, high boundary frequency value for low-pass.
+    opt.doNWB               = true;    % INTAN-NEUROCONV (python) with a Matlab wrapping for no python-user interaction
     opt.RetrieveEvents      = true;    % Retrieve event log. If not further options defaulted to Deuteron txt log extraction.
         opt.alignto         = {'itiOn', 'stimOn1', 'rwd'};  % single char array e.g. 'itiOn', or cell array e.g. {'itiOn', 'rwd'}. 'itiON' should be the very least to align to.
-    opt.GetMotionSensors    = false;   % Retrieve data from motion sensors in Deuteron. NEEDS IMPROVEMENT on head direction interpretation.
+        opt.trEvents        = {};      % Add inter-trial events, if any, to delimit e.g. block changes 
     opt.FieldTrip           = false;   % Create a FieldTrip ready .mat file with the low-pass data, either continuous, trial-parsed or both. 
-    opt.bombcell            = true;    % Run bombcell on the KS output. =2 (KS2) or =4 (KS4). Previous step to manual curation.
-    % opt.lowpass             = 10000;   % If < 9500, high boundary frequency value for low-pass.
+        opt.lowpassFT       = 250;     % Give as high boundary frequency value for FT.
+    opt.kilosort            = true;    
+    opt.bombcell            = true;
 
     % Change only with good reasons.
-    opt.addtime             = 0;       % Expands the trial definition around start/end by X ms in both directions. 
-    opt.trEvents            = {};      % 'Special events' i.e. events at the ITI like treatments, tutors, etc...
-    opt.phy                 = false;   % Open phy for manual inspection or curation. !! It puts MATLAB on HOLD! Needs bin file in same folder.
-        % !! Realize that manual curation via PHY must be PERFORMED, to use Post-Phy scripts.
-        % But it does NOT need to be IMMEDIATELY after KS-BC automatic job.
-
-    % opt.noise               = [];
-    % opt.doNWB               = false;   % TESTING INTAN-NEUROCONV (python) with a Matlab wrapping for no python-user interaction
-    % opt.CAR                 = 0;       % If not 0, removes fast-ample transients and other noise. (KS4 should do this)
-    % opt.linefilter          = 0;       % If not 0, filter line noise at given value +-2 (Hz)
-    % opt.highpass            = 0;       % If not 0, low boundary frequency value for high-pass.
-    % opt.lowpassFT           = 250;     % Give as high boundary frequency value for FT.
-                        
+    opt.addtime             = 500;     % Expands the trial definition around start/end by X ms in both directions. 
+    % opt.GetMotionSensors    = false; % Retrieve data from motion sensors. IN PROGRESS
+                                
 %% 3) RUN.
 % 3.1 Continue with the Main script, which locate sessions, determine formats, extract
 % EventCodes and Motion data, convert to Kilosort and FieldTtrip formats, 

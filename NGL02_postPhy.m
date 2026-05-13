@@ -1,32 +1,20 @@
-%% NGL02_postPhy (in progress)
-% To run after manual curation of desired sessions is completed. Will read
-% the resulting KS results after manual curation.
+%% NGL02_postPhy
+% To run after manual curation of desired sessions is completed.
+% Reads KS results after manual curation, builds spike and LFP variables
+% in lab-standard format, and performs trial-sorting, firing-rate
+% calculation, and optional LFP time-frequency analysis.
 %
-% Jesus 21.08.2025
-
-if ~isfield(opt, 'doSpikething') || isempty(opt.doSpikething),  opt.doSpikething = true;    end
-if ~isfield(opt, 'doLFPthing') || isempty(opt.doLFPthing),      opt.doLFPthing   = true;    end
-if ~isfield(opt, 'offlineTrack') || isempty(opt.offlineTrack),  opt.offlineTrack = false;   end
-if ~isfield(opt, 'FLIP') || isempty(opt.FLIP),                  opt.FLIP         = false;   end
-% if exist('regions','var'),                                      opt.multregion   = true;    end
+% Requires: NGL_SetAndRunMe.m has been run, and Phy curation is complete.
+%
+% Jesus 21.08.2025 — refactored 27.04.2026
 
 %% 00. Check current inputs.
 % Check if input variable exist already. Parse values.
-if ~exist("input","var")
-    input = struct( 'datadrive' , datadrive , ...   % force char array
-                    'studyName' , studyname , ...   % force char array
-                    'toolbox'   , toolbox   , ...   % force char array
-                    'subjects'  , [], ...           % do NOT force char array
-                    'dates'     , []        );      % do NOT force char array
-    input.dates     = dates;    % place as it comes
-    input.subjects  = subjects; % place as it comes
-else
-    disp('Using INPUTS from NGL01_MAIN.')
-end
+NGL00_Prep
 
-% Set default inputs and dependencies. In case NGL01 did not before.
-input = set_default(input, opt);
-if ~isfield(opt,'useTrack'), opt.useTrack = false; end
+% This single call guarantees opt is complete, validated, and consistent.
+% It will error early with a clear message if anything is wrong.
+[input, opt] = set_default(input, opt);
 
 %% 01. Find and list requested sessions and subjects.
 input.sessions = findSessions(input);

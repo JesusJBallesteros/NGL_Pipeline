@@ -1,9 +1,43 @@
 function [eventdef] = eventDefinitions(format)
-%% Definition of events for your own paradigm and recording system.
-% Save it inside your project file system, under 'analisysCode'
-% Jesus 24.08.2024
+% eventDefinitions  Define event code for general/specific projects.
+%
+% PURPOSE:
+%   Returns the complete event definition struct for the current recording
+%   format, combining the fixed reserved events (codes 0–15, hardware-locked)
+%   with project-specific events (codes ≥ 16, user-configurable per format).
+%   Called by EventProcess on first run of a session.
+%
+%   The function in the toolbox is meant to be copied and modified as needed,
+%   then saved under analysisCode\
+%
+% USAGE:
+%   eventdef = eventDefinitions(format)
+%   where format is one of: 'fileperch', 'filepertype', 'DT2', 'DF1'
+%
+% INPUT:
+%   format  - (char) recording format string as in info.fileformat
+%
+% OUTPUT:
+%   eventdef - struct; field names are event names (char), values are decimal
+%              integer codes. Reserved codes 0–15 are blocked.
+%              Project-specific codes (≥ 16) are added per format block.
+%
+% CUSTOMISATION:
+%   Copy this file from configfiles\ to your project's analysisCode\ folder.
+%   Edit ONLY the two blocks labelled "ONLY MODIFY THIS TWO BLOCKS":
+%     - Add INTAN project events under: elseif strcmpi(format,'fileperch')
+%     - Add Deuteron project events under: if strcmpi(format,'DF1')
+%   DO NOT modify reservedEvents() or any code above the modify blocks.
+%   DO NOT reuse codes 0–15 for project-specific events.
+%   Use decimal integers starting from 16 (included); each must be unique.
+%
+% RESERVED EVENTS (DO NOT CHANGE):
+%   itiOn=0, stimOn1=1, stimOn2=2, bhv=3, end1=4, oms1=5, oms2=6, rwd=7,
+%   preIni=8, tr1=9, end2=10, pun=11, na1=12, tr2=13, na2=14, end3=15
+%
+% Jesus 06.05.2026
 
-%% INFO. Evencodes are used to timestamp behavioral events within the ephys time series.
+%% INFO GENERAL. Evencodes are used to timestamp behavioral events within the ephys time series.
 % This means, behavioral events (stimulus presentation, peaks) are
 % generated or expected by Matlab, and either presented or captured by
 % external hardware. These events NEED to be precisely represented as a
@@ -18,73 +52,43 @@ function [eventdef] = eventDefinitions(format)
 % peak of the animal.
 %
 % We follow the convention where each event is coded by a single sequence
-% of 0s and 1s. For now, a single 1 within a rest of 0s.
-%
-% This function defines the bit sequences reflecting this convention.
-%
-% Copyright:	Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
-% Contact:      OTBR-Toolbox@ruhr-uni-bochum.de
-% Source Code:  https://gitlab.ruhr-uni-bochum.de/ikn/OTBR
-%
-% Please cite the OTBR Toolbox where this function is used.
-% This function is called in myHardwareSetup
-%
-% Author: Sara
-% Version: 1.1
-% Date: 30.08.2021
-%
-% 15.10.2021, Sara : - added 'reset' to standard events.
-% 25.03.2022, Tobias: removed computations that are done in initOTBR
-% 24.08.2023, Jesus: Complete modification to fit Deuteron single-bit
-%                    concept. Removed output
-% 21.02.2024, Jesus: Final event code convention for Deuteron.
-% 27.02.2024, Juan: added treatments [tr 1&2]
+% of 0s and 1s. This function defines the bit sequences reflecting this convention.
 
 %% INFO. DEUTERON using the exact name that will be provided in the task running script,
-    % eventdef.eventName
-    % and assign it an unique sequence of 0/1s. The idea is that the event
-    % sequence within a trial only needs to change ONE pin at a time, to
-    % code for any specific event.
-    % After any end of trial code, the pins are needed to set back
-    % stepwise to one step away from [0 0 0 0], so when it changes
-    % to that, it stamps for the start of the trial.
-    % What we need to read is which pin changed (stamped time) and what's
-    % the current state of all the other, to get the new word.
-    %
-    % Example sequence:
-    % ...
-    % end1      [0 1 0 0] (trial-1 ends with 'omission' flag. Ready to send itiOn.)
-    % itiOn     [0 0 0 0] (the trial starts, baseline.)
-    % stimOn1   [0 0 0 1] (stimulus is presented, keybuffer opens.)
-    % bhv       [0 0 1 1] (a response is registered within allowed time, keybuffer closes.)
-    % pun       [1 0 1 1] (the response was incorrect, punishment feedback is sent.)
-    % end3      [1 1 1 1] (trial ends with 'incorrect' flag. Not ready to send itiOn.)
-    %           [1 1 1 0] (setting back to itiOn. Not ready to send itiOn.)
-    %           [1 1 0 0] (setting back to itiOn. Not ready to send itiOn.)
-    %           [1 0 0 0] (setting back to itiOn. Ready to send itiOn.)
-    % itiOn     [0 0 0 0] (trial+1 starts, baseline.)
-    %...
-%% INFO. INTAN. Old way
-% | decimal | binary    | NAME      | meaning                                           |
-% | ------- | ------    |------     |---------------------------------------------------|
-% | 0       | 0000      | reset     | set all pins to zero                              |
-% | 1       | 0001      | itiOn     | start of the trial                                |
-% | 2       | 0010      | stimOn    | any stimulus on: auditory/ visual/ neural ...)    |
-% | 3       | 0011      | off       | anything off: stimulus/ reward/ punishment ...)   |
-% | 4       | 0100      | bhv       | any behavior: peck/ fixation/ location ...)       |
-% | 5       | 0101      | rwd       | reward on                                         |
-% | 6       | 0110      | pun       | punishiment on                                    |
-% | 7       | 0111      | end       | trial end                                         |
+% eventdef.eventName
+% and assign it an unique sequence of 0/1s. The idea is that the event
+% sequence within a trial only needs to change ONE pin at a time, to
+% code for any specific event.
+% After any end of trial code, the pins are needed to set back
+% stepwise to one step away from [0 0 0 0], so when it changes
+% to it stamps for the start of the trial.
+% What we need to read is which pin changed (stamped time) and what was
+% the previous state of all the other, to get the new word.
+%
+% Example sequence:
+% ...
+% end1      [0 1 0 0] (trial N-1 ends with 'omission' flag. Ready to send itiOn, so no transition events exist.)
+% itiOn     [0 0 0 0] (trial N starts, baseline.)
+% stimOn1   [0 0 0 1] (stimulus 1 is presented, keybuffer opens.)
+% bhv       [0 0 1 1] (a response is registered within allowed time, keybuffer closes.)
+% pun       [1 0 1 1] (the response was incorrect, punishment feedback is sent.)
+% end3      [1 1 1 1] (trial ends with 'incorrect' flag. Not ready to send itiOn.)
+% na1       [1 1 1 0] (setting back. Not ready to send itiOn.)
+% na2       [1 1 0 0] (setting back. Not ready to send itiOn.)
+% na3       [1 0 0 0] (setting back. Ready to send itiOn.)
+% itiOn     [0 0 0 0] (trial N+1 starts, baseline.)
+%...
 
-%% INFO. INTAN. New way
-% Evnts include always the 16 pins, there is no stdEvents and extraEvents, all Events are now
-%   espciefied in the defineEvntCodes function. As before the 4 first pins are reserved for fixed
-% Evnts (dec 0:15), extra Evnts should be defined independently for each experiment (dec 16 +)
+%% INFO. INTAN.
+% Evnts include always the 16 pins. As before, the 4 first pins are reserved for fixed
+% Evnts (decimals 0-15), and "extra" events should be defined independently for each experiment.
+%
 % We are using the names from deuteron to keep the analysis consistent.
-% Order of pins in Intan and Deuteron is inverted, dec is always the same, how to read bin is changed
+%
+% Order of pins in Intan and Deuteron are inverted: 
+%   decimal is always the same, how to read bin is changed.
 %   the binVec is now calculated as binVec = single(dec2binvec(eventdef.(stdEvents), SETUP.events.pinsLen));
-% By default Intan starts with [1 1 0 0 ...] so YOU MUST END each experiment with this Evnt for consistency.
-
+% By default Intan starts with [1 1 0 0 ...] so YOU MUST END each experiment with this event for consistency.
 
 %% DO NOT MODIFY. Function
 eventdef = reservedEvents(); % hic sunt dracones. DO NOT MODIFY!
@@ -125,7 +129,7 @@ elseif strcmpi(format,'fileperch')
     % from 0–65535. Since 0-15 are RESERVED, you can ONLY code additional 
     % 65519 decimal integers, from 16 to 65535. Use them wisely.
     
-    % THIS example would only work for Juan's S3 project in box
+    % This EXAMPLE would work for an specific project
     % Descriptions      = Decimal;  % [binary];           % Comments
     eventdef.CtxtA      = 16;       % [0000100000000000]; %
     eventdef.CtxtB      = 17;       % [1000100000000000]; %
@@ -140,7 +144,6 @@ elseif strcmpi(format,'fileperch')
     eventdef.ACQphase   = 26;       % [0101100000000000]; %
     eventdef.EXTphase   = 27;       % [1101100000000000]; %
     eventdef.TESTphase  = 28;       % [0011100000000000]; %
-
 end
 
 end
