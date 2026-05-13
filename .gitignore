@@ -1,9 +1,5 @@
 # ── NGL toolbox — git ignore rules ──────────────────────────────────────────
 
-# Project-specific user files (never committed; each user keeps their own copy)
-NGL_SetAndRunMe.m
-NGL_machineConfig.m
-
 # ── MATLAB-generated noise ────────────────────────────────────────────────────
 
 # Auto-save / crash-recovery files (MATLAB writes these silently)
