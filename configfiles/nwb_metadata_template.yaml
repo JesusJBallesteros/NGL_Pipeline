@@ -1,0 +1,78 @@
+# nwb_metadata.yaml - Project-level NWB metadata for IKN pipeline
+#
+# PURPOSE:
+#   Stores metadata fields that are constant across all sessions in a project.
+#   Loaded by master_neuroconv.py via neuroconv's load_dict_from_file() and
+#   merged onto the auto-extracted metadata with dict_deep_update().
+#   Fields here override anything auto-extracted from the .rhd file.
+#
+# USAGE:
+#   1. Copy this file to your project's analysisCode\ folder.
+#   2. Rename it to:  nwb_metadata.yaml
+#   3. Fill in the fields below for your project.
+#   4. Session-specific fields (session_id, session_start_time) are handled
+#      programmatically in master_neuroconv.py, do NOT add them here.
+#
+# REFERENCE:
+#   https://neuroconv.readthedocs.io/en/stable/user_guide/yaml.html
+
+NWBFile:
+  session_description: "Electrophysiology recording during projectName."
+  # session_start_time and session_id are set programmatically -- omit here.
+
+  lab: "Neural Basis of Learning (Rose Lab)"
+  institution: "Ruhr-Universität Bochum, Institute of Cognitive Neuroscience (IKN)"
+  experimenter:
+    - "Last, First"                # Replace with actual experimenter name(s)
+
+  experiment_description: >
+    Multi-electrode extracellular electrophysiology recorded with Intan RHD2000
+    XX-channel silicon probes during a XXX paradigm. Spike sorting performed with Kilosort 4.
+
+  keywords:
+    - "extracellular electrophysiology"
+    - "XXX task" # Update per-project as needed
+    - "decision making" # Update per-project as needed
+    - "NCL"           # Update per-project as needed
+
+  # Optional fields (uncomment and fill in if applicable):
+  protocol: "Protocol number / animal welfare approval ID"
+  surgery: "Chronic implant surgery description."
+  # virus: "AAV injection details if applicable."
+  # pharmacology: "Drug administration details if applicable."
+  notes: "Any other session-level notes."
+  # related_publications:
+  #   - "https://doi.org/10.xxxx/xxxxx"
+
+Subject:
+  # subject_id is typically session-specific; override here only if all
+  # sessions in this project folder share a single subject.
+  # subject_id: "ABC"
+
+  description: "Adult subject implanted with chronic multi-electrode array."
+  species: "Columba livia"      # Latin binomial
+  sex: "U"                      # M | F | U (unknown) | O (other)
+  age: "P5Y"                    # ISO 8601 duration, e.g. P5Y = 5 years old
+
+  # Optional:
+  # genotype: "wild-type"
+  # strain: ""
+  weight: "0.49 kg"
+
+Ecephys:
+  # Device entry -- name must match what IntanRecordingInterface produces
+  # ("Intan Technologies" by default). Fill in the description for your probe.
+  Device:
+    - name: "Intan Technologies"
+      description: >
+        64-channel silicon probe recorded with an Intan RHD2000 USB interface board
+        at 30 kHz. Probe model: XXX (e.g. A1x64-Poly2-6mm-23s-160).
+
+  # ElectrodeGroup: one entry per shank/area. Names must match the channel map.
+  # This section is optional but strongly recommended for multi-area recordings.
+  ElectrodeGroup:
+    - name: "ElectrodeGroup"        # neuroconv default for single-area recordings
+      description: "All recorded channels."
+      location: "NCL"               # Brain region acronym
+      device: "Intan Technologies"
+
