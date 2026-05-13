@@ -149,4 +149,65 @@ if ~isfile(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_filt_dwn.mat']))
         fprintf('Channel %d of %d.\n', b, opt.numChannels);
         
         % Detrend channel (remove DC)
- 
+        disp('Detrending...')
+        tmp(b,:) = ft_preproc_detrend(tmp(b,:));
+    
+        % Lowpass filter channel (Butterwort, 4th order, back&forth)
+        disp('Lowpass for FT...')
+        [tmp(b,:), ~, ~] = ft_preproc_lowpassfilter(tmp(b,:), opt.sampleRate, opt.lowpassFT, 4, 'but', 'twopass');
+                    
+        % FT's bandstop filter (btw 50 +-2 Hz, Butterwort, 2nd order, back&forth)
+        if opt.linefilter > 0
+            disp('Line denoising...')
+            [tmp(b,:), ~, ~] = ft_preproc_bandstopfilter(tmp(b,:), opt.sampleRate, [opt.linefilter-2 opt.linefilter+2], 2, 'but', 'twopass', 'split');
+        end
+    end
+
+    % Downsample
+    disp('Downsampling.')
+    [volt, ~, ~] = downsampleVolt(tmp, opt.sampleRate, opt.dwnsmplRate, 2);
+    clear tmp
+
+    % Save depending on previous treatment
+    disp('Saving Filtered and downsampled data.')
+    save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_filt_dwn.mat']), 'volt', '-v7.3');
+    
+else
+    disp('Filtered and downsampled data already existing, loading.')
+    load(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_filt_dwn.mat']));
+end
+
+%% Get time series
+% We simply create a time-vector from samples and divide it by the sampling rate.
+time = (0:length(volt)-1) / opt.dwnsmplRate; % in Seconds
+        
+%% Convert to pseudo-FieldTrip
+% It's only pseudo until we run the proper FT tool to check for format and
+% header info. Because we have not given any trial info so far, the data
+% comes as a continous single trial. 
+% data.label      % cell-array containing strings, Nchan*1
+% data.trial      % cell-array containing a data matrix for each
+%                 % trial (1*Ntrial), each data matrix is a Nchan*Nsamples matrix
+% data.time       % cell-array containing a time axis for each
+%                 % trial (1*Ntrial), each time axis is a 1*Nsamples vector
+% data.sampleinfo % optional array (Ntrial*2) containing the start and end
+%                 % sample of each trial
+
+disp('- Creating pseudo-FieldTrip structure...')
+% Starting with labels as they have been extracted from Deuteron
+for i=1:opt.numChannels
+    nch = sprintf('%03d', i);
+    data.label{i,1} = nch;
+end
+
+% The only trial contains all channels*time info                
+data.trial{1}        = volt;
+
+% The only trial is the whole time-series
+data.time{1}         = time;
+
+% The trial starts at t=0 and ends at t=t(end)
+data.sampleinfo(1,:) = [1 length(time)];
+
+disp('- Done.')
+end
