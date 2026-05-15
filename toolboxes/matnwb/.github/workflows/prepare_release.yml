@@ -29,46 +29,72 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-13]
-        matlab-version: [R2021a, R2021b, R2022a, R2022b, R2023a, R2023b, R2024a, R2024b]
+        os: [windows-latest, ubuntu-latest, macos-15-intel]
+        # Note: When updating MATLAB versions, also update:
+        #   - .github/workflows/configurations/matlab_release_matrix_strategy.yml
+        #   - The badge text in the 'Generate tested with badge' step below
         include:
           - matlab-version: R2021a
             python-version: '3.9'
-            skip-pynwb-compatibilty-test-for-tutorial: '1'
+            skip-pynwb-tests: '1'
+            skip-nwbinspector-test: '1'
           - matlab-version: R2021b
             python-version: '3.9'
-            skip-pynwb-compatibilty-test-for-tutorial: '1'
+            skip-pynwb-tests: '1'
+            skip-nwbinspector-test: '1'
           - matlab-version: R2022a
             python-version: '3.9'
-            skip-pynwb-compatibilty-test-for-tutorial: '0'
+            skip-pynwb-tests: '1'
+            skip-nwbinspector-test: '1'
           - matlab-version: R2022b
             python-version: '3.9'
-            skip-pynwb-compatibilty-test-for-tutorial: '0'
+            skip-pynwb-tests: '1'
+            skip-nwbinspector-test: '1'
           - matlab-version: R2023a
             python-version: '3.10'
-            skip-pynwb-compatibilty-test-for-tutorial: '0'
+            skip-pynwb-tests: '0'
+            skip-nwbinspector-test: '0'
           - matlab-version: R2023b
             python-version: '3.10'
-            skip-pynwb-compatibilty-test-for-tutorial: '0'
+            skip-pynwb-tests: '0'
+            skip-nwbinspector-test: '0'
           - matlab-version: R2024a
             python-version: '3.11'
-            skip-pynwb-compatibilty-test-for-tutorial: '0'
+            skip-pynwb-tests: '0'
+            skip-nwbinspector-test: '0'
           - matlab-version: R2024b
             python-version: '3.11'
-            skip-pynwb-compatibilty-test-for-tutorial: '0'
+            skip-pynwb-tests: '0'
+            skip-nwbinspector-test: '0'
+          - matlab-version: R2025a
+            python-version: '3.12'
+            skip-pynwb-tests: '0'
+            skip-nwbinspector-test: '0'
+          - matlab-version: R2025b
+            python-version: '3.13'
+            skip-pynwb-tests: '0'
+            skip-nwbinspector-test: '0'
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install python dependencies
+        shell: bash
         run: |
           python -m pip install -U pip
           pip install -r +tests/requirements.txt
+          # Install pynwb and nwbinspector only for Python 3.10+ (both dropped Python 3.9 support)
+          if [[ "${{ matrix.skip-pynwb-tests }}" == "0" ]]; then
+            pip install "git+https://github.com/NeurodataWithoutBorders/pynwb.git@dev"
+          fi
+          if [[ "${{ matrix.skip-nwbinspector-test }}" == "0" ]]; then
+            pip install "git+https://github.com/NeurodataWithoutBorders/nwbinspector.git@dev"
+          fi
           python -m pip list
 
       - name: Configure python env (macOS, ubuntu)
@@ -84,25 +110,27 @@ jobs:
           Add-Content -Path $env:GITHUB_ENV -Value "HDF5_PLUGIN_PATH=$pluginPath"
 
       - name: Install MATLAB
-        uses: matlab-actions/setup-matlab@v2
+        uses: matlab-actions/setup-matlab@v3
         with:
           release: ${{ matrix.matlab-version }}
 
       - name: Run tests
-        uses: matlab-actions/run-command@v2
+        uses: matlab-actions/run-command@v3
         env:
           HDF5_PLUGIN_PATH: ${{ env.HDF5_PLUGIN_PATH }}
         with:
           command: |
-            setenv("SKIP_PYNWB_COMPATIBILITY_TEST_FOR_TUTORIALS", ...
-                num2str(${{ matrix.skip-pynwb-compatibilty-test-for-tutorial }}))
+            setenv("SKIP_PYNWB_TESTS", ...
+                num2str(${{ matrix.skip-pynwb-tests }}))
+            setenv("SKIP_NWBINSPECTOR_TEST", ...
+                num2str(${{ matrix.skip-nwbinspector-test }}))
             pyenv("ExecutionMode", "OutOfProcess");
             results = assertSuccess(nwbtest('ReportOutputFolder', '.')); 
             assert(~isempty(results), 'No tests ran');
 
       - name: Upload JUnit results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results-${{ matrix.os }}-${{ matrix.matlab-version }}
           path: testResults.xml
@@ -114,16 +142,16 @@ jobs:
     needs: [run_tests]
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Retrieve result files
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: test-results-*
           merge-multiple: false
 
       - name: Publish test results
-        uses: mikepenz/action-junit-report@v4
+        uses: mikepenz/action-junit-report@v6
         with:
           report_paths: '*/testResults.xml'
 
@@ -133,7 +161,7 @@ jobs:
     needs: [run_tests]
     steps:
       - name: Checkout repository using deploy key
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: refs/heads/main
           ssh-key: ${{ secrets.DEPLOY_KEY }}
@@ -172,11 +200,12 @@ jobs:
           git push
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12' # Pinned to 3.12 because of pybadges dependencies
 
       - name: Generate tested with badge
+        # Note: Update this list when MATLAB versions change in the matrix above
         run: |
           pip install --upgrade setuptools
           pip install pybadges
@@ -186,10 +215,14 @@ jobs:
           with open('.github/badges/v${{ inputs.version }}/tested_with.svg', 'w') as f:
               f.write(badge(
                   left_text='tested with',
-                  right_text='R2021a | R2021b | R2022a | R2022b | R2023a | R2023b | R2024 | R2024b',
+                  right_text='R2021a | R2021b | R2022a | R2022b | R2023a | R2023b | R2024a | R2024b | R2025a | R2025b',
                   right_color='green'
               ))
           "
+
+      - name: Generate NWB schema version badge
+        run: |
+          python .github/workflows/scripts/create_nwb_schema_version_badge.py ${{ inputs.version }}
 
       - name: Tag repository with version tag
         if: always()
@@ -200,14 +233,14 @@ jobs:
           git config user.email "<>"
 
           # Create the tag with a message
-          git tag -a "${{ inputs.version }}" -m "Release ${{ inputs.version }}" 
+          git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}" 
 
           # Push the new tag to the remote repository
-          git push origin "${{ inputs.version }}"
+          git push origin "v${{ inputs.version }}"
       
       # Commit the SVG for the MATLAB releases test badge to gh-badges branch
       - name: Checkout gh-badges branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: gh-badges
           path: gh-badges
@@ -215,7 +248,10 @@ jobs:
       - name: Push to gh-badges
         run: |
           mkdir -p gh-badges/.github/badges/v${{ inputs.version }}
+          mkdir -p gh-badges/.github/badges/latest
           cp .github/badges/v${{ inputs.version }}/tested_with.svg gh-badges/.github/badges/v${{ inputs.version }}/tested_with.svg
+          cp .github/badges/v${{ inputs.version }}/supported_nwb_schema.svg gh-badges/.github/badges/v${{ inputs.version }}/supported_nwb_schema.svg
+          cp .github/badges/latest/supported_nwb_schema.svg gh-badges/.github/badges/latest/supported_nwb_schema.svg
           cd gh-badges
 
           git config user.name "${{ github.workflow }} by ${{ github.actor }}"
@@ -224,7 +260,7 @@ jobs:
           # Only proceed with commit and push if changes are detected
           if [[ $(git add .github/badges/* --dry-run | wc -l) -gt 0 ]]; then
             git add .github/badges/*
-            git commit -m "Update 'tested_with' badge for release v${{ inputs.version }}"
+            git commit -m "Update badges for release v${{ inputs.version }}"
             git push -f
           else
             echo "Nothing to commit"
@@ -240,3 +276,4 @@ jobs:
           body: |
             ![Tested On Platforms](https://raw.githubusercontent.com/NeurodataWithoutBorders/matnwb/refs/heads/gh-badges/.github/badges/tested_on.svg)
             ![MATLAB Versions Tested](https://raw.githubusercontent.com/NeurodataWithoutBorders/matnwb/refs/heads/gh-badges/.github/badges/v${{ inputs.version }}/tested_with.svg)
+            ![Supported NWB Schema](https://raw.githubusercontent.com/NeurodataWithoutBorders/matnwb/refs/heads/gh-badges/.github/badges/v${{ inputs.version }}/supported_nwb_schema.svg)

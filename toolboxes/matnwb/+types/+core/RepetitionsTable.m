@@ -48,17 +48,22 @@ methods
         misc.parseSkipInvalidName(p, varargin);
         obj.sequential_recordings = p.Results.sequential_recordings;
         obj.sequential_recordings_index = p.Results.sequential_recordings_index;
-        if strcmp(class(obj), 'types.core.RepetitionsTable')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.RepetitionsTable') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-        end
-        if strcmp(class(obj), 'types.core.RepetitionsTable')
             types.util.dynamictable.checkConfig(obj);
         end
     end
     %% SETTERS
     function set.sequential_recordings(obj, val)
         obj.sequential_recordings = obj.validate_sequential_recordings(val);
+        obj.postset_sequential_recordings()
+    end
+    function postset_sequential_recordings(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'sequential_recordings');
     end
     function set.sequential_recordings_index(obj, val)
         obj.sequential_recordings_index = obj.validate_sequential_recordings_index(val);
@@ -66,19 +71,23 @@ methods
     %% VALIDATORS
     
     function val = validate_sequential_recordings(obj, val)
-        val = types.util.checkDtype('sequential_recordings', 'types.hdmf_common.DynamicTableRegion', val);
+        types.util.checkType('sequential_recordings', 'types.hdmf_common.DynamicTableRegion', val);
+        if ~isempty(val)
+            types.util.validateReferenceType('sequential_recordings.table', val.table, 'types.core.SequentialRecordingsTable', 'types.untyped.ObjectView');
+            types.util.validateShape('sequential_recordings.table', {[1]}, val.table)
+        end
     end
     function val = validate_sequential_recordings_index(obj, val)
-        val = types.util.checkDtype('sequential_recordings_index', 'types.hdmf_common.VectorIndex', val);
+        types.util.checkType('sequential_recordings_index', 'types.hdmf_common.VectorIndex', val);
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.hdmf_common.DynamicTable(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.hdmf_common.DynamicTable(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.sequential_recordings.export(fid, [fullpath '/sequential_recordings'], refs);
-        refs = obj.sequential_recordings_index.export(fid, [fullpath '/sequential_recordings_index'], refs);
+        refs = obj.sequential_recordings.export(writer, [fullpath '/sequential_recordings'], refs);
+        refs = obj.sequential_recordings_index.export(writer, [fullpath '/sequential_recordings_index'], refs);
     end
 end
 

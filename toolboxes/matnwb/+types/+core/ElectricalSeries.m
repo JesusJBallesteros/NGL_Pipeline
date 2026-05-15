@@ -79,7 +79,10 @@ methods
         obj.channel_conversion_axis = p.Results.channel_conversion_axis;
         obj.electrodes = p.Results.electrodes;
         obj.filtering = p.Results.filtering;
-        if strcmp(class(obj), 'types.core.ElectricalSeries')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.ElectricalSeries') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -112,31 +115,31 @@ methods
         end
     end
     function val = validate_electrodes(obj, val)
-        val = types.util.checkDtype('electrodes', 'types.hdmf_common.DynamicTableRegion', val);
+        types.util.checkType('electrodes', 'types.hdmf_common.DynamicTableRegion', val);
     end
     function val = validate_filtering(obj, val)
         val = types.util.checkDtype('filtering', 'char', val);
         types.util.validateShape('filtering', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.core.TimeSeries(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.core.TimeSeries(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if ~isempty(obj.channel_conversion)
             if startsWith(class(obj.channel_conversion), 'types.untyped.')
-                refs = obj.channel_conversion.export(fid, [fullpath '/channel_conversion'], refs);
+                refs = obj.channel_conversion.export(writer, [fullpath '/channel_conversion'], refs);
             elseif ~isempty(obj.channel_conversion)
-                io.writeDataset(fid, [fullpath '/channel_conversion'], obj.channel_conversion, 'forceArray');
+                writer.writeValue([fullpath '/channel_conversion'], obj.channel_conversion, 'forceArray');
             end
         end
         if ~isempty(obj.channel_conversion) && ~isa(obj.channel_conversion, 'types.untyped.SoftLink') && ~isa(obj.channel_conversion, 'types.untyped.ExternalLink')
-            io.writeAttribute(fid, [fullpath '/channel_conversion/axis'], obj.channel_conversion_axis);
+            writer.writeAttribute([fullpath '/channel_conversion/axis'], obj.channel_conversion_axis);
         end
-        refs = obj.electrodes.export(fid, [fullpath '/electrodes'], refs);
+        refs = obj.electrodes.export(writer, [fullpath '/electrodes'], refs);
         if ~isempty(obj.filtering)
-            io.writeAttribute(fid, [fullpath '/filtering'], obj.filtering);
+            writer.writeAttribute([fullpath '/filtering'], obj.filtering);
         end
     end
 end

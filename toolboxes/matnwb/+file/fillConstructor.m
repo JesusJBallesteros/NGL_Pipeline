@@ -1,4 +1,4 @@
-function functionString = fillConstructor(name, parentname, defaults, props, namespace, superClassProps, inherited)
+function functionString = fillConstructor(name, parentname, defaults, props, namespace, superClassProps, class, inherited)
     caps = upper(name);
     functionBody = ['% ' caps ' - Constructor for ' name];
 
@@ -7,22 +7,33 @@ function functionString = fillConstructor(name, parentname, defaults, props, nam
         functionBody = [functionBody newline() docString];
     end
 
-    bodyString = fillBody(parentname, defaults, props, namespace, inherited);
+    bodyString = fillBody(parentname, defaults, props, namespace, class, inherited);
     if ~isempty(bodyString)
         functionBody = [functionBody newline() bodyString];
     end
 
-    functionBody = strjoin({functionBody, ...
-        sprintf('if strcmp(class(obj), ''%s'')', namespace.getFullClassName(name)), ...
+    % Build final validation/setup block that executes only for the target class,
+    % with conditional inclusion of mixin setup and dynamic table validation
+    constructorElements = {functionBody, ...
+        '', ...
+        '% Only execute validation/setup code when called directly in this class''s', ...
+        '% constructor, not when invoked through superclass constructor chain', ...
+        sprintf('if strcmp(class(obj), ''%s'') %%#ok<STISA>', namespace.getFullClassName(name)), ...
         '    cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));', ...
-        '    types.util.checkUnset(obj, unique(cellStringArguments));', ...
-        'end'}, newline());
-
-    % insert check for DynamicTable class and child classes
-    bodyString = fillCheck(name, namespace);
-    if ~isempty(bodyString)
-        functionBody = [functionBody newline() bodyString];
+        '    types.util.checkUnset(obj, unique(cellStringArguments));'};
+    
+    % Include the setup function for the HasUnnamedGroups mixin if applicable
+    if isa(class, 'file.Group') && class.hasAnonGroups
+        constructorElements{end+1} = '    obj.setupHasUnnamedGroupsMixin();';
     end
+
+    % Add custom validation for DynamicTable and its descendant classes
+    if file.isDynamicTableDescendant(name, namespace)
+        constructorElements{end+1} = '    types.util.dynamictable.checkConfig(obj);';
+    end
+    
+    constructorElements{end+1} = 'end';
+    functionBody = strjoin(constructorElements, newline());
 
     functionString = strjoin({...
         ['function obj = ' name '(varargin)']...
@@ -30,8 +41,7 @@ function functionString = fillConstructor(name, parentname, defaults, props, nam
         'end'}, newline());
 end
 
-function bodystr = fillBody(parentName, defaults, props, namespace, inherited)
-
+function bodystr = fillBody(parentName, defaults, props, namespace, class, inherited)
     if isempty(defaults)
         bodystr = '';
     else
@@ -62,18 +72,22 @@ function bodystr = fillBody(parentName, defaults, props, namespace, inherited)
     dynamicConstrained = false(size(names));
     isAnonymousType = false(size(names));
     isAttribute = false(size(names));
+    isLink = false(size(names));
+
     typenames = repmat({''}, size(names));
-    varnames = repmat({''}, size(names));
+    varnames = repmat({''}, size(names)); % necessary? same as names?
     for i = 1:length(names)
         nm = names{i};
         prop = props(nm);
 
         if isa(prop, 'file.Attribute')
             isAttribute(i) = true;
-            continue;
+            continue
+        elseif isa(prop, 'file.Link')
+            isLink(i) = true;
         end
 
-        if isa(prop, 'file.interface.HasProps')
+        if isa(prop, 'file.interface.HasProps') || isa(prop, 'file.Link')
             isDynamicConstrained = false(size(prop));
             isAnon = false(size(prop));
             hasType = false(size(prop));
@@ -119,12 +133,32 @@ function bodystr = fillBody(parentName, defaults, props, namespace, inherited)
     end
     varnames = lower(varnames);
 
-    %we delete the entry in varargin such that any conflicts do not show up in inputParser
+    % We delete parsed elements from varargin such that any conflicts do not 
+    % show up in inputParser
     deleteFromVars = 'varargin(ivarargin) = [];';
+
+    % Add parsing logic for dynamic constrained links.
+    % A dynamic constrained link is a subset of dynamic constrained types.
+    % Their type names are prefixed with 'Link:' to mark them for link-specific 
+    % validation during parsing.
+    isDynamicConstrainedLink = dynamicConstrained & isLink;
+    if any(isDynamicConstrainedLink)
+        constrainedLinkTypes = strcat('Link:', typenames(isDynamicConstrainedLink & ~invalid));
+        constrainedLinkVars = varnames(isDynamicConstrainedLink & ~invalid);
+        methodCalls = strcat('[obj.', constrainedLinkVars, ', ivarargin] = ',...
+            ' types.util.parseConstrained(obj, ''', constrainedLinkVars, ''', ''',...
+            constrainedLinkTypes, ''', varargin{:});');
+        fullBody = cell(length(methodCalls) * 2,1);
+        fullBody(1:2:end) = methodCalls;
+        fullBody(2:2:end) = {deleteFromVars};
+        fullBody = strjoin(fullBody, newline);
+        bodystr(end+1:end+length(fullBody)+1) = [newline fullBody];
+    end
+
     %if constrained/anon sets exist, then check for nonstandard parameters and add as
     %container.map
-    constrainedTypes = typenames(dynamicConstrained & ~invalid);
-    constrainedVars = varnames(dynamicConstrained & ~invalid);
+    constrainedTypes = typenames(dynamicConstrained & ~isLink & ~invalid);
+    constrainedVars = varnames(dynamicConstrained & ~isLink & ~invalid);
     methodCalls = strcat('[obj.', constrainedVars, ', ivarargin] = ',...
         ' types.util.parseConstrained(obj,''', constrainedVars, ''', ''',...
         constrainedTypes, ''', varargin{:});');
@@ -136,7 +170,6 @@ function bodystr = fillBody(parentName, defaults, props, namespace, inherited)
 
     %if anonymous values exist, then check for nonstandard parameters and add
     %as Anon
-
     anonTypes = typenames(isAnonymousType & ~invalid);
     anonVars = varnames(isAnonymousType & ~invalid);
     methodCalls = strcat('[obj.', anonVars, ',ivarargin] = ',...
@@ -180,31 +213,6 @@ function bodystr = fillBody(parentName, defaults, props, namespace, inherited)
     parser = [parser, strcat('obj.', names, ' = p.Results.', names, ';')];
     parser = strjoin(parser, newline);
     bodystr(end+1:end+length(parser)+1) = [newline parser];
-end
-
-function checkTxt = fillCheck(name, namespace)
-    checkTxt = [];
-
-    % find if a dynamic table ancestry exists
-    ancestry = namespace.getRootBranch(name);
-    isDynamicTableDescendent = false;
-    for iAncestor = 1:length(ancestry)
-        ParentRaw = ancestry{iAncestor};
-        % this is always true, we just use the proper index as typedefs may vary.
-        typeDefInd = isKey(ParentRaw, namespace.TYPEDEF_KEYS);
-        isDynamicTableDescendent = isDynamicTableDescendent ...
-            || strcmp('DynamicTable', ParentRaw(namespace.TYPEDEF_KEYS{typeDefInd}));
-    end
-
-    if ~isDynamicTableDescendent
-        return;
-    end
-
-    checkTxt = strjoin({ ...
-        sprintf('if strcmp(class(obj), ''%s'')', namespace.getFullClassName(name)), ...
-        '    types.util.dynamictable.checkConfig(obj);', ...
-        'end',...
-        }, newline);
 end
 
 function docString = fillConstructorDocString(name, props, namespace, superClassProps)

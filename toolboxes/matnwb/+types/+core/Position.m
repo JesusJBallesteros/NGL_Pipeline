@@ -1,4 +1,4 @@
-classdef Position < types.core.NWBDataInterface & types.untyped.GroupClass
+classdef Position < types.core.NWBDataInterface & types.untyped.GroupClass & matnwb.mixin.HasUnnamedGroups
 % POSITION - Position data, whether along the x, x/y or x/y/z axis.
 %
 % Required Properties:
@@ -8,6 +8,9 @@ classdef Position < types.core.NWBDataInterface & types.untyped.GroupClass
 % REQUIRED PROPERTIES
 properties
     spatialseries; % REQUIRED (SpatialSeries) SpatialSeries object containing position data.
+end
+properties (Access = protected)
+    GroupPropertyNames = {'spatialseries'}
 end
 
 methods
@@ -34,9 +37,13 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        if strcmp(class(obj), 'types.core.Position')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.Position') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
+            obj.setupHasUnnamedGroupsMixin();
         end
     end
     %% SETTERS
@@ -51,12 +58,12 @@ methods
         types.util.checkSet('spatialseries', namedprops, constrained, val);
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.core.NWBDataInterface(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.core.NWBDataInterface(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.spatialseries.export(fid, fullpath, refs);
+        refs = obj.spatialseries.export(writer, fullpath, refs);
     end
 end
 

@@ -71,7 +71,10 @@ methods
         addParameter(p, 'masked_imageseries',[]);
         misc.parseSkipInvalidName(p, varargin);
         obj.masked_imageseries = p.Results.masked_imageseries;
-        if strcmp(class(obj), 'types.core.ImageMaskSeries')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.ImageMaskSeries') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -83,24 +86,15 @@ methods
     %% VALIDATORS
     
     function val = validate_masked_imageseries(obj, val)
-        if isa(val, 'types.untyped.SoftLink')
-            if isprop(val, 'target')
-                types.util.checkDtype('masked_imageseries', 'types.core.ImageSeries', val.target);
-            end
-        else
-            val = types.util.checkDtype('masked_imageseries', 'types.core.ImageSeries', val);
-            if ~isempty(val)
-                val = types.untyped.SoftLink(val);
-            end
-        end
+        val = types.util.validateSoftLink('masked_imageseries', val, 'types.core.ImageSeries');
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.core.ImageSeries(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.core.ImageSeries(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.masked_imageseries.export(fid, [fullpath '/masked_imageseries'], refs);
+        refs = obj.masked_imageseries.export(writer, [fullpath '/masked_imageseries'], refs);
     end
 end
 

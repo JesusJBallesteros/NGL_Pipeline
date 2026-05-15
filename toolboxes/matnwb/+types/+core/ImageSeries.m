@@ -81,7 +81,10 @@ methods
         obj.external_file = p.Results.external_file;
         obj.external_file_starting_frame = p.Results.external_file_starting_frame;
         obj.format = p.Results.format;
-        if strcmp(class(obj), 'types.core.ImageSeries')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.ImageSeries') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -115,16 +118,7 @@ methods
         types.util.validateShape('data', {[Inf,Inf,Inf,Inf], [Inf,Inf,Inf]}, val)
     end
     function val = validate_device(obj, val)
-        if isa(val, 'types.untyped.SoftLink')
-            if isprop(val, 'target')
-                types.util.checkDtype('device', 'types.core.Device', val.target);
-            end
-        else
-            val = types.util.checkDtype('device', 'types.core.Device', val);
-            if ~isempty(val)
-                val = types.untyped.SoftLink(val);
-            end
-        end
+        val = types.util.validateSoftLink('device', val, 'types.core.Device');
     end
     function val = validate_dimension(obj, val)
         val = types.util.checkDtype('dimension', 'int32', val);
@@ -143,30 +137,30 @@ methods
         types.util.validateShape('format', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.core.TimeSeries(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.core.TimeSeries(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if ~isempty(obj.device)
-            refs = obj.device.export(fid, [fullpath '/device'], refs);
+            refs = obj.device.export(writer, [fullpath '/device'], refs);
         end
         if ~isempty(obj.dimension)
             if startsWith(class(obj.dimension), 'types.untyped.')
-                refs = obj.dimension.export(fid, [fullpath '/dimension'], refs);
+                refs = obj.dimension.export(writer, [fullpath '/dimension'], refs);
             elseif ~isempty(obj.dimension)
-                io.writeDataset(fid, [fullpath '/dimension'], obj.dimension, 'forceArray');
+                writer.writeValue([fullpath '/dimension'], obj.dimension, 'forceArray');
             end
         end
         if ~isempty(obj.external_file)
             if startsWith(class(obj.external_file), 'types.untyped.')
-                refs = obj.external_file.export(fid, [fullpath '/external_file'], refs);
+                refs = obj.external_file.export(writer, [fullpath '/external_file'], refs);
             elseif ~isempty(obj.external_file)
-                io.writeDataset(fid, [fullpath '/external_file'], obj.external_file, 'forceArray');
+                writer.writeValue([fullpath '/external_file'], obj.external_file, 'forceArray');
             end
         end
         if ~isempty(obj.external_file) && ~isa(obj.external_file, 'types.untyped.SoftLink') && ~isa(obj.external_file, 'types.untyped.ExternalLink')
-            io.writeAttribute(fid, [fullpath '/external_file/starting_frame'], obj.external_file_starting_frame, 'forceArray');
+            writer.writeAttribute([fullpath '/external_file/starting_frame'], obj.external_file_starting_frame, 'forceArray');
         elseif isempty(obj.external_file) && ~isempty(obj.external_file_starting_frame)
             obj.warnIfPropertyAttributeNotExported('external_file_starting_frame', 'external_file', fullpath)
         end
@@ -175,9 +169,9 @@ methods
         end
         if ~isempty(obj.format)
             if startsWith(class(obj.format), 'types.untyped.')
-                refs = obj.format.export(fid, [fullpath '/format'], refs);
+                refs = obj.format.export(writer, [fullpath '/format'], refs);
             elseif ~isempty(obj.format)
-                io.writeDataset(fid, [fullpath '/format'], obj.format);
+                writer.writeValue([fullpath '/format'], obj.format);
             end
         end
     end

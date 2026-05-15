@@ -27,6 +27,9 @@ function nwb = nwbRead(filename, flags, options)
 %    - savedir (string) -
 %      A folder to save generated classes for NWB types.
 %
+%    - StorageBackend (string) -
+%      Storage backend used for reading. Default: "auto".
+%
 % Output Arguments:
 %  - nwb (NwbFile) - Nwb file object
 %
@@ -57,19 +60,23 @@ function nwb = nwbRead(filename, flags, options)
     end
     arguments
         options.savedir (1,1) string = misc.getMatnwbDir(); % {matnwb.common.compatibility.mustBeFolder} ?
+        options.StorageBackend (1,1) string = "auto"
     end
 
     shouldRegenerateSchemaClasses = not( any(strcmpi(string(flags), 'ignorecache')) );
 
+    reader = io.backend.BackendFactory.createReader(filename, ...
+        StorageBackend=options.StorageBackend);
+
     schemaVersionActive = matnwb.common.getActiveSchemaVersion();
-    schemaVersionOfFile = util.getSchemaVersion(filename);
+    schemaVersionOfFile = reader.getSchemaVersion();
     isSchemaVersionMismatch = ~strcmp(schemaVersionOfFile, schemaVersionActive);
 
     if isSchemaVersionMismatch
         warnIfUnsupportedSchemaVersion(schemaVersionOfFile)
     end
 
-    specLocation = io.spec.getEmbeddedSpecLocation(filename);
+    specLocation = reader.getEmbeddedSpecLocation();
     if shouldRegenerateSchemaClasses
         if isempty(specLocation) % No embedded specifications
             try
@@ -93,16 +100,23 @@ function nwb = nwbRead(filename, flags, options)
         blackList.groups{end+1} = specLocation;
     end
     
+    softLinkWarningResetObj = types.untyped.SoftLink.disablePathDeprecationWarning(); %#ok<NASGU>
+
     try
-        nwb = io.parseGroup(filename, h5info(filename), blackList);
+        nwb = io.parseGroup(filename, reader.readRootInfo(), blackList, reader);
     catch ME
         if isSchemaVersionMismatch ...
                 && strcmp(ME.identifier, 'MATLAB:class:RequireSuperClass')
             throwExceptionWithCauseOnVersionMismatch(ME)
+        elseif strcmp(ME.identifier, 'NWB:createParsedType:TypeCreationFailed')
+            % Throw here for cleaner error trace.
+            throw(ME)
         else
             rethrow(ME)
         end
     end
+
+    nwb.resolveSoftLinks()
 end
 
 function generateEmbeddedSpec(filename, specLocation, options)

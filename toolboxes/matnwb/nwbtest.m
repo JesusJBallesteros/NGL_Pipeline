@@ -41,6 +41,7 @@ function results = nwbtest(varargin)
     try
         parser = inputParser;
         parser.KeepUnmatched = true;
+        parser.PartialMatching = false;
         parser.addParameter('Verbosity', 1);
         parser.addParameter('Selector', [])
         parser.addParameter('Namespace', 'tests')
@@ -139,11 +140,20 @@ end
 function suite = filterTestsByCompatibility(suite)
     import matlab.unittest.selectors.HasTag
 
-    skipPythonTests = getenv("SKIP_PYNWB_COMPATIBILITY_TEST_FOR_TUTORIALS");
+    tests.util.setTestEnvironmentVariables()
+
+    skipPythonTests = getenv("SKIP_PYNWB_TESTS");
     skipPythonTests = ~isempty(skipPythonTests) && logical(str2double(skipPythonTests));
+
+    skipExternalFilterTests = getenv("SKIP_EXTERNAL_FILTER_TESTS");
+    skipExternalFilterTests = ~isempty(skipExternalFilterTests) && logical(str2double(skipExternalFilterTests));
 
     if skipPythonTests
         suite = suite.selectIf(~HasTag('UsesPython'));
+    end
+
+    if skipExternalFilterTests
+        suite = suite.selectIf(~HasTag('UsesDynamicallyLoadedFilters'));
     end
 
     % Filter out tests testing dynamically loaded filters. Using

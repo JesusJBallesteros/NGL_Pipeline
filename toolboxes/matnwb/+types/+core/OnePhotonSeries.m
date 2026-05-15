@@ -104,7 +104,10 @@ methods
         obj.pmt_gain = p.Results.pmt_gain;
         obj.power = p.Results.power;
         obj.scan_line_rate = p.Results.scan_line_rate;
-        if strcmp(class(obj), 'types.core.OnePhotonSeries')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.OnePhotonSeries') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -142,16 +145,7 @@ methods
         types.util.validateShape('exposure_time', {[1]}, val)
     end
     function val = validate_imaging_plane(obj, val)
-        if isa(val, 'types.untyped.SoftLink')
-            if isprop(val, 'target')
-                types.util.checkDtype('imaging_plane', 'types.core.ImagingPlane', val.target);
-            end
-        else
-            val = types.util.checkDtype('imaging_plane', 'types.core.ImagingPlane', val);
-            if ~isempty(val)
-                val = types.untyped.SoftLink(val);
-            end
-        end
+        val = types.util.validateSoftLink('imaging_plane', val, 'types.core.ImagingPlane');
     end
     function val = validate_intensity(obj, val)
         val = types.util.checkDtype('intensity', 'single', val);
@@ -170,29 +164,29 @@ methods
         types.util.validateShape('scan_line_rate', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.core.ImageSeries(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.core.ImageSeries(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if ~isempty(obj.binning)
-            io.writeAttribute(fid, [fullpath '/binning'], obj.binning);
+            writer.writeAttribute([fullpath '/binning'], obj.binning);
         end
         if ~isempty(obj.exposure_time)
-            io.writeAttribute(fid, [fullpath '/exposure_time'], obj.exposure_time);
+            writer.writeAttribute([fullpath '/exposure_time'], obj.exposure_time);
         end
-        refs = obj.imaging_plane.export(fid, [fullpath '/imaging_plane'], refs);
+        refs = obj.imaging_plane.export(writer, [fullpath '/imaging_plane'], refs);
         if ~isempty(obj.intensity)
-            io.writeAttribute(fid, [fullpath '/intensity'], obj.intensity);
+            writer.writeAttribute([fullpath '/intensity'], obj.intensity);
         end
         if ~isempty(obj.pmt_gain)
-            io.writeAttribute(fid, [fullpath '/pmt_gain'], obj.pmt_gain);
+            writer.writeAttribute([fullpath '/pmt_gain'], obj.pmt_gain);
         end
         if ~isempty(obj.power)
-            io.writeAttribute(fid, [fullpath '/power'], obj.power);
+            writer.writeAttribute([fullpath '/power'], obj.power);
         end
         if ~isempty(obj.scan_line_rate)
-            io.writeAttribute(fid, [fullpath '/scan_line_rate'], obj.scan_line_rate);
+            writer.writeAttribute([fullpath '/scan_line_rate'], obj.scan_line_rate);
         end
     end
 end

@@ -17,7 +17,10 @@ methods
         %  - labMetaData (types.core.LabMetaData) - A LabMetaData object
         
         obj = obj@types.core.NWBContainer(varargin{:});
-        if strcmp(class(obj), 'types.core.LabMetaData')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.LabMetaData') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -27,8 +30,8 @@ methods
     %% VALIDATORS
     
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.core.NWBContainer(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.core.NWBContainer(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end

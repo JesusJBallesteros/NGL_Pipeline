@@ -9,7 +9,8 @@ from . import (
     plot_functions,
     classification,
     manual_analysis,
-    unit_quality_gui
+    unit_quality_gui,
+    methods_text
 )
 
 from .default_parameters import *
@@ -37,6 +38,8 @@ from .manual_analysis import (
     analyze_manual_vs_bombcell,
     compare_manual_vs_bombcell
 )
+from .methods_text import generate_methods_text, print_methods_text, save_methods_text
+from .plot_functions import generate_supplementary_figure
 
 # __version__ attribute exposition
 try:

@@ -20,7 +20,7 @@ methods
         %  vectorIndex = types.hdmf_common.VECTORINDEX(Name, Value) creates a VectorIndex object where one or more property values are specified using name-value pairs.
         %
         % Input Arguments (Name-Value Arguments):
-        %  - data (uint8) - No description
+        %  - data (uint8) - Data property for dataset class (VectorIndex)
         %
         %  - description (char) - Description of what these vectors represent.
         %
@@ -43,7 +43,10 @@ methods
         addParameter(p, 'target',[]);
         misc.parseSkipInvalidName(p, varargin);
         obj.target = p.Results.target;
-        if strcmp(class(obj), 'types.hdmf_common.VectorIndex')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.hdmf_common.VectorIndex') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -56,19 +59,20 @@ methods
     
     function val = validate_data(obj, val)
         val = types.util.checkDtype('data', 'uint8', val);
+        types.util.validateShape('data', {[Inf]}, val)
     end
     function val = validate_target(obj, val)
         % Reference to type `VectorData`
-        val = types.util.checkDtype('target', 'types.untyped.ObjectView', val);
+        val = types.util.validateReferenceType('target', val, 'types.hdmf_common.VectorData', 'types.untyped.ObjectView');
         types.util.validateShape('target', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.hdmf_common.VectorData(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.hdmf_common.VectorData(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        io.writeAttribute(fid, [fullpath '/target'], obj.target);
+        writer.writeAttribute([fullpath '/target'], obj.target);
     end
 end
 

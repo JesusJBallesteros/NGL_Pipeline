@@ -35,23 +35,32 @@ classdef (SharedTestFixtures = {tests.fixtures.GenerateCoreFixture}) ...
         end
         
         function testInvalidConstraint(TestCase)
-            % Add a fake valid dataset to force the constrained validation to fail.
+            import matlab.unittest.fixtures.SuppressedWarningsFixture
+            expectedWarningId = 'NWB:CheckUnset:InvalidProperties';
+            TestCase.applyFixture(SuppressedWarningsFixture(expectedWarningId))
+
             fid = H5F.open(TestCase.TestFileName, 'H5F_ACC_RDWR', 'H5P_DEFAULT');
-            % add a fake valid dataset to force the constrained validation to fail.
+            writer = io.backend.hdf5.HDF5Writer(fid);
+            
+            % Add a fake valid dataset to force the constrained validation to fail.
             wrongData = types.hdmf_common.VectorData('data', rand(3,1), 'description', 'fake data');
-            refs = wrongData.export(fid, '/acquisition/fakedata', {});
+            refs = wrongData.export(writer, '/acquisition/fakedata', {});
             TestCase.assertEmpty(refs);
             H5F.close(fid);
         
             file = TestCase.verifyWarning( ...
                 @() nwbRead(TestCase.TestFileName, 'ignorecache'), ...
-                'NWB:Set:FailedValidation');
+                'NWB:Set:InvalidEntry');
             
             TestCase.verifyWarning( ...
                 @() file.acquisition.set('wrong', wrongData), ...
                 'NWB:Set:FailedValidation')
-        
-            TestCase.verifyTrue(~file.acquisition.isKey('wrong'));
+            
+            TestCase.verifyError( ...
+                @() file.acquisition.add('wrong', wrongData), ...
+                'NWB:Set:FailedValidation')
+
+            TestCase.verifyFalse(file.acquisition.isKey('wrong'));
         end
     end
 end

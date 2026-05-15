@@ -78,7 +78,10 @@ methods
         obj.bias_current = p.Results.bias_current;
         obj.bridge_balance = p.Results.bridge_balance;
         obj.capacitance_compensation = p.Results.capacitance_compensation;
-        if strcmp(class(obj), 'types.core.CurrentClampSeries')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.CurrentClampSeries') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -119,30 +122,30 @@ methods
         end
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.core.PatchClampSeries(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.core.PatchClampSeries(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if ~isempty(obj.bias_current)
             if startsWith(class(obj.bias_current), 'types.untyped.')
-                refs = obj.bias_current.export(fid, [fullpath '/bias_current'], refs);
+                refs = obj.bias_current.export(writer, [fullpath '/bias_current'], refs);
             elseif ~isempty(obj.bias_current)
-                io.writeDataset(fid, [fullpath '/bias_current'], obj.bias_current);
+                writer.writeValue([fullpath '/bias_current'], obj.bias_current);
             end
         end
         if ~isempty(obj.bridge_balance)
             if startsWith(class(obj.bridge_balance), 'types.untyped.')
-                refs = obj.bridge_balance.export(fid, [fullpath '/bridge_balance'], refs);
+                refs = obj.bridge_balance.export(writer, [fullpath '/bridge_balance'], refs);
             elseif ~isempty(obj.bridge_balance)
-                io.writeDataset(fid, [fullpath '/bridge_balance'], obj.bridge_balance);
+                writer.writeValue([fullpath '/bridge_balance'], obj.bridge_balance);
             end
         end
         if ~isempty(obj.capacitance_compensation)
             if startsWith(class(obj.capacitance_compensation), 'types.untyped.')
-                refs = obj.capacitance_compensation.export(fid, [fullpath '/capacitance_compensation'], refs);
+                refs = obj.capacitance_compensation.export(writer, [fullpath '/capacitance_compensation'], refs);
             elseif ~isempty(obj.capacitance_compensation)
-                io.writeDataset(fid, [fullpath '/capacitance_compensation'], obj.capacitance_compensation);
+                writer.writeValue([fullpath '/capacitance_compensation'], obj.capacitance_compensation);
             end
         end
     end

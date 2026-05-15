@@ -53,44 +53,62 @@ methods
         obj.simultaneous_recordings = p.Results.simultaneous_recordings;
         obj.simultaneous_recordings_index = p.Results.simultaneous_recordings_index;
         obj.stimulus_type = p.Results.stimulus_type;
-        if strcmp(class(obj), 'types.core.SequentialRecordingsTable')
+        
+        % Only execute validation/setup code when called directly in this class's
+        % constructor, not when invoked through superclass constructor chain
+        if strcmp(class(obj), 'types.core.SequentialRecordingsTable') %#ok<STISA>
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-        end
-        if strcmp(class(obj), 'types.core.SequentialRecordingsTable')
             types.util.dynamictable.checkConfig(obj);
         end
     end
     %% SETTERS
     function set.simultaneous_recordings(obj, val)
         obj.simultaneous_recordings = obj.validate_simultaneous_recordings(val);
+        obj.postset_simultaneous_recordings()
+    end
+    function postset_simultaneous_recordings(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'simultaneous_recordings');
     end
     function set.simultaneous_recordings_index(obj, val)
         obj.simultaneous_recordings_index = obj.validate_simultaneous_recordings_index(val);
     end
     function set.stimulus_type(obj, val)
         obj.stimulus_type = obj.validate_stimulus_type(val);
+        obj.postset_stimulus_type()
+    end
+    function postset_stimulus_type(obj)
+        types.util.dynamictable.syncNamedColumn(obj, 'stimulus_type');
     end
     %% VALIDATORS
     
     function val = validate_simultaneous_recordings(obj, val)
-        val = types.util.checkDtype('simultaneous_recordings', 'types.hdmf_common.DynamicTableRegion', val);
+        types.util.checkType('simultaneous_recordings', 'types.hdmf_common.DynamicTableRegion', val);
+        if ~isempty(val)
+            types.util.validateReferenceType('simultaneous_recordings.table', val.table, 'types.core.SimultaneousRecordingsTable', 'types.untyped.ObjectView');
+            types.util.validateShape('simultaneous_recordings.table', {[1]}, val.table)
+        end
     end
     function val = validate_simultaneous_recordings_index(obj, val)
-        val = types.util.checkDtype('simultaneous_recordings_index', 'types.hdmf_common.VectorIndex', val);
+        types.util.checkType('simultaneous_recordings_index', 'types.hdmf_common.VectorIndex', val);
     end
     function val = validate_stimulus_type(obj, val)
-        val = types.util.checkDtype('stimulus_type', 'types.hdmf_common.VectorData', val);
+        types.util.checkType('stimulus_type', 'types.hdmf_common.VectorData', val);
+        if ~isempty(val)
+            [val, originalVal] = types.util.unwrapValue(val);
+            val = types.util.checkDtype('stimulus_type', 'char', val);
+            val = types.util.rewrapValue(val, originalVal);
+        end
     end
     %% EXPORT
-    function refs = export(obj, fid, fullpath, refs)
-        refs = export@types.hdmf_common.DynamicTable(obj, fid, fullpath, refs);
+    function refs = export(obj, writer, fullpath, refs)
+        refs = export@types.hdmf_common.DynamicTable(obj, writer, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.simultaneous_recordings.export(fid, [fullpath '/simultaneous_recordings'], refs);
-        refs = obj.simultaneous_recordings_index.export(fid, [fullpath '/simultaneous_recordings_index'], refs);
-        refs = obj.stimulus_type.export(fid, [fullpath '/stimulus_type'], refs);
+        refs = obj.simultaneous_recordings.export(writer, [fullpath '/simultaneous_recordings'], refs);
+        refs = obj.simultaneous_recordings_index.export(writer, [fullpath '/simultaneous_recordings_index'], refs);
+        refs = obj.stimulus_type.export(writer, [fullpath '/stimulus_type'], refs);
     end
 end
 

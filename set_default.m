@@ -48,7 +48,7 @@ function [input, opt] = set_default(input, opt)
 % REQUIRES:
 %   default_opt.m, NGL_machineConfig.m (in analysisCode/)
 %
-% Last modified 11.05.2026 (Jesus)
+% Last modified 13.05.2026 (Jesus)
 
 %% SECTION 1: Merge user-provided opt with canonical defaults
 defaults   = default_opt();

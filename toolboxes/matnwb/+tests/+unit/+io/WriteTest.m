@@ -144,7 +144,7 @@ classdef WriteTest < matlab.unittest.TestCase
             
             % Initial data to write (e.g., 10x10)
             initialData = struct('a', 1, 'b', true, 'c', 'test');
-            io.writeCompound(fid, fullPath, initialData);  % First write to create the dataset
+            io.writeCompound(fid, fullPath, initialData, 'forceArray');  % First write to create the dataset
             
             % Attempt to write data of a different size (e.g., 5x5)
             newData = cat(1, initialData, struct('a', 2, 'b', false, 'c', 'new test'));
@@ -164,6 +164,43 @@ classdef WriteTest < matlab.unittest.TestCase
 
             S = h5info(filename);
             testCase.verifyEqual(S.Groups.Name, '/test_group')
+        end
+
+        function testHDF5WriterDelegatesToWriteHelpers(testCase)
+            filename = 'temp_writer_test.h5';
+            fid = H5F.create(filename, 'H5F_ACC_TRUNC', 'H5P_DEFAULT', 'H5P_DEFAULT');
+            fileCleanupObj = onCleanup(@(id) H5F.close(fid));
+
+            writer = io.backend.BackendFactory.createWriter(fid);
+            testCase.verifyClass(writer, 'io.backend.hdf5.HDF5Writer')
+
+            writer.writeGroup('/test_group');
+            writer.writeValue('/test_group/test_dataset', uint8([1 2 3]));
+            writer.writeAttribute('/test_group/test_dataset/unit', 'n/a');
+
+            testCase.verifyEqual(h5read(filename, '/test_group/test_dataset'), uint8([1; 2; 3]))
+            testCase.verifyEqual(h5readatt(filename, '/test_group/test_dataset', 'unit'), 'n/a')
+        end
+
+        function testGeneratedExportAcceptsWriterObject(testCase)
+            filename = 'temp_generated_export_writer_test.nwb';
+            fid = H5F.create(filename, 'H5F_ACC_TRUNC', 'H5P_DEFAULT', 'H5P_DEFAULT');
+            fileCleanupObj = onCleanup(@(id) H5F.close(fid));
+
+            writer = io.backend.BackendFactory.createWriter(fid);
+            device = types.core.Device('description', 'device exported through writer');
+
+            refs = device.export(writer, '/device', {});
+            testCase.verifyEmpty(refs)
+
+            deviceInfo = h5info(filename, '/device');
+            attributeNames = {deviceInfo.Attributes.Name};
+
+            testCase.verifyTrue(ismember('description', attributeNames))
+            testCase.verifyTrue(ismember('namespace', attributeNames))
+            testCase.verifyTrue(ismember('neurodata_type', attributeNames))
+            testCase.verifyEqual(h5readatt(filename, '/device', 'description'), 'device exported through writer')
+            testCase.verifyEqual(h5readatt(filename, '/device', 'neurodata_type'), 'Device')
         end
 
         function testWriteSoftLink(testCase)
