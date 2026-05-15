@@ -38,7 +38,7 @@ function Deuteron2Kilosort(opt)
 %   Deuteron_extractData, ft_preproc_rereference, ft_preproc_detrend,
 %   ft_preproc_highpassfilter
 %
-% Last modified 13.05.2026 (Jesus)
+% Last modified 08.05.2026 (Jesus)
 
 %% Check bin file existence and completion.
 % If an error happens during processing, the bin file persists created but with zero size
@@ -136,19 +136,6 @@ if strcmp(opt.ext, 'DF1')
 
     % Reshape to channels x samples.
     data_mat = reshape(data_mat, opt.numChannels, []);
-end
-
-%% Save raw data matrix for NWB conversion (before any filtering).
-% This file is consumed by Deuteron2NWB and deleted after a successful NWB
-% write. If opt.doNWB is false the file is never created.
-if opt.doNWB
-    rawMatPath = fullfile(opt.FolderProcDataMat, [char(opt.SavFileName), '_raw.mat']);
-    if ~isfile(rawMatPath)
-        disp('Saving raw data matrix for later NWB conversion...')
-        sampleRate_raw = opt.sampleRate; %  saved alongside data
-        save(rawMatPath, 'data_mat', 'sampleRate_raw', '-v7.3');
-        disp('Raw data matrix saved.')
-    end
 end
 
 %% Common methods of preprocessing. Re-Referencing, DC substraction and filter.

@@ -82,7 +82,7 @@ if ~isempty(opt.lowpass)
         'opt.lowpass must be a scalar between 0 and 9500 Hz, or empty (= off).');
 end
 
-assert(islogical(opt.kilosort) && isscalar(opt.lowpass), 'NGL:invalidOption', 'opt.kilosort must be true or false.');
+assert(isnumeric(opt.kilosort) && isscalar(opt.lowpass), 'NGL:invalidOption', 'opt.kilosort must be 1 or 0.');
 
 %% SECTION 3: Resolve dependencies
 if opt.phy && ~opt.bombcell
@@ -182,7 +182,6 @@ addpath(fullfile('toolboxes', 'Viewer'))
 addpath(fullfile('toolboxes', 'BDPAT_NGL'))
 addpath(genpath(fullfile('toolboxes', 'Deuteron')))
 addpath(genpath(fullfile('toolboxes', 'npy-matlab')))
-addpath(genpath(fullfile('toolboxes', 'matnwb')))
 addpath(genpath(fullfile('toolboxes', 'bombcell')))
 addpath(genpath(fullfile('toolboxes', 'prettify_matlab')))
 addpath(genpath(fullfile('toolboxes', 'spikes')))

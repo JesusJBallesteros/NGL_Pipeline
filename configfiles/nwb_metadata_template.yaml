@@ -25,7 +25,9 @@ NWBFile:
   experimenter:
     - "Last, First"                # Replace with actual experimenter name(s)
 
-  experiment_description: "Multi-electrode extracellular electrophysiology recorded with XXX System, NN-channel silicon probes during a XXX paradigm. Spike sorting performed with Kilosort 4."
+  experiment_description: >
+    Multi-electrode extracellular electrophysiology recorded with Intan RHD2000
+    XX-channel silicon probes during a XXX paradigm. Spike sorting performed with Kilosort 4.
 
   keywords:
     - "extracellular electrophysiology"
@@ -62,7 +64,9 @@ Ecephys:
   # ("Intan Technologies" by default). Fill in the description for your probe.
   Device:
     - name: "Intan Technologies"
-      description: "NN-channel silicon probe recorded with an XX System board at NN kHz. Probe model: XXX (e.g. A1x64-Poly2-6mm-23s-160)."
+      description: >
+        64-channel silicon probe recorded with an Intan RHD2000 USB interface board
+        at 30 kHz. Probe model: XXX (e.g. A1x64-Poly2-6mm-23s-160).
 
   # ElectrodeGroup: one entry per shank/area. Names must match the channel map.
   # This section is optional but strongly recommended for multi-area recordings.
