@@ -1,5 +1,3 @@
-.. _dynamic_tables-tutorial:
-
 Using Dynamic Tables in MatNWB
 ==============================
 
@@ -13,7 +11,10 @@ Using Dynamic Tables in MatNWB
 
 .. raw:: html
 
-   <iframe class="autoresize"
-           src="../../_static/html/tutorials/dynamic_tables.html"
-           style="width:100%; border:none; display:block;">
-   </iframe>
+   <iframe id="tutorialIframe" src="../../_static/html/tutorials/dynamic_tables.html" style="width: 100%; overflow: hidden; border: none;"></iframe>
+   <script>
+       const iframe = document.getElementById('tutorialIframe');
+       iframe.onload = () => {
+           iframe.style.height = iframe.contentWindow.document.body.scrollHeight + 'px';
+       };
+   </script>

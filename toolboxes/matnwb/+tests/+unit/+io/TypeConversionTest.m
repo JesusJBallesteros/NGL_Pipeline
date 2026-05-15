@@ -112,7 +112,7 @@ classdef TypeConversionTest < matlab.unittest.TestCase
         
         function testTableType(testCase)
             tid = H5T.create('H5T_COMPOUND', 10);
-            testCase.verifyClass(io.getMatType(tid), 'struct');
+            testCase.verifyEqual(io.getMatType(tid), 'table');
         end
         
         function testUnknownType(testCase)

@@ -2,7 +2,7 @@ classdef EventDetection < types.core.NWBDataInterface & types.untyped.GroupClass
 % EVENTDETECTION - Detected spike events from voltage trace(s).
 %
 % Required Properties:
-%  detection_method, source_electricalseries, source_idx
+%  detection_method, source_electricalseries, source_idx, times
 
 
 % READONLY PROPERTIES
@@ -13,11 +13,8 @@ end
 properties
     detection_method; % REQUIRED (char) Description of how events were detected, such as voltage threshold, or dV/dT threshold, as well as relevant values.
     source_electricalseries; % REQUIRED ElectricalSeries
-    source_idx; % REQUIRED (int32) Indices (zero-based) into the linked source ElectricalSeries::data array corresponding to time of event or time and channel of event. ''description'' should define what is meant by time of event (e.g., .25 ms before action potential peak, zero-crossing time, etc). The index points to each event from the raw data.
-end
-% OPTIONAL PROPERTIES
-properties
-    times; %  (double) DEPRECATED. Timestamps of events, in seconds.
+    source_idx; % REQUIRED (int32) Indices (zero-based) into source ElectricalSeries::data array corresponding to time of event. ''description'' should define what is meant by time of event (e.g., .25 ms before action potential peak, zero-crossing time, etc). The index points to each event from the raw data.
+    times; % REQUIRED (double) Timestamps of events, in seconds.
 end
 
 methods
@@ -34,9 +31,9 @@ methods
         %
         %  - source_electricalseries (ElectricalSeries) - Link to the ElectricalSeries that this data was calculated from. Metadata about electrodes and their position can be read from that ElectricalSeries so it's not necessary to include that information here.
         %
-        %  - source_idx (int32) - Indices (zero-based) into the linked source ElectricalSeries::data array corresponding to time of event or time and channel of event. ''description'' should define what is meant by time of event (e.g., .25 ms before action potential peak, zero-crossing time, etc). The index points to each event from the raw data.
+        %  - source_idx (int32) - Indices (zero-based) into source ElectricalSeries::data array corresponding to time of event. ''description'' should define what is meant by time of event (e.g., .25 ms before action potential peak, zero-crossing time, etc). The index points to each event from the raw data.
         %
-        %  - times (double) - DEPRECATED. Timestamps of events, in seconds.
+        %  - times (double) - Timestamps of events, in seconds.
         %
         % Output Arguments:
         %  - eventDetection (types.core.EventDetection) - A EventDetection object
@@ -60,10 +57,7 @@ methods
         obj.source_idx = p.Results.source_idx;
         obj.times = p.Results.times;
         obj.times_unit = p.Results.times_unit;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.EventDetection') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.EventDetection')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -88,42 +82,49 @@ methods
         types.util.validateShape('detection_method', {[1]}, val)
     end
     function val = validate_source_electricalseries(obj, val)
-        val = types.util.validateSoftLink('source_electricalseries', val, 'types.core.ElectricalSeries');
+        if isa(val, 'types.untyped.SoftLink')
+            if isprop(val, 'target')
+                types.util.checkDtype('source_electricalseries', 'types.core.ElectricalSeries', val.target);
+            end
+        else
+            val = types.util.checkDtype('source_electricalseries', 'types.core.ElectricalSeries', val);
+            if ~isempty(val)
+                val = types.untyped.SoftLink(val);
+            end
+        end
     end
     function val = validate_source_idx(obj, val)
         val = types.util.checkDtype('source_idx', 'int32', val);
-        types.util.validateShape('source_idx', {[2,Inf], [Inf]}, val)
+        types.util.validateShape('source_idx', {[Inf]}, val)
     end
     function val = validate_times(obj, val)
         val = types.util.checkDtype('times', 'double', val);
         types.util.validateShape('times', {[Inf]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBDataInterface(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBDataInterface(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if startsWith(class(obj.detection_method), 'types.untyped.')
-            refs = obj.detection_method.export(writer, [fullpath '/detection_method'], refs);
+            refs = obj.detection_method.export(fid, [fullpath '/detection_method'], refs);
         elseif ~isempty(obj.detection_method)
-            writer.writeValue([fullpath '/detection_method'], obj.detection_method);
+            io.writeDataset(fid, [fullpath '/detection_method'], obj.detection_method);
         end
-        refs = obj.source_electricalseries.export(writer, [fullpath '/source_electricalseries'], refs);
+        refs = obj.source_electricalseries.export(fid, [fullpath '/source_electricalseries'], refs);
         if startsWith(class(obj.source_idx), 'types.untyped.')
-            refs = obj.source_idx.export(writer, [fullpath '/source_idx'], refs);
+            refs = obj.source_idx.export(fid, [fullpath '/source_idx'], refs);
         elseif ~isempty(obj.source_idx)
-            writer.writeValue([fullpath '/source_idx'], obj.source_idx, 'forceArray');
+            io.writeDataset(fid, [fullpath '/source_idx'], obj.source_idx, 'forceArray');
         end
-        if ~isempty(obj.times)
-            if startsWith(class(obj.times), 'types.untyped.')
-                refs = obj.times.export(writer, [fullpath '/times'], refs);
-            elseif ~isempty(obj.times)
-                writer.writeValue([fullpath '/times'], obj.times, 'forceArray');
-            end
+        if startsWith(class(obj.times), 'types.untyped.')
+            refs = obj.times.export(fid, [fullpath '/times'], refs);
+        elseif ~isempty(obj.times)
+            io.writeDataset(fid, [fullpath '/times'], obj.times, 'forceArray');
         end
         if ~isempty(obj.times) && ~isa(obj.times, 'types.untyped.SoftLink') && ~isa(obj.times, 'types.untyped.ExternalLink')
-            writer.writeAttribute([fullpath '/times/unit'], obj.times_unit);
+            io.writeAttribute(fid, [fullpath '/times/unit'], obj.times_unit);
         end
     end
 end

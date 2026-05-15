@@ -1,42 +1,42 @@
-function writeEmbeddedSpecifications(writer, jsonSpecs)
+function writeEmbeddedSpecifications(fid, jsonSpecs)
 % writeEmbeddedSpecifications - Write schema specifications to an NWB file
 
     arguments
-        writer (1,1) io.backend.base.Writer
+        fid         % File id for a h5 file
         jsonSpecs   % String representation of schema specifications in json format
     end
 
-    specLocation = io.spec.internal.readEmbeddedSpecLocation(writer.FileId);
+    specLocation = io.spec.internal.readEmbeddedSpecLocation(fid);
 
     if isempty(specLocation)
         specLocation = '/specifications';
-        writer.writeGroup(specLocation);
+        io.writeGroup(fid, specLocation);
         specView = types.untyped.ObjectView(specLocation);
-        writer.writeAttribute('/.specloc', specView);
+        io.writeAttribute(fid, '/.specloc', specView);
     end
 
     for iJson = 1:length(jsonSpecs)
         JsonDatum = jsonSpecs(iJson);
         schemaNamespaceLocation = strjoin({specLocation, JsonDatum.name}, '/');
-        namespaceExists = writer.writeGroup(schemaNamespaceLocation);
+        namespaceExists = io.writeGroup(fid, schemaNamespaceLocation);
         if namespaceExists
-            namespaceGroupId = H5G.open(writer.FileId, schemaNamespaceLocation);
+            namespaceGroupId = H5G.open(fid, schemaNamespaceLocation);
             names = getVersionNames(namespaceGroupId);
             H5G.close(namespaceGroupId);
             for iNames = 1:length(names)
-                H5L.delete(writer.FileId, [schemaNamespaceLocation '/' names{iNames}],...
+                H5L.delete(fid, [schemaNamespaceLocation '/' names{iNames}],...
                     'H5P_DEFAULT');
             end
         end
-        schemaLocation = ...
+        schemaLocation =...
             strjoin({schemaNamespaceLocation, JsonDatum.version}, '/');
-        writer.writeGroup(schemaLocation);
+        io.writeGroup(fid, schemaLocation);
         Json = JsonDatum.json;
         schemeNames = keys(Json);
         for iScheme = 1:length(schemeNames)
             name = schemeNames{iScheme};
             path = [schemaLocation '/' name];
-            writer.writeValue(path, Json(name));
+            io.writeDataset(fid, path, Json(name));
         end
     end
 end

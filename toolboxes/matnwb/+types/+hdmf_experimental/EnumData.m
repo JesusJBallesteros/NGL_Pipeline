@@ -20,7 +20,7 @@ methods
         %  enumData = types.hdmf_experimental.ENUMDATA(Name, Value) creates a EnumData object where one or more property values are specified using name-value pairs.
         %
         % Input Arguments (Name-Value Arguments):
-        %  - data (uint8) - Data property for dataset class (EnumData)
+        %  - data (uint8) - No description
         %
         %  - description (char) - Description of what these vectors represent.
         %
@@ -39,10 +39,7 @@ methods
         addParameter(p, 'elements',[]);
         misc.parseSkipInvalidName(p, varargin);
         obj.elements = p.Results.elements;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.hdmf_experimental.EnumData') %#ok<STISA>
+        if strcmp(class(obj), 'types.hdmf_experimental.EnumData')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -55,20 +52,19 @@ methods
     
     function val = validate_data(obj, val)
         val = types.util.checkDtype('data', 'uint8', val);
-        types.util.validateShape('data', {[Inf,Inf,Inf,Inf], [Inf,Inf,Inf], [Inf,Inf], [Inf]}, val)
     end
     function val = validate_elements(obj, val)
         % Reference to type `VectorData`
-        val = types.util.validateReferenceType('elements', val, 'types.hdmf_common.VectorData', 'types.untyped.ObjectView');
+        val = types.util.checkDtype('elements', 'types.untyped.ObjectView', val);
         types.util.validateShape('elements', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.hdmf_common.VectorData(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.hdmf_common.VectorData(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        writer.writeAttribute([fullpath '/elements'], obj.elements);
+        io.writeAttribute(fid, [fullpath '/elements'], obj.elements);
     end
 end
 

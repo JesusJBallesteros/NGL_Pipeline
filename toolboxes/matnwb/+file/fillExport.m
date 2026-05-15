@@ -1,11 +1,11 @@
-function festr = fillExport(propertyNames, RawClass, parentName, required, classprops)
-    exportHeader = 'function refs = export(obj, writer, fullpath, refs)';
+function festr = fillExport(propertyNames, RawClass, parentName, required)
+    exportHeader = 'function refs = export(obj, fid, fullpath, refs)';
     if isa(RawClass, 'file.Dataset')
         propertyNames = propertyNames(~strcmp(propertyNames, 'data'));
     end
 
     exportBody = {strjoin({...
-        ['refs = export@' parentName '(obj, writer, fullpath, refs);']...
+        ['refs = export@' parentName '(obj, fid, fullpath, refs);']...
         'if any(strcmp(refs, fullpath))'...
         '    return;'...
         'end'...
@@ -22,11 +22,6 @@ function festr = fillExport(propertyNames, RawClass, parentName, required, class
         propertyName = propertyNames{i};
         pathProps = traverseRaw(propertyName, RawClass);
         prop = pathProps{end};
-        if nargin >= 5 && isa(prop, 'file.Attribute') ...
-                && isKey(classprops, propertyName) ...
-                && isa(classprops(propertyName), 'file.Attribute')
-            prop = classprops(propertyName);
-        end
         elideProps = pathProps(1:end-1);
         elisions = cell(length(elideProps),1);
         % Construct elisions
@@ -36,7 +31,7 @@ function festr = fillExport(propertyNames, RawClass, parentName, required, class
 
         elisions = strjoin(elisions, '/');
         if ~isempty(elideProps) && all(cellfun('isclass', elideProps, 'file.Group'))
-            exportBody{end+1} = ['writer.writeGroup([fullpath ''/' elisions ''']);'];
+            exportBody{end+1} = ['io.writeGroup(fid, [fullpath ''/' elisions ''']);'];
         end
 
         if strcmp(propertyName, 'unit') && strcmp(RawClass.type, 'VectorData')
@@ -60,7 +55,7 @@ end
 function exportBody = fillVectorDataResolutionConditional()
     exportBody = strjoin({...
         'if ~isempty(obj.resolution) && any(endsWith(fullpath, ''units/spike_times''))' ...
-        , '    writer.writeAttribute([fullpath ''/resolution''], obj.resolution);' ...
+        , '    io.writeAttribute(fid, [fullpath ''/resolution''], obj.resolution);' ...
         , 'end'}, newline);
 end
 
@@ -68,7 +63,7 @@ function exportBody = fillVectorDataUnitConditional()
     exportBody = strjoin({...
           'validUnitPaths = strcat(''units/'', {''waveform_mean'', ''waveform_sd'', ''waveforms''});' ...
         , 'if ~isempty(obj.unit) && any(endsWith(fullpath, validUnitPaths))' ...
-        , '    writer.writeAttribute([fullpath ''/unit''], obj.unit);' ...
+        , '    io.writeAttribute(fid, [fullpath ''/unit''], obj.unit);' ...
         , 'end'}, newline);
 end
 
@@ -76,7 +71,7 @@ function exportBody = fillVectorDataSamplingRateConditional()
     exportBody = strjoin({...
           'validDataSamplingPaths = strcat(''units/'', {''waveform_mean'', ''waveform_sd'', ''waveforms''});' ...
         , 'if ~isempty(obj.sampling_rate) && any(endsWith(fullpath, validDataSamplingPaths))' ...
-        , '    writer.writeAttribute([fullpath ''/sampling_rate''], obj.sampling_rate);' ...
+        , '    io.writeAttribute(fid, [fullpath ''/sampling_rate''], obj.sampling_rate);' ...
         , 'end'}, newline);
 end
 
@@ -176,14 +171,14 @@ function dataExportString = fillDataExport(name, prop, elisions, required)
         elisionpath = ['[fullpath ''/' elisions ''']'];
     end
 
-    if isprop(prop, 'isConstrainedSet') && prop.isConstrainedSet
+    if (isa(prop, 'file.Group') || isa(prop, 'file.Dataset')) && prop.isConstrainedSet
         % is a sub-object (with an export function)
-        dataExportString = ['refs = obj.' name '.export(writer, ' elisionpath ', refs);'];
+        dataExportString = ['refs = obj.' name '.export(fid, ' elisionpath ', refs);'];
     elseif isa(prop, 'file.Link') || isa(prop, 'file.Group') ||...
             (isa(prop, 'file.Dataset') && ~isempty(prop.type))
         % obj, loc_id, path, refs
-        dataExportString = ['refs = obj.' name '.export(writer, ' fullpath ', refs);'];
-    elseif isa(prop, 'file.Dataset') % untyped dataset
+        dataExportString = ['refs = obj.' name '.export(fid, ' fullpath ', refs);'];
+    elseif isa(prop, 'file.Dataset') %untyped dataset
         options = {};
 
         % special case due to unique behavior of file_create_date
@@ -197,30 +192,36 @@ function dataExportString = fillDataExport(name, prop, elisions, required)
             end
         end
 
+        % untyped compound
+        if isstruct(prop.dtype)
+            writerStr = 'io.writeCompound';
+        else
+            writerStr = 'io.writeDataset';
+        end
+
         % just to guarantee optional arguments are correct syntax
         nameProp = sprintf('obj.%s', name);
         nameArgs = [{nameProp} options];
         nameArgs = strjoin(nameArgs, ', ');
         dataExportString = strjoin({...
             ['if startsWith(class(obj.' name '), ''types.untyped.'')']...
-            ['    refs = obj.' name '.export(writer, ' fullpath ', refs);']...
+            ['    refs = obj.' name '.export(fid, ' fullpath ', refs);']...
             ['elseif ~isempty(obj.' name ')']...
-            [sprintf('    writer.writeValue(%s, %s);', fullpath, nameArgs)]...
+            [sprintf('    %s(fid, %s, %s);', writerStr, fullpath, nameArgs)]...
             'end'...
             }, newline);
-    else % Attribute
+    else
         if prop.scalar
             forceArrayFlag = '';
         else
             forceArrayFlag = ', ''forceArray''';
         end
-        dataExportString = sprintf('writer.writeAttribute(%1$s, obj.%2$s%3$s);',...
+        dataExportString = sprintf('io.writeAttribute(fid, %1$s, obj.%2$s%3$s);',...
             fullpath, name, forceArrayFlag);
     end
 
     propertyChecks = {};
     dependencyCheck = {};
-    preExportString = '';
 
     if isa(prop, 'file.Attribute') && ~isempty(prop.dependent)
         %if attribute is dependent, check before writing
@@ -253,13 +254,6 @@ function dataExportString = fillDataExport(name, prop, elisions, required)
             warnIfMissingRequiredDependentAttributeStr = ...
                 sprintf('obj.throwErrorIfRequiredDependencyMissing(''%s'', ''%s'', fullpath)', name, depPropname);
         end
-
-        if prop.promoted_to_container
-            preExportString = sprintf([ ...
-                'if isempty(obj.%1$s) && ~isempty(obj.%2$s) && isobject(obj.%2$s) && isprop(obj.%2$s, ''%3$s'') && ~isempty(obj.%2$s.%3$s)\n' ...
-                '    obj.%1$s = obj.%2$s.%3$s;\n' ...
-                'end'], name, depPropname, prop.name);
-        end
     end
 
     if ~prop.required
@@ -277,10 +271,6 @@ function dataExportString = fillDataExport(name, prop, elisions, required)
         else
              dataExportString = sprintf('%s\nend', dataExportString);
         end
-    end
-
-    if ~isempty(preExportString)
-        dataExportString = sprintf('%s\n%s', preExportString, dataExportString);
     end
 
     if ~isempty(dependencyCheck)

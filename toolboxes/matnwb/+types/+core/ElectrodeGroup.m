@@ -53,10 +53,7 @@ methods
         obj.device = p.Results.device;
         obj.location = p.Results.location;
         obj.position = p.Results.position;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.ElectrodeGroup') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.ElectrodeGroup')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -81,38 +78,49 @@ methods
         types.util.validateShape('description', {[1]}, val)
     end
     function val = validate_device(obj, val)
-        val = types.util.validateSoftLink('device', val, 'types.core.Device');
+        if isa(val, 'types.untyped.SoftLink')
+            if isprop(val, 'target')
+                types.util.checkDtype('device', 'types.core.Device', val.target);
+            end
+        else
+            val = types.util.checkDtype('device', 'types.core.Device', val);
+            if ~isempty(val)
+                val = types.untyped.SoftLink(val);
+            end
+        end
     end
     function val = validate_location(obj, val)
         val = types.util.checkDtype('location', 'char', val);
         types.util.validateShape('location', {[1]}, val)
     end
     function val = validate_position(obj, val)
-        if isempty(val)
-            % skip validation for empty values
-        else
-            vprops = struct();
-            vprops.x = 'single';
-            vprops.y = 'single';
-            vprops.z = 'single';
-            val = types.util.checkDtype('position', vprops, val);
+        if isempty(val) || isa(val, 'types.untyped.DataStub')
+            return;
         end
+        if ~istable(val) && ~isstruct(val) && ~isa(val, 'containers.Map')
+            error('NWB:Type:InvalidPropertyType', 'Property `position` must be a table, struct, or containers.Map.');
+        end
+        vprops = struct();
+        vprops.x = 'single';
+        vprops.y = 'single';
+        vprops.z = 'single';
+        val = types.util.checkDtype('position', vprops, val);
         types.util.validateShape('position', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBContainer(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBContainer(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        writer.writeAttribute([fullpath '/description'], obj.description);
-        refs = obj.device.export(writer, [fullpath '/device'], refs);
-        writer.writeAttribute([fullpath '/location'], obj.location);
+        io.writeAttribute(fid, [fullpath '/description'], obj.description);
+        refs = obj.device.export(fid, [fullpath '/device'], refs);
+        io.writeAttribute(fid, [fullpath '/location'], obj.location);
         if ~isempty(obj.position)
             if startsWith(class(obj.position), 'types.untyped.')
-                refs = obj.position.export(writer, [fullpath '/position'], refs);
+                refs = obj.position.export(fid, [fullpath '/position'], refs);
             elseif ~isempty(obj.position)
-                writer.writeValue([fullpath '/position'], obj.position);
+                io.writeCompound(fid, [fullpath '/position'], obj.position);
             end
         end
     end

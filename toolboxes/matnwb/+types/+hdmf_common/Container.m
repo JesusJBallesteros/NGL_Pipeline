@@ -17,10 +17,7 @@ methods
         %  - container (types.hdmf_common.Container) - A Container object
         
         obj = obj@types.untyped.MetaClass(varargin{:});
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.hdmf_common.Container') %#ok<STISA>
+        if strcmp(class(obj), 'types.hdmf_common.Container')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -30,8 +27,8 @@ methods
     %% VALIDATORS
     
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.untyped.MetaClass(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.untyped.MetaClass(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end

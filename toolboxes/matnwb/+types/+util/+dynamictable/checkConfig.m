@@ -1,91 +1,67 @@
 function checkConfig(DynamicTable, ignoreList)
-% CHECKCONFIG Check a DynamicTable for valid column registration and shape.
-%
-%   checkConfig(DYNAMICTABLE) runs without error if DYNAMICTABLE is
-%   configured correctly.
-%
-%   checkConfig(DYNAMICTABLE, IGNORELIST) skips columns named in the
-%   IGNORELIST cell array when checking for registration in `colnames` and
-%   when comparing column row counts.
-%
-%   A properly configured DynamicTable meets the following criteria:
-%   1) All materialized columns are listed in `colnames`, except those in
-%      IGNORELIST.
-%   2) The row counts of all checked columns are consistent. For ragged
-%      columns, this follows VectorIndex links to the outermost index.
-%   3) Compound columns have a consistent height across all fields.
-%   4) All rows have a corresponding id. If none exist, this function
-%      creates them.
-%   5) No infinite VectorIndex reference loops exist.
-    
+    % CHECKCONFIG Given a DynamicTable object, this functions checks for proper
+    % DynamicTable configuration
+    %
+    %   checkConfig(DYNAMICTABLE) runs without error if the DynamicTable is
+    %   configured correctly
+    %
+    %   checkConfig(DYNAMICTABLE,IGNORELIST) performs checks on columns not in
+    %   IGNORELIST cell array
+    %
+    %
+    %  A properly configured DynamicTable should meet the following criteria:
+    %  1) The length of all columns in the dynamic table is the same.
+    %  2) All rows have a corresponding id. If none exist, this function creates them.
+    %  3) No index loops exist.
     arguments
         DynamicTable
         ignoreList (1,:) cell = {};
     end
 
-    detectedColumnNames = getDetectedColumnNames(DynamicTable);
-    % Remove ignored columns before any validation so that columns
-    % intentionally omitted from colnames do not trigger ColumnNamesMismatch.
-    if ~isempty(ignoreList)
-        detectedColumnNames = detectedColumnNames(~ismember(detectedColumnNames, ignoreList));
-    end
-
     if isempty(DynamicTable.colnames)
-        assert(isempty(detectedColumnNames), ...
+        assert(isempty(getDetectedColumnNames(DynamicTable)), ...
             'NWB:DynamicTable:CheckConfig:ColumnNamesMismatch', ...
             'All Vector Data/Index columns must have their name ordered in the `colnames` property.');
         return;
     end
 
-    DynamicTable.colnames = types.util.dynamictable.validateColnames(DynamicTable.colnames);
-    columns = DynamicTable.colnames;
-
-    missingColumnNames = setdiff(detectedColumnNames, columns, 'stable');
-    assert(isempty(missingColumnNames), ...
-        'NWB:DynamicTable:CheckConfig:ColumnNamesMismatch', ...
-        ['All materialized DynamicTable columns must be listed in `colnames`.\n' ...
-        'Missing from `colnames`: %s'], ...
-        strjoin(missingColumnNames, ', '));
+    % remove null characters from column names
+    DynamicTable.colnames = cleanColumnNames(DynamicTable.colnames);
 
     % do not check specified columns - useful for classes that build on DynamicTable class
-    columns = columns(~ismember(columns, ignoreList));
-
-    if isempty(columns)
-        return
-    end
+    columns = setdiff(DynamicTable.colnames, ignoreList);
 
     columnHeights = zeros(length(columns), 1);
-    columnNames = strings(length(columns), 1);
     for iCol = 1:length(columns)
-        [columnHeight, columnName] = types.util.dynamictable.internal.getColumnRowHeight( ...
-            DynamicTable, columns{iCol});
-        columnHeight = unique(columnHeight);
+        columnName = retrieveHighestIndex(DynamicTable, columns{iCol});
+        columnHeight = unique(getVectorHeight(getVector(DynamicTable, columnName)));
 
         assert(isscalar(columnHeight), ...
             'NWB:DynamicTable:CheckConfig:InvalidShape', ...
             'Invalid compound column detected: compound column heights must all be the same.');
         columnHeights(iCol) = columnHeight;
-        columnNames(iCol) = columnName;
     end
 
     tableHeight = unique(columnHeights);
     if isempty(tableHeight)
         tableHeight = 0;
     end
-
-    formatSpec = sprintf('  %%-%ds %%d', max(strlength(columnNames)));
     assert(isscalar(tableHeight), ...
         'NWB:DynamicTable:CheckConfig:InvalidShape', ...
-        ['Invalid table: all columns must have the same height (number of rows).\n\n' ...
-        'Detected column heights:\n' ...
-        strjoin( compose(formatSpec, columnNames, columnHeights), newline) ]);
+        ['Invalid table detected: ' ...
+        'column heights (vector lengths or number of matrix columns) must be the same.']);
 
     if isempty(DynamicTable.id)
-        types.util.dynamictable.internal.initDynamicTableId(DynamicTable, tableHeight);
+        idData = int64(1:tableHeight) .';
+        if exist(fullfile('+types', '+core', 'ElementIdentifiers'), 'file')
+            DynamicTable.id = types.core.ElementIdentifiers('data', idData);
+        else
+            DynamicTable.id = types.hdmf_common.ElementIdentifiers('data', idData);
+        end
         return;
     end
 
-    numIds = types.util.dynamictable.internal.getColumnHeight(DynamicTable.id);
+    numIds = getVectorHeight(DynamicTable.id);
     assert(tableHeight == numIds, ...
         'NWB:DynamicTable:CheckConfig:InvalidId', ...
         'Special column `id` of DynamicTable needs to match the detected height of %d. Found %d IDs.', ...
@@ -101,7 +77,8 @@ function names = getDetectedColumnNames(DynamicTable)
     for iProp = 1:length(tableProps)
         propName = tableProps{iProp};
         propValue = DynamicTable.(propName);
-        if isMaterializedColumn(propValue)
+        if ~isempty(propValue) ...
+                && (isa(propValue, 'types.core.VectorData') || isa(propValue, 'types.hdmf_common.VectorData'))
             names{end+1} = propName;
         end
     end
@@ -110,19 +87,90 @@ function names = getDetectedColumnNames(DynamicTable)
     for iVector = 1:length(vectorNames)
         vectorName = vectorNames{iVector};
         Vector = DynamicTable.vectordata.get(vectorName);
-        if isMaterializedColumn(Vector)
-            names{end+1} = vectorName;
+        if isa(Vector, 'types.hdmf_common.VectorData') || isa(Vector, 'types.core.VectorData')
+            if isa(Vector.data, 'types.untyped.DataStub')
+                isDataEmpty = any(Vector.data.dims == 0);
+            elseif isa(Vector.data, 'types.untyped.DataPipe')
+                isDataEmpty = any(size(Vector.data) == 0);
+            else
+                isDataEmpty = isempty(Vector.data);
+            end
+            if ~isDataEmpty
+                names{end+1} = vectorName;
+            end
         end
     end
-    names = unique(names, 'stable');
+
 end
 
-function tf = isMaterializedColumn(value)
-    isVectorData = isa(value, 'types.hdmf_common.VectorData') ...
-        || isa(value, 'types.core.VectorData');
-    isVectorIndex = isa(value, 'types.hdmf_common.VectorIndex') ...
-        || isa(value, 'types.core.VectorIndex');
-    tf = ~isempty(value) && isVectorData && ~isVectorIndex;
+function vecHeight = getVectorHeight(VectorData)
+    if isempty(VectorData)
+        vecHeight = 0;
+    else
+        vecHeight = getDataHeight(VectorData.data);
+    end
+
+end
+
+function vecHeight = getDataHeight(data)
+    if isempty(data)
+        vecHeight = 0;
+    elseif isa(data, 'types.untyped.DataPipe')
+        if data.isBound
+            vecHeight = data.offset;
+        elseif ~isscalar(data.internal.data) && isvector(data.internal.data)
+            vecHeight = length(data.internal.data); % datapipe axis can be misleading if vector.
+        else
+            vecHeight = size(data.internal.data, data.axis);
+        end
+    elseif isa(data, 'types.untyped.DataStub')
+        vecHeight = data.dims(end);
+    elseif isscalar(data) && isstruct(data) % compound type (struct)
+        dataFieldNames = fieldnames(data);
+        if isempty(dataFieldNames)
+            vecHeight = 0;
+        else
+            vecHeight = zeros(size(dataFieldNames));
+            for iField = 1:length(dataFieldNames)
+                field = dataFieldNames{iField};
+                vecHeight(iField) = getDataHeight(data.(field));
+            end
+        end
+    elseif istable(data) % compound type (table)
+        vecHeight = height(data);
+    elseif isscalar(data) || ~isvector(data)
+        vecHeight = size(data, ndims(data));
+    else
+        vecHeight = size(data, find(1 < size(data)));
+    end
+end
+
+function Vector = getVector(DynamicTable, column)
+    if isprop(DynamicTable, column)
+        Vector = DynamicTable.(column);
+    elseif isprop(DynamicTable, 'vectorindex') && isKey(DynamicTable.vectorindex, column)
+        Vector = DynamicTable.vectorindex.get(column);
+    elseif isKey(DynamicTable.vectordata, column)
+        Vector = DynamicTable.vectordata.get(column);
+    else
+        Vector = [];
+    end
+end
+
+function highestName = retrieveHighestIndex(DynamicTable, column)
+    columnHistory = {};
+    highestName = column;
+    while true
+        indexName = types.util.dynamictable.getIndex(DynamicTable, highestName);
+        if isempty(indexName)
+            return;
+        end
+        assert(~any(strcmp(columnHistory, indexName)), ...
+            'NWB:DynamicTable:CheckConfig:InfiniteReferenceLoop', ...
+            'Invalid Table shape detected: There is an infinite loop in your VectorIndex objects.');
+        columnHistory{end+1} = indexName;
+        highestName = indexName;
+    end
 end
 
 function colnames = cleanColumnNames(colnames)

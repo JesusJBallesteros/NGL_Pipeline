@@ -30,14 +30,13 @@ classdef NwbFile < types.core.NWBFile
             end
         end
 
-        function export(obj, filename, mode, options)
+        function export(obj, filename, mode)
         % EXPORT - Export NWB file object
 
             arguments
                 obj (1,1) NwbFile
                 filename (1,1) string
                 mode (1,1) string {mustBeMember(mode, ["edit", "overwrite"])} = "edit"
-                options.StorageBackend (1,1) string = "hdf5"
             end
 
             % add to file create date
@@ -58,116 +57,36 @@ classdef NwbFile < types.core.NWBFile
 
             obj.addWasGeneratedBy()
 
-            % equate reference time to session_start_time if empty
+            %equate reference time to session_start_time if empty
             if isempty(obj.timestamps_reference_time)
                 obj.timestamps_reference_time = obj.session_start_time;
             end
 
-            writer = io.backend.BackendFactory.createWriter(filename, ...
-                Mode=mode, StorageBackend=options.StorageBackend);
+            isEditingFile = false;
+
+            if isfile(filename)
+                if mode == "edit"
+                    output_file_id = H5F.open(filename, 'H5F_ACC_RDWR', 'H5P_DEFAULT');
+                    isEditingFile = true;
+                elseif mode == "overwrite"
+                    output_file_id = H5F.create(filename, 'H5F_ACC_TRUNC', 'H5P_DEFAULT', 'H5P_DEFAULT');
+                end
+            else
+                output_file_id = H5F.create(filename);
+            end
 
             try
-                obj.embedSpecifications(writer)
-                refs = export@types.core.NWBFile(obj, writer, '/', {});
-                obj.resolveReferences(writer, refs);
-                writer.close();
+                obj.embedSpecifications(output_file_id)
+                refs = export@types.core.NWBFile(obj, output_file_id, '/', {});
+                obj.resolveReferences(output_file_id, refs);
+                H5F.close(output_file_id);
             catch ME
                 obj.file_create_date(end) = [];
-                writer.abort();
+                H5F.close(output_file_id);
+                if ~isEditingFile
+                    delete(filename);
+                end
                 rethrow(ME);
-            end
-        end
-
-        function datasetConfig = applyDatasetSettingsProfile(obj, profile, options)
-        % APPLYDATASETSETTINGSPROFILE - Configure datasets using predefined settings profile
-        %
-        % Syntax:
-        %  nwb.applyDatasetSettingsProfile(profile) applies a dataset
-        %  configuration profile to the nwb-file ``nwb``. Available profiles:
-        %  "default", "cloud", "archive". This will configure datasets in
-        %  the NwbFile object for chunking and compression.
-        % 
-        % Input Arguments:
-        %  - obj (NwbFile) - 
-        %    An instance of the NwbFile class.
-        % 
-        %  - profile (ConfigurationProfile) - 
-        %    Specifies the settings profile to use. Default is "none".
-        %
-        % Name-Value Arguments:
-        %  - OverrideExisting (logical) - 
-        %    This boolean determines if existing DataPipe objects in the
-        %    file will be reconfigured with the provided options. Default is
-        %    false. **Important**: This does not work for DataPipes that has
-        %    previously been exported to file.
-        % 
-        % Output Arguments:
-        %  - datasetConfig - 
-        %    (Optional) The configuration settings applied to the dataset.
-        %
-        % See also:
-        %   io.config.enum.ConfigurationProfile
-        %   NwbFile.applyDatasetSettings
-
-            arguments
-                obj (1,1) NwbFile
-                profile (1,1) io.config.enum.ConfigurationProfile
-                options.OverrideExisting (1,1) logical = false
-            end
-            
-            datasetConfig = io.config.readDatasetConfiguration(profile);
-            nvPairs = namedargs2cell(options);
-            obj.applyDatasetSettings(datasetConfig, nvPairs{:});
-            if ~nargout
-                clear datasetConfig
-            end
-        end
-
-
-        function datasetConfig = applyDatasetSettings(obj, settingsReference, options)
-        % APPLYDATASETSETTINGS - Configure datasets using NWB dataset settings
-        %
-        % Syntax:
-        %  nwb.applyDatasetSettings(settingsReference) applies a dataset
-        %  configuration profile to the nwb-file ``nwb``. This method
-        %  accepts the filename of a custom configuration profile or a
-        %  structure representing a configuration profile.
-        % 
-        % Input Arguments:
-        %  - obj (NwbFile) - 
-        %    An instance of the NwbFile class.
-        % 
-        %  - settingsReference (string | struct) - 
-        %    The filename of a custom configuration profile or an in-memory
-        %    structure representing a configuration profile.
-        %
-        % Name-Value Arguments:
-        %  - OverrideExisting (logical) - 
-        %    This boolean determines if existing DataPipe objects in the
-        %    file will be reconfigured with the provided options. Default is
-        %    false. **Important**: This does not work for DataPipes that has
-        %    previously been exported to file.
-        % 
-        % Output Arguments:
-        %  - datasetConfig - 
-        %    (Optional) The configuration settings applied to the dataset.
-        %
-        % See also:
-        %   io.config.enum.ConfigurationProfile
-        %   NwbFile.applyDatasetSettingsProfile
-
-            arguments
-                obj (1,1) NwbFile
-                settingsReference
-                options.OverrideExisting (1,1) logical = false
-            end
-
-            datasetConfig = io.config.resolveDatasetConfiguration(settingsReference);
-
-            nvPairs = namedargs2cell(options);
-            io.config.applyDatasetConfiguration(obj, datasetConfig, nvPairs{:});
-            if ~nargout
-                clear datasetConfig
             end
         end
 
@@ -199,69 +118,6 @@ classdef NwbFile < types.core.NWBFile
                 '',...
                 typename,...
                 varargin{:});
-        end
-        
-        function nwbObjects = getTypeObjects(obj, typeName, options)
-        % GETTYPEOBJECTS - Retrieve NWB objects of a specified type.
-        % 
-        % Syntax:
-        %   nwbObjects = GETTYPEOBJECTS(obj, typeName) Retrieves NWB 
-        %   objects of the specified type from the NwbFile object.
-        % 
-        %   nwbObjects = GETTYPEOBJECTS(obj, typeName, Name, Value) Retrieves NWB 
-        %   objects of the specified type from the NwbFile object using provided
-        %   name-value pairs controlling options.
-        %
-        % Input Arguments:
-        %  - obj (NwbFile) - 
-        %    The NwbFile object from which to retrieve NWB objects.
-        %   
-        %  - typeName (1,1) string - 
-        %    The name of the type to search for. Can include namespace, but 
-        %    does not have to, i.e types.core.TimeSeries and TimeSeries are
-        %    supported.
-        %   
-        %  - options (name-value pairs) -
-        %    Optional name-value pairs. Available options:
-        %       
-        %    - IncludeSubTypes logical - 
-        %      Optional: set to true to include subclasses in the search. 
-        %      Default is false.
-        % 
-        % Output Arguments:
-        %   - nwbObjects (cell) -  
-        %     A cell array of NWB objects of the specified type.
-        %
-        % Usage:
-        %  Example 1 - Get all ElectricalSeries objects from NwbFile::
-        %
-        %    evalc('run("ecephys.mlx")');
-        %    nwb.getTypeObjects('ElectricalSeries')
-        %
-        %  Example 2 - Get all ElectricalSeries and subtype objects from NwbFile::
-        %
-        %    evalc('run("ecephys.mlx")')
-        %    nwb.getTypeObjects('ElectricalSeries', 'IncludeSubTypes', true)
-        
-            arguments
-                obj
-                typeName (1,1) string
-                options.IncludeSubTypes (1,1) logical = false
-            end
-            flags = {};
-            if options.IncludeSubTypes
-                flags{end+1} = 'includeSubClasses';
-            end
-
-            objectMap = searchProperties(...
-                containers.Map,...
-                obj,...
-                '',...
-                char(typeName),...
-                flags{:}, 'exactTypeMatch');
-        
-            % Filter to return exact types.
-            nwbObjects = objectMap.values;
         end
 
         function nwbTypeNames = listNwbTypes(obj, options)
@@ -300,40 +156,6 @@ classdef NwbFile < types.core.NWBFile
                 nwbTypeNames = includedNwbTypesWithParents;
             end
         end
-    
-        function result = listRemappedNames(obj)
-            objectMap = searchProperties(containers.Map, obj, '', '');
-            
-            result = {};
-
-            allKeys = objectMap.keys();
-            for i = 1:objectMap.Count
-                currentKey = allKeys{i};
-                currentValue = objectMap(currentKey);
-                if isa(currentValue, 'matnwb.mixin.HasUnnamedGroups')
-                    T = currentValue.getRemappedNames();
-                    if ~isempty(T)
-                        T.ContainerType = repmat(string(class(currentValue)), 1, height(T));
-                        T.Location = repmat(string(currentKey), 1, height(T));
-                        result{end+1} = T; %#ok<AGROW>
-                    end
-                end
-            end
-            result = cat(1, result{:});
-        end
-    end
-
-    methods (Hidden)
-        function resolveSoftLinks(obj)
-            % Note: Will not find/resolve soft links that are nested within dynamic tables
-            softLinkMap = obj.searchFor('types.untyped.SoftLink');
-            softLinks = softLinkMap.values;
-            for i = 1:numel(softLinks)
-                for j = 1:numel(softLinks{i}) % each SoftLink can be a list
-                    softLinks{i}(j).deref(obj);
-                end
-            end
-        end
     end
 
     %% PRIVATE
@@ -344,8 +166,8 @@ classdef NwbFile < types.core.NWBFile
                     obj.general_was_generated_by = obj.general_was_generated_by.load();
                 end
     
-                matnwbVersion = misc.getMatnwbVersion();
-                wasGeneratedBy = {'matnwb'; matnwbVersion};
+                matnwbInfo = ver('matnwb');
+                wasGeneratedBy = {'matnwb'; matnwbInfo.Version};
     
                 if isempty(obj.general_was_generated_by)
                     obj.general_was_generated_by = wasGeneratedBy;
@@ -357,7 +179,7 @@ classdef NwbFile < types.core.NWBFile
             end
         end
 
-        function embedSpecifications(obj, writer)
+        function embedSpecifications(obj, output_file_id)
             jsonSpecs = schemes.exportJson();
 
             if isempty(jsonSpecs)
@@ -384,22 +206,21 @@ classdef NwbFile < types.core.NWBFile
             jsonSpecs = jsonSpecs(keepIdx);
 
             io.spec.writeEmbeddedSpecifications(...
-                writer, ...
+                output_file_id, ...
                 jsonSpecs);
 
             io.spec.validateEmbeddedSpecifications(...
-                writer.FileId, ...
+                output_file_id, ...
                 strrep(namespaceNames, '_', '-'))
         end
         
-        function resolveReferences(obj, writer, references)
-            writer = io.backend.base.Writer.ensure(writer);
+        function resolveReferences(obj, fid, references)
             while ~isempty(references)
                 resolved = false(size(references));
                 for iRef = 1:length(references)
                     refSource = references{iRef};
                     sourceObj = obj.resolve(refSource);
-                    unresolvedRefs = sourceObj.export(writer, refSource, {});
+                    unresolvedRefs = sourceObj.export(fid, refSource, {});
                     exportSuccess = isempty(unresolvedRefs);
                     resolved(iRef) = exportSuccess;
                 end
@@ -424,7 +245,23 @@ classdef NwbFile < types.core.NWBFile
     end
 end
 
-% Local functions
+function tf = metaHasType(mc, typeSuffix)
+    assert(isa(mc, 'meta.class'));
+    tf = false;
+    if contains(mc.Name, typeSuffix, 'IgnoreCase', true)
+        tf = true;
+        return;
+    end
+
+    for i = 1:length(mc.SuperclassList)
+        sc = mc.SuperclassList(i);
+        if metaHasType(sc, typeSuffix)
+            tf = true;
+            return;
+        end
+    end
+end
+
 function pathToObjectMap = searchProperties(...
         pathToObjectMap,...
         obj,...
@@ -435,7 +272,6 @@ function pathToObjectMap = searchProperties(...
         'NWB:NwbFile:SearchProperties:InvalidVariableArguments',...
         'Optional keywords for searchFor must be char arrays.');
     shouldSearchSuperClasses = any(strcmpi(varargin, 'includeSubClasses'));
-    exactTypeMatch = any(strcmpi(varargin, 'exactTypeMatch'));
 
     if isa(obj, 'types.untyped.MetaClass')
         propertyNames = properties(obj);
@@ -451,9 +287,9 @@ function pathToObjectMap = searchProperties(...
             'Invalid object type passed %s', class(obj));
     end
 
-    searchTypename = @(obj, typename) isMatchedType(class(obj), typename, 'ExactMatch', exactTypeMatch);
+    searchTypename = @(obj, typename) contains(class(obj), typename, 'IgnoreCase', true);
     if shouldSearchSuperClasses
-        searchTypename = @(obj, typename) metaHasType(metaclass(obj), typename, 'ExactMatch', exactTypeMatch);
+        searchTypename = @(obj, typename) metaHasType(metaclass(obj), typename);
     end
 
     for i = 1:length(propertyNames)
@@ -464,74 +300,12 @@ function pathToObjectMap = searchProperties(...
             pathToObjectMap(fullPath) = propValue;
         end
 
-        % Recursive search when a type is a group class
-        if isa(propValue, 'types.untyped.GroupClass')
+        if isa(propValue, 'types.untyped.GroupClass')...
+                || isa(propValue, 'types.untyped.Set')...
+                || isa(propValue, 'types.untyped.Anon')
+            % recursible (even if there is a match!)
             searchProperties(pathToObjectMap, propValue, fullPath, typename, varargin{:});
         end
-
-        if isa(propValue, 'types.untyped.Set')...
-            || isa(propValue, 'types.untyped.Anon')
-           
-            if isa(obj, 'matnwb.mixin.HasUnnamedGroups')
-                % If the current property value is a Set of a type that inherits 
-                % from the HasUnnamedGroups mixin, a recursive search would yield 
-                % duplicate objects because the Set members are also exposed as 
-                % dynamic properties of the type via the mixin.
-            else
-                % Recursive (even if there is a match!)
-                searchProperties(pathToObjectMap, propValue, fullPath, typename, varargin{:});
-            end
-        end
-    end
-end
-
-function tf = metaHasType(mc, typeSuffix, options)
-    arguments
-        mc meta.class
-        typeSuffix (1,1) string
-        options.ExactMatch (1,1) logical = false
-    end
-
-    tf = false;
-    if isMatchedType(mc.Name, typeSuffix, 'ExactMatch', options.ExactMatch)
-        tf = true;
-        return;
-    end
-
-    for i = 1:length(mc.SuperclassList)
-        sc = mc.SuperclassList(i);
-        if metaHasType(sc, typeSuffix, 'ExactMatch', options.ExactMatch)
-            tf = true;
-            return;
-        end
-    end
-end
-
-function tf = isMatchedType(typeNameA, typeNameB, options)
-    arguments
-        typeNameA (1,1) string
-        typeNameB (1,1) string
-        options.ExactMatch (1,1) logical = false
-    end
-
-    if options.ExactMatch
-        if contains(typeNameB, '.')
-            % If namespace is provided, need to match on namespace and type.
-            tf = strcmpi(typeNameA, typeNameB);
-        else        
-            tf = strcmpi(...
-            extractTypeNameWithoutNamespace(typeNameA), ...
-            extractTypeNameWithoutNamespace(typeNameB));
-        end
-    else
-        tf = contains(typeNameA, typeNameB, 'IgnoreCase', true);
-    end
-end
-
-function typeName = extractTypeNameWithoutNamespace(typeName)
-    if contains(typeName, '.')
-        splitName = split(typeName, '.');
-        typeName = splitName{end};
     end
 end
 

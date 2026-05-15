@@ -141,44 +141,25 @@ def handle_manual_curation(ephys_path, spike_templates, templates_waveforms, pc_
 
 def get_gain_spikeglx(meta_path):
     """
-    This function calculates the scaling factor to convert 16-bit analog values to microvolts.
-
-    Uses the SpikeGLX formula: V = i * Vmax / Imax / gain
-
-    Imax is determined with the following fallback chain:
-        1. Read 'imMaxInt' from meta file (preferred)
-        2. Fall back to probe-type-specific defaults:
-           - NP1/3A/3B probes: 512 (10-bit ADC)
-           - NP2/NP2.1/NP2.4 probes: 2048 (commercial) or 8192 (pre-commercial)
-        3. Fall back to commercial Neuropixels default (512 for NP1, 2048 for NP2)
-
-    For NP1/3A/3B probes:
-        - Imax = imMaxInt (typically 512)
-        - Vmax = imAiRangeMax (typically 0.6V)
-        - gain = imChan0apGain (typically 500)
-
-    For NP2/NP2.1/NP2.4 probes (type 21, 24):
-        - Imax = imMaxInt (typically 2048 for commercial, 8192 for pre-commercial)
-        - Vmax = imAiRangeMax (typically 0.6V)
-        - gain = 80 (fixed)
+    This function finds the probe type for the spike glx meta folder and also works out the gain
 
     Parameters
     ----------
     meta_path : str
-        The path to the meta data file
+        The path to the meta data folder
 
     Returns
     -------
     scaling_factor : float
-        The scaling factor to convert from int16 to microvolts (µV/bit)
+        The scaling factor for the probe
 
     Raises
     ------
     Exception
-        If the probe type is not handled or required meta fields are missing
+        If the probe type is not handled
     """
     meta_dict = erw.read_meta(Path(meta_path))
-
+    
     # Check if this is an Open Ephys file
     if str(meta_path).endswith('.oebin'):
         # For Open Ephys files, the bit_volts value is already the scaling factor
@@ -186,96 +167,54 @@ def get_gain_spikeglx(meta_path):
             # bitVolts is already in microvolts per bit
             return float(meta_dict['bitVolts'])
         else:
-            raise Exception(
-                "Open Ephys meta file missing 'bitVolts' field. "
-                "Cannot determine scaling factor."
-            )
+            # Default Open Ephys scaling: 0.195 μV/bit
+            return 0.195
 
-    # Determine probe type
-    if "imDatPrb_type" in meta_dict:
+    if np.isin("imDatPrb_type", list(meta_dict.keys())):
         probeType = meta_dict["imDatPrb_type"]
-    elif "imProbeOpt" in meta_dict:
+    elif np.isin("imProbeOpt", list(meta_dict.keys())):
         probeType = meta_dict["imProbeOpt"]
     else:
-        raise Exception(
-            "Cannot find imDatPrb_type or imProbeOpt in meta file. "
-            "Cannot determine probe type."
-        )
+        # NOTE will have to update for new probes!
+        print("Can not find imDatPrb_type or imProbeOpt in meta file")
 
-    # NP1, 3A, 3B and similar probes
     probeType_1 = np.array(
         (
-            "0",
             "1",
             "3",
+            "0",
             "1020",
             "1030",
             "1100",
-            "1110",
             "1120",
             "1121",
             "1122",
             "1123",
             "1200",
             "1300",
+            "1110",
         )
-    )
-    # NP2, NP2.1, NP2.4 probes
+    )  # NP1, NP2-like
     probeType_2 = np.array(
-        ("21", "24", "2003", "2004", "2013", "2014", "2020")
-    )
-
-    # Get Vmax from meta file (in Volts), convert to microvolts
-    if "imAiRangeMax" not in meta_dict:
-        raise Exception(
-            "Meta file missing 'imAiRangeMax' field. "
-            "Cannot determine voltage range."
-        )
-    Vmax_uV = float(meta_dict["imAiRangeMax"]) * 1e6  # Convert V to µV
+        ("21", "2003", "2004", "24", "2013", "2014", "2020")
+    )  # NP2, NP2-like
 
     if np.isin(probeType, probeType_1):
-        # NP1/3A/3B: Read Imax from meta file, fallback to 512 (commercial default)
-        if "imMaxInt" in meta_dict:
-            Imax = int(meta_dict["imMaxInt"])
-        else:
-            Imax = 512  # Commercial NP1 default (10-bit ADC: 2^10 / 2)
-
-        if "imChan0apGain" not in meta_dict:
-            raise Exception(
-                f"Meta file missing 'imChan0apGain' field for probe type {probeType}. "
-                "Cannot determine gain."
-            )
-        gain = float(meta_dict["imChan0apGain"])
-
+        bits_encoding = 2**10
+        v_range = 1.2e6
+        gain = 500
     elif np.isin(probeType, probeType_2):
-        # NP2/NP2.1/NP2.4: Read Imax from meta file, fallback to 2048 (commercial default)
-        if "imMaxInt" in meta_dict:
-            Imax = int(meta_dict["imMaxInt"])
-        else:
-            Imax = 2048  # Commercial NP2 default (14-bit ADC: 2^12 / 2)
-        gain = 80  # Fixed gain for NP2 probes
+        bits_encoding = 2**14
+        v_range = 1e6
+        gain = 80
     else:
-        # Unknown probe type: try to read from meta, fallback to commercial NP2 default
-        if "imMaxInt" in meta_dict:
-            Imax = int(meta_dict["imMaxInt"])
-        else:
-            Imax = 2048  # Commercial default
-
-        if "imChan0apGain" in meta_dict:
-            gain = float(meta_dict["imChan0apGain"])
-        else:
-            gain = 80  # NP2 default gain
-
-        import warnings
-        warnings.warn(
-            f"Probe type '{probeType}' is not recognized. "
-            f"Using Imax={Imax} and gain={gain}. "
-            "Please raise a GitHub issue to add support for this probe type."
+        raise Exception(
+            "Probe type is not one of the know values please raise a GitHub issue or add the gain_to_uv manually"
         )
 
-    # Calculate scaling factor: V = i * Vmax / Imax / gain
-    scaling_factor = Vmax_uV / Imax / gain
-
+    scaling_factor = (
+        v_range / bits_encoding / gain
+    )  # is v_range / (bits_encoding * gain)
     return scaling_factor
 
 
@@ -319,20 +258,6 @@ def load_bc_results(bc_path):
         quality_metrics = pd.read_parquet(quality_metrics_path)
     else:
         print("Quality Metrics file not found")
-        quality_metrics = None
-
-    # Repopulate unique_templates / empty_unit_idx in param — these are normally
-    # set as a side-effect of make_qualityMetrics, but downstream plotting code
-    # (e.g. plot_waveforms_overlay) reads them from param.
-    if param is not None and quality_metrics is not None:
-        if "phy_clusterID" in quality_metrics.columns:
-            param["unique_templates"] = quality_metrics["phy_clusterID"].to_numpy().astype(int)
-        else:
-            param["unique_templates"] = np.arange(len(quality_metrics))
-        if "nSpikes" in quality_metrics.columns:
-            param["empty_unit_idx"] = (quality_metrics["nSpikes"].to_numpy() == 0)
-        else:
-            param["empty_unit_idx"] = np.zeros(len(quality_metrics), dtype=bool)
 
     # BombCell fration RPVS all TauR
     fractions_RPVs_all_taur_path = os.path.join(

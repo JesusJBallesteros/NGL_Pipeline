@@ -1,4 +1,4 @@
-classdef ProcessingModule < types.core.NWBContainer & types.untyped.GroupClass & matnwb.mixin.HasUnnamedGroups
+classdef ProcessingModule < types.core.NWBContainer & types.untyped.GroupClass
 % PROCESSINGMODULE - A collection of processed data.
 %
 % Required Properties:
@@ -13,9 +13,6 @@ end
 properties
     dynamictable; %  (DynamicTable) Tables stored in this collection.
     nwbdatainterface; %  (NWBDataInterface) Data objects stored in this collection.
-end
-properties (Access = protected)
-    GroupPropertyNames = {'nwbdatainterface', 'dynamictable'}
 end
 
 methods
@@ -50,13 +47,9 @@ methods
         addParameter(p, 'description',[]);
         misc.parseSkipInvalidName(p, varargin);
         obj.description = p.Results.description;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.ProcessingModule') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.ProcessingModule')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-            obj.setupHasUnnamedGroupsMixin();
         end
     end
     %% SETTERS
@@ -86,17 +79,17 @@ methods
         types.util.checkSet('nwbdatainterface', namedprops, constrained, val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBContainer(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBContainer(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        writer.writeAttribute([fullpath '/description'], obj.description);
+        io.writeAttribute(fid, [fullpath '/description'], obj.description);
         if ~isempty(obj.dynamictable)
-            refs = obj.dynamictable.export(writer, fullpath, refs);
+            refs = obj.dynamictable.export(fid, fullpath, refs);
         end
         if ~isempty(obj.nwbdatainterface)
-            refs = obj.nwbdatainterface.export(writer, fullpath, refs);
+            refs = obj.nwbdatainterface.export(fid, fullpath, refs);
         end
     end
 end

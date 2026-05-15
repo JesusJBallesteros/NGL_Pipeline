@@ -1,4 +1,4 @@
-function [allTemplates, emptyUnits_idx, duplicateSpikes_idx, spikeTimes_samples, spikeTemplates, templateAmplitudes, ...
+function [nonEmptyUnits, duplicateSpikes_idx, spikeTimes_samples, spikeTemplates, templateAmplitudes, ...
     pcFeatures, rawWaveformsFull, rawWaveformsPeakChan, signalToNoiseRatio, maxChannels] = ...
     removeDuplicateSpikes(spikeTimes_samples, spikeTemplates, templateAmplitudes, ...
     pcFeatures, rawWaveformsFull, rawWaveformsPeakChan, signalToNoiseRatio, ...
@@ -60,30 +60,32 @@ if removeDuplicateSpikes_flag
     end
 
     % check if there are any empty units
-    % Return ALL templates (including those that become empty after duplicate removal)
-    allTemplates = unique(spikeTemplates);  % all original templates
+    unique_templates = unique(spikeTemplates);
     nonEmptyUnits = unique(spikeTemplates(~duplicateSpikes_idx));
-    emptyUnits_idx = ~ismember(allTemplates, nonEmptyUnits);  % Boolean array: true for empty units
+    emptyUnits_idx = zeros(max(spikeTemplates), 1, 'logical');  % Initialize with size matching rawWaveformsFull rows
+    emptyUnits_idx(unique_templates) = ~ismember(unique_templates, nonEmptyUnits);  % Mark only existing templates as empty/non-empty
 
     % remove any empty units from ephys data
     spikeTimes_samples = spikeTimes_samples(~duplicateSpikes_idx);
     spikeTemplates = spikeTemplates(~duplicateSpikes_idx);
     templateAmplitudes = templateAmplitudes(~duplicateSpikes_idx);
-
+    
 
     if ~isempty(pcFeatures) && any(~isnan(pcFeatures), 'all')
 
         pcFeatures = pcFeatures(~duplicateSpikes_idx, :, :);
     end
 
-    % Note: signalToNoiseRatio is NOT filtered here - it stays indexed by allTemplates
-    % Empty units will get NaN values in runAllQualityMetrics
+    emptyUnits_idx = ~ismember(unique_templates, nonEmptyUnits);
+
+    if ~isempty(signalToNoiseRatio)
+        signalToNoiseRatio = signalToNoiseRatio(~emptyUnits_idx);
+    end
 
     fprintf('\n Removed %.0f spike duplicates out of %.0f total spikes. \n', sum(duplicateSpikes_idx), length(duplicateSpikes_idx))
 
 else
-    allTemplates = unique(spikeTemplates);
-    emptyUnits_idx = false(size(allTemplates));  % No empty units when duplicate removal is disabled
+    nonEmptyUnits = unique(spikeTemplates);
     duplicateSpikes_idx = zeros(size(spikeTimes_samples, 1), 1);
 
 end

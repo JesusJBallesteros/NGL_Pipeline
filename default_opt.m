@@ -21,22 +21,22 @@ function opts = default_opt()
 %   2. Add validation logic in set_default (Section 2) if needed.
 %   3. Document it in wiki_NGL01_pipeline.md (Section 6).
 %
-% Last modified 13.05.2026 (Jesus)
+% Last modified 07.05.2026 (Jesus)
 
     % Data format
     opts.numChannels     = 32;      % Expected channel count (override for 32-ch Deuteron)
     opts.bin             = true;    % Normally, we always check if the .bin file exists
     opts.FieldTrip       = true;    % Produce a FieldTrip-ready .mat file
-    opts.doNWB           = true;    % INTAN-NeuroConv NWB export
+    opts.doNWB           = false;    % NWB export: INTAN via NeuroConv (Python), Deuteron via matNWB (MATLAB)
 
     % Events
     opts.RetrieveEvents  = true;     % Extract event log from session
     opts.alignto         = {'itiOn'};% Alignment events; cell array of char vectors
     opts.trEvents        = {};       % 'Special' ITI events (treatments, tutors, etc.)
-    opts.addtime         = 0;        % Integer, Padding around trial start/end in ms
+    opts.addtime         = 0;        % Padding around trial start/end in ms
     opts.uselog          = false;    % By default, use Deuteron data files to extract events. 
-                                     %  When true, uses the text log. For cases when the events 
-                                     %  were not properly transmitted to the system but logged.
+                                      % When true, uses the text log. For cases when the events 
+                                      % were not properly transmitted to the system but logged.
 
     % Motion sensors
     opts.GetMotionSensors = false;   % Extract head-direction sensor data
@@ -53,7 +53,7 @@ function opts = default_opt()
     % opts.noise           = [];       % Needed?
 
     % Sorting & curation
-    opts.kilosort        = true;     % Default to Kilosort4
+    opts.kilosort        = 1;        % Default to Kilosort4
     opts.KSchanMapFile   = '';       % Empty = linear array; set to 'chanMapXXX.mat' for custom
     opts.bombcell        = true;     % Run Bombcell QC on Kilosort output
     opts.phy             = false;    % Open Phy after sorting (blocks MATLAB)

@@ -48,22 +48,17 @@ methods
         misc.parseSkipInvalidName(p, varargin);
         obj.recordings = p.Results.recordings;
         obj.recordings_index = p.Results.recordings_index;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.SimultaneousRecordingsTable') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.SimultaneousRecordingsTable')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
+        end
+        if strcmp(class(obj), 'types.core.SimultaneousRecordingsTable')
             types.util.dynamictable.checkConfig(obj);
         end
     end
     %% SETTERS
     function set.recordings(obj, val)
         obj.recordings = obj.validate_recordings(val);
-        obj.postset_recordings()
-    end
-    function postset_recordings(obj)
-        types.util.dynamictable.syncNamedColumn(obj, 'recordings');
     end
     function set.recordings_index(obj, val)
         obj.recordings_index = obj.validate_recordings_index(val);
@@ -71,23 +66,19 @@ methods
     %% VALIDATORS
     
     function val = validate_recordings(obj, val)
-        types.util.checkType('recordings', 'types.hdmf_common.DynamicTableRegion', val);
-        if ~isempty(val)
-            types.util.validateReferenceType('recordings.table', val.table, 'types.core.IntracellularRecordingsTable', 'types.untyped.ObjectView');
-            types.util.validateShape('recordings.table', {[1]}, val.table)
-        end
+        val = types.util.checkDtype('recordings', 'types.hdmf_common.DynamicTableRegion', val);
     end
     function val = validate_recordings_index(obj, val)
-        types.util.checkType('recordings_index', 'types.hdmf_common.VectorIndex', val);
+        val = types.util.checkDtype('recordings_index', 'types.hdmf_common.VectorIndex', val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.hdmf_common.DynamicTable(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.hdmf_common.DynamicTable(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.recordings.export(writer, [fullpath '/recordings'], refs);
-        refs = obj.recordings_index.export(writer, [fullpath '/recordings_index'], refs);
+        refs = obj.recordings.export(fid, [fullpath '/recordings'], refs);
+        refs = obj.recordings_index.export(fid, [fullpath '/recordings_index'], refs);
     end
 end
 

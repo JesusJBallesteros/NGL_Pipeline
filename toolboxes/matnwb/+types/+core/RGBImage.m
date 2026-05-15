@@ -16,7 +16,7 @@ methods
         %  rGBImage = types.core.RGBIMAGE(Name, Value) creates a RGBImage object where one or more property values are specified using name-value pairs.
         %
         % Input Arguments (Name-Value Arguments):
-        %  - data (numeric) - Data property for dataset class (RGBImage)
+        %  - data (numeric) - No description
         %
         %  - description (char) - Description of the image.
         %
@@ -33,10 +33,7 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.RGBImage') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.RGBImage')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -47,11 +44,10 @@ methods
     
     function val = validate_data(obj, val)
         val = types.util.checkDtype('data', 'numeric', val);
-        types.util.validateShape('data', {[3,Inf,Inf]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.Image(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.Image(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end

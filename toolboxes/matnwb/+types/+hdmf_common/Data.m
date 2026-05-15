@@ -7,7 +7,7 @@ classdef Data < types.untyped.MetaClass & types.untyped.DatasetClass
 
 % REQUIRED PROPERTIES
 properties
-    data; % REQUIRED (any) Data property for dataset class (Data)
+    data; % REQUIRED any
 end
 
 methods
@@ -20,7 +20,7 @@ methods
         %  data = types.hdmf_common.DATA(Name, Value) creates a Data object where one or more property values are specified using name-value pairs.
         %
         % Input Arguments (Name-Value Arguments):
-        %  - data (any) - Data property for dataset class (Data)
+        %  - data (any) - No description
         %
         % Output Arguments:
         %  - data (types.hdmf_common.Data) - A Data object
@@ -35,10 +35,7 @@ methods
         addParameter(p, 'data',[]);
         misc.parseSkipInvalidName(p, varargin);
         obj.data = p.Results.data;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.hdmf_common.Data') %#ok<STISA>
+        if strcmp(class(obj), 'types.hdmf_common.Data')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -50,12 +47,10 @@ methods
     %% VALIDATORS
     
     function val = validate_data(obj, val)
-        val = types.util.checkDtype('data', 'any', val);
-        types.util.validateShape('data', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.untyped.MetaClass(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.untyped.MetaClass(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end

@@ -20,7 +20,7 @@ methods
         %  scratchData = types.core.SCRATCHDATA(Name, Value) creates a ScratchData object where one or more property values are specified using name-value pairs.
         %
         % Input Arguments (Name-Value Arguments):
-        %  - data (any) - Data property for dataset class (ScratchData)
+        %  - data (any) - No description
         %
         %  - notes (char) - Any notes the user has about the dataset being stored
         %
@@ -37,10 +37,7 @@ methods
         addParameter(p, 'notes',[]);
         misc.parseSkipInvalidName(p, varargin);
         obj.notes = p.Results.notes;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.ScratchData') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.ScratchData')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -52,19 +49,18 @@ methods
     %% VALIDATORS
     
     function val = validate_data(obj, val)
-        val = types.util.checkDtype('data', 'any', val);
     end
     function val = validate_notes(obj, val)
         val = types.util.checkDtype('notes', 'char', val);
         types.util.validateShape('notes', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBData(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBData(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        writer.writeAttribute([fullpath '/notes'], obj.notes);
+        io.writeAttribute(fid, [fullpath '/notes'], obj.notes);
     end
 end
 

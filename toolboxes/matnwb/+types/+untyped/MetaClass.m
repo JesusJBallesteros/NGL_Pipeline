@@ -7,31 +7,27 @@ classdef MetaClass < handle & matlab.mixin.CustomDisplay
         REQUIRED containers.Map = containers.Map
     end
 
-    properties (Hidden, Dependent, Transient)
-        TypeName % Short name for data type class, i.e NWBFile
-    end
-
     methods
         function obj = MetaClass(varargin)
         end
     end
     
     methods (Access = private)
-        function refs = write_base(obj, writer, fullpath, refs)
+        function refs = write_base(obj, fid, fullpath, refs)
             if isa(obj, 'types.untyped.GroupClass')
-                writer.writeGroup(fullpath);
+                io.writeGroup(fid, fullpath);
                 return;
             end
             
             try
                 if isa(obj.data, 'types.untyped.DataStub')...
                         || isa(obj.data, 'types.untyped.DataPipe')
-                    refs = obj.data.export(writer, fullpath, refs);
+                    refs = obj.data.export(fid, fullpath, refs);
                 elseif istable(obj.data) || isstruct(obj.data) ||...
                         isa(obj.data, 'containers.Map')
-                    writer.writeValue(fullpath, obj.data, 'forceArray');
+                    io.writeCompound(fid, fullpath, obj.data);
                 else
-                    writer.writeValue(fullpath, obj.data, 'forceArray');
+                    io.writeDataset(fid, fullpath, obj.data, 'forceArray');
                 end
             catch ME
                 refs = obj.captureReferenceErrors(ME, fullpath, refs);
@@ -50,11 +46,10 @@ classdef MetaClass < handle & matlab.mixin.CustomDisplay
     end
     
     methods
-        function refs = export(obj, writer, fullpath, refs)
+        function refs = export(obj, fid, fullpath, refs)
             % throwErrorIfCustomConstraintUnfulfilled is intentionally placed 
             % before throwErrorIfMissingRequiredProps. 
             % See file.fillCustomConstraint
-            writer = io.backend.base.Writer.ensure(writer);
             obj.throwErrorIfCustomConstraintUnfulfilled(fullpath)
             obj.throwErrorIfMissingRequiredProps(fullpath)
             obj.metaClass_fullPath = fullpath;
@@ -70,23 +65,23 @@ classdef MetaClass < handle & matlab.mixin.CustomDisplay
             props = props(refProps);
             for i=1:length(props)
                 try
-                    io.getRefData(writer.FileId, props{i});
+                    io.getRefData(fid, props{i});
                 catch ME
                     refs = obj.captureReferenceErrors(ME, fullpath, refs);
                 end
             end
             
             refLen = length(refs);
-            refs = obj.write_base(writer, fullpath, refs);
+            refs = obj.write_base(fid, fullpath, refs);
             if refLen ~= length(refs)
                 return;
             end
             
             uuid = char(java.util.UUID.randomUUID().toString());
             if isa(obj, 'NwbFile')
-                writer.writeAttribute('/namespace', 'core');
-                writer.writeAttribute('/neurodata_type', 'NWBFile');
-                writer.writeAttribute('/object_id', uuid);
+                io.writeAttribute(fid, '/namespace', 'core');
+                io.writeAttribute(fid, '/neurodata_type', 'NWBFile');
+                io.writeAttribute(fid, '/object_id', uuid);
             else
                 namespacePath = [fullpath '/namespace'];
                 neuroTypePath = [fullpath '/neurodata_type'];
@@ -94,9 +89,9 @@ classdef MetaClass < handle & matlab.mixin.CustomDisplay
                 dotparts = split(class(obj), '.');
                 namespace = strrep(dotparts{2}, '_', '-');
                 classtype = dotparts{3};
-                writer.writeAttribute(namespacePath, namespace);
-                writer.writeAttribute(neuroTypePath, classtype);
-                writer.writeAttribute(uuidPath, uuid);
+                io.writeAttribute(fid, namespacePath, namespace);
+                io.writeAttribute(fid, neuroTypePath, classtype);
+                io.writeAttribute(fid, uuidPath, uuid);
             end
         end
         
@@ -146,13 +141,6 @@ classdef MetaClass < handle & matlab.mixin.CustomDisplay
         end
     end
     
-    methods % Set/get
-        function result = get.TypeName(obj)
-            classNameParts = strsplit( class(obj), '.');
-            result = classNameParts{end};
-        end
-    end 
-
     methods (Hidden)
         % Set of methods that should be publicly available, for example for
         % testing purposes, or other use cases where type inspection might
@@ -199,12 +187,10 @@ classdef MetaClass < handle & matlab.mixin.CustomDisplay
         function displayWarningIfMissingRequiredProps(obj)
             missingRequiredProps = obj.checkRequiredProps();
 
-            % Exception: 'file_create_date' & 'timestamps_reference_time' is 
-            % automatically added by the matnwb API on export,  so no need to 
-            % warn if they are missing.
+            % Exception: 'file_create_date' is automatically added by the 
+            % matnwb API on export,  so no need to warn if it is missing.
             if isa(obj, 'types.core.NWBFile')
-                missingRequiredProps = setdiff(missingRequiredProps, ...
-                    {'file_create_date', 'timestamps_reference_time'}, 'stable');
+                missingRequiredProps = setdiff(missingRequiredProps, 'file_create_date', 'stable');
             end
             
             % Exception: 'id' of DynamicTable is automatically assigned if not 
@@ -220,7 +206,7 @@ classdef MetaClass < handle & matlab.mixin.CustomDisplay
                 propertyListStr = obj.prettyPrintPropertyList(missingRequiredProps);
                 warning('NWB:RequiredPropertyMissing', ...
                     ['The following required properties are missing for ', ...
-                    'instance of type "%s":\n%s'], class(obj), propertyListStr)
+                    'instance for type "%s":\n%s'], class(obj), propertyListStr)
             end
         end
 
