@@ -31,8 +31,8 @@ function Deuteron2NWB(input, opt)
 % OUTPUT:
 %   <SavFileName>.nwb written to opt.FolderProcDataMat.
 %   Requires matNWB toolbox (bundled under toolboxes/matnwb/).
-%   YAML parsing requires MATLAB R2023b+; older versions proceed with
-%   minimal metadata and emit a warning.
+%   YAML metadata is read by readyaml() (functions/utils/readyaml.m),
+%   a pure-MATLAB parser with no version dependency.
 %
 % CALLS:
 %   NwbFile, types.core.*, types.hdmf_common.*, util.table2nwb, nwbExport
@@ -40,7 +40,7 @@ function Deuteron2NWB(input, opt)
 % SEE ALSO:
 %   intan2NWB_neuroconv.m, nwb_metadata_template.yaml
 %
-% Last modified 13.05.2026 (Jesus)
+% Last modified 15.05.2026 (Jesus)
 
 %% Skip guard — same 1 MB threshold as INTAN path
 nwbPath = fullfile(opt.FolderProcDataMat, [char(opt.SavFileName), '.nwb']);
@@ -70,12 +70,12 @@ yamlPath = fullfile(input.analysisCode, 'nwb_metadata.yaml');
 meta = struct();
 if isfile(yamlPath)
     try
-        meta = yamlread(yamlPath);   % requires R2023b+
+        meta = readyaml(yamlPath);   % requires external tool
         fprintf('- Metadata YAML loaded: %s\n', yamlPath);
-    catch
+    catch ME
         warning('NGL:yamlReadFailed', ...
-            ['yamlread() failed — requires MATLAB R2023b+. ', ...
-             'Proceeding with minimal NWB metadata.']);
+            'readyaml() could not parse %s: %s. Proceeding with minimal metadata.', ...
+            yamlPath, ME.message);
     end
 else
     warning('NGL:noMetaYaml', ...
@@ -85,10 +85,36 @@ end
 % Safe nested field accessor (returns default if any level is absent)
 getF = @(fields, def) safeField(meta, fields, def);
 
+%% Load channel map from analysisCode (optional — enriches electrode table)
+% The file is the same .mat used by Kilosort (opt.KSchanMapFile), expected
+% at fullfile(input.analysisCode, opt.KSchanMapFile).
+chanMapPath = '';
+if isfield(opt, 'KSchanMapFile') && ~isempty(opt.KSchanMapFile)
+    chanMapPath = fullfile(input.analysisCode, opt.KSchanMapFile);
+end
+useChanMap = false;
+if ~isempty(chanMapPath) && isfile(chanMapPath)
+    cm = load(chanMapPath, 'chanMap', 'connected', 'xcoords', 'ycoords', 'kcoords');
+    useChanMap = true;
+    fprintf('- Channel map loaded: %s\n', chanMapPath);
+else
+    if ~isempty(chanMapPath)
+        warning('NGL:noChanMap', ...
+            'Channel map not found at: %s. Using minimal electrode table.', chanMapPath);
+    end
+    % Minimal fallback so downstream code is path-uniform
+    cm.chanMap   = (1:nCh)';
+    cm.connected = true(nCh, 1);
+    cm.xcoords   = zeros(nCh, 1);
+    cm.ycoords   = ((0:nCh-1) * 50)';   % 50 µm linear placeholder
+    cm.kcoords   = ones(nCh, 1);
+end
+shankIDs = unique(cm.kcoords(:), 'sorted');
+nShanks  = numel(shankIDs);
+
 sessionDesc = getF({'NWBFile','session_description'}, ...
                    'Deuteron extracellular electrophysiology recording.');
 labName     = getF({'NWBFile','lab'},         'Neural Basis of Learning Lab');
-institution = getF({'NWBFile','institution'}, 'Ruhr-Universität Bochum');
 experimenter= getF({'NWBFile','experimenter'}, {'JDOE'});
 expDesc     = getF({'NWBFile','experiment_description'}, 'Free-moving animal');
 species     = getF({'Subject','species'}, 'Columba livia');
@@ -109,9 +135,8 @@ nwb = NwbFile( ...
     'identifier',             identifier, ...
     'session_start_time',     sessionStart, ...
     'file_create_date',       {datetime('now', 'TimeZone', 'local')}, ...
-    'lab',                    labName, ...
-    'institution',            institution, ...
-    'experiment_description', expDesc);
+    'general_lab',                    labName, ...
+    'general_experiment_description', expDesc);
 
 if ~isempty(experimenter)
     if ischar(experimenter), experimenter = {experimenter}; end
@@ -132,22 +157,49 @@ nwb.general_devices.set('Deuteron', types.core.Device( ...
     'description', ...
     'Deuteron Technologies Neurolog miniature wireless logger. Recorded at 32 kHz.'));
 
-%% ElectrodeGroup
-nwb.general_extracellular_ephys.set('ElectrodeGroup0', types.core.ElectrodeGroup( ...
-    'description', 'All recorded channels.', ...
-    'location',    egLocation, ...
-    'device',      types.untyped.SoftLink('/general/devices/Deuteron')));
+%% ElectrodeGroups — one per shank (kcoords group) in the channel map
+% Single-shank probes produce one group ('shank0'); multi-shank probes
+% produce shank0, shank1, … matching unique kcoords values.
+for s = 1:nShanks
+    egName = sprintf('shank%d', s - 1);
+    nwb.general_extracellular_ephys.set(egName, types.core.ElectrodeGroup( ...
+        'description', sprintf('Channels on shank %d.', shankIDs(s)), ...
+        'location',    egLocation, ...
+        'device',      types.untyped.SoftLink('/general/devices/Deuteron')));
+end
 
-%% Electrode table (one row per channel, minimal columns)
-egOV = types.untyped.ObjectView('/general/extracellular_ephys/ElectrodeGroup0');
-tbl  = table( ...
-    (0:nCh-1)', ...
-    repmat({egLocation},       nCh, 1), ...
-    repmat({egOV},             nCh, 1), ...
-    repmat({'ElectrodeGroup0'}, nCh, 1), ...
-    'VariableNames', {'id', 'location', 'group', 'group_name'});
+%% Electrode table — one row per channel with geometry from chanMap
+% Columns id, location, group, group_name are required by NWB.
+% rel_x / rel_y are probe-relative coordinates in µm (from xcoords/ycoords).
+% shank_id mirrors kcoords; connected flags non-noisy channels.
+% egOVs must be an object array (not a cell array) — matNWB's io.mapData2H5
+% rejects cell arrays containing non-char content.  Indexed assignment into
+% an uninitialized variable builds the ObjectView array element by element.
+egNames = cell(nCh, 1);
+for c = 1:nCh
+    sIdx          = find(shankIDs == cm.kcoords(c), 1);
+    egN           = sprintf('shank%d', sIdx - 1);
+    egOVs(c, 1)   = types.untyped.ObjectView( ...           
+                        sprintf('/general/extracellular_ephys/%s', egN));
+    egNames{c}    = egN;
+end
+
+tbl = table( ...
+    double(cm.chanMap(:) - 1), ...       % 0-indexed physical channel id
+    repmat({egLocation}, nCh, 1), ...    % brain region label
+    egOVs, ...                           % ObjectView to ElectrodeGroup
+    egNames, ...                         % ElectrodeGroup name string
+    double(cm.xcoords(:)), ...           % lateral position, µm (probe-relative)
+    double(cm.ycoords(:)), ...           % depth position,  µm (probe-relative)
+    double(cm.kcoords(:)), ...           % shank index
+    logical(cm.connected(:)), ...        % false = noisy / dead channel
+    'VariableNames', ...
+        {'id','location','group','group_name','rel_x','rel_y','shank_id','connected'});
+
 nwb.general_extracellular_ephys_electrodes = util.table2nwb(tbl, ...
-    'Electrode table for Deuteron recording.');
+    ['Electrode table for Deuteron recording. ' ...
+     'rel_x/rel_y in µm (probe-relative). ' ...
+     'connected=false marks noisy or dead channels.']);
 
 %% ElectrodeTableRegion (all channels)
 etr = types.hdmf_common.DynamicTableRegion( ...
@@ -181,6 +233,7 @@ disp('- Temporary _raw.mat removed.')
 
 end % main function
 
+% HELPER FUNCTIONS
 function val = safeField(s, fields, default)
 % SAFEFIELD  Return nested struct field; return default if any level absent.
     val = default;
@@ -197,13 +250,14 @@ function val = safeField(s, fields, default)
 end
 
 function t = parseSessionDate(folderName)
-% PARSESESSIONDATE  Parse DDMMYYYY from raw-data folder name.
+% PARSESESSIONDATE  Parse YYYYMMDD from raw-data folder name.
+%   Different from INTAN, but INTAN is the one that will need to be check
 %   Returns a datetime with Europe/Berlin timezone.
 %   Falls back to current time with a warning if parsing fails.
     try
-        day   = str2double(folderName(1:2));
-        month = str2double(folderName(3:4));
-        year  = str2double(folderName(5:8));
+        day   = str2double(folderName(7:8));
+        month = str2double(folderName(5:6));
+        year  = str2double(folderName(1:4));
         t = datetime(year, month, day, 0, 0, 0, 'TimeZone', 'Europe/Berlin');
         fprintf('- Session start time parsed from folder ''%s'': %s\n', ...
             folderName, char(t));
