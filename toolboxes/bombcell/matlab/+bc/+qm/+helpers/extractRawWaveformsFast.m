@@ -118,7 +118,7 @@ if param.extractRaw
                     tmpspkmap(:, :, spkId) = smoothdata(double(tmpspkmap(:, :, spkId)), 1, 'gaussian', 5);
                     tmpspkmap(:, :, spkId) = tmpspkmap(:, :, spkId) - mean(tmpspkmap(1:param.waveformBaselineNoiseWindow, :, spkId), 1);
                 end
-                tmpspkmap = arrayfun(@(X) nanmedian(tmpspkmap(:, :, (X - 1)*floor(size(tmpspkmap, 3)/2)+1:X*floor(size(tmpspkmap, 3)/2)), 3), 1:2, 'Uni', 0);
+                tmpspkmap = arrayfun(@(X) median(tmpspkmap(:, :, (X - 1)*floor(size(tmpspkmap, 3)/2)+1:X*floor(size(tmpspkmap, 3)/2)), 3, 'omitnan'), 1:2, 'Uni', 0);
                 tmpspkmap = cat(3, tmpspkmap{:});
                 writeNPY(tmpspkmap, fullfile(savePath, 'RawWaveforms', ['Unit', num2str(emptyWaveforms(iCluster)-1), '_RawSpikes.npy']))
             end

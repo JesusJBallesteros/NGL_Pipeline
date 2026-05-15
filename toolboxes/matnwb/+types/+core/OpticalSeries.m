@@ -81,10 +81,7 @@ methods
         obj.distance = p.Results.distance;
         obj.field_of_view = p.Results.field_of_view;
         obj.orientation = p.Results.orientation;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.OpticalSeries') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.OpticalSeries')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -118,30 +115,30 @@ methods
         types.util.validateShape('orientation', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.ImageSeries(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.ImageSeries(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if ~isempty(obj.distance)
             if startsWith(class(obj.distance), 'types.untyped.')
-                refs = obj.distance.export(writer, [fullpath '/distance'], refs);
+                refs = obj.distance.export(fid, [fullpath '/distance'], refs);
             elseif ~isempty(obj.distance)
-                writer.writeValue([fullpath '/distance'], obj.distance);
+                io.writeDataset(fid, [fullpath '/distance'], obj.distance);
             end
         end
         if ~isempty(obj.field_of_view)
             if startsWith(class(obj.field_of_view), 'types.untyped.')
-                refs = obj.field_of_view.export(writer, [fullpath '/field_of_view'], refs);
+                refs = obj.field_of_view.export(fid, [fullpath '/field_of_view'], refs);
             elseif ~isempty(obj.field_of_view)
-                writer.writeValue([fullpath '/field_of_view'], obj.field_of_view, 'forceArray');
+                io.writeDataset(fid, [fullpath '/field_of_view'], obj.field_of_view, 'forceArray');
             end
         end
         if ~isempty(obj.orientation)
             if startsWith(class(obj.orientation), 'types.untyped.')
-                refs = obj.orientation.export(writer, [fullpath '/orientation'], refs);
+                refs = obj.orientation.export(fid, [fullpath '/orientation'], refs);
             elseif ~isempty(obj.orientation)
-                writer.writeValue([fullpath '/orientation'], obj.orientation);
+                io.writeDataset(fid, [fullpath '/orientation'], obj.orientation);
             end
         end
     end

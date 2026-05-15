@@ -2,7 +2,7 @@ classdef SpikeEventSeries < types.core.ElectricalSeries & types.untyped.GroupCla
 % SPIKEEVENTSERIES - Stores snapshots/snippets of recorded spike events (i.e., threshold crossings). This may also be raw data, as reported by ephys hardware. If so, the TimeSeries::description field should describe how events were detected. All events span the same recording channels and store snapshots of equal duration. TimeSeries::data array structure: [num events] [num channels] [num samples] (or [num events] [num samples] for single electrode).
 %
 % Required Properties:
-%  data, electrodes, timestamps
+%  data, electrodes
 
 
 
@@ -58,10 +58,7 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.SpikeEventSeries') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.SpikeEventSeries')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -100,8 +97,8 @@ methods
         end
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.ElectricalSeries(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.ElectricalSeries(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end

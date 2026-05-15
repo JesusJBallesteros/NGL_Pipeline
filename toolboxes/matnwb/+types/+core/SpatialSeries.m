@@ -62,10 +62,7 @@ methods
         addParameter(p, 'reference_frame',[]);
         misc.parseSkipInvalidName(p, varargin);
         obj.reference_frame = p.Results.reference_frame;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.SpatialSeries') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.SpatialSeries')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -89,16 +86,16 @@ methods
         types.util.validateShape('reference_frame', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.TimeSeries(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.TimeSeries(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if ~isempty(obj.reference_frame)
             if startsWith(class(obj.reference_frame), 'types.untyped.')
-                refs = obj.reference_frame.export(writer, [fullpath '/reference_frame'], refs);
+                refs = obj.reference_frame.export(fid, [fullpath '/reference_frame'], refs);
             elseif ~isempty(obj.reference_frame)
-                writer.writeValue([fullpath '/reference_frame'], obj.reference_frame);
+                io.writeDataset(fid, [fullpath '/reference_frame'], obj.reference_frame);
             end
         end
     end

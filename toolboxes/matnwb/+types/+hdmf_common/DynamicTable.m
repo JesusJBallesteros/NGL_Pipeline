@@ -52,13 +52,9 @@ methods
         obj.colnames = p.Results.colnames;
         obj.description = p.Results.description;
         obj.id = p.Results.id;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.hdmf_common.DynamicTable') %#ok<STISA>
+        if strcmp(class(obj), 'types.hdmf_common.DynamicTable')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-            types.util.dynamictable.checkConfig(obj);
         end
     end
     %% SETTERS
@@ -79,42 +75,30 @@ methods
     function val = validate_colnames(obj, val)
         val = types.util.checkDtype('colnames', 'char', val);
         types.util.validateShape('colnames', {[Inf]}, val)
-        val = types.util.dynamictable.validateColnames(val);
     end
     function val = validate_description(obj, val)
         val = types.util.checkDtype('description', 'char', val);
         types.util.validateShape('description', {[1]}, val)
     end
     function val = validate_id(obj, val)
-        types.util.checkType('id', 'types.hdmf_common.ElementIdentifiers', val);
-        if ~isempty(val)
-            [val, originalVal] = types.util.unwrapValue(val);
-            val = types.util.checkDtype('id', 'int8', val);
-            types.util.validateShape('id', {[Inf]}, val)
-            val = types.util.rewrapValue(val, originalVal);
-        end
+        val = types.util.checkDtype('id', 'types.hdmf_common.ElementIdentifiers', val);
     end
     function val = validate_vectordata(obj, val)
         constrained = { 'types.hdmf_common.VectorData' };
         types.util.checkSet('vectordata', struct(), constrained, val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.hdmf_common.Container(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.hdmf_common.Container(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        writer.writeAttribute([fullpath '/colnames'], obj.colnames, 'forceArray');
-        writer.writeAttribute([fullpath '/description'], obj.description);
-        refs = obj.id.export(writer, [fullpath '/id'], refs);
+        io.writeAttribute(fid, [fullpath '/colnames'], obj.colnames, 'forceArray');
+        io.writeAttribute(fid, [fullpath '/description'], obj.description);
+        refs = obj.id.export(fid, [fullpath '/id'], refs);
         if ~isempty(obj.vectordata)
-            refs = obj.vectordata.export(writer, fullpath, refs);
+            refs = obj.vectordata.export(fid, fullpath, refs);
         end
-    end
-    %% CUSTOM CONSTRAINTS
-    function checkCustomConstraint(obj)
-        checkCustomConstraint@types.untyped.MetaClass(obj)
-        types.util.dynamictable.checkConfig(obj)
     end
     %% TABLE METHODS
     function addRow(obj, varargin)

@@ -35,7 +35,7 @@ function addVarargRow(DynamicTable, varargin)
         rv = p.Results.(rn);
 
         if isKey(TypeMap, rn)
-            rv = validateType(TypeMap(rn), rv, rn);
+            validateType(TypeMap(rn), rv);
         end
 
         types.util.dynamictable.addRawData(DynamicTable, rn, rv);
@@ -56,16 +56,16 @@ function addVarargRow(DynamicTable, varargin)
     end
 end
 
-function rv = validateType(TypeStruct, rv, rowName)
+function validateType(TypeStruct, rv)
     if strcmp(TypeStruct.type, 'cellstr')
         assert(iscellstr(rv) || (ischar(rv) && (isempty(rv) || 1 == size(rv, 1))),...
             'NWB:DynamicTable:AddRow:InvalidType',...
             'Type of value must be a cell array of character vectors or a scalar character');
     elseif iscell(rv)
         for iVal = 1:length(rv)
-            validateType(TypeStruct, rv{iVal}, rowName);
+            validateType(TypeStruct, rv{iVal});
         end
     else
-        rv = types.util.checkDtype(rowName, TypeStruct.type, rv);
+        validateattributes(rv, {TypeStruct.type}, {});
     end
 end

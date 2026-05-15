@@ -78,10 +78,7 @@ methods
         obj.resistance = p.Results.resistance;
         obj.seal = p.Results.seal;
         obj.slice = p.Results.slice;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.IntracellularElectrode') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.IntracellularElectrode')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -125,7 +122,16 @@ methods
         types.util.validateShape('description', {[1]}, val)
     end
     function val = validate_device(obj, val)
-        val = types.util.validateSoftLink('device', val, 'types.core.Device');
+        if isa(val, 'types.untyped.SoftLink')
+            if isprop(val, 'target')
+                types.util.checkDtype('device', 'types.core.Device', val.target);
+            end
+        else
+            val = types.util.checkDtype('device', 'types.core.Device', val);
+            if ~isempty(val)
+                val = types.untyped.SoftLink(val);
+            end
+        end
     end
     function val = validate_filtering(obj, val)
         val = types.util.checkDtype('filtering', 'char', val);
@@ -152,64 +158,64 @@ methods
         types.util.validateShape('slice', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBContainer(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBContainer(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if ~isempty(obj.cell_id)
             if startsWith(class(obj.cell_id), 'types.untyped.')
-                refs = obj.cell_id.export(writer, [fullpath '/cell_id'], refs);
+                refs = obj.cell_id.export(fid, [fullpath '/cell_id'], refs);
             elseif ~isempty(obj.cell_id)
-                writer.writeValue([fullpath '/cell_id'], obj.cell_id);
+                io.writeDataset(fid, [fullpath '/cell_id'], obj.cell_id);
             end
         end
         if startsWith(class(obj.description), 'types.untyped.')
-            refs = obj.description.export(writer, [fullpath '/description'], refs);
+            refs = obj.description.export(fid, [fullpath '/description'], refs);
         elseif ~isempty(obj.description)
-            writer.writeValue([fullpath '/description'], obj.description);
+            io.writeDataset(fid, [fullpath '/description'], obj.description);
         end
-        refs = obj.device.export(writer, [fullpath '/device'], refs);
+        refs = obj.device.export(fid, [fullpath '/device'], refs);
         if ~isempty(obj.filtering)
             if startsWith(class(obj.filtering), 'types.untyped.')
-                refs = obj.filtering.export(writer, [fullpath '/filtering'], refs);
+                refs = obj.filtering.export(fid, [fullpath '/filtering'], refs);
             elseif ~isempty(obj.filtering)
-                writer.writeValue([fullpath '/filtering'], obj.filtering);
+                io.writeDataset(fid, [fullpath '/filtering'], obj.filtering);
             end
         end
         if ~isempty(obj.initial_access_resistance)
             if startsWith(class(obj.initial_access_resistance), 'types.untyped.')
-                refs = obj.initial_access_resistance.export(writer, [fullpath '/initial_access_resistance'], refs);
+                refs = obj.initial_access_resistance.export(fid, [fullpath '/initial_access_resistance'], refs);
             elseif ~isempty(obj.initial_access_resistance)
-                writer.writeValue([fullpath '/initial_access_resistance'], obj.initial_access_resistance);
+                io.writeDataset(fid, [fullpath '/initial_access_resistance'], obj.initial_access_resistance);
             end
         end
         if ~isempty(obj.location)
             if startsWith(class(obj.location), 'types.untyped.')
-                refs = obj.location.export(writer, [fullpath '/location'], refs);
+                refs = obj.location.export(fid, [fullpath '/location'], refs);
             elseif ~isempty(obj.location)
-                writer.writeValue([fullpath '/location'], obj.location);
+                io.writeDataset(fid, [fullpath '/location'], obj.location);
             end
         end
         if ~isempty(obj.resistance)
             if startsWith(class(obj.resistance), 'types.untyped.')
-                refs = obj.resistance.export(writer, [fullpath '/resistance'], refs);
+                refs = obj.resistance.export(fid, [fullpath '/resistance'], refs);
             elseif ~isempty(obj.resistance)
-                writer.writeValue([fullpath '/resistance'], obj.resistance);
+                io.writeDataset(fid, [fullpath '/resistance'], obj.resistance);
             end
         end
         if ~isempty(obj.seal)
             if startsWith(class(obj.seal), 'types.untyped.')
-                refs = obj.seal.export(writer, [fullpath '/seal'], refs);
+                refs = obj.seal.export(fid, [fullpath '/seal'], refs);
             elseif ~isempty(obj.seal)
-                writer.writeValue([fullpath '/seal'], obj.seal);
+                io.writeDataset(fid, [fullpath '/seal'], obj.seal);
             end
         end
         if ~isempty(obj.slice)
             if startsWith(class(obj.slice), 'types.untyped.')
-                refs = obj.slice.export(writer, [fullpath '/slice'], refs);
+                refs = obj.slice.export(fid, [fullpath '/slice'], refs);
             elseif ~isempty(obj.slice)
-                writer.writeValue([fullpath '/slice'], obj.slice);
+                io.writeDataset(fid, [fullpath '/slice'], obj.slice);
             end
         end
     end

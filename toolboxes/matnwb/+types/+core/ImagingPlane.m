@@ -1,4 +1,4 @@
-classdef ImagingPlane < types.core.NWBContainer & types.untyped.GroupClass & matnwb.mixin.HasUnnamedGroups
+classdef ImagingPlane < types.core.NWBContainer & types.untyped.GroupClass
 % IMAGINGPLANE - An imaging plane and its metadata.
 %
 % Required Properties:
@@ -25,9 +25,6 @@ properties
     origin_coords; %  (single) Physical location of the first element of the imaging plane (0, 0) for 2-D data or (0, 0, 0) for 3-D data. See also reference_frame for what the physical location is relative to (e.g., bregma).
     origin_coords_unit = "meters"; %  (char) Measurement units for origin_coords. The default value is 'meters'.
     reference_frame; %  (char) Describes reference frame of origin_coords and grid_spacing. For example, this can be a text description of the anatomical location and orientation of the grid defined by origin_coords and grid_spacing or the vectors needed to transform or rotate the grid to a common anatomical axis (e.g., AP/DV/ML). This field is necessary to interpret origin_coords and grid_spacing. If origin_coords and grid_spacing are not present, then this field is not required. For example, if the microscope takes 10 x 10 x 2 images, where the first value of the data matrix (index (0, 0, 0)) corresponds to (-1.2, -0.6, -2) mm relative to bregma, the spacing between pixels is 0.2 mm in x, 0.2 mm in y and 0.5 mm in z, and larger numbers in x means more anterior, larger numbers in y means more rightward, and larger numbers in z means more ventral, then enter the following -- origin_coords = (-1.2, -0.6, -2) grid_spacing = (0.2, 0.2, 0.5) reference_frame = "Origin coordinates are relative to bregma. First dimension corresponds to anterior-posterior axis (larger index = more anterior). Second dimension corresponds to medial-lateral axis (larger index = more rightward). Third dimension corresponds to dorsal-ventral axis (larger index = more ventral)."
-end
-properties (Access = protected)
-    GroupPropertyNames = {'opticalchannel'}
 end
 
 methods
@@ -111,13 +108,9 @@ methods
         obj.origin_coords = p.Results.origin_coords;
         obj.origin_coords_unit = p.Results.origin_coords_unit;
         obj.reference_frame = p.Results.reference_frame;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.ImagingPlane') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.ImagingPlane')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-            obj.setupHasUnnamedGroupsMixin();
         end
     end
     %% SETTERS
@@ -197,7 +190,16 @@ methods
         types.util.validateShape('description', {[1]}, val)
     end
     function val = validate_device(obj, val)
-        val = types.util.validateSoftLink('device', val, 'types.core.Device');
+        if isa(val, 'types.untyped.SoftLink')
+            if isprop(val, 'target')
+                types.util.checkDtype('device', 'types.core.Device', val.target);
+            end
+        else
+            val = types.util.checkDtype('device', 'types.core.Device', val);
+            if ~isempty(val)
+                val = types.untyped.SoftLink(val);
+            end
+        end
     end
     function val = validate_excitation_lambda(obj, val)
         val = types.util.checkDtype('excitation_lambda', 'single', val);
@@ -253,33 +255,33 @@ methods
         types.util.validateShape('reference_frame', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBContainer(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBContainer(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if ~isempty(obj.description)
             if startsWith(class(obj.description), 'types.untyped.')
-                refs = obj.description.export(writer, [fullpath '/description'], refs);
+                refs = obj.description.export(fid, [fullpath '/description'], refs);
             elseif ~isempty(obj.description)
-                writer.writeValue([fullpath '/description'], obj.description);
+                io.writeDataset(fid, [fullpath '/description'], obj.description);
             end
         end
-        refs = obj.device.export(writer, [fullpath '/device'], refs);
+        refs = obj.device.export(fid, [fullpath '/device'], refs);
         if startsWith(class(obj.excitation_lambda), 'types.untyped.')
-            refs = obj.excitation_lambda.export(writer, [fullpath '/excitation_lambda'], refs);
+            refs = obj.excitation_lambda.export(fid, [fullpath '/excitation_lambda'], refs);
         elseif ~isempty(obj.excitation_lambda)
-            writer.writeValue([fullpath '/excitation_lambda'], obj.excitation_lambda);
+            io.writeDataset(fid, [fullpath '/excitation_lambda'], obj.excitation_lambda);
         end
         if ~isempty(obj.grid_spacing)
             if startsWith(class(obj.grid_spacing), 'types.untyped.')
-                refs = obj.grid_spacing.export(writer, [fullpath '/grid_spacing'], refs);
+                refs = obj.grid_spacing.export(fid, [fullpath '/grid_spacing'], refs);
             elseif ~isempty(obj.grid_spacing)
-                writer.writeValue([fullpath '/grid_spacing'], obj.grid_spacing, 'forceArray');
+                io.writeDataset(fid, [fullpath '/grid_spacing'], obj.grid_spacing, 'forceArray');
             end
         end
         if ~isempty(obj.grid_spacing) && ~isa(obj.grid_spacing, 'types.untyped.SoftLink') && ~isa(obj.grid_spacing, 'types.untyped.ExternalLink')
-            writer.writeAttribute([fullpath '/grid_spacing/unit'], obj.grid_spacing_unit);
+            io.writeAttribute(fid, [fullpath '/grid_spacing/unit'], obj.grid_spacing_unit);
         elseif isempty(obj.grid_spacing) && ~isempty(obj.grid_spacing_unit)
             obj.warnIfPropertyAttributeNotExported('grid_spacing_unit', 'grid_spacing', fullpath)
         end
@@ -288,44 +290,44 @@ methods
         end
         if ~isempty(obj.imaging_rate)
             if startsWith(class(obj.imaging_rate), 'types.untyped.')
-                refs = obj.imaging_rate.export(writer, [fullpath '/imaging_rate'], refs);
+                refs = obj.imaging_rate.export(fid, [fullpath '/imaging_rate'], refs);
             elseif ~isempty(obj.imaging_rate)
-                writer.writeValue([fullpath '/imaging_rate'], obj.imaging_rate);
+                io.writeDataset(fid, [fullpath '/imaging_rate'], obj.imaging_rate);
             end
         end
         if startsWith(class(obj.indicator), 'types.untyped.')
-            refs = obj.indicator.export(writer, [fullpath '/indicator'], refs);
+            refs = obj.indicator.export(fid, [fullpath '/indicator'], refs);
         elseif ~isempty(obj.indicator)
-            writer.writeValue([fullpath '/indicator'], obj.indicator);
+            io.writeDataset(fid, [fullpath '/indicator'], obj.indicator);
         end
         if startsWith(class(obj.location), 'types.untyped.')
-            refs = obj.location.export(writer, [fullpath '/location'], refs);
+            refs = obj.location.export(fid, [fullpath '/location'], refs);
         elseif ~isempty(obj.location)
-            writer.writeValue([fullpath '/location'], obj.location);
+            io.writeDataset(fid, [fullpath '/location'], obj.location);
         end
         if ~isempty(obj.manifold)
             if startsWith(class(obj.manifold), 'types.untyped.')
-                refs = obj.manifold.export(writer, [fullpath '/manifold'], refs);
+                refs = obj.manifold.export(fid, [fullpath '/manifold'], refs);
             elseif ~isempty(obj.manifold)
-                writer.writeValue([fullpath '/manifold'], obj.manifold, 'forceArray');
+                io.writeDataset(fid, [fullpath '/manifold'], obj.manifold, 'forceArray');
             end
         end
         if ~isempty(obj.manifold) && ~isa(obj.manifold, 'types.untyped.SoftLink') && ~isa(obj.manifold, 'types.untyped.ExternalLink') && ~isempty(obj.manifold_conversion)
-            writer.writeAttribute([fullpath '/manifold/conversion'], obj.manifold_conversion);
+            io.writeAttribute(fid, [fullpath '/manifold/conversion'], obj.manifold_conversion);
         end
         if ~isempty(obj.manifold) && ~isa(obj.manifold, 'types.untyped.SoftLink') && ~isa(obj.manifold, 'types.untyped.ExternalLink') && ~isempty(obj.manifold_unit)
-            writer.writeAttribute([fullpath '/manifold/unit'], obj.manifold_unit);
+            io.writeAttribute(fid, [fullpath '/manifold/unit'], obj.manifold_unit);
         end
-        refs = obj.opticalchannel.export(writer, fullpath, refs);
+        refs = obj.opticalchannel.export(fid, fullpath, refs);
         if ~isempty(obj.origin_coords)
             if startsWith(class(obj.origin_coords), 'types.untyped.')
-                refs = obj.origin_coords.export(writer, [fullpath '/origin_coords'], refs);
+                refs = obj.origin_coords.export(fid, [fullpath '/origin_coords'], refs);
             elseif ~isempty(obj.origin_coords)
-                writer.writeValue([fullpath '/origin_coords'], obj.origin_coords, 'forceArray');
+                io.writeDataset(fid, [fullpath '/origin_coords'], obj.origin_coords, 'forceArray');
             end
         end
         if ~isempty(obj.origin_coords) && ~isa(obj.origin_coords, 'types.untyped.SoftLink') && ~isa(obj.origin_coords, 'types.untyped.ExternalLink')
-            writer.writeAttribute([fullpath '/origin_coords/unit'], obj.origin_coords_unit);
+            io.writeAttribute(fid, [fullpath '/origin_coords/unit'], obj.origin_coords_unit);
         elseif isempty(obj.origin_coords) && ~isempty(obj.origin_coords_unit)
             obj.warnIfPropertyAttributeNotExported('origin_coords_unit', 'origin_coords', fullpath)
         end
@@ -334,9 +336,9 @@ methods
         end
         if ~isempty(obj.reference_frame)
             if startsWith(class(obj.reference_frame), 'types.untyped.')
-                refs = obj.reference_frame.export(writer, [fullpath '/reference_frame'], refs);
+                refs = obj.reference_frame.export(fid, [fullpath '/reference_frame'], refs);
             elseif ~isempty(obj.reference_frame)
-                writer.writeValue([fullpath '/reference_frame'], obj.reference_frame);
+                io.writeDataset(fid, [fullpath '/reference_frame'], obj.reference_frame);
             end
         end
     end

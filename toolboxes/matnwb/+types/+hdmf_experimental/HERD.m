@@ -60,10 +60,7 @@ methods
         obj.keys = p.Results.keys;
         obj.object_keys = p.Results.object_keys;
         obj.objects = p.Results.objects;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.hdmf_experimental.HERD') %#ok<STISA>
+        if strcmp(class(obj), 'types.hdmf_experimental.HERD')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -90,114 +87,35 @@ methods
     %% VALIDATORS
     
     function val = validate_entities(obj, val)
-        types.util.checkType('entities', 'types.hdmf_common.Data', val);
-        if ~isempty(val)
-            [val, originalVal] = types.util.unwrapValue(val);
-            if isempty(val)
-                % skip validation for empty values
-            else
-                vprops = struct();
-                vprops.entity_id = 'char';
-                vprops.entity_uri = 'char';
-                val = types.util.checkDtype('entities', vprops, val);
-            end
-            types.util.validateShape('entities', {[Inf]}, val)
-            val = types.util.rewrapValue(val, originalVal);
-        end
+        val = types.util.checkDtype('entities', 'types.hdmf_common.Data', val);
     end
     function val = validate_entity_keys(obj, val)
-        types.util.checkType('entity_keys', 'types.hdmf_common.Data', val);
-        if ~isempty(val)
-            [val, originalVal] = types.util.unwrapValue(val);
-            if isempty(val)
-                % skip validation for empty values
-            else
-                vprops = struct();
-                vprops.entities_idx = 'uint8';
-                vprops.keys_idx = 'uint8';
-                val = types.util.checkDtype('entity_keys', vprops, val);
-            end
-            types.util.validateShape('entity_keys', {[Inf]}, val)
-            val = types.util.rewrapValue(val, originalVal);
-        end
+        val = types.util.checkDtype('entity_keys', 'types.hdmf_common.Data', val);
     end
     function val = validate_files(obj, val)
-        types.util.checkType('files', 'types.hdmf_common.Data', val);
-        if ~isempty(val)
-            [val, originalVal] = types.util.unwrapValue(val);
-            if isempty(val)
-                % skip validation for empty values
-            else
-                vprops = struct();
-                vprops.file_object_id = 'char';
-                val = types.util.checkDtype('files', vprops, val);
-            end
-            types.util.validateShape('files', {[Inf]}, val)
-            val = types.util.rewrapValue(val, originalVal);
-        end
+        val = types.util.checkDtype('files', 'types.hdmf_common.Data', val);
     end
     function val = validate_keys(obj, val)
-        types.util.checkType('keys', 'types.hdmf_common.Data', val);
-        if ~isempty(val)
-            [val, originalVal] = types.util.unwrapValue(val);
-            if isempty(val)
-                % skip validation for empty values
-            else
-                vprops = struct();
-                vprops.key = 'char';
-                val = types.util.checkDtype('keys', vprops, val);
-            end
-            types.util.validateShape('keys', {[Inf]}, val)
-            val = types.util.rewrapValue(val, originalVal);
-        end
+        val = types.util.checkDtype('keys', 'types.hdmf_common.Data', val);
     end
     function val = validate_object_keys(obj, val)
-        types.util.checkType('object_keys', 'types.hdmf_common.Data', val);
-        if ~isempty(val)
-            [val, originalVal] = types.util.unwrapValue(val);
-            if isempty(val)
-                % skip validation for empty values
-            else
-                vprops = struct();
-                vprops.objects_idx = 'uint8';
-                vprops.keys_idx = 'uint8';
-                val = types.util.checkDtype('object_keys', vprops, val);
-            end
-            types.util.validateShape('object_keys', {[Inf]}, val)
-            val = types.util.rewrapValue(val, originalVal);
-        end
+        val = types.util.checkDtype('object_keys', 'types.hdmf_common.Data', val);
     end
     function val = validate_objects(obj, val)
-        types.util.checkType('objects', 'types.hdmf_common.Data', val);
-        if ~isempty(val)
-            [val, originalVal] = types.util.unwrapValue(val);
-            if isempty(val)
-                % skip validation for empty values
-            else
-                vprops = struct();
-                vprops.files_idx = 'uint8';
-                vprops.object_id = 'char';
-                vprops.object_type = 'char';
-                vprops.relative_path = 'char';
-                vprops.field = 'char';
-                val = types.util.checkDtype('objects', vprops, val);
-            end
-            types.util.validateShape('objects', {[Inf]}, val)
-            val = types.util.rewrapValue(val, originalVal);
-        end
+        val = types.util.checkDtype('objects', 'types.hdmf_common.Data', val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.hdmf_common.Container(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.hdmf_common.Container(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.entities.export(writer, [fullpath '/entities'], refs);
-        refs = obj.entity_keys.export(writer, [fullpath '/entity_keys'], refs);
-        refs = obj.files.export(writer, [fullpath '/files'], refs);
-        refs = obj.keys.export(writer, [fullpath '/keys'], refs);
-        refs = obj.object_keys.export(writer, [fullpath '/object_keys'], refs);
-        refs = obj.objects.export(writer, [fullpath '/objects'], refs);
+        refs = obj.entities.export(fid, [fullpath '/entities'], refs);
+        refs = obj.entity_keys.export(fid, [fullpath '/entity_keys'], refs);
+        refs = obj.files.export(fid, [fullpath '/files'], refs);
+        refs = obj.keys.export(fid, [fullpath '/keys'], refs);
+        refs = obj.object_keys.export(fid, [fullpath '/object_keys'], refs);
+        refs = obj.objects.export(fid, [fullpath '/objects'], refs);
     end
 end
 

@@ -8,11 +8,9 @@ classdef Attribute
         dtype; %type of value
         dependent; %set externally.  If the attribute is actually dependent on an untyped dataset/group
         dependent_fullname; %set externally. This is the full name, including names of potential parent groups separated by underscore. A value will only be present if it would differ from dependent.
-        promoted_to_container = false; % set externally when promoted from a typed dataset onto the containing class API
         scalar; %if the value is scalar or an array
         dimnames;
         shape;
-        isConstrainedSet;
     end
     
     methods
@@ -26,12 +24,9 @@ classdef Attribute
             obj.dtype = '';
             obj.dependent = '';
             obj.dependent_fullname = '';
-            obj.promoted_to_container = false;
             obj.scalar = true;
             obj.shape = {};
             obj.dimnames = {};
-            obj.isConstrainedSet = false; % Always false for attributes
-
             
             if nargin < 1
                 return;

@@ -1,4 +1,4 @@
-classdef SimpleMultiContainer < types.hdmf_common.Container & types.untyped.GroupClass & matnwb.mixin.HasUnnamedGroups
+classdef SimpleMultiContainer < types.hdmf_common.Container & types.untyped.GroupClass
 % SIMPLEMULTICONTAINER - A simple Container for holding onto multiple containers.
 %
 % Required Properties:
@@ -9,9 +9,6 @@ classdef SimpleMultiContainer < types.hdmf_common.Container & types.untyped.Grou
 properties
     container; %  (Container) Container objects held within this SimpleMultiContainer.
     data; %  (Data) Data objects held within this SimpleMultiContainer.
-end
-properties (Access = protected)
-    GroupPropertyNames = {'container'}
 end
 
 methods
@@ -42,13 +39,9 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.hdmf_common.SimpleMultiContainer') %#ok<STISA>
+        if strcmp(class(obj), 'types.hdmf_common.SimpleMultiContainer')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-            obj.setupHasUnnamedGroupsMixin();
         end
     end
     %% SETTERS
@@ -70,16 +63,16 @@ methods
         types.util.checkSet('data', struct(), constrained, val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.hdmf_common.Container(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.hdmf_common.Container(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if ~isempty(obj.container)
-            refs = obj.container.export(writer, fullpath, refs);
+            refs = obj.container.export(fid, fullpath, refs);
         end
         if ~isempty(obj.data)
-            refs = obj.data.export(writer, fullpath, refs);
+            refs = obj.data.export(fid, fullpath, refs);
         end
     end
 end

@@ -26,7 +26,11 @@ classdef (Abstract, SharedTestFixtures = {tests.fixtures.GenerateCoreFixture}) .
 
             import tests.fixtures.ExtensionGenerationFixture
 
-            typesOutputFolder = testCase.getTypesOutputFolder();
+            F = testCase.getSharedTestFixtures();
+            isMatch = arrayfun(@(x) isa(x, 'tests.fixtures.GenerateCoreFixture'), F);
+            F = F(isMatch);
+            
+            typesOutputFolder = F.TypesOutputFolder;
 
             namespaceFilePath = fullfile( ...
                 testCase.SchemaRootDirectory, ...
@@ -43,16 +47,6 @@ classdef (Abstract, SharedTestFixtures = {tests.fixtures.GenerateCoreFixture}) .
             % SETUPMETHOD Applies a WorkingFolderFixture before each test
             %   Ensures every test method runs in its own temporary working folder
             testCase.applyFixture(matlab.unittest.fixtures.WorkingFolderFixture);
-        end
-    end
-
-    methods (Access = protected)
-        function typesOutputFolder = getTypesOutputFolder(testCase)
-            F = testCase.getSharedTestFixtures();
-            isMatch = arrayfun(@(x) isa(x, 'tests.fixtures.GenerateCoreFixture'), F);
-            F = F(isMatch);
-            
-            typesOutputFolder = F.TypesOutputFolder;
         end
     end
 end

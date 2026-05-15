@@ -1,9 +1,9 @@
-function fsstr = fillSetters(propnames, classprops, typeName, namespace)
+function fsstr = fillSetters(propnames, classprops)
 fsstr = cell(size(propnames));
 for i=1:length(propnames)
     nm = propnames{i};
     prop = classprops(nm);
-    postsetFunctionStr = resolvePostsetFunction(nm, prop, typeName, namespace);
+    postsetFunctionStr = resolvePostsetFunction(nm, prop);
     if isempty(postsetFunctionStr)
         fsstr{i} = strjoin({...
             ['function set.' nm '(obj, val)']...
@@ -22,10 +22,9 @@ end
 fsstr = strjoin(fsstr, newline);
 end
 
-function postsetFunctionStr = resolvePostsetFunction(propName, prop, typeName, namespace)
+function postsetFunctionStr = resolvePostsetFunction(propname, prop)
 
-    hookInfo = file.getPropertyHooks(propName, prop, typeName, namespace);
-    postsetStatements = hookInfo.PostsetStatements;
+    postsetFunctionStr = '';
 
     if isa(prop, 'file.Attribute')
 
@@ -39,42 +38,18 @@ function postsetFunctionStr = resolvePostsetFunction(propName, prop, typeName, n
     
             conditionStr = sprintf(...
                 'if isempty(obj.%s) && ~isempty(obj.%s)', ...
-                parentname, propName);
+                parentname, propname);
 
             warnIfDependencyMissingString = sprintf(...
                 'obj.warnIfAttributeDependencyMissing(''%s'', ''%s'')', ...
-                propName, parentname);
-
-            syncPromotedDatasetAttributeString = '';
-            if prop.promoted_to_container
-                syncPromotedDatasetAttributeString = sprintf([ ...
-                    'if ~isempty(obj.%1$s) && isobject(obj.%1$s) && isprop(obj.%1$s, ''%2$s'')\n' ...
-                    '    if ~isempty(obj.%3$s)\n' ...
-                    '        obj.%1$s.%2$s = obj.%3$s;\n' ...
-                    '    elseif ~isempty(obj.%1$s.%2$s)\n' ...
-                    '        obj.%3$s = obj.%1$s.%2$s;\n' ...
-                    '    end\n' ...
-                    'end'], parentname, prop.name, propName);
-            end
-
-            postsetStatements = [postsetStatements, ...
-                {conditionStr}, ...
-                {file.addSpaces(warnIfDependencyMissingString, 4)}, ...
-                {'end'}];
-            if ~isempty(syncPromotedDatasetAttributeString)
-                postsetStatements{end+1} = syncPromotedDatasetAttributeString;
-            end
+                propname, parentname);
+    
+            postsetFunctionStr = strjoin({...
+                sprintf('function postset_%s(obj)', propname), ...
+                file.addSpaces(conditionStr, 4), ...
+                file.addSpaces(warnIfDependencyMissingString, 8), ...
+                file.addSpaces('end', 4), ...
+                'end'}, newline);
         end
     end
-
-    if isempty(postsetStatements)
-        postsetFunctionStr = '';
-        return
-    end
-
-    postsetBody = strjoin(postsetStatements, newline);
-    postsetLines = {sprintf('function postset_%s(obj)', propName), ...
-        file.addSpaces(postsetBody, 4), ...
-        'end'};
-    postsetFunctionStr = strjoin(postsetLines, newline);
 end

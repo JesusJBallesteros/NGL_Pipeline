@@ -17,15 +17,15 @@ classdef (SharedTestFixtures = {tests.fixtures.GenerateCoreFixture}) ...
             val = [];
             
             % Should pass with no error
-            types.util.checkConstraint(pname, name, namedprops, constrained, val);
+            types.util.checkConstraint(pname, name, namedprops, constrained, val)
             
             val = 10;
-            types.util.checkConstraint(pname, name, namedprops, constrained, val);
+            types.util.checkConstraint(pname, name, namedprops, constrained, val)
 
             val = {10};
             testCase.verifyError(...
                 @(varargin) types.util.checkConstraint(pname, name, namedprops, constrained, val), ...
-                'NWB:CheckDataType:InvalidConversion')
+                'NWB:TypeCorrection:InvalidConversion')
 
             % Verify that checkConstraint fails if constrained is not a
             % char describing a type (test unexpected error)
@@ -33,7 +33,7 @@ classdef (SharedTestFixtures = {tests.fixtures.GenerateCoreFixture}) ...
             namedprops = struct.empty;
             testCase.verifyError(...
                 @(varargin) types.util.checkConstraint(pname, name, namedprops, constrained, val), ...
-                'NWB:CheckDataType:InvalidTypeDescriptor')
+                'MATLAB:string:MustBeStringScalarOrCharacterVector')
         end
 
         function testCheckDimsWithValidSize(testCase)
@@ -98,6 +98,7 @@ classdef (SharedTestFixtures = {tests.fixtures.GenerateCoreFixture}) ...
                             'data', rand(10,1) ...
             );
             
+                    
             [vectordata, ~] = types.util.parseConstrained(dynamicTable, ...
                 'vectordata', 'types.hdmf_common.VectorData', ...
                 'colB', columnB );
@@ -115,21 +116,6 @@ classdef (SharedTestFixtures = {tests.fixtures.GenerateCoreFixture}) ...
             testCase.verifyWarning(...
                 @(varargin) types.util.correctType('5i', 'double'), ...
                 'NWB:TypeCorrection:DataLoss')
-        end
-
-        function testUnwrapAndRewrapNestedAnonDataset(testCase)
-            datasetValue = types.hdmf_common.VectorData(...
-                'data', int8(1), ...
-                'description', 'test');
-            wrappedValue = types.untyped.Anon('wrapped_data', datasetValue);
-
-            [value, originalValue] = types.util.unwrapValue(wrappedValue);
-            testCase.verifyEqual(value, int8(1))
-
-            rewrappedValue = types.util.rewrapValue(value, originalValue);
-            testCase.verifyClass(rewrappedValue, 'types.untyped.Anon')
-            testCase.verifyClass(rewrappedValue.value, 'types.hdmf_common.VectorData')
-            testCase.verifyEqual(rewrappedValue.value.data, int8(1))
         end
     end
 end
