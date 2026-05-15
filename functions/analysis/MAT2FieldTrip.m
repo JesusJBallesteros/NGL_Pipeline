@@ -42,16 +42,18 @@ function MAT2FieldTrip(data, opt, varargin)
 %
 % Jesus 12.06.2024
 
-%% Check existence of FT files
+%% Check input emptyness as a purpously skipped step
 if isempty(data)
     disp('Fieldtrip proper formatting was skipped too.')
     return
 end
 
-% get sample rate
-fs_lfp = 1 / (data.time{1}(2) - data.time{1}(1));
+%% If data is loaded, but is the result of a failed run 
+if isfield(data,"FT_data")
+    data = data.FT_data;
+end
 
-%% Check inputs
+%% Check inputs, decide subprocessing
 if nargin < 3
    cont = true; % do not trial parse
    disp('No trial definition was given. Data treated as continuous.');
@@ -71,30 +73,29 @@ elseif nargin == 4
     disp('Trial definition found but continuous treatment forced. Data will be process both ways.');        
 end
 
-%% If data is loaded as a result of a failed run (to deprecate)
-if isfield(data,"FT_data")
-    data = data.FT_data;
-end
-
 %% Continuous treatment (trialdef missing or empty)
 if cont
-    % Check that Fieldtrip likes what we have (it should).
-    FT_data = ft_checkdata(data);
-    
-    % Then give the FT_data a proper 'continous' state.
-    cfg = [];
-    cfg.continuous = 'yes';
-    
-    FT_data = ft_redefinetrial(cfg, FT_data);
-    clear cfg
-    
-    % Save this session data.
-    save(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_FTcont.mat')), 'FT_data', '-v7.3');
-    clear data
+    if isfile(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_FTcont.mat')))
+        disp('A Fieldtrip-formatted file found in this directory, skipping.')
+    else
+        % Check that Fieldtrip likes what we have (it should).
+        FT_data = ft_checkdata(data);
+        
+        % Then give the FT_data a proper 'continous' state.
+        cfg = [];
+        cfg.continuous = 'yes';
+        
+        FT_data = ft_redefinetrial(cfg, FT_data);
+        clear cfg
+        
+        % Save this session data.
+        save(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_FTcont.mat')), 'FT_data', '-v7.3');
+        clear data
+    end
 end
 
 %% Trial-parsed treatment 
-if ~isempty(trialdef)
+if ~isempty(trialdef) 
     % Check that Fieldtrip likes what we have (if not forced before).
     if ~exist('FT_data',"var")
         FT_data_cont = ft_checkdata(data);
@@ -105,22 +106,29 @@ if ~isempty(trialdef)
 
     % We may have more than one event to align things to.
     for i=1:size(trialdef,2)
-        % Then proceed to trial-parse the FT_data. Use 'ft_redefinetrial'
-        cfg = [];
-        % cfg.trl = trialdef{2,i}; trial boundaries passed in ms instead of samples
-        cfg.trl = round(trialdef{2,i} / 1000 * fs_lfp);
+        if isfile(fullfile(opt.trialSorted, strcat(opt.SavFileName, '_', trialdef{1,i} ,'.mat')))
+            disp('A Fieldtrip trialparsed file found, skipping...')
+        else
+            % get sample rate
+            fs_lfp = 1 / (data.time{1}(2) - data.time{1}(1));
 
-        % Re-set the offset of the trial definition for FT to get it.
-        cfg.trl(:,3) = cfg.trl(:,1) - cfg.trl(:,3);
-
-        % Redefine trials
-        FT_data = ft_redefinetrial(cfg, FT_data_cont);
+            % Then proceed to trial-parse the FT_data. Use 'ft_redefinetrial'
+            cfg = [];
+            % cfg.trl = trialdef{2,i}; trial boundaries passed in ms instead of samples
+            cfg.trl = round(trialdef{2,i} / 1000 * fs_lfp);
     
-        % Update FT header info manually
-        FT_data.hdr.nTrials = length(FT_data.trial);
+            % Re-set the offset of the trial definition for FT to get it.
+            cfg.trl(:,3) = cfg.trl(:,1) - cfg.trl(:,3);
     
-        % Save this session data.
-        save(fullfile(opt.trialSorted, strcat(opt.SavFileName, '_', trialdef{1,i} ,'.mat')), 'FT_data', '-v7.3')
+            % Redefine trials
+            FT_data = ft_redefinetrial(cfg, FT_data_cont);
+        
+            % Update FT header info manually
+            FT_data.hdr.nTrials = length(FT_data.trial);
+        
+            % Save this session data.
+            save(fullfile(opt.trialSorted, strcat(opt.SavFileName, '_', trialdef{1,i} ,'.mat')), 'FT_data', '-v7.3')
+        end
     end
 
 end

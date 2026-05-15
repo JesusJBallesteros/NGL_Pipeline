@@ -49,10 +49,13 @@ function [data] = intan2MAT_wrapper(sessions, opt)
 %% Collect parameters to proceed with file creation
 % List all files (multiple or single depending on type). If No lowpass
 % files found, we will use the raw data, and filtering will be applied.
-disp('Will convert raw data to preprocessed pseudo-FT format.');
+if isfile(fullfile(opt.FolderProcDataMat,[opt.SavFileName '_FTcont.mat'])) % Look up created files
+    disp('A Fieldtrip-formatted file found in this directory, skipping.')
+    data = 0;
+    return
+end
 
-% opt.myFiles = dir('low*.dat'); % low files won;t need processing
-% opt.myFiles = dir('amp*.dat'); % no need for re-reading
+disp('Will convert raw data to preprocessed pseudo-FT format.');
 opt.myFiles = sessions.info.files; % use collected files
 
 if ~isempty(opt.myFiles)
@@ -66,8 +69,6 @@ if ~isempty(opt.myFiles)
     end
 else
     error('No raw data to process found')
-%     opt.set_filter = 0; % If the files are already lowpassed and downsampled
-%     opt.dwnsmplRate = sessions.info.amplifier_sample_rate / sessions.info.lowpass_downsample;
 end
 
 nfiles = length(opt.myFiles);
@@ -202,9 +203,6 @@ function tmp = doCar(tmp, sessions)
         disp('Re-referencing by Common Average Referencing (CARing).')
         tmp = ft_preproc_rereference(tmp, 'all', 'median');
     end
-
-%     disp('Saving CARed file, will take a while.')
-%     save(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '_CARed.mat']), 'tmp', '-v7.3');
 end
 
 % Filtering, if required (preprocessing raw)
