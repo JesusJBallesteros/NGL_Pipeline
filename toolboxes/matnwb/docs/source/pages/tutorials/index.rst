@@ -1,5 +1,8 @@
+Tutorials
+=========
+
 General Tutorials
-=================
+-----------------
 .. toctree::
    :maxdepth: 1
 
@@ -14,7 +17,7 @@ General Tutorials
    scratch
 
 Domain-Specific Tutorials
-=========================
+-------------------------
 .. toctree::
    :maxdepth: 1
 
@@ -26,7 +29,7 @@ Domain-Specific Tutorials
    ophys
 
 Advanced I/O
-============
+------------
 .. toctree::
    :maxdepth: 1
 

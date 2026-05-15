@@ -79,10 +79,7 @@ methods
         obj.gain = p.Results.gain;
         obj.stimulus_description = p.Results.stimulus_description;
         obj.sweep_number = p.Results.sweep_number;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.PatchClampSeries') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.PatchClampSeries')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -111,7 +108,16 @@ methods
         types.util.validateShape('data_unit', {[1]}, val)
     end
     function val = validate_electrode(obj, val)
-        val = types.util.validateSoftLink('electrode', val, 'types.core.IntracellularElectrode');
+        if isa(val, 'types.untyped.SoftLink')
+            if isprop(val, 'target')
+                types.util.checkDtype('electrode', 'types.core.IntracellularElectrode', val.target);
+            end
+        else
+            val = types.util.checkDtype('electrode', 'types.core.IntracellularElectrode', val);
+            if ~isempty(val)
+                val = types.untyped.SoftLink(val);
+            end
+        end
     end
     function val = validate_gain(obj, val)
         val = types.util.checkDtype('gain', 'single', val);
@@ -126,22 +132,22 @@ methods
         types.util.validateShape('sweep_number', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.TimeSeries(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.TimeSeries(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.electrode.export(writer, [fullpath '/electrode'], refs);
+        refs = obj.electrode.export(fid, [fullpath '/electrode'], refs);
         if ~isempty(obj.gain)
             if startsWith(class(obj.gain), 'types.untyped.')
-                refs = obj.gain.export(writer, [fullpath '/gain'], refs);
+                refs = obj.gain.export(fid, [fullpath '/gain'], refs);
             elseif ~isempty(obj.gain)
-                writer.writeValue([fullpath '/gain'], obj.gain);
+                io.writeDataset(fid, [fullpath '/gain'], obj.gain);
             end
         end
-        writer.writeAttribute([fullpath '/stimulus_description'], obj.stimulus_description);
+        io.writeAttribute(fid, [fullpath '/stimulus_description'], obj.stimulus_description);
         if ~isempty(obj.sweep_number)
-            writer.writeAttribute([fullpath '/sweep_number'], obj.sweep_number);
+            io.writeAttribute(fid, [fullpath '/sweep_number'], obj.sweep_number);
         end
     end
 end

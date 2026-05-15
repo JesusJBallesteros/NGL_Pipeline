@@ -53,64 +53,44 @@ methods
         obj.series = p.Results.series;
         obj.series_index = p.Results.series_index;
         obj.sweep_number = p.Results.sweep_number;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.SweepTable') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.SweepTable')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
+        end
+        if strcmp(class(obj), 'types.core.SweepTable')
             types.util.dynamictable.checkConfig(obj);
         end
     end
     %% SETTERS
     function set.series(obj, val)
         obj.series = obj.validate_series(val);
-        obj.postset_series()
-    end
-    function postset_series(obj)
-        types.util.dynamictable.syncNamedColumn(obj, 'series');
     end
     function set.series_index(obj, val)
         obj.series_index = obj.validate_series_index(val);
     end
     function set.sweep_number(obj, val)
         obj.sweep_number = obj.validate_sweep_number(val);
-        obj.postset_sweep_number()
-    end
-    function postset_sweep_number(obj)
-        types.util.dynamictable.syncNamedColumn(obj, 'sweep_number');
     end
     %% VALIDATORS
     
     function val = validate_series(obj, val)
-        types.util.checkType('series', 'types.hdmf_common.VectorData', val);
-        if ~isempty(val)
-            [val, originalVal] = types.util.unwrapValue(val);
-            % Reference to type `PatchClampSeries`
-            val = types.util.validateReferenceType('series', val, 'types.core.PatchClampSeries', 'types.untyped.ObjectView');
-            val = types.util.rewrapValue(val, originalVal);
-        end
+        val = types.util.checkDtype('series', 'types.hdmf_common.VectorData', val);
     end
     function val = validate_series_index(obj, val)
-        types.util.checkType('series_index', 'types.hdmf_common.VectorIndex', val);
+        val = types.util.checkDtype('series_index', 'types.hdmf_common.VectorIndex', val);
     end
     function val = validate_sweep_number(obj, val)
-        types.util.checkType('sweep_number', 'types.hdmf_common.VectorData', val);
-        if ~isempty(val)
-            [val, originalVal] = types.util.unwrapValue(val);
-            val = types.util.checkDtype('sweep_number', 'uint32', val);
-            val = types.util.rewrapValue(val, originalVal);
-        end
+        val = types.util.checkDtype('sweep_number', 'types.hdmf_common.VectorData', val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.hdmf_common.DynamicTable(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.hdmf_common.DynamicTable(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.series.export(writer, [fullpath '/series'], refs);
-        refs = obj.series_index.export(writer, [fullpath '/series_index'], refs);
-        refs = obj.sweep_number.export(writer, [fullpath '/sweep_number'], refs);
+        refs = obj.series.export(fid, [fullpath '/series'], refs);
+        refs = obj.series_index.export(fid, [fullpath '/series_index'], refs);
+        refs = obj.sweep_number.export(fid, [fullpath '/sweep_number'], refs);
     end
 end
 

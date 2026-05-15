@@ -156,34 +156,6 @@ classdef nwbExportTest < tests.abstract.NwbTestCase
                 'NWB:CustomConstraintUnfulfilled')
         end
 
-        function testExportAppliesDatasetSettingsOption(testCase)
-            nwb = tests.factory.NWBFile();
-            largeSeries = types.core.TimeSeries( ...
-                'data', rand(64, 100000), ...
-                'data_unit', 'n/a', ...
-                'timestamps', 1:100000);
-
-            nwb.acquisition.set('export_data', largeSeries);
-
-            nwbFilePath = testCase.getRandomFilename();
-            nwbExport(nwb, nwbFilePath, 'DatasetSettingsProfile', 'cloud');
-
-            configuredData = nwb.acquisition.get('export_data').data;
-            testCase.verifyTrue(isa(configuredData, 'types.untyped.DataPipe'), ...
-                'nwbExport should configure datasets when DatasetSettings option is provided');
-            testCase.verifyTrue(isfile(nwbFilePath), ...
-                'nwbExport should still write the requested file');
-        end
-
-        function testExportAcceptsStorageBackendOption(testCase)
-            nwbFile = tests.factory.NWBFile();
-            nwbFilePath = testCase.getRandomFilename();
-
-            testCase.verifyWarningFree(@() nwbExport(nwbFile, nwbFilePath, ...
-                StorageBackend="h5"))
-            testCase.verifyTrue(isfile(nwbFilePath))
-        end
-
         function testEmbeddedSpecs(testCase)
             
             % Install extensions, one will be used, the other will not. 
@@ -211,7 +183,7 @@ classdef nwbExportTest < tests.abstract.NwbTestCase
             testCase.verifyEqual(sort(embeddedNamespaces), {'core', 'hdmf-common'})
 
             % Add type for extension.
-            testDevice = types.ndx_photostim.Laser('description', 'Spectra-Physics');
+            testDevice = types.ndx_photostim.Laser('model', 'Spectra-Physics');
             nwb.general_devices.set('TestDevice', testDevice);
             
             nwbExport(nwb, nwbFilePath);
@@ -262,7 +234,7 @@ classdef nwbExportTest < tests.abstract.NwbTestCase
             nwb.acquisition.set('test', ts);
             
             % Add type from ndx-photostim extension.
-            testDevice = types.ndx_photostim.Laser('description', 'Spectra-Physics');
+            testDevice = types.ndx_photostim.Laser('model', 'Spectra-Physics');
             nwb.general_devices.set('TestDevice', testDevice);
 
             % Simulate the rare case where a user might delete the cached

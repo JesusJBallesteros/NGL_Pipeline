@@ -20,7 +20,7 @@ methods
         %  dynamicTableRegion = types.hdmf_common.DYNAMICTABLEREGION(Name, Value) creates a DynamicTableRegion object where one or more property values are specified using name-value pairs.
         %
         % Input Arguments (Name-Value Arguments):
-        %  - data (int8) - Data property for dataset class (DynamicTableRegion)
+        %  - data (int8) - No description
         %
         %  - description (char) - Description of what this table region points to.
         %
@@ -43,10 +43,7 @@ methods
         addParameter(p, 'table',[]);
         misc.parseSkipInvalidName(p, varargin);
         obj.table = p.Results.table;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.hdmf_common.DynamicTableRegion') %#ok<STISA>
+        if strcmp(class(obj), 'types.hdmf_common.DynamicTableRegion')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -59,7 +56,6 @@ methods
     
     function val = validate_data(obj, val)
         val = types.util.checkDtype('data', 'int8', val);
-        types.util.validateShape('data', {[Inf]}, val)
     end
     function val = validate_description(obj, val)
         val = types.util.checkDtype('description', 'char', val);
@@ -67,16 +63,16 @@ methods
     end
     function val = validate_table(obj, val)
         % Reference to type `DynamicTable`
-        val = types.util.validateReferenceType('table', val, 'types.hdmf_common.DynamicTable', 'types.untyped.ObjectView');
+        val = types.util.checkDtype('table', 'types.untyped.ObjectView', val);
         types.util.validateShape('table', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.hdmf_common.VectorData(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.hdmf_common.VectorData(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        writer.writeAttribute([fullpath '/table'], obj.table);
+        io.writeAttribute(fid, [fullpath '/table'], obj.table);
     end
 end
 

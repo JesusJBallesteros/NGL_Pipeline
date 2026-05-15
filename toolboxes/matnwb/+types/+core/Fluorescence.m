@@ -1,4 +1,4 @@
-classdef Fluorescence < types.core.NWBDataInterface & types.untyped.GroupClass & matnwb.mixin.HasUnnamedGroups
+classdef Fluorescence < types.core.NWBDataInterface & types.untyped.GroupClass
 % FLUORESCENCE - Fluorescence information about a region of interest (ROI). Storage hierarchy of fluorescence should be the same as for segmentation (ie, same names for ROIs and for image planes).
 %
 % Required Properties:
@@ -8,9 +8,6 @@ classdef Fluorescence < types.core.NWBDataInterface & types.untyped.GroupClass &
 % REQUIRED PROPERTIES
 properties
     roiresponseseries; % REQUIRED (RoiResponseSeries) RoiResponseSeries object(s) containing fluorescence data for a ROI.
-end
-properties (Access = protected)
-    GroupPropertyNames = {'roiresponseseries'}
 end
 
 methods
@@ -37,13 +34,9 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.Fluorescence') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.Fluorescence')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-            obj.setupHasUnnamedGroupsMixin();
         end
     end
     %% SETTERS
@@ -58,12 +51,12 @@ methods
         types.util.checkSet('roiresponseseries', namedprops, constrained, val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBDataInterface(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBDataInterface(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.roiresponseseries.export(writer, fullpath, refs);
+        refs = obj.roiresponseseries.export(fid, fullpath, refs);
     end
 end
 

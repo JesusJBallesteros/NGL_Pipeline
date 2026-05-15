@@ -14,7 +14,6 @@ classdef Dataset < file.interface.HasProps & file.interface.HasQuantity
         attributes;
         linkable;
         definesType;
-        skipDtypeValidation;
     end
     
     methods
@@ -29,7 +28,6 @@ classdef Dataset < file.interface.HasProps & file.interface.HasQuantity
             obj.readonly = false;
             obj.scalar = true;
             obj.definesType = false;
-            obj.skipDtypeValidation = false;
             
             obj.shape = {};
             obj.dimnames = {};
@@ -80,10 +78,6 @@ classdef Dataset < file.interface.HasProps & file.interface.HasQuantity
             dataTypeKey = 'dtype';
             if isKey(source, dataTypeKey)
                 obj.dtype = file.mapType(source(dataTypeKey));
-            end
-
-            if isKey(source, 'skip_dtype_validation')
-                obj.skipDtypeValidation = logical(source('skip_dtype_validation'));
             end
             
             % If a value key is specified, the resulting property is a
@@ -156,15 +150,7 @@ classdef Dataset < file.interface.HasProps & file.interface.HasQuantity
                 );
 
             if ~isempty(obj.dtype)
-                % Add a value to the props map representing the dataset
-                % itself. The prop name of a dataset class is always data,
-                % the type should be empty, and we add a custom doc.
-                objCopy = obj;
-                objCopy.name = 'data';
-                objCopy.isConstrainedSet = false;
-                objCopy.type = ''; % Reset type, as this now represents a property
-                objCopy.doc = sprintf('Data property for dataset class (%s)', obj.type);
-                props('data') = objCopy;
+                props('data') = obj.dtype;
             end
             
             if ~isempty(obj.attributes)

@@ -1,4 +1,4 @@
-classdef PupilTracking < types.core.NWBDataInterface & types.untyped.GroupClass & matnwb.mixin.HasUnnamedGroups
+classdef PupilTracking < types.core.NWBDataInterface & types.untyped.GroupClass
 % PUPILTRACKING - Eye-tracking data, representing pupil size.
 %
 % Required Properties:
@@ -8,9 +8,6 @@ classdef PupilTracking < types.core.NWBDataInterface & types.untyped.GroupClass 
 % REQUIRED PROPERTIES
 properties
     timeseries; % REQUIRED (TimeSeries) TimeSeries object containing time series data on pupil size.
-end
-properties (Access = protected)
-    GroupPropertyNames = {'timeseries'}
 end
 
 methods
@@ -37,13 +34,9 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.PupilTracking') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.PupilTracking')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-            obj.setupHasUnnamedGroupsMixin();
         end
     end
     %% SETTERS
@@ -58,12 +51,12 @@ methods
         types.util.checkSet('timeseries', namedprops, constrained, val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBDataInterface(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBDataInterface(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.timeseries.export(writer, fullpath, refs);
+        refs = obj.timeseries.export(fid, fullpath, refs);
     end
 end
 

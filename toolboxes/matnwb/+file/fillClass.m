@@ -12,7 +12,6 @@ function template = fillClass(name, namespace, processed, classprops, inherited,
     defaults = {};
     dependent = {};
     hidden = {}; % special hidden properties for hard-coded workarounds
-    
     %separate into readonly, required, and optional properties
     for iGroup = 1:length(allProperties)
         propertyName = allProperties{iGroup};
@@ -80,27 +79,22 @@ function template = fillClass(name, namespace, processed, classprops, inherited,
     optional = setdiff(intersect(optional, nonInherited), exclusivePropertyGroups);
 
     %% CLASSDEF
-    superclassNames = {};
     if length(processed) <= 1
-        superclassNames{1} = 'types.untyped.MetaClass'; %WRITE
+        depnm = 'types.untyped.MetaClass'; %WRITE
     else
         parentName = processed(2).type; %WRITE
-        superclassNames{1} = namespace.getFullClassName(parentName);
+        depnm = namespace.getFullClassName(parentName);
     end
 
     if isa(processed, 'file.Group')
-        superclassNames{end+1} = 'types.untyped.GroupClass';
+        classTag = 'types.untyped.GroupClass';
     else
-        superclassNames{end+1} = 'types.untyped.DatasetClass';
-    end
-
-    if isa(class, 'file.Group') && class.hasAnonGroups
-        superclassNames{end+1} = 'matnwb.mixin.HasUnnamedGroups';
+        classTag = 'types.untyped.DatasetClass';
     end
 
     %% return classfile string
     classDefinitionHeader = [...
-        'classdef ' name ' < ' strjoin(superclassNames, ' & ') newline... %header, dependencies
+        'classdef ' name ' < ' depnm ' & ' classTag newline... %header, dependencies
         '% ' upper(name) ' - ' class.doc]; %name, docstr
 
     fullClassName = strjoin({'types', misc.str2validName(namespace.name), name}, '.');
@@ -134,7 +128,6 @@ function template = fillClass(name, namespace, processed, classprops, inherited,
         , '% OPTIONAL PROPERTIES' ...
         } ...
         );
-
     fullPropertyDefinition = '';
     for iGroup = 1:length(PropertyGroups)
         Group = PropertyGroups(iGroup);
@@ -148,29 +141,18 @@ function template = fillClass(name, namespace, processed, classprops, inherited,
             , propertyDefinitionBody ...
             }, newline);
     end
-    if isa(class, 'file.Group') && class.hasAnonGroups
-        mixinPropertyBlock = createPropertyBlockForHasUnnamedGroupMixin(class);
-        
-        fullPropertyDefinition = strjoin(...
-            {fullPropertyDefinition, mixinPropertyBlock}, newline);
-    end
 
     constructorBody = file.fillConstructor(...
         name,...
-        superclassNames{1},...
+        depnm,...
         defaults,... %all defaults, regardless of inheritance
         classprops,...
         namespace, ...
         superClassProps, ...
-        class, ...
         inherited);
-    setterFcns = file.fillSetters( ...
-        setdiff(nonInherited, union(readonly, hiddenAndReadonly)), ...
-        classprops, ...
-        name, ...
-        namespace);
+    setterFcns = file.fillSetters(setdiff(nonInherited, union(readonly, hiddenAndReadonly)), classprops);
     validatorFcns = file.fillValidators(allProperties, classprops, namespace, namespace.getFullClassName(name), inherited);
-    exporterFcns = file.fillExport(nonInherited, class, superclassNames{1}, required, classprops);
+    exporterFcns = file.fillExport(nonInherited, class, depnm, required);
     methodBody = strjoin({constructorBody...
         '%% SETTERS' setterFcns...
         '%% VALIDATORS' validatorFcns...
@@ -202,14 +184,4 @@ function tf = resolveRequiredForDependentProp(propertyName, propInfo, allProps)
         parentInfo = allProps(parentName);
         tf = parentInfo.required;
     end
-end
-
-function propertyBlockStr = createPropertyBlockForHasUnnamedGroupMixin(classInfo)
-    isAnonGroup = arrayfun(@(x) isempty(x.name), classInfo.subgroups, 'uni', true);
-    anonNames = arrayfun(@(x) lower(x.type), classInfo.subgroups(isAnonGroup), 'uni', false);
-    
-    propertyBlockStr = strjoin({...
-        'properties (Access = protected)', ...
-        sprintf('    GroupPropertyNames = {%s}', strjoin(strcat('''', anonNames, ''''), ', ') ), ...
-        'end'}, newline);
 end

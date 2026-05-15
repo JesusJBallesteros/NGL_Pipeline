@@ -1,5 +1,5 @@
 classdef ImageReferences < types.core.NWBData & types.untyped.DatasetClass
-% IMAGEREFERENCES - Ordered dataset of references to BaseImage (e.g., Image or ExternalImage) objects.
+% IMAGEREFERENCES - Ordered dataset of references to Image objects.
 %
 % Required Properties:
 %  data
@@ -16,7 +16,7 @@ methods
         %  imageReferences = types.core.IMAGEREFERENCES(Name, Value) creates a ImageReferences object where one or more property values are specified using name-value pairs.
         %
         % Input Arguments (Name-Value Arguments):
-        %  - data (Object reference to BaseImage) - Data property for dataset class (ImageReferences)
+        %  - data (Object reference to Image) - No description
         %
         % Output Arguments:
         %  - imageReferences (types.core.ImageReferences) - A ImageReferences object
@@ -29,10 +29,7 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.ImageReferences') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.ImageReferences')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -42,13 +39,12 @@ methods
     %% VALIDATORS
     
     function val = validate_data(obj, val)
-        % Reference to type `BaseImage`
-        val = types.util.validateReferenceType('data', val, 'types.core.BaseImage', 'types.untyped.ObjectView');
-        types.util.validateShape('data', {[Inf]}, val)
+        % Reference to type `Image`
+        val = types.util.checkDtype('data', 'types.untyped.ObjectView', val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBData(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBData(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end

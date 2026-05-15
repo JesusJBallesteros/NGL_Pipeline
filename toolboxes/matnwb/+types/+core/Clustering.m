@@ -50,10 +50,7 @@ methods
         obj.num = p.Results.num;
         obj.peak_over_rms = p.Results.peak_over_rms;
         obj.times = p.Results.times;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.Clustering') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.Clustering')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -90,30 +87,30 @@ methods
         types.util.validateShape('times', {[Inf]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBDataInterface(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBDataInterface(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if startsWith(class(obj.description), 'types.untyped.')
-            refs = obj.description.export(writer, [fullpath '/description'], refs);
+            refs = obj.description.export(fid, [fullpath '/description'], refs);
         elseif ~isempty(obj.description)
-            writer.writeValue([fullpath '/description'], obj.description);
+            io.writeDataset(fid, [fullpath '/description'], obj.description);
         end
         if startsWith(class(obj.num), 'types.untyped.')
-            refs = obj.num.export(writer, [fullpath '/num'], refs);
+            refs = obj.num.export(fid, [fullpath '/num'], refs);
         elseif ~isempty(obj.num)
-            writer.writeValue([fullpath '/num'], obj.num, 'forceArray');
+            io.writeDataset(fid, [fullpath '/num'], obj.num, 'forceArray');
         end
         if startsWith(class(obj.peak_over_rms), 'types.untyped.')
-            refs = obj.peak_over_rms.export(writer, [fullpath '/peak_over_rms'], refs);
+            refs = obj.peak_over_rms.export(fid, [fullpath '/peak_over_rms'], refs);
         elseif ~isempty(obj.peak_over_rms)
-            writer.writeValue([fullpath '/peak_over_rms'], obj.peak_over_rms, 'forceArray');
+            io.writeDataset(fid, [fullpath '/peak_over_rms'], obj.peak_over_rms, 'forceArray');
         end
         if startsWith(class(obj.times), 'types.untyped.')
-            refs = obj.times.export(writer, [fullpath '/times'], refs);
+            refs = obj.times.export(fid, [fullpath '/times'], refs);
         elseif ~isempty(obj.times)
-            writer.writeValue([fullpath '/times'], obj.times, 'forceArray');
+            io.writeDataset(fid, [fullpath '/times'], obj.times, 'forceArray');
         end
     end
 end

@@ -60,10 +60,7 @@ methods
         addParameter(p, 'site',[]);
         misc.parseSkipInvalidName(p, varargin);
         obj.site = p.Results.site;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.OptogeneticSeries') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.OptogeneticSeries')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -86,15 +83,24 @@ methods
         end
     end
     function val = validate_site(obj, val)
-        val = types.util.validateSoftLink('site', val, 'types.core.OptogeneticStimulusSite');
+        if isa(val, 'types.untyped.SoftLink')
+            if isprop(val, 'target')
+                types.util.checkDtype('site', 'types.core.OptogeneticStimulusSite', val.target);
+            end
+        else
+            val = types.util.checkDtype('site', 'types.core.OptogeneticStimulusSite', val);
+            if ~isempty(val)
+                val = types.untyped.SoftLink(val);
+            end
+        end
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.TimeSeries(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.TimeSeries(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.site.export(writer, [fullpath '/site'], refs);
+        refs = obj.site.export(fid, [fullpath '/site'], refs);
     end
 end
 

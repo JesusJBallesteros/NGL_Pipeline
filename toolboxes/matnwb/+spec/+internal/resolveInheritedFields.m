@@ -15,15 +15,11 @@ function resolveInheritedFields(typeSpec, ancestorTypeSpecs)
     for i = 1:length(ancestorTypeSpecs)
         ancestorType = ancestorTypeSpecs{i};
 
-        if strcmp(typeSpec('class_type'), 'datasets')
-            spec.internal.expandInheritedFields(typeSpec, ancestorType)
-        else % (class_type: group)
-            for j = 1:numel(primitiveTypes)
-                primitiveKey = primitiveTypes(j).Key; % i.e: 'groups', 'datasets' etc.
-                if isKey(typeSpec, primitiveKey) && isKey(ancestorType, primitiveKey)
-                    spec.internal.updateSpecFromAncestorSpec(...
-                        typeSpec(primitiveKey), ancestorType(primitiveKey))
-                end
+        for j = 1:numel(primitiveTypes)
+            primitiveKey = primitiveTypes(j).Key; % i.e: 'groups', 'datasets' etc.
+            if isKey(typeSpec, primitiveKey) && isKey(ancestorType, primitiveKey)
+                spec.internal.updateSpecFromAncestorSpec(...
+                    typeSpec(primitiveKey), ancestorType(primitiveKey))
             end
         end
     end

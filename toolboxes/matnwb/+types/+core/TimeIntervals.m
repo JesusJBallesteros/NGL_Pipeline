@@ -71,46 +71,29 @@ methods
         obj.tags_index = p.Results.tags_index;
         obj.timeseries = p.Results.timeseries;
         obj.timeseries_index = p.Results.timeseries_index;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.TimeIntervals') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.TimeIntervals')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
+        end
+        if strcmp(class(obj), 'types.core.TimeIntervals')
             types.util.dynamictable.checkConfig(obj);
         end
     end
     %% SETTERS
     function set.start_time(obj, val)
         obj.start_time = obj.validate_start_time(val);
-        obj.postset_start_time()
-    end
-    function postset_start_time(obj)
-        types.util.dynamictable.syncNamedColumn(obj, 'start_time');
     end
     function set.stop_time(obj, val)
         obj.stop_time = obj.validate_stop_time(val);
-        obj.postset_stop_time()
-    end
-    function postset_stop_time(obj)
-        types.util.dynamictable.syncNamedColumn(obj, 'stop_time');
     end
     function set.tags(obj, val)
         obj.tags = obj.validate_tags(val);
-        obj.postset_tags()
-    end
-    function postset_tags(obj)
-        types.util.dynamictable.syncNamedColumn(obj, 'tags');
     end
     function set.tags_index(obj, val)
         obj.tags_index = obj.validate_tags_index(val);
     end
     function set.timeseries(obj, val)
         obj.timeseries = obj.validate_timeseries(val);
-        obj.postset_timeseries()
-    end
-    function postset_timeseries(obj)
-        types.util.dynamictable.syncNamedColumn(obj, 'timeseries');
     end
     function set.timeseries_index(obj, val)
         obj.timeseries_index = obj.validate_timeseries_index(val);
@@ -118,57 +101,42 @@ methods
     %% VALIDATORS
     
     function val = validate_start_time(obj, val)
-        types.util.checkType('start_time', 'types.hdmf_common.VectorData', val);
-        if ~isempty(val)
-            [val, originalVal] = types.util.unwrapValue(val);
-            val = types.util.checkDtype('start_time', 'single', val);
-            val = types.util.rewrapValue(val, originalVal);
-        end
+        val = types.util.checkDtype('start_time', 'types.hdmf_common.VectorData', val);
     end
     function val = validate_stop_time(obj, val)
-        types.util.checkType('stop_time', 'types.hdmf_common.VectorData', val);
-        if ~isempty(val)
-            [val, originalVal] = types.util.unwrapValue(val);
-            val = types.util.checkDtype('stop_time', 'single', val);
-            val = types.util.rewrapValue(val, originalVal);
-        end
+        val = types.util.checkDtype('stop_time', 'types.hdmf_common.VectorData', val);
     end
     function val = validate_tags(obj, val)
-        types.util.checkType('tags', 'types.hdmf_common.VectorData', val);
-        if ~isempty(val)
-            [val, originalVal] = types.util.unwrapValue(val);
-            val = types.util.checkDtype('tags', 'char', val);
-            val = types.util.rewrapValue(val, originalVal);
-        end
+        val = types.util.checkDtype('tags', 'types.hdmf_common.VectorData', val);
     end
     function val = validate_tags_index(obj, val)
-        types.util.checkType('tags_index', 'types.hdmf_common.VectorIndex', val);
+        val = types.util.checkDtype('tags_index', 'types.hdmf_common.VectorIndex', val);
     end
     function val = validate_timeseries(obj, val)
-        types.util.checkType('timeseries', 'types.core.TimeSeriesReferenceVectorData', val);
+        val = types.util.checkDtype('timeseries', 'types.core.TimeSeriesReferenceVectorData', val);
     end
     function val = validate_timeseries_index(obj, val)
-        types.util.checkType('timeseries_index', 'types.hdmf_common.VectorIndex', val);
+        val = types.util.checkDtype('timeseries_index', 'types.hdmf_common.VectorIndex', val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.hdmf_common.DynamicTable(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.hdmf_common.DynamicTable(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.start_time.export(writer, [fullpath '/start_time'], refs);
-        refs = obj.stop_time.export(writer, [fullpath '/stop_time'], refs);
+        refs = obj.start_time.export(fid, [fullpath '/start_time'], refs);
+        refs = obj.stop_time.export(fid, [fullpath '/stop_time'], refs);
         if ~isempty(obj.tags)
-            refs = obj.tags.export(writer, [fullpath '/tags'], refs);
+            refs = obj.tags.export(fid, [fullpath '/tags'], refs);
         end
         if ~isempty(obj.tags_index)
-            refs = obj.tags_index.export(writer, [fullpath '/tags_index'], refs);
+            refs = obj.tags_index.export(fid, [fullpath '/tags_index'], refs);
         end
         if ~isempty(obj.timeseries)
-            refs = obj.timeseries.export(writer, [fullpath '/timeseries'], refs);
+            refs = obj.timeseries.export(fid, [fullpath '/timeseries'], refs);
         end
         if ~isempty(obj.timeseries_index)
-            refs = obj.timeseries_index.export(writer, [fullpath '/timeseries_index'], refs);
+            refs = obj.timeseries_index.export(fid, [fullpath '/timeseries_index'], refs);
         end
     end
 end

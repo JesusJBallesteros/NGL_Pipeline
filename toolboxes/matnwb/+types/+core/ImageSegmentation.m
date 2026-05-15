@@ -1,4 +1,4 @@
-classdef ImageSegmentation < types.core.NWBDataInterface & types.untyped.GroupClass & matnwb.mixin.HasUnnamedGroups
+classdef ImageSegmentation < types.core.NWBDataInterface & types.untyped.GroupClass
 % IMAGESEGMENTATION - Stores pixels in an image that represent different regions of interest (ROIs) or masks. All segmentation for a given imaging plane is stored together, with storage for multiple imaging planes (masks) supported. Each ROI is stored in its own subgroup, with the ROI group containing both a 2D mask and a list of pixels that make up this mask. Segments can also be used for masking neuropil. If segmentation is allowed to change with time, a new imaging plane (or module) is required and ROI names should remain consistent between them.
 %
 % Required Properties:
@@ -8,9 +8,6 @@ classdef ImageSegmentation < types.core.NWBDataInterface & types.untyped.GroupCl
 % REQUIRED PROPERTIES
 properties
     planesegmentation; % REQUIRED (PlaneSegmentation) Results from image segmentation of a specific imaging plane.
-end
-properties (Access = protected)
-    GroupPropertyNames = {'planesegmentation'}
 end
 
 methods
@@ -37,13 +34,9 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.ImageSegmentation') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.ImageSegmentation')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-            obj.setupHasUnnamedGroupsMixin();
         end
     end
     %% SETTERS
@@ -58,12 +51,12 @@ methods
         types.util.checkSet('planesegmentation', namedprops, constrained, val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBDataInterface(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBDataInterface(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.planesegmentation.export(writer, fullpath, refs);
+        refs = obj.planesegmentation.export(fid, fullpath, refs);
     end
 end
 

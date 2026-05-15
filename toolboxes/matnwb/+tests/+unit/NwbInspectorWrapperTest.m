@@ -11,10 +11,6 @@ classdef (SharedTestFixtures = {tests.fixtures.SetEnvironmentVariableFixture}) .
 
     methods (Test, TestTags={'UsesPython'})
         function testNwbInspector(testCase)
-            if testCase.skipIfNwbInspectorTest()
-                return
-            end
-
             nwbFile = tests.factory.NWBFile();
             nwbExport(nwbFile, 'temp.nwb');
                 
@@ -35,9 +31,6 @@ classdef (SharedTestFixtures = {tests.fixtures.SetEnvironmentVariableFixture}) .
         end
 
         function testRareExceptionWithMissingLocation(testCase)
-            if testCase.skipIfNwbInspectorTest()
-                return
-            end
             % Test special case where location is a NoneType (for bands table of ecephys tutorial)
             tutorialFolder = fullfile(misc.getMatnwbDir, 'tutorials');            
             % Use a fixture to add the folder to the search path
@@ -49,20 +42,6 @@ classdef (SharedTestFixtures = {tests.fixtures.SetEnvironmentVariableFixture}) .
 
             report = inspectNwbFile('ecephys_tutorial.nwb', 'UseCLI', true);
             testCase.verifyClass(report, 'table')
-        end
-    end
-
-    methods (Static, Access = private)
-        function tf = skipIfNwbInspectorTest()
-        % Skip test if SKIP_NWBINSPECTOR_TEST environment variable is set
-        % This is used in CI for MATLAB releases that don't support Python 3.10+
-        % (nwbinspector requires Python 3.10+)
-            skipNwbInspector = getenv("SKIP_NWBINSPECTOR_TEST");
-            if ~isempty(skipNwbInspector) && logical(str2double(skipNwbInspector))
-                tf = true;
-            else
-                tf = false;
-            end
         end
     end
 end

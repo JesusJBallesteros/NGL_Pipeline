@@ -61,10 +61,7 @@ methods
         addParameter(p, 'rois',[]);
         misc.parseSkipInvalidName(p, varargin);
         obj.rois = p.Results.rois;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.RoiResponseSeries') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.RoiResponseSeries')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -80,15 +77,15 @@ methods
         types.util.validateShape('data', {[Inf,Inf], [Inf]}, val)
     end
     function val = validate_rois(obj, val)
-        types.util.checkType('rois', 'types.hdmf_common.DynamicTableRegion', val);
+        val = types.util.checkDtype('rois', 'types.hdmf_common.DynamicTableRegion', val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.TimeSeries(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.TimeSeries(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.rois.export(writer, [fullpath '/rois'], refs);
+        refs = obj.rois.export(fid, [fullpath '/rois'], refs);
     end
 end
 

@@ -1,10 +1,5 @@
 function sz = formatShape(shape)
 %check for optional dims
-
-if ~iscell(shape) && isnumeric(shape) && isnan(shape)
-    sz = shape; return
-end
-
 assert(iscell(shape), '`shape` must be a cell.');
 
 if isempty(shape)

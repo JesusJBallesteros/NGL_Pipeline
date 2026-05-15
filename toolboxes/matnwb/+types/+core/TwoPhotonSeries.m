@@ -89,10 +89,7 @@ methods
         obj.imaging_plane = p.Results.imaging_plane;
         obj.pmt_gain = p.Results.pmt_gain;
         obj.scan_line_rate = p.Results.scan_line_rate;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.TwoPhotonSeries') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.TwoPhotonSeries')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -117,7 +114,16 @@ methods
         types.util.validateShape('field_of_view', {[3], [2]}, val)
     end
     function val = validate_imaging_plane(obj, val)
-        val = types.util.validateSoftLink('imaging_plane', val, 'types.core.ImagingPlane');
+        if isa(val, 'types.untyped.SoftLink')
+            if isprop(val, 'target')
+                types.util.checkDtype('imaging_plane', 'types.core.ImagingPlane', val.target);
+            end
+        else
+            val = types.util.checkDtype('imaging_plane', 'types.core.ImagingPlane', val);
+            if ~isempty(val)
+                val = types.untyped.SoftLink(val);
+            end
+        end
     end
     function val = validate_pmt_gain(obj, val)
         val = types.util.checkDtype('pmt_gain', 'single', val);
@@ -128,24 +134,24 @@ methods
         types.util.validateShape('scan_line_rate', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.ImageSeries(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.ImageSeries(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if ~isempty(obj.field_of_view)
             if startsWith(class(obj.field_of_view), 'types.untyped.')
-                refs = obj.field_of_view.export(writer, [fullpath '/field_of_view'], refs);
+                refs = obj.field_of_view.export(fid, [fullpath '/field_of_view'], refs);
             elseif ~isempty(obj.field_of_view)
-                writer.writeValue([fullpath '/field_of_view'], obj.field_of_view, 'forceArray');
+                io.writeDataset(fid, [fullpath '/field_of_view'], obj.field_of_view, 'forceArray');
             end
         end
-        refs = obj.imaging_plane.export(writer, [fullpath '/imaging_plane'], refs);
+        refs = obj.imaging_plane.export(fid, [fullpath '/imaging_plane'], refs);
         if ~isempty(obj.pmt_gain)
-            writer.writeAttribute([fullpath '/pmt_gain'], obj.pmt_gain);
+            io.writeAttribute(fid, [fullpath '/pmt_gain'], obj.pmt_gain);
         end
         if ~isempty(obj.scan_line_rate)
-            writer.writeAttribute([fullpath '/scan_line_rate'], obj.scan_line_rate);
+            io.writeAttribute(fid, [fullpath '/scan_line_rate'], obj.scan_line_rate);
         end
     end
 end

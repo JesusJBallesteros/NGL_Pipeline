@@ -29,7 +29,7 @@ methods
         %  vectorData = types.hdmf_common.VECTORDATA(Name, Value) creates a VectorData object where one or more property values are specified using name-value pairs.
         %
         % Input Arguments (Name-Value Arguments):
-        %  - data (any) - Data property for dataset class (VectorData)
+        %  - data (any) - No description
         %
         %  - description (char) - Description of what these vectors represent.
         %
@@ -57,10 +57,7 @@ methods
         obj.resolution = p.Results.resolution;
         obj.sampling_rate = p.Results.sampling_rate;
         obj.unit = p.Results.unit;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.hdmf_common.VectorData') %#ok<STISA>
+        if strcmp(class(obj), 'types.hdmf_common.VectorData')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -78,8 +75,6 @@ methods
     %% VALIDATORS
     
     function val = validate_data(obj, val)
-        val = types.util.checkDtype('data', 'any', val);
-        types.util.validateShape('data', {[Inf,Inf,Inf,Inf], [Inf,Inf,Inf], [Inf,Inf], [Inf]}, val)
     end
     function val = validate_description(obj, val)
         val = types.util.checkDtype('description', 'char', val);
@@ -94,22 +89,22 @@ methods
         types.util.validateShape('sampling_rate', {[1]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.hdmf_common.Data(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.hdmf_common.Data(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        writer.writeAttribute([fullpath '/description'], obj.description);
+        io.writeAttribute(fid, [fullpath '/description'], obj.description);
         if ~isempty(obj.resolution) && any(endsWith(fullpath, 'units/spike_times'))
-            writer.writeAttribute([fullpath '/resolution'], obj.resolution);
+            io.writeAttribute(fid, [fullpath '/resolution'], obj.resolution);
         end
         validDataSamplingPaths = strcat('units/', {'waveform_mean', 'waveform_sd', 'waveforms'});
         if ~isempty(obj.sampling_rate) && any(endsWith(fullpath, validDataSamplingPaths))
-            writer.writeAttribute([fullpath '/sampling_rate'], obj.sampling_rate);
+            io.writeAttribute(fid, [fullpath '/sampling_rate'], obj.sampling_rate);
         end
         validUnitPaths = strcat('units/', {'waveform_mean', 'waveform_sd', 'waveforms'});
         if ~isempty(obj.unit) && any(endsWith(fullpath, validUnitPaths))
-            writer.writeAttribute([fullpath '/unit'], obj.unit);
+            io.writeAttribute(fid, [fullpath '/unit'], obj.unit);
         end
     end
 end

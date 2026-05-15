@@ -50,10 +50,7 @@ methods
         obj.electrodes = p.Results.electrodes;
         obj.features = p.Results.features;
         obj.times = p.Results.times;
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.FeatureExtraction') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.FeatureExtraction')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -78,7 +75,7 @@ methods
         types.util.validateShape('description', {[Inf]}, val)
     end
     function val = validate_electrodes(obj, val)
-        types.util.checkType('electrodes', 'types.hdmf_common.DynamicTableRegion', val);
+        val = types.util.checkDtype('electrodes', 'types.hdmf_common.DynamicTableRegion', val);
     end
     function val = validate_features(obj, val)
         val = types.util.checkDtype('features', 'single', val);
@@ -89,26 +86,26 @@ methods
         types.util.validateShape('times', {[Inf]}, val)
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBDataInterface(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBDataInterface(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
         if startsWith(class(obj.description), 'types.untyped.')
-            refs = obj.description.export(writer, [fullpath '/description'], refs);
+            refs = obj.description.export(fid, [fullpath '/description'], refs);
         elseif ~isempty(obj.description)
-            writer.writeValue([fullpath '/description'], obj.description, 'forceArray');
+            io.writeDataset(fid, [fullpath '/description'], obj.description, 'forceArray');
         end
-        refs = obj.electrodes.export(writer, [fullpath '/electrodes'], refs);
+        refs = obj.electrodes.export(fid, [fullpath '/electrodes'], refs);
         if startsWith(class(obj.features), 'types.untyped.')
-            refs = obj.features.export(writer, [fullpath '/features'], refs);
+            refs = obj.features.export(fid, [fullpath '/features'], refs);
         elseif ~isempty(obj.features)
-            writer.writeValue([fullpath '/features'], obj.features, 'forceArray');
+            io.writeDataset(fid, [fullpath '/features'], obj.features, 'forceArray');
         end
         if startsWith(class(obj.times), 'types.untyped.')
-            refs = obj.times.export(writer, [fullpath '/times'], refs);
+            refs = obj.times.export(fid, [fullpath '/times'], refs);
         elseif ~isempty(obj.times)
-            writer.writeValue([fullpath '/times'], obj.times, 'forceArray');
+            io.writeDataset(fid, [fullpath '/times'], obj.times, 'forceArray');
         end
     end
 end

@@ -1,16 +1,13 @@
-classdef BehavioralEpochs < types.core.NWBDataInterface & types.untyped.GroupClass & matnwb.mixin.HasUnnamedGroups
+classdef BehavioralEpochs < types.core.NWBDataInterface & types.untyped.GroupClass
 % BEHAVIORALEPOCHS - TimeSeries for storing behavioral epochs.  The objective of this and the other two Behavioral interfaces (e.g. BehavioralEvents and BehavioralTimeSeries) is to provide generic hooks for software tools/scripts. This allows a tool/script to take the output one specific interface (e.g., UnitTimes) and plot that data relative to another data modality (e.g., behavioral events) without having to define all possible modalities in advance. Declaring one of these interfaces means that one or more TimeSeries of the specified type is published. These TimeSeries should reside in a group having the same name as the interface. For example, if a BehavioralTimeSeries interface is declared, the module will have one or more TimeSeries defined in the module sub-group 'BehavioralTimeSeries'. BehavioralEpochs should use IntervalSeries. BehavioralEvents is used for irregular events. BehavioralTimeSeries is for continuous data.
 %
 % Required Properties:
-%  intervalseries
+%  None
 
 
-% REQUIRED PROPERTIES
+% OPTIONAL PROPERTIES
 properties
-    intervalseries; % REQUIRED (IntervalSeries) IntervalSeries object containing start and stop times of epochs.
-end
-properties (Access = protected)
-    GroupPropertyNames = {'intervalseries'}
+    intervalseries; %  (IntervalSeries) IntervalSeries object containing start and stop times of epochs.
 end
 
 methods
@@ -37,13 +34,9 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.BehavioralEpochs') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.BehavioralEpochs')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-            obj.setupHasUnnamedGroupsMixin();
         end
     end
     %% SETTERS
@@ -58,12 +51,14 @@ methods
         types.util.checkSet('intervalseries', namedprops, constrained, val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBDataInterface(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBDataInterface(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.intervalseries.export(writer, fullpath, refs);
+        if ~isempty(obj.intervalseries)
+            refs = obj.intervalseries.export(fid, fullpath, refs);
+        end
     end
 end
 

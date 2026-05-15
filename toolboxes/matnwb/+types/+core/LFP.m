@@ -1,4 +1,4 @@
-classdef LFP < types.core.NWBDataInterface & types.untyped.GroupClass & matnwb.mixin.HasUnnamedGroups
+classdef LFP < types.core.NWBDataInterface & types.untyped.GroupClass
 % LFP - LFP data from one or more channels. The electrode map in each published ElectricalSeries will identify which channels are providing LFP data. Filter properties should be noted in the ElectricalSeries 'filtering' attribute.
 %
 % Required Properties:
@@ -8,9 +8,6 @@ classdef LFP < types.core.NWBDataInterface & types.untyped.GroupClass & matnwb.m
 % REQUIRED PROPERTIES
 properties
     electricalseries; % REQUIRED (ElectricalSeries) ElectricalSeries object(s) containing LFP data for one or more channels.
-end
-properties (Access = protected)
-    GroupPropertyNames = {'electricalseries'}
 end
 
 methods
@@ -37,13 +34,9 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.LFP') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.LFP')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-            obj.setupHasUnnamedGroupsMixin();
         end
     end
     %% SETTERS
@@ -58,12 +51,12 @@ methods
         types.util.checkSet('electricalseries', namedprops, constrained, val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBDataInterface(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBDataInterface(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.electricalseries.export(writer, fullpath, refs);
+        refs = obj.electricalseries.export(fid, fullpath, refs);
     end
 end
 

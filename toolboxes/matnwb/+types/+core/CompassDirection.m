@@ -1,16 +1,13 @@
-classdef CompassDirection < types.core.NWBDataInterface & types.untyped.GroupClass & matnwb.mixin.HasUnnamedGroups
+classdef CompassDirection < types.core.NWBDataInterface & types.untyped.GroupClass
 % COMPASSDIRECTION - With a CompassDirection interface, a module publishes a SpatialSeries object representing a floating point value for theta. The SpatialSeries::reference_frame field should indicate what direction corresponds to 0 and which is the direction of rotation (this should be clockwise). The si_unit for the SpatialSeries should be radians or degrees.
 %
 % Required Properties:
-%  spatialseries
+%  None
 
 
-% REQUIRED PROPERTIES
+% OPTIONAL PROPERTIES
 properties
-    spatialseries; % REQUIRED (SpatialSeries) SpatialSeries object containing direction of gaze travel.
-end
-properties (Access = protected)
-    GroupPropertyNames = {'spatialseries'}
+    spatialseries; %  (SpatialSeries) SpatialSeries object containing direction of gaze travel.
 end
 
 methods
@@ -37,13 +34,9 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.CompassDirection') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.CompassDirection')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
-            obj.setupHasUnnamedGroupsMixin();
         end
     end
     %% SETTERS
@@ -58,12 +51,14 @@ methods
         types.util.checkSet('spatialseries', namedprops, constrained, val);
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.NWBDataInterface(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.NWBDataInterface(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
-        refs = obj.spatialseries.export(writer, fullpath, refs);
+        if ~isempty(obj.spatialseries)
+            refs = obj.spatialseries.export(fid, fullpath, refs);
+        end
     end
 end
 

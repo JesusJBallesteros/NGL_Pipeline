@@ -1,5 +1,3 @@
-.. _read_demo_dandihub-tutorial:
-
 Reading NWB Files with MatNWB on DandiHub
 =========================================
 
@@ -13,7 +11,10 @@ Reading NWB Files with MatNWB on DandiHub
 
 .. raw:: html
 
-   <iframe class="autoresize"
-           src="../../_static/html/tutorials/read_demo_dandihub.html"
-           style="width:100%; border:none; display:block;">
-   </iframe>
+   <iframe id="tutorialIframe" src="../../_static/html/tutorials/read_demo_dandihub.html" style="width: 100%; overflow: hidden; border: none;"></iframe>
+   <script>
+       const iframe = document.getElementById('tutorialIframe');
+       iframe.onload = () => {
+           iframe.style.height = iframe.contentWindow.document.body.scrollHeight + 'px';
+       };
+   </script>

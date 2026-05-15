@@ -50,10 +50,7 @@ methods
         p.PartialMatching = false;
         p.StructExpand = false;
         misc.parseSkipInvalidName(p, varargin);
-        
-        % Only execute validation/setup code when called directly in this class's
-        % constructor, not when invoked through superclass constructor chain
-        if strcmp(class(obj), 'types.core.AnnotationSeries') %#ok<STISA>
+        if strcmp(class(obj), 'types.core.AnnotationSeries')
             cellStringArguments = convertContainedStringsToChars(varargin(1:2:end));
             types.util.checkUnset(obj, unique(cellStringArguments));
         end
@@ -81,8 +78,8 @@ methods
         end
     end
     %% EXPORT
-    function refs = export(obj, writer, fullpath, refs)
-        refs = export@types.core.TimeSeries(obj, writer, fullpath, refs);
+    function refs = export(obj, fid, fullpath, refs)
+        refs = export@types.core.TimeSeries(obj, fid, fullpath, refs);
         if any(strcmp(refs, fullpath))
             return;
         end
