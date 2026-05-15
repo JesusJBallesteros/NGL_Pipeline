@@ -76,7 +76,9 @@ if exist('opt','var')
                         'Areas'     , []        );
         input.dates    = dates;
         input.subjects = subjects;
-        input.Areas    = areas;
+        if exist('areas','var')
+            input.Areas    = areas;
+        end
     end
 
     clear areas subjects dates datadrive studyname
