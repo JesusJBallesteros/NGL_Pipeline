@@ -40,3 +40,6 @@ __pycache__/
 *.pyo
 .env
 .venv/
+
+# Toolboxes of no interest on tracking
+toolboxes/matnwb/
