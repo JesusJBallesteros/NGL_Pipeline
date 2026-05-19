@@ -77,7 +77,7 @@ else
 end
 
 %% 04. Run functions to convert INTAN dat to FIELDTRIP structure.
-if opt.FieldTrip && ~isfile(fullfile(opt.trialSorted,[opt.SavFileName '_FTcont.mat'])) % Look up in \trialSorted folder
+if opt.FieldTrip
     % Includes a mix of INTAN funtions. CREATES and GIVES proper
     % FieldTrip format without trial-parsing.
     INTANdata = intan2MAT_wrapper(input.sessions(input.run(1)), opt);
