@@ -270,6 +270,18 @@ if isempty(useevents)
         %     if str2double(opt.alignto{i,3})==2, correction = 1000; end % Fix for bhv-rwd in S3-Extintion Arena
         % end
 
+        % If there is a mismatch, force the sorthest (likely trialends) to
+        % become same lenght as the longest by padding zeros
+        if size(trialends,1)~=size(trialstarts,1)
+            warning('The trial definition has been modified by removing trials, due to mismatch between starts and ends. Check this.')
+            % Find the maximum length
+            minlen = min(length(trialstarts), length(trialends));
+            % Pad the shorter vector with a senseless value
+            trialstarts(minlen+1:end) = [];
+            trialends(minlen+1:end) = [];
+            idx(minlen+1:end) = [];
+        end
+
         % start times
         trialdef{2,i}(:,1) = trialstarts-opt.addtime;
             if trialdef{2,i}(1,1) < 0 % should very rarely happen, try not to.
@@ -278,13 +290,13 @@ if isempty(useevents)
        
         % end times
         trialdef{2,i}(:,2) = trialends+opt.addtime;
-        
+
         % zero times
         if size(trialdef{2,i},1) == size(idx,1)
             trialdef{2,i}(:,3) = EventRecord.TimeMsFromMidnight(idx)-correction;
         elseif size(trialdef{2,i},1) ~= size(idx,1)
             trl = 1;
-            for td = 1:ntrials
+            for td = 1:size(trialdef{2,i},1)
                 tmps = EventRecord.TimeMsFromMidnight(idx(trl))-correction;
                 if tmps > trialdef{2,i}(td,1) && tmps < trialdef{2,i}(td,2)
                     trialdef{2,i}(td,3) = tmps;
@@ -378,7 +390,7 @@ if isempty(useevents)
     %   .time {numtrials,1}, in SECONDS, aligned to a cero time fixed to an specific event (normally, itiOn).
     for i=1:size(opt.alignto,1)
         events.(opt.alignto{i,1}) = [];
-        for t = 1:ntrials
+        for t = 1:size(trialdef{2,i},1)
             % Grab all timestamps between time of start and time of end (inclusive)
             trialstamps = EventRecord.TimeSecFromMidnight(EventRecord.TimeSecFromMidnight >= trialdef{2,i}(t,1)/1000 & ...
                                                          EventRecord.TimeSecFromMidnight <= trialdef{2,i}(t,2)/1000);
