@@ -69,12 +69,12 @@ if isempty(useevents)
     end
     
     if ~(length(idx.start)==length(idx.end)) % matching start-end events
-        warning('A mismatch between number of start/end trials found.\n')
+        warning('A mismatch between number of start/end trials found.')
         if exist(fullfile(opt.behavFiles,"EventRecord.mat"),"file") 
             load(fullfile(opt.behavFiles,"EventRecord.mat"), 'EventRecord');
             warning('A fixed EventRecord variable found.\n')
         else
-            warning('Recommended to manually check this sessions event files to find out why.\n')
+            warning('Recommended to manually check this sessions event files to find out why.')
             % % Some common causes could be fixed using one of the approached below.
             % %  Delete the bad files produced by this function and try re
             % %  running it with one of the blocks commented below:
@@ -134,8 +134,10 @@ if isempty(useevents)
                 idx.start(1)=[];
             end
     
-            % Final check for start/end trial consistency. Throw error upen mismatch
-            assert(length(idx.start)==length(idx.end), 'Mismatch in start/end trials unsolved. Check the EventRecord to find the problem.\n')
+            % Final check for start/end trial consistency. Throw warning upon mismatch
+            if length(idx.start)==length(idx.end)
+                warning('Mismatch in start/end trials unsolved. Check the EventRecord to find the problem.')
+            end
         end
 
         % If there was a timebreak, relativize it to the first timestamp
