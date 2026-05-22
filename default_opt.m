@@ -53,9 +53,10 @@ function opts = default_opt()
     % opts.noise           = [];       % Needed?
 
     % Sorting & curation
-    opts.kilosort        = 1;        % Default to Kilosort4
+    opts.kilosort        = true;     % Default to Kilosort4
     opts.KSchanMapFile   = '';       % Empty = linear array; set to 'chanMapXXX.mat' for custom
     opts.bombcell        = true;     % Run Bombcell QC on Kilosort output
+    opts.callBcGUI       = false;    % GUI after BC metrics
     opts.phy             = false;    % Open Phy after sorting (blocks MATLAB)
 
     % NGL02_postPhy options

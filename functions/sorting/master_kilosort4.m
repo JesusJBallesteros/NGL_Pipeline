@@ -96,6 +96,8 @@ end
 clear content
 
 %% Set up Kilosort enviroment
+terminate(pyenv)
+
 pe = pyenv(Version=[input.KSpythonExe,'python.exe'], ExecutionMode="OutOfProcess");
 
 if pe.ExecutionMode && pe.Status > 0
@@ -220,7 +222,7 @@ if isfield(opt, 'KSfolders') && isfolder(defaultKSout) && ~strcmp(defaultKSout, 
     if length(defaultContent) > 3 && length(areaContent) <= 4
         rmdir(opt.KSfolder);                  % remove the pre-created empty area folder
         movefile(defaultKSout, opt.KSfolder); % rename kilosort4\ -> <Area>\ ("move")
-        fprintf('KS4 output relocated: kilosort4/ -> %s\n', opt.KSfolder);
+        fprintf('KS4 output relocated: kilosort\ -> %s\n', opt.KSfolder);
     end
 end
 

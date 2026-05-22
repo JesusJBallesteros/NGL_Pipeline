@@ -109,13 +109,11 @@ if ~isempty(trialdef)
         if isfile(fullfile(opt.trialSorted, strcat(opt.SavFileName, '_', trialdef{1,i} ,'.mat')))
             disp('A Fieldtrip trialparsed file found, skipping...')
         else
-            % get sample rate
-            fs_lfp = 1 / (data.time{1}(2) - data.time{1}(1));
-
             % Then proceed to trial-parse the FT_data. Use 'ft_redefinetrial'
             cfg = [];
+
             % cfg.trl = trialdef{2,i}; trial boundaries passed in ms instead of samples
-            cfg.trl = round(trialdef{2,i} / 1000 * fs_lfp);
+            cfg.trl = round(trialdef{2,i} / 1000 * FT_data_cont.fsample);
     
             % Re-set the offset of the trial definition for FT to get it.
             cfg.trl(:,3) = cfg.trl(:,1) - cfg.trl(:,3);

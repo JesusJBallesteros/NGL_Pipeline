@@ -30,6 +30,8 @@ cd(opt.FolderProcDataMat)
         cd(input.NCfolder);
         
         %% Check NeuroConv enviroment
+        terminate(pyenv)
+
         % Call enviroment status
         pe = pyenv(Version=fullfile(input.NCfolder,'python.exe'), ExecutionMode="OutOfProcess");
         

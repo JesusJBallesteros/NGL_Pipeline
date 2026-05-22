@@ -71,7 +71,7 @@ opt.analysis          = fullfile(input.analysis, subject, session);
 %  Multi-area: one sub-folder per unique area under <session>/<AreaLabel>/
 % opt.KSfolder is always set to the single-area path for backward-compatible
 % code; opt.KSfolders carries the per-area map when input.areaMap is present.
-opt.KSfolder = fullfile(opt.FolderProcDataMat, 'kilosort', int2str(opt.kilosort));
+opt.KSfolder = fullfile(opt.FolderProcDataMat, 'kilosort4');
 
 if isfield(input, 'areaMap') && ~isempty(input.areaMap)
     % Multi-area: build a struct with one field per unique area label.
