@@ -187,7 +187,7 @@ param = struct();
 
 
 %% 3) RUN.
-%% 3.1  NGL01_Main — preprocessing.
+%% 1  NGL01_Main — preprocessing.
 %   Locates sessions, determines file format, extracts events and motion
 %   data, converts to Kilosort and FieldTrip formats, runs Kilosort 4
 %   spike sorting, optionally runs Bombcell QC, and (optionally) opens
@@ -200,18 +200,18 @@ param = struct();
 
 NGL01_Main
 
-%% 3.2  NGL02_postPhy — spike pipeline (REQUIRES Phy curation).
+%% 2  NGL02_postPhy — spike pipeline (REQUIRES Phy curation).
 %   Loads curated KS/Phy clusters, sorts into trials, computes firing
 %   rate, optionally runs population-dynamics analysis. Multi-area
 %   aware: nested spike.<Area> / neurons.<Area> / fireRate.<Area> when
 %   input.Areas is set.
 %
-%   PRODUCES (per session):
+%   PRODUCES (per session, when enabled):
 %     spike.mat, neurons.mat, fireRate.mat, optional neuralDynamics.mat
 
 NGL02_postPhy
 
-%% 3.3  NGL02_LFP — LFP pipeline.
+%% 3  NGL02_LFP — LFP pipeline.
 %   Independent of Phy curation: can be run any time after NGL01_Main
 %   finishes (e.g., in parallel with manual curation). Loads
 %   FieldTrip-formatted LFP, runs artifact rejection and time-frequency
@@ -226,19 +226,17 @@ NGL02_postPhy
 
 NGL02_LFP
 
-%% 3.4  NGL03_plotting — group-level visualisation (TODO).
+%% 4  NGL03_acrossSession — cross subject and cross-session aggregation (TODO)
+%   Aggregate per-session outputs (spike / neurons / fireRate / condition
+%   / TFR) into study-level structures.
+
+% NGL03_acrossSession
+
+%% 4  NGL03_plotting — group-level visualisation (TODO).
 %   Comprehensive plots across sessions and conditions. Building on the
 %   per-session plots already produced by NGL02_postPhy.
 
-% NGL03_plotting
-
-%% 3.5  NGL03_acrossSession — cross-session aggregation (PLANNED, task #7).
-%   Aggregate per-session outputs (spike / neurons / fireRate / condition
-%   / TFR) into study-level structures. Previously lived as the
-%   project-specific NGL04_aggregate inside SocialLearning; will be
-%   refactored as a generic stage.
-
-% NGL03_acrossSession
+% NGL04_plotting
 
 %% More custom stages...
 % NGLXX_something

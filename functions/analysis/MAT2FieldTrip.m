@@ -43,7 +43,7 @@ function MAT2FieldTrip(data, opt, varargin)
 % Jesus 02.06.2026
 
 %% Check input emptyness as a purpously skipped step
-if isempty(data) || data == 0
+if isempty(data) || isnumeric(data)
     disp('Fieldtrip proper formatting was skipped too.')
     return
 end

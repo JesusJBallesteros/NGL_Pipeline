@@ -42,7 +42,7 @@
 %   trialparsed_MTspectrogram.
 %   All toolbox paths are added automatically by set_default.
 %
-% Last modified 29.05.2026 (Jesus) - split from NGL02_postPhy (#21)
+% Last modified 29.05.2026 (Jesus)
 
 %% 00. Check current inputs.
 NGL00_Prep
