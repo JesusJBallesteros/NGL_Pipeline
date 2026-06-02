@@ -55,6 +55,12 @@ NGL00_Prep
 %% 01. Find and list requested sessions and subjects.
 input.sessions = findSessions(input);
 
+%% 01b. Save study-wide preprocessing snapshot (master copy in analysisCode\).
+% Captures the resolved, post-set_default opt before any per-session paths
+% are added. NGL02_postPhy can fall back to this if a per-session snapshot
+% is missing. Overwritten on every NGL01 run.
+savePreprocInfo(input, opt, 'master');
+
 for x = 1:input.nsubjects % Subjects.
     for y = 1:input.sessions(x).nsessions % Sessions.
         %% 02. Prepare to proceed with a single session.
@@ -122,15 +128,22 @@ for x = 1:input.nsubjects % Subjects.
 
         %% 06. Open Phy to manual curation or just inspection
         % This is BEST done manually, once all your sessions have been processed
-        % by opening Phy one by one. This automatization after a session is 
-        % processed could be useful in specific cases at the time of parameter 
-        % optimization, or checking specific datasets one by one. 
+        % by opening Phy one by one. This automatization after a session is
+        % processed could be useful in specific cases at the time of parameter
+        % optimization, or checking specific datasets one by one.
         if opt.phy
             % Will change to current session directory and open phy.
             % ! Keeps MATLAB busy until interface is closed.
             cd(opt.FolderProcDataMat)
             system('phy template-gui params.py');
         end
+
+        %% 07. Save per-session preprocessing snapshot.
+        % Authoritative record of the exact opt used for THIS session,
+        % including the resolved session-specific paths. Lives next to
+        % trialdef.mat / events.mat so NGL02_postPhy can pick it up
+        % naturally at the top of each iteration.
+        savePreprocInfo(input, opt, 'session');
 
         %% Clean up to move on to next session
         clear FT_data INTANdata txt

@@ -100,24 +100,69 @@ if ~isempty(normFireRate)
             end
         end
 end
-if ~isempty(param.ROI{param.cl(2)})
-    roistr = param.ROI{param.cl(2)};
-else
-    roistr = '';
+% Build title (alignment + cluster index) and subtitle (area + labels)
+cidx  = param.cl(2);
+align = opt.alignto{param.cl(1)};
+
+% ROI, handling cell-vs-char and missing entries.
+roistr = localPickStr(param, 'ROI', cidx);
+
+% Curation labels (any subset may be absent depending on the run).
+KSstr   = localPickStr(param, 'KSLabel',     cidx);
+Humstr  = localPickStr(param, 'HumanLabel',  cidx);
+BCstr   = localPickStr(param, 'bc_unitType', cidx);
+PhyTag  = localPickStr(param, 'phyLabel',    cidx);
+
+% Compose subtitle: '<area> | KS:<KSLabel> | Phy:<HumanLabel> | BC:<bc_unitType> | tag:<phyLabel>'
+% Pieces that are empty are skipped so the subtitle stays clean on
+% sessions that didn't run Bombcell or have no Phy annotations.
+subParts = {};
+if ~isempty(roistr),  subParts{end+1} = roistr;                end
+if ~isempty(KSstr),   subParts{end+1} = ['KS:'   KSstr];       end
+if ~isempty(Humstr),  subParts{end+1} = ['Phy:'  Humstr];      end
+if ~isempty(BCstr),   subParts{end+1} = ['BC:'   BCstr];       end
+if ~isempty(PhyTag),  subParts{end+1} = ['tag:'  PhyTag];      end
+subStr = strjoin(subParts, ' | ');
+
+tlo.Title.String    = [align, ' c', num2str(cidx)];
+if ~isempty(subStr)
+    tlo.Subtitle.String = subStr;
 end
 
-if ~iscell(roistr), roistr = {roistr}; end
-
-tlo.Title.String = [opt.alignto{param.cl(1)}, ' c', num2str(param.cl(2)), '@', cell2mat(roistr)];
-
-% Save figure per alignment&cluster    
+% Save figure per alignment & cluster. Area is appended to the filename
+% so multi-area runs don't collide on cluster IDs.
 if ~exist(fullfile(opt.analysis,'plots','single_fr'),"dir")
     mkdir(fullfile(opt.analysis,'plots','single_fr'))
 end
+fnameTag = tlo.Title.String;
+if ~isempty(roistr), fnameTag = [fnameTag, '_', roistr]; end
 exportgraphics(tlo, fullfile(opt.analysis,'plots','single_fr', ...
-                    [opt.SavFileName,'_', tlo.Title.String, '.png']), ...
+                    [opt.SavFileName,'_', fnameTag, '.png']), ...
                     'Resolution', param.Resolution);
 
 close all hidden
 close all force
+end
+
+function s = localPickStr(P, fld, idx)
+% Pull P.(fld)(idx) and return it as a plain char. Handles missing field,
+% out-of-range index, cell-of-char, string scalar, empty/missing values.
+    s = '';
+    if ~isfield(P, fld) || isempty(P.(fld)), return; end
+    v = P.(fld);
+    if iscell(v)
+        if idx > numel(v), return; end
+        val = v{idx};
+    else
+        if idx > numel(v), return; end
+        val = v(idx);
+    end
+    if iscategorical(val), val = char(val); end
+    if isstring(val),      val = char(val); end
+    if isempty(val),       s = ''; return; end
+    if ischar(val)
+        s = val;
+    else
+        s = '';
+    end
 end

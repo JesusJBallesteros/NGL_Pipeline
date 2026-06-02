@@ -1,5 +1,5 @@
-function [TFR, cfg] = trialparsed_MTspectrogram(FT_data, conditions, param, opt)
-% This function takes trial-parsed FieldTrip formatted data, the conditions
+function [TFR, cfg] = trialparsed_MTspectrogram(FT_data, condition, param, opt)
+% This function takes trial-parsed FieldTrip formatted data, the condition
 % file and parameters and options to calculate the Time-frequency representation 
 % (TFR) with the method of choice. For wide-ranges 'superlets' is
 % recommended. By default, it will keep all trials information.
@@ -28,7 +28,7 @@ toload = 0;
 
 %% Check existence of multiple levels
 if isstring(opt.blocks)
-    opt.blocks = max(unique(conditions.block));
+    opt.blocks = max(unique(condition.block));
     param.multi = true; 
 elseif ~isstring(opt.blocks)
     if opt.blocks > 1; param.multi = true; end
@@ -83,7 +83,7 @@ if ~toload
             % For both stimuli NS/FS
             for st = 1:2 % st==1 -> NS, st==2 -> FS (bc 0=NS, 1=FS)
                 % get valid trials and halven into early/last
-                seltrials = find(conditions.correct == 1 & conditions.block == b & conditions.stimulus == (st-1) & ~isnan(FT_data.cfg.trl(:,3)));
+                seltrials = find(condition.correct == 1 & condition.block == b & condition.stimulus == (st-1) & ~isnan(FT_data.cfg.trl(:,3)));
                 midblock = floor(size(seltrials,1)/2);
                 blocktrials = {seltrials(1:midblock); ...
                                seltrials(midblock+1:end)};

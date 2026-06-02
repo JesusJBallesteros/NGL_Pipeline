@@ -27,7 +27,7 @@ function opts = default_opt()
     opts.numChannels     = 32;      % Expected channel count (override for 32-ch Deuteron)
     opts.bin             = true;    % Normally, we always check if the .bin file exists
     opts.FieldTrip       = true;    % Produce a FieldTrip-ready .mat file
-    opts.doNWB           = false;    % NWB export: INTAN via NeuroConv (Python), Deuteron via matNWB (MATLAB)
+    opts.doNWB           = true;    % NWB export: INTAN via NeuroConv (Python), Deuteron via matNWB (MATLAB)
 
     % Events
     opts.RetrieveEvents  = true;     % Extract event log from session
@@ -50,7 +50,6 @@ function opts = default_opt()
     opts.CAR             = 0;        % Common-average re-referencing. 0 = off.
     opts.dwnsmplRate     = [];       % LFP downsample target (Hz). [] = auto (937.5 Hz).
     opts.timebreak       = false;    % If a break in the recording is expected (e.g. Deuteron battery change)
-    % opts.noise           = [];       % Needed?
 
     % Sorting & curation
     opts.kilosort        = true;     % Default to Kilosort4
@@ -68,6 +67,57 @@ function opts = default_opt()
     opts.trialparsed     = false;    % Load trial-parsed FT file (vs continuous)
     opts.artifdet        = false;    % Run LFP artifact detection and rejection
     opts.spectrogram     = false;    % Run multitaper time-frequency analysis
-    opts.neurDyn.do      = false;    % Run neural-dynamics analysis
+    opts.neurDyn.do      = false;    % LEGACY trial-state embedding (kept for back-compat;
+                                     % retired in favour of opt.popDyn below).
+
+    % Population-dynamics family (NGL02 -> calculate_population_dynamics wrapper).
+    % Each .<method> flag opts that method in/out independently; the wrapper
+    % aggregates results into a single neuralDynamics struct.
+    opts.popDyn          = struct( ...
+        'do',           false,  ...  % master gate: run any population-dynamics step
+        'pca',          true,   ...  % trial-averaged smoothed-rate PCA (real time-trajectories)
+        'jPCA',         false,  ...  % rotational dynamics (PLACEHOLDER: not yet implemented)
+        'GPFA',         false,  ...  % single-trial smooth trajectories (PLACEHOLDER)
+        'trialEmbed',   false,  ...  % legacy trial-similarity embedding (PCA/tSNE/UMAP per trial)
+        'smoothSigma',  0.050,  ...  % Gaussian smoothing kernel sigma, SECONDS (~50 ms)
+        'nComponents',  3,      ...  % output embedding dimensionality
+        'conditionVar', '',     ...  % field name on `condition` for per-condition grouping (empty = no grouping)
+        'trialEmbedMethod','tSNE');  % method used by the legacy trialEmbed view: 'PCA'|'tSNE'|'UMAP'
+
+    % Waveform extraction (loadSpikes; consumed during NGL02)
+    opts.getwF           = false;    % Extract raw waveforms per cluster (slow)
+    opts.gwfparams       = struct( ...
+        'wfWin',    [-20 41], ...    % samples around spiketime (negative=before)
+        'nWf',      2000,     ...    % max waveforms per cluster
+        'dataType', 'int16',  ...    % .bin sample type (overridden by loadSpikes)
+        'nCh',      []);             % set inside loadSpikes from spikes.n_channels_dat
+    % Notes on gwfparams:
+    %   - wfWin and nWf are the fields users typically tune.
+    %   - dataType and nCh are kept for completeness but loadSpikes derives
+    %     them at runtime (hard-codes int16 and reads channel count from
+    %     the loaded KS struct). Setting them in NGL_SetAndRunMe has no
+    %     effect today; left here for compatibility.
+
+    % Cluster loading and ISI binning (loadSpikes / calc_isihist).
+    opts.spparams        = struct( ...
+        'excludeNoise', true, ...    % skip Phy 'noise'-labelled clusters
+        'loadPCs',      false);      % load principal components (rarely needed)
+    opts.isibins         = 0:0.5:200;% ISI histogram bin edges, ms
+
+    % Firing-rate binning (canonical values, shared by calcFireRate's
+    % `param` defaults and consumed by the population-dynamics family
+    % to size its smoothing kernel). Keep these in sync with whatever
+    % the user overrides in `param.binSize` / `param.stepSz` at call
+    % time — if they diverge, set_default does not (and cannot) check
+    % per-call param values, so the popDyn smoothing will use the
+    % canonical opt values regardless.
+    opts.binSize_ms      = 200;      % FR sliding-bin width (ms)
+    opts.stepSz_ms       = 20;       % FR sliding-bin step (ms)
+
+    % Per-area context, set by NGL02 around each loadSpikes call.
+    % Single-area runs leave this as 'all'; multi-area runs set it to the
+    % current area name (one of input.areaMap.uniqueAreas) before calling
+    % loadSpikes, which uses it to tag every cluster's spike.roi.
+    opts.area            = 'all';
 
 end

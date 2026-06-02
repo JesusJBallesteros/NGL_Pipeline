@@ -40,10 +40,10 @@ function MAT2FieldTrip(data, opt, varargin)
 % CALLS:
 %   ft_checkdata, ft_redefinetrial (FieldTrip)
 %
-% Jesus 12.06.2024
+% Jesus 02.06.2026
 
 %% Check input emptyness as a purpously skipped step
-if isempty(data)
+if isempty(data) || data == 0
     disp('Fieldtrip proper formatting was skipped too.')
     return
 end

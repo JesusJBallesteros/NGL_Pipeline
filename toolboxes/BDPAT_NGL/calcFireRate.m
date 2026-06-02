@@ -110,9 +110,9 @@ if ~isempty(param.baseline)
     end
 end
 
-%% If plot requested, plot per cluster and per session
-if param.plot
-    plot_single_fireRate(fireRate{1,1}, normFireRate, param, opt)
-end
+% %% If plot requested, plot per cluster and per session
+% if param.plot
+%     plot_single_fireRate(fireRate{1,1}, normFireRate, param, opt)
+% end
 
 end

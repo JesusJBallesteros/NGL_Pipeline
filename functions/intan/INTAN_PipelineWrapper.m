@@ -81,7 +81,7 @@ if opt.FieldTrip
     % Includes a mix of INTAN funtions. CREATES and GIVES proper
     % FieldTrip format without trial-parsing.
     INTANdata = intan2MAT_wrapper(input.sessions(input.run(1)), opt);
-    MAT2FieldTrip(INTANdata, opt, trialdef, 1); %(data, options, trialdefinitions, do continuous)
+    MAT2FieldTrip(INTANdata, opt, trialdef, 1); %(data, options, trialdefinitions, force continuous)
 end
 
 %% 05. Get Motion Data into Matlab

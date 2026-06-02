@@ -20,7 +20,6 @@ function checkAnalysisCode(input, opt)
 %
 % RECOMMENDED FILES (warning only):
 %   conditions_script.m    trial condition definitions
-%   postPhy_param.m        NGL02 post-Phy parameters
 %
 % TEMPLATE SOURCE:
 %   All config files except NGL_machineConfig.m and chanMap*.mat have
@@ -86,10 +85,6 @@ end
 %% Recommended (always)
 if ~isfile(fullfile(ac, 'conditions_script.m'))
     missing_recommended{end+1} = 'conditions_script.m  (trial condition labels)';
-end
-
-if ~isfile(fullfile(ac, 'postPhy_param.m'))
-    missing_recommended{end+1} = 'postPhy_param.m  (NGL02 post-Phy parameters)';
 end
 
 %% Report

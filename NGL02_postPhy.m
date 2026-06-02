@@ -6,13 +6,40 @@
 %
 % Requires: NGL_SetAndRunMe.m has been run, and Phy curation is complete.
 %
-% Jesus 21.08.2025 — refactored 27.04.2026
+% Jesus 28.05.2026
 
 %% 00. Check current inputs.
 % Check if input variable exist already. Parse values.
 NGL00_Prep
 
-% This single call guarantees opt is complete, validated, and consistent.
+%% 00b. Pre-flight: recover input.Areas from the NGL01 master snapshot.
+% set_default needs input. Areas BEFORE it can build the area map. If the
+% user did not re-set it in NGL_SetAndRunMe (common case when NGL02 runs in
+% a fresh MATLAB session), pull it from analysisCode\preprocInfo_lastRun.mat.
+% A user-supplied input.Areas always overrides.
+if ~isfield(input,'Areas') || isempty(input.Areas)
+    analysisCodePath = fullfile(input.datadrive, input.studyName, 'analysisCode');
+    if ~contains(analysisCodePath, ':\') && ~isempty(input.datadrive)
+        % datadrive might be a bare letter at this point; normalise.
+        analysisCodePath = fullfile([input.datadrive(1) ':\'], input.studyName, 'analysisCode');
+    end
+    try
+        masterInfo = loadPreprocInfo(analysisCodePath, 'master');
+        if isfield(masterInfo,'Areas') && ~isempty(masterInfo.Areas)
+            input.Areas = masterInfo.Areas;
+            fprintf('NGL02: recovered input.Areas = {%s} from preprocInfo_lastRun.mat\n', ...
+                    strjoin(input.Areas, ', '));
+        end
+    catch ME
+        if strcmp(ME.identifier, 'NGL:loadPreprocInfo:notFound')
+            % No master snapshot. Continue in single-area mode.
+        else
+            warning('NGL02:preflight', 'Could not read master preprocInfo: %s', ME.message);
+        end
+    end
+end
+
+% This call guarantees opt is complete, validated, and consistent.
 % It will error early with a clear message if anything is wrong.
 [input, opt] = set_default(input, opt);
 
@@ -22,85 +49,167 @@ input.sessions = findSessions(input);
 %% 02. Proceed with data per session
 for x = 1:input.nsubjects % Subjects.
     for y = 1:input.sessions(x).nsessions % Sessions.
-            %% 2.01. Prepare to proceed with a single session.
-            input.run = [x y]; % Current run, to pass to functions.
-            [input.sessions(input.run(1)).info, opt] = prepforsession(input, opt);           
+        %% 2.01. Per-session scaffolding (prepforsession + pre-flight + preprocInfo overlay).
+        input.run = [x y];
+        [input, opt] = prepSession(input, opt);
 
-            %% 2.02. Offline Video blob detector
-            % Very specific for Social learning videos from central cenital camera. 
-            if opt.offlineTrack
-                [blob] = processAndTrack_video(opt);
-                save(fullfile(opt.analysis, "blob.mat"), 'blob');
+        %% 2.02. Offline Video blob detector
+        % Very specific for Social learning videos from central cenital camera. 
+        if opt.offlineTrack
+            [blob] = processAndTrack_video(opt);
+            save(fullfile(opt.analysis, "blob.mat"), 'blob');
+        end
+
+        %% 2.03. SPIKE DATA
+        if opt.doSpikething
+            % Multi-area ready. When input.areaMap is set (fr. NGL01),
+            % build nested spike.<Area>, neurons.<Area>, fireRate.<Area>, 
+            % etc.<Area>.
+            % Single-area runs keep the flat struct.
+            isMultiArea = isfield(input, 'areaMap') && ~isempty(input.areaMap);
+            if isMultiArea
+                areaList = input.areaMap.uniqueAreas;
+            else
+                areaList = {'all'};  % only for log; opt.area stays 'all'
             end
 
-            %% 2.03. SPIKE DATA
-            if opt.doSpikething
+            % param is left undefined by user setups that have moved
+            % away from postPhy_param.m; guarantee an empty struct so
+            % downstream functions can fall back to their inline defaults.
+            if ~exist('param','var'), param = struct(); end
 
-                % Extract 'spike' data from saved data.
-                if exist(fullfile(opt.spikeSorted, "spike.mat"),'file')
-                    load(fullfile(opt.spikeSorted, "spike.mat"));
-                else
-
-                    % Or find clusters after sorting and curation.
-                    spike = loadSpikes(opt);
-                    if isfield(spike,"spike"), spike = spike.spike; end % Simplify loaded structure if needed
-                            
-                    % Save output to \spikesorted
-                    save(fullfile(opt.spikeSorted, "spike.mat"), 'spike', '-mat');
-                end
-                
-                % Sort 'spike' into 'trialdef' to create 'neurons'
-                if ~exist(fullfile(opt.analysis, "neurons.mat"),'file')
-                    % Iterate trough all units and sort them into trials.
-                    % Recover trial definitions created after event extraction and processing. 
-                    % Can have as many variations as requested at that time.
-                    % To create new alignments, it would have to be ran again.
-
-                    % Get trialdef
-                    if ~exist('trialdef','var'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
-                    
-                    % Use trial info to sort 'spikes' into 'neurons'
-                    % TODO fix Fieldtrip extraction
-                    [neurons, ~] = sort2trials(spike, trialdef, opt);
-
-                    % Save output to data\analysis
-                    save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
-                end
-
-                % Calculate fire rate and normalized fire rate
-                if ~exist(fullfile(opt.analysis, "fireRate.mat"),'file')
-                    if ~exist('neurons','var'), load(fullfile(opt.analysis, "neurons.mat")); end
-                    if ~exist('events','var'), load(fullfile(opt.trialSorted, "events.mat")); end
-                    if ~exist('condition','var'), load(fullfile(opt.trialSorted, "condition.mat")); end
-    
-                    % General function, no conditions: 'allInitiated' by default
-                    fireRate = calculate_fireRate_general(neurons, events, conditions, opt, param);
-                        
-                    save(fullfile(opt.analysis, "fireRate.mat"), 'fireRate', '-mat')
-
-                    % % Project specific    
-                    % param.IncludeFS = true; % NS and FS
-                    % param.trial2plot = 'allInitiated'; % for correct trials
-                    % fireRate = calculate_fireRate_extintion(neurons, events, condition, opt, param);
-                    % save(fullfile(opt.analysis, "fireRate_extintion.mat"), 'fireRate', '-mat')
-                end
-                
-                % calculate dynamics
-                if opt.neurDyn.do
-                    if ~exist(fullfile(opt.analysis, "neuralDynamics.mat"),'file')
-                       if ~exist('trialdef','var'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
-    
-                        % Uses opt.neurDyn optional structure for passing arguments
-                        neuralDynamics = calculate_neural_dynamics(neurons, fireRate, trialdef, opt);
-                        %
-    
-                        save(fullfile(opt.analysis, "neuralDynamics.mat"), 'neuralDynamics', '-mat')
+            %% spike: load cached file, or build from KS/Phy per area
+            needsBuild = ~exist(fullfile(opt.spikeSorted, "spike.mat"), 'file');
+            if ~needsBuild
+                load(fullfile(opt.spikeSorted, "spike.mat"));  % loads 'spike'
+                if isMultiArea
+                    for a = 1:numel(areaList)
+                        if ~isfield(spike, areaList{a})
+                            warning('NGL02:spikeMatShapeMismatch', ...
+                                ['Saved spike.mat is missing area "%s" (likely ', ...
+                                 'produced by an older single-area run). Regenerating.'], ...
+                                areaList{a});
+                            needsBuild = true;
+                            break
+                        end
                     end
                 end
-                
-                % Tracking in Social Arena
-                if opt.useTrack
-                    % Spiking indexing for Social intereactions. Checks blob
+            end
+
+            if needsBuild
+                if isMultiArea
+                    spike = struct();
+                    for a = 1:numel(areaList)
+                        areaName         = areaList{a};
+                        optArea          = opt;
+                        optArea.area     = areaName;
+                        optArea.KSfolder = opt.KSfolders.(areaName);
+                        fprintf('NGL02 doSpikething: loading clusters for area %s\n', areaName);
+                        tmp = loadSpikes(optArea);
+                        if isfield(tmp,'spike'), tmp = tmp.spike; end
+                        spike.(areaName) = tmp;
+                    end
+                else
+                    % Single-area: opt.area defaults to 'all' from set_default.
+                    spike = loadSpikes(opt);
+                    if isfield(spike,'spike'), spike = spike.spike; end
+                end
+                save(fullfile(opt.spikeSorted, "spike.mat"), 'spike', '-mat');
+            end
+
+            %% neurons: sort spikes into trials, per area if multi
+            if ~exist(fullfile(opt.analysis, "neurons.mat"),'file')
+                if ~exist('trialdef','var'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
+
+                if isMultiArea
+                    neurons = struct();
+                    for a = 1:numel(areaList)
+                        areaName = areaList{a};
+                        [neurons.(areaName), ~] = sort2trials(spike.(areaName), trialdef, opt);
+                    end
+                else
+                    [neurons, ~] = sort2trials(spike, trialdef, opt);
+                end
+                save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
+            end
+
+            %% fireRate: per area if multi
+            if ~exist(fullfile(opt.analysis, "fireRate.mat"),'file')
+                if ~exist('neurons','var'),   load(fullfile(opt.analysis, "neurons.mat"));    end
+                if ~exist('events','var'),    load(fullfile(opt.trialSorted, "events.mat"));   end
+                if ~exist('condition','var')
+                    load(fullfile(opt.trialSorted, "condition.mat"));
+                    if ~exist('condition','var'), condition = conditions; clear conditions
+                    end
+                end
+
+                % General function, no conditions: 'allInitiated' by default.
+                if isMultiArea
+                    fireRate = struct();
+                    for a = 1:numel(areaList)
+                        areaName = areaList{a};
+                        % Non-block FR calculation, for block/treatment sessions,
+                        % use 'calculate_fireRate_byBlock' instead. 
+                        % No 'events' needed here.
+                        fireRate.(areaName) = calculate_fireRate_general( ...
+                                                neurons.(areaName), [], condition, opt, param);
+                    end
+                else
+                    % Non-block FR calculation, for block/treatment sessions,
+                    % use 'calculate_fireRate_byBlock' instead. No 'events'
+                    % needed here.
+                    fireRate = calculate_fireRate_general(neurons, [], condition, opt, param);
+                end
+                save(fullfile(opt.analysis, "fireRate.mat"), 'fireRate', '-mat')
+
+                % % Project specific
+                % param.IncludeFS = true; % NS and FS
+                % param.trial2plot = 'allInitiated'; % for correct trials
+                % fireRate = calculate_fireRate_extintion(neurons, events, condition, opt, param);
+                % save(fullfile(opt.analysis, "fireRate_extintion.mat"), 'fireRate', '-mat')
+            end
+
+            %% population dynamics: per area if multi.
+            % Dispatches to whichever methods are enabled under
+            % opt.popDyn (pca / jPCA / GPFA / trialEmbed). jPCA and
+            % GPFA are placeholders today; see calculate_neural_jpca.m
+            % and calculate_neural_gpfa.m for the roadmap.
+            if opt.popDyn.do
+                if ~exist(fullfile(opt.analysis, "neuralDynamics.mat"),'file')
+                    if ~exist('trialdef','var'), load(fullfile(opt.trialSorted, "trialdef.mat")); end
+                    if ~exist('events','var'),    load(fullfile(opt.trialSorted, "events.mat"));   end
+                    if ~exist('condition','var')
+                        load(fullfile(opt.trialSorted, "condition.mat"));
+                        if ~exist('condition','var'), condition = conditions; clear conditions
+                        end
+                    end
+                    if ~exist('neurons','var'),   load(fullfile(opt.analysis, "neurons.mat"));    end
+                    if ~exist('fireRate','var'),   load(fullfile(opt.analysis, "fireRate.mat"));    end
+
+                    if isMultiArea
+                        neuralDynamics = struct();
+                        for a = 1:numel(areaList)
+                            areaName         = areaList{a};
+                            optArea          = opt;
+                            optArea.area     = areaName;
+                            neuralDynamics.(areaName) = calculate_population_dynamics( ...
+                                neurons.(areaName), fireRate.(areaName), trialdef, condition, optArea);
+                        end
+                    else
+                        neuralDynamics = calculate_population_dynamics(neurons, fireRate, trialdef, condition, opt);
+                    end
+                    save(fullfile(opt.analysis, "neuralDynamics.mat"), 'neuralDynamics', '-mat')
+                end
+            end
+
+            %% Tracking in Social Arena (project-specific; single-area only for now)
+            if opt.useTrack
+                if isMultiArea
+                    warning('NGL02:useTrackMultiArea', ...
+                        ['opt.useTrack is not multi-area aware. Skipping ', ...
+                         'social-tracking spike indexing for this session.']);
+                else
+                    % Spiking indexing for Social interactions. Checks blob
                     % interaction times (+-5s) and extracts spiking activity
                     % around them. Input needs to be 'blob.Merges', instead
                     % of a regular 'trialdef'.
@@ -112,96 +221,20 @@ for x = 1:input.nsubjects % Subjects.
 
                     % Also, use video assessment excel files to extract the
                     % logical indexing of Social events.
-                    % Read excel file, num trials
                     if ~exist('events','var'), load(fullfile(opt.analysis, "events.mat")); end
                     if ~isfield(events,"social")
                         [events.social] = getSocialEvents(opt);
                         save(fullfile(opt.analysis, "events.mat"), 'events', '-mat')
                     end
                 end
-
             end
 
-            %% 2.04. Continuous LFP DATA. UNDER DEVELOPMENT
-            if opt.doLFPthing
-                % Extract preprocessed FTcont file.
-                if opt.trialparsed
-                   disp('Loading FT trial parsed file...')
-                   load(fullfile(opt.trialSorted, [opt.SavFileName '_stimOn2.mat']), "-mat", 'FT_data');
-                else, disp('Loading FT continuous file...')
-                      load(fullfile(opt.trialSorted, [opt.SavFileName '_FTcont.mat']), "-mat", 'FT_data');
-                      FT_data.cfg.continuous = 'yes';
-                end
-                
-                if isfield(FT_data,"FT_data"), FT_data = FT_data.FT_data; end   % Simplify loaded structure if needed
-
-                % Obtain or create trial definition to pass to FT
-                if isfile(fullfile(opt.trialSorted, 'trialdef.mat')), load(fullfile(opt.trialSorted, "trialdef.mat")); end
-                if isfile(fullfile(input.analysis, 'data_all.mat'))
-                    load(fullfile(input.analysis, "data_all.mat"), 'allconditions');
-                    condition = allconditions{x,y};
-                end
-
-                if ~exist('trialdef','var')
-                    load(fullfile(opt.analysis, "events.mat"));
-                    if exist('events','var')
-                        [~, trialdef, ~] = trialdefGen(events, opt, 1);
-                        save(fullfile(opt.trialSorted, "trialdef.mat"), 'trialdef');
-                    else, warning('Neither trial definitions or events found for this session.')
-                    end
-                end
-
-                % % Specific for chgDtctPCue
-                % trialdef{2,1} = ceil(trialdef{2,1}/32);                
-                % % Outputs are saved to data\analysis. 
-                % MAT2FieldTrip(FT_data, opt, trialdef); 
-                % clear FT_data events trialdef
-
-                % Artifact detection and rejection. IN PROGRESS
-                if opt.artifdet
-                    FT_data = artifact_detRej_lfp(FT_data, condition, opt, param);
-                end
-
-                % Time-frequency analisys. IN PROGRESS
-                if opt.spectrogram
-                    if strcmp(FT_data.cfg.continuous, 'yes')
-                        allTFR_continuous{x,y} = continous_MTspectrogram(FT_data, condition, param, opt);
-
-                        % Save once all iterations are done
-                        if y == input.sessions(x).nsessions
-                            save(fullfile(input.analysis,'allTFR_continuous.mat'), 'allTFR_continuous', 'param', 'opt', '-mat');
-                        end
-                    else
-                        % Specific parameters
-                        param.testname = 'ASL_Clean_Final_Correct';
-
-                        % pass the analysis folder info too % TO optimize
-                        opt.analysisCode = input.analysisCode;
-
-                        [allTFR_trialparsed{x,y}, TFRcgf{x,y}] = trialparsed_MTspectrogram(FT_data, condition, param, opt);
-                        
-                        % Save once all iterations are done
-                        if y == input.sessions(x).nsessions
-                            save(fullfile(input.analysis,'allTFR_chbych_trialparsed.mat'), 'allTFR_trialparsed', 'param', 'opt', '-mat');
-                        end
-                    end
-                    
-                end
-    
-                % % vFLIP Analysis
-                % if opt.FLIP
-                %      laminaraxis = 0:0.05:1.55;
-                %      freqaxis = 1:150;
-                % 
-                %     % Specific for chgDtctPCue
-                %     [FLIP, relpow, ~] = vFLIP_NGL(FT_data, laminaraxis, freqaxis, 0);
-                % 
-                % end
-
-            end
-
+        end
+        
         %% Clean up to move on to next session
-        clear events EventRecord trialdef blob neurons spike
+        % Drop everything loaded or built inside this iteration so it
+        % cannot leak into the next session.
+        clear events trialdef condition blob neurons spike fireRate
      
     end
 end

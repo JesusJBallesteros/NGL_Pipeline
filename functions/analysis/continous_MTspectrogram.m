@@ -1,4 +1,8 @@
-function [TFR] = continous_MTspectrogram(FT_data, conditions, param, opt)
+function [TFR] = continous_MTspectrogram(FT_data, condition, param, opt) %#ok<INUSD>
+% Argument 'condition' (singular) aligns with the rest of the pipeline
+% (calculate_fireRate_general, condition.mat file). The body does not
+% currently reference it, but the name is kept for callsite consistency.
+%
 %{Intended to calculate and plot the Multitaper Spectrogram of continuous
 %  data from anesthesia sessions.
 % Requires a FieldTrip ready file, normally generated from an ETALO- 
