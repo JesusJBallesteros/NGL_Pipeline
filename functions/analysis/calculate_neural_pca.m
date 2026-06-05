@@ -81,18 +81,35 @@ binSize_s = stepSz_ms / 1000;
 K = opt.popDyn.nComponents;
 
 %% Build [Nclust x Nbins x Ntrials] tensor and smooth along time.
+% NOTE (#19): fireRate.sps now preserves the FULL trial axis. The
+% rateTensor's 3rd dim is Ntotal, matching condition.* vector lengths.
 rateTensor = fireRate_to_tensor(fireRate);
 rateTensor = smooth_spikes(rateTensor, opt.popDyn.smoothSigma, binSize_s);
-[Nclust, Nbins, Ntrials] = size(rateTensor);
+[Nclust, Nbins, ~] = size(rateTensor);
+
+%% Optional: drop aborted trials first (#19, default true).
+%   Mirrors the historic calculate_fireRate_general behaviour where
+%   aborted trials were excluded from FR. Toggle via opt.popDyn.dropAborted.
+if isfield(opt.popDyn,'dropAborted') && opt.popDyn.dropAborted ...
+        && isstruct(condition) && isfield(condition,'aborted')
+    validMask  = applyTrialFilter(condition, 'allInitiated');
+    rateTensor = rateTensor(:, :, validMask);
+else
+    validMask  = true(1, size(rateTensor,3));
+end
+Ntrials = size(rateTensor, 3);
 
 %% Group trials by condition.
 % conditionVar names a field on `condition` that gives a per-trial label.
 % Empty / missing field -> one "all" group with every trial.
+% The same validMask is applied to the per-trial label vector so the
+% group indexing stays aligned with rateTensor.
 condVar = opt.popDyn.conditionVar;
 if isempty(condVar) || ~isstruct(condition) || ~isfield(condition, condVar)
     groupLabels = repmat({'all'}, Ntrials, 1);
 else
     raw = condition.(condVar);
+    raw = raw(validMask);  % keep aligned with rateTensor
     if iscell(raw)
         groupLabels = raw(:);
     elseif isnumeric(raw) || islogical(raw)
@@ -109,7 +126,7 @@ else
     end
 end
 
-% Drop trials labelled NaN/'' (treated as "exclude").
+% Drop trials labelled NaN/'' / '<missing>' in the group field.
 isUsable = ~cellfun(@(v) isempty(v) || (ischar(v) && any(strcmp(v, {'NaN','<missing>'}))), groupLabels);
 groupLabels = groupLabels(isUsable);
 rateTensor  = rateTensor(:, :, isUsable);
@@ -118,12 +135,25 @@ rateTensor  = rateTensor(:, :, isUsable);
 Ncond = numel(uniqueGroups);
 
 %% Trial-average per group -> [Nclust x Nbins x Ncond].
+% 'omitnan' handles NaN sentinel rows (zero-spike / no-data trials).
 meanFR = zeros(Nclust, Nbins, Ncond);
 for g = 1:Ncond
     sel = (gIdx == g);
     if any(sel)
         meanFR(:, :, g) = mean(rateTensor(:, :, sel), 3, 'omitnan');
     end
+end
+
+% Drop condition groups that ended up all-NaN (no usable trials).
+keepGroup = squeeze(any(any(~isnan(meanFR), 1), 2));
+if ~all(keepGroup)
+    droppedGroups = uniqueGroups(~keepGroup);
+    warning('NGL:calculate_neural_pca:emptyGroups', ...
+        'Dropping %d condition group(s) with no usable trials: %s', ...
+        numel(droppedGroups), strjoin(droppedGroups, ', '));
+    meanFR       = meanFR(:, :, keepGroup);
+    uniqueGroups = uniqueGroups(keepGroup);
+    Ncond        = numel(uniqueGroups);
 end
 
 %% Reshape for PCA: neurons are observations (cols), (time x cond) are rows.

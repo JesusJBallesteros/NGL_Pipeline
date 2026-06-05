@@ -131,16 +131,13 @@ for a = 1:length(toalignto)
         emptytrials = cellfun(@isempty, clusterTrials);
         clusterTrials(emptytrials) = {NaN};
 
-        % Behavioural filter (applied to all blocks identically).
-        if strcmp(param.trial2plot, 'allInitiated')
-            clusterTrials(logical(condition.aborted)) = {[]};
-        else
-            assert(isfield(condition, param.trial2plot), ...
-                'NGL:calculate_fireRate_byBlock:unknownTrialFilter', ...
-                'param.trial2plot = ''%s'' but condition has no such field.', ...
-                param.trial2plot);
-            clusterTrials(logical(~condition.(param.trial2plot))) = {[]};
-        end
+        % Behavioural filter (applied to all blocks identically) via the
+        % shared applyTrialFilter helper (#19). NOTE: unlike
+        % calculate_fireRate_general, _byBlock's output IS inherently
+        % per-block-shaped, so we keep the per-block row reduction here
+        % via the block-membership mask + the filter mask.
+        validMask = applyTrialFilter(condition, param.trial2plot);
+        clusterTrials(~validMask) = {[]};
 
         %% Per-block FR
         for b = 1:nBlocks

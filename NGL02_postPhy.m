@@ -188,7 +188,44 @@ for x = 1:input.nsubjects % Subjects.
             end
 
             %% fireRate: per area if multi
-            if ~exist(fullfile(opt.analysis, "fireRate.mat"),'file')
+            % Auto-detect cached shape mismatch: the old
+            % calculate_fireRate_general dropped rows for trial2plot, so
+            % cached fireRate.mat from before has Nremaining rows
+            % instead of Ntotal. Detect by comparing one cluster's row
+            % count to numel(condition.aborted); if it doesn't match,
+            % delete the stale cache so the new calculation runs.
+            fireRateCache = fullfile(opt.analysis, "fireRate.mat");
+            if isfile(fireRateCache)
+                if ~exist('condition','var')
+                    load(fullfile(opt.trialSorted, "condition.mat"));
+                    if ~exist('condition','var'), condition = conditions; clear conditions
+                    end
+                end
+                if isfield(condition,'aborted')
+                    Ntotal = numel(condition.aborted);
+                    cached = load(fireRateCache);
+                    cFr = cached.fireRate;
+                    % Pull one .sps cell from either flat or nested layout.
+                    if isstruct(cFr) && isfield(cFr,'sps') && ~isempty(cFr.sps)
+                        sample = cFr.sps{1};
+                    elseif isstruct(cFr)
+                        fn = fieldnames(cFr);
+                        sample = cFr.(fn{1}).sps{1};
+                    else
+                        sample = [];
+                    end
+                    if ~isempty(sample) && size(sample,1) ~= Ntotal
+                        warning('NGL02:fireRateShapeMismatch', ...
+                            ['Cached fireRate.mat has %d rows but condition expects %d ', ...
+                             '. Deleting and regenerating.'], ...
+                             size(sample,1), Ntotal);
+                        delete(fireRateCache);
+                    end
+                end
+                clear cached cFr sample
+            end
+
+            if ~exist(fireRateCache,'file')
                 if ~exist('neurons','var'),   load(fullfile(opt.analysis, "neurons.mat"));    end
                 if ~exist('events','var'),    load(fullfile(opt.trialSorted, "events.mat"));   end
                 if ~exist('condition','var')
@@ -226,10 +263,10 @@ for x = 1:input.nsubjects % Subjects.
                             areaName     = areaList{a};
                             optArea      = opt;
                             optArea.area = areaName;
-                            plot_fireRate_session(fireRate.(areaName), param, optArea);
+                            plot_fireRate_session(fireRate.(areaName), condition, param, optArea);
                         end
                     else
-                        plot_fireRate_session(fireRate, param, opt);
+                        plot_fireRate_session(fireRate, condition, param, opt);
                     end
                 end
 

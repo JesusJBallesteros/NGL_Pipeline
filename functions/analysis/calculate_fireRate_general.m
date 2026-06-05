@@ -39,15 +39,27 @@ function fireRate = calculate_fireRate_general(neurons, events, condition, opt, 
 %
 % OUTPUT:
 %   fireRate  - struct with cell arrays sized {Nclust, 1}:
-%                 .sps       raw spikes/s per trial-bin (matrix per cell)
-%                 .Norm      baseline-normalised, per trial-bin
-%                 .meanNorm  mean of .Norm across trials, per cell
-%               Indexing is kept at {c,1} (column singleton) so downstream
-%               code that iterates `for p = 1:size(fireRate.sps,2)`
+%                 .sps       [Ntotal x Nbins] raw spikes/s per cell.
+%                 .Norm      [Ntotal x Nbins] baseline-normalised.
+%                 .meanNorm  [1 x Nbins] mean of .Norm across ALL trials.
+%               *** SHAPE CONTRACT (#19, 02.06.2026) ***
+%               .sps and .Norm always have Ntotal rows, where Ntotal is
+%               the per-trial dimension of `neurons.<align>`. Aborted /
+%               filtered-out trials are NOT removed by this function:
+%               consumers apply their own trial2plot selection (via
+%               applyTrialFilter) so the row index stays aligned with
+%               the per-trial condition vectors. .meanNorm is now the
+%               mean across all valid (non-NaN) trials including
+%               aborted ones; if you want the legacy "aborted-removed"
+%               mean, compute it via applyTrialFilter + nanmean in your
+%               consumer.
+%               Indexing is kept at {c,1} (column singleton) so
+%               downstream code that iterates `for p = 1:size(...,2)`
 %               continues to work even though there is only one level.
 %
 % PARAM DEFAULTS (inline; override by setting before the call):
-%   .trial2plot 'allInitiated'  which trials enter the FR calculation
+%   .trial2plot 'allInitiated'  no longer filters rows here (#19), but
+%                               downstream consumers read this field.
 %   .binSize    200  ms         FR sliding-bin width
 %   .stepSz      20  ms         sliding-bin step
 %   .interval   [-2000 10000]   window around alignment, ms
@@ -67,7 +79,11 @@ function fireRate = calculate_fireRate_general(neurons, events, condition, opt, 
 % Last modified 29.05.2026 (Jesus)
 
 %% Default options.
-if ~isfield(param,'trial2plot'), param.trial2plot = 'allInitiated'; end % which trials
+% this function preserves the FULL trial axis on every cluster,
+% consumers (plot_fireRate_session, popDyn methods) apply their own
+% selection via applyTrialFilter. We still default trial2plot here for
+% downstream consumers that read the same param struct.
+if ~isfield(param,'trial2plot'), param.trial2plot = 'allInitiated'; end % which trials (downstream use)
 if ~isfield(param,'binSize'),    param.binSize    = 200;            end % ms
 if ~isfield(param,'stepSz'),     param.stepSz     = 20;             end % ms
 if ~isfield(param,'interval'),   param.interval   = [-2000 10000];  end % ms
@@ -100,25 +116,15 @@ for a = 1:length(toalignto)
         emptytrials = cellfun(@isempty, toCalculate);
         toCalculate(emptytrials) = {NaN};
 
-        % Behavioural filter. All trials are valid by default; trial2plot
-        % can narrow to a named condition field, except 'allInitiated'
-        % which means "drop aborted trials only".
-        if strcmp(param.trial2plot, 'allInitiated')
-            toCalculate(logical(condition.aborted)) = {[]};
-        else
-            assert(isfield(condition, param.trial2plot), ...
-                'NGL:calculate_fireRate_general:unknownTrialFilter', ...
-                'param.trial2plot = ''%s'' but condition has no such field.', ...
-                param.trial2plot);
-            toCalculate(logical(~condition.(param.trial2plot))) = {[]};
-        end
-
-        %% FireRate calculation. Empty cells are skipped.
-        param.cl  = [a c 1];  % alignment, cluster, level (always 1 here)
-        spikes2use = ~cellfun(@isempty, toCalculate);
+        %% FireRate calculation. ALL trials are passed through; no
+        %  row-dropping for trial2plot here. Downstream consumers apply
+        %  their own selection via applyTrialFilter so the row index of
+        %  fireRate.sps{c} stays aligned with the per-trial condition
+        %  vectors at all times.
+        param.cl = [a c 1];  % alignment, cluster, level (always 1 here)
 
         [fireRate.sps{c,1}, fireRate.Norm{c,1}, fireRate.meanNorm{c,1}] = ...
-            calcFireRate(toCalculate(spikes2use), param, opt);
+            calcFireRate(toCalculate, param, opt);
 
         % Normalize cell-of-vectors -> matrix where appropriate.
         if iscell(fireRate.sps{c,1}),      fireRate.sps{c,1}      = cell2mat(fireRate.sps{c,1});      end
@@ -126,8 +132,5 @@ for a = 1:length(toalignto)
         if iscell(fireRate.meanNorm{c,1}), fireRate.meanNorm{c,1} = cell2mat(fireRate.meanNorm{c,1}); end
     end
 end
-% Plotting decoupled: the per-cluster and session-level plots that used
-% to be drawn inside this function are now in plot_fireRate_session.m
-% (audit item S). NGL02_postPhy calls that helper after this function.
 
 end % function end

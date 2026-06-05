@@ -83,6 +83,7 @@ function opts = default_opt()
         'smoothSigma',  0.050,  ...  % Gaussian smoothing kernel sigma, SECONDS (~50 ms)
         'nComponents',  3,      ...  % output embedding dimensionality
         'conditionVar', '',     ...  % field name on `condition` for per-condition grouping (empty = no grouping)
+        'dropAborted',  true,   ...  % drop aborted trials before grouping (matches legacy fireRate filter)
         'trialEmbedMethod','tSNE');  % method used by the legacy trialEmbed view: 'PCA'|'tSNE'|'UMAP'
 
     % Waveform extraction (loadSpikes; consumed during NGL02)

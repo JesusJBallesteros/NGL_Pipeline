@@ -1,4 +1,4 @@
-function result = calculate_neural_trialEmbedding(neurons, fireRate, opt)
+function result = calculate_neural_trialEmbedding(neurons, fireRate, condition, opt) %#ok<INUSL>
 % calculate_neural_trialEmbedding  Per-trial population-state embedding via
 %                                  PCA, t-SNE, or UMAP. The legacy
 %                                  "neural dynamics" view, renamed to
@@ -61,6 +61,15 @@ binSize_s = stepSz_ms / 1000;
 
 rateTensor = fireRate_to_tensor(fireRate);
 rateTensor = smooth_spikes(rateTensor, opt.popDyn.smoothSigma, binSize_s);
+
+%% Optional: drop aborted trials (#19, default true via opt.popDyn.dropAborted).
+% Mirrors the historic calculate_fireRate_general filter for consistency
+% across the popDyn family.
+if isfield(opt.popDyn,'dropAborted') && opt.popDyn.dropAborted ...
+        && isstruct(condition) && isfield(condition,'aborted')
+    validMask  = applyTrialFilter(condition, 'allInitiated');
+    rateTensor = rateTensor(:, :, validMask);
+end
 [Nclust, Nbins, Ntrials] = size(rateTensor);
 
 % Flatten each trial into a single feature vector -> [Ntrials x (Nclust*Nbins)].

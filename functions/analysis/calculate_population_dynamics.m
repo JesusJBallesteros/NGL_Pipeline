@@ -106,7 +106,7 @@ end
 %% Trial-state embedding — legacy view (per-trial points in low-dim space).
 if opt.popDyn.trialEmbed
     try
-        neuralDynamics.trialEmbed = calculate_neural_trialEmbedding(neurons, fireRate, opt);
+        neuralDynamics.trialEmbed = calculate_neural_trialEmbedding(neurons, fireRate, condition, opt);
         ran{end+1} = 'trialEmbed';
     catch ME
         warning('NGL:popDyn:trialEmbedFailed', ...

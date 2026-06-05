@@ -123,7 +123,7 @@ assert(opt.stepSz_ms <= opt.binSize_ms, ...
 
 % Population-dynamics family (NGL02 / calculate_population_dynamics).
 assert(isstruct(opt.popDyn), 'NGL:invalidOption', 'opt.popDyn must be a struct.');
-for f = {'do','pca','jPCA','GPFA','trialEmbed'}
+for f = {'do','pca','jPCA','GPFA','trialEmbed','dropAborted'}
     assert(isfield(opt.popDyn, f{1}) && islogical(opt.popDyn.(f{1})) && isscalar(opt.popDyn.(f{1})), ...
         'NGL:invalidOption', 'opt.popDyn.%s must be a logical scalar.', f{1});
 end
