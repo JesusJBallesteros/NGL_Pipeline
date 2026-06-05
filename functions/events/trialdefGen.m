@@ -64,9 +64,9 @@ if isempty(useevents)
                        EventRecord.EventType == opt.eventdef.end2 | ...
                        EventRecord.EventType == opt.eventdef.end3);
 
-    if idx.start(1)==1 % First trial start event can't be the first event sent. In INTAN this means 'sessionsStart'
-        idx.start(1)=[]; %remove it
-    end
+    % if idx.start(1)==1 % First trial start event can't be the first event sent. In INTAN this means 'sessionsStart'
+    %     idx.start(1)=[]; %remove it
+    % end
     
     if ~(length(idx.start)==length(idx.end)) % matching start-end events
         warning('A mismatch between number of start/end trials found.')
@@ -130,12 +130,12 @@ if isempty(useevents)
                                EventRecord.EventType==opt.eventdef.end2 | ...
                                EventRecord.EventType==opt.eventdef.end3);
             % Remove INTAN's 'sessionsStart' event again if re-captured
-            if idx.start(1)==1 
-                idx.start(1)=[];
-            end
+            % if idx.start(1)==1 
+            %     idx.start(1)=[];
+            % end
     
             % Final check for start/end trial consistency. Throw warning upon mismatch
-            if length(idx.start)==length(idx.end)
+            if length(idx.start)~=length(idx.end)
                 warning('Mismatch in start/end trials unsolved. Check the EventRecord to find the problem.')
             end
         end
@@ -163,11 +163,11 @@ if isempty(useevents)
     trialends = EventRecord.TimeMsFromMidnight(idx.end); % get corresponding timestamps.
 
     % % Check for trial length consistency
-    % triallengths = trialends-trialstarts;
-    % Avtriallength = median(triallengths); 
-    % if sum(triallengths > Avtriallength*1.5)==1
+    % triallengths = floor(trialends-trialstarts);
+    % Avtriallength = floor(median(triallengths)); 
+    % if sum(triallengths > Avtriallength*2)==1
     %     warning('Exactly one trial have been found unconsistently lenghty. This "trial" range will be excluded:')
-    %     NotTrial = find(triallengths > Avtriallength*1.5);
+    %     NotTrial = find(triallengths > Avtriallength*2);
     %     trialstarts(NotTrial) = [];
     %     trialends(NotTrial) = [];
     % 
@@ -230,10 +230,10 @@ else
                     EventRecord.EventType==opt.eventdef.end2 | ...
                     EventRecord.EventType==opt.eventdef.end3);
     
-    if idx.start(1)==1 % First event can indeed be 'startTrial' but in INTAN it means 'sessionsStart'
-        idx.start(1)=[];
-    end
-
+    % if idx.start(1)==1 % First event can indeed be 'startTrial' but in INTAN it means 'sessionsStart'
+    %     idx.start(1)=[];
+    % end
+    % 
     % 01 Relativize timestamps to session start keeping it in msec
     % EventRecord.TimeMsFromMidnight = (EventRecord.TimeMsFromMidnight - EventRecord.TimeMsFromMidnight(1));
     
@@ -261,10 +261,10 @@ if isempty(useevents)
         end
 
         idx = find(EventRecord.EventType==opt.alignto{i,2});
-        if idx(1)==1 % First event can indeed be 'startTrial' but in INTAN it means 'sessionsStart'
-            idx(1)=[];
-        end
-
+        % if idx(1)==1 % First event can indeed be 'startTrial' but in INTAN it means 'sessionsStart'
+        %     idx(1)=[];
+        % end
+        % 
         % if strcmp(opt.alignto{i,1},'bhv') % TODO. Has to be used ONLY for bhv2 in S3-Extintion Arena
         %     idx(EventRecord.EventType(idx-1) ~= str2double(opt.alignto{i,3})) = [];
         %     if str2double(opt.alignto{i,3})==2, correction = 1000; end % Fix for bhv-rwd in S3-Extintion Arena
