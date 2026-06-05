@@ -60,34 +60,40 @@ catch ME
     end
 end
 
-%% Per-cluster plots.
-Nclust = numel(fireRate.sps);
-for c = 1:Nclust
-    param.cl = [1 c 1];  % alignment 1, cluster c, level 1
-    sps  = fireRate.sps{c,1};
-    nrm  = fireRate.Norm{c,1};
-    if ~isempty(rowMask) && size(sps,1) == numel(rowMask)
-        sps = sps(rowMask, :);
-        nrm = nrm(rowMask, :);
-    end
-    plot_single_fireRate(sps, nrm, param, opt);
-end
+%% Per-alignment loop (#26): every requested alignment gets its own
+%  per-cluster and multi-cluster figures, tagged via param.cl(1)=a and
+%  opt.alignto{a} in titles/filenames.
+[Nclust, Nalign] = size(fireRate.sps);
 
-%% Session-level multi-cluster plot.
-% Recompute meanNorm from the filtered .Norm so the multi-cluster heatmap
-% reflects the same trial selection as the per-cluster plots.
-if ~isempty(rowMask)
-    filteredMeanNorm = cell(Nclust, 1);
+for a = 1:Nalign
+    %% Per-cluster plots for this alignment.
     for c = 1:Nclust
-        nrm = fireRate.Norm{c,1};
-        if size(nrm,1) == numel(rowMask)
-            filteredMeanNorm{c,1} = mean(nrm(rowMask,:), 1, 'omitnan');
-        else
-            filteredMeanNorm{c,1} = fireRate.meanNorm{c,1};
+        param.cl = [a c 1];  % alignment a, cluster c, level 1
+        sps = fireRate.sps{c, a};
+        nrm = fireRate.Norm{c, a};
+        if ~isempty(rowMask) && size(sps,1) == numel(rowMask)
+            sps = sps(rowMask, :);
+            nrm = nrm(rowMask, :);
         end
+        plot_single_fireRate(sps, nrm, param, opt);
     end
-    plot_multi_fireRate(filteredMeanNorm, param, opt);
-else
-    plot_multi_fireRate(fireRate.meanNorm, param, opt);
+
+    %% Session-level multi-cluster plot for this alignment.
+    % Recompute meanNorm from the filtered .Norm so the multi-cluster
+    % heatmap reflects the same trial selection as the per-cluster plots.
+    if ~isempty(rowMask)
+        filteredMeanNorm = cell(Nclust, 1);
+        for c = 1:Nclust
+            nrm = fireRate.Norm{c, a};
+            if size(nrm,1) == numel(rowMask)
+                filteredMeanNorm{c, 1} = mean(nrm(rowMask, :), 1, 'omitnan');
+            else
+                filteredMeanNorm{c, 1} = fireRate.meanNorm{c, a};
+            end
+        end
+        plot_multi_fireRate(filteredMeanNorm, param, opt);
+    else
+        plot_multi_fireRate(fireRate.meanNorm(:, a), param, opt);
+    end
 end
 end

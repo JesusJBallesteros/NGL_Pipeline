@@ -188,12 +188,13 @@ for x = 1:input.nsubjects % Subjects.
             end
 
             %% fireRate: per area if multi
-            % Auto-detect cached shape mismatch: the old
-            % calculate_fireRate_general dropped rows for trial2plot, so
-            % cached fireRate.mat from before has Nremaining rows
-            % instead of Ntotal. Detect by comparing one cluster's row
-            % count to numel(condition.aborted); if it doesn't match,
-            % delete the stale cache so the new calculation runs.
+            % Auto-detect cached shape mismatches:
+            %   #19: rows must equal numel(condition.aborted) (Ntotal).
+            %   #26: columns must equal numel(opt.alignto) (Nalign).
+            % If either is wrong (pre-#19 cache has Nremaining rows;
+            % pre-#26 cache has 1 column even when multiple alignments
+            % were requested), delete the stale cache so the regen path
+            % runs with the current shape contract.
             fireRateCache = fullfile(opt.analysis, "fireRate.mat");
             if isfile(fireRateCache)
                 if ~exist('condition','var')
@@ -201,28 +202,41 @@ for x = 1:input.nsubjects % Subjects.
                     if ~exist('condition','var'), condition = conditions; clear conditions
                     end
                 end
-                if isfield(condition,'aborted')
-                    Ntotal = numel(condition.aborted);
-                    cached = load(fireRateCache);
-                    cFr = cached.fireRate;
-                    % Pull one .sps cell from either flat or nested layout.
-                    if isstruct(cFr) && isfield(cFr,'sps') && ~isempty(cFr.sps)
-                        sample = cFr.sps{1};
-                    elseif isstruct(cFr)
-                        fn = fieldnames(cFr);
-                        sample = cFr.(fn{1}).sps{1};
-                    else
-                        sample = [];
-                    end
-                    if ~isempty(sample) && size(sample,1) ~= Ntotal
-                        warning('NGL02:fireRateShapeMismatch', ...
-                            ['Cached fireRate.mat has %d rows but condition expects %d ', ...
-                             '. Deleting and regenerating.'], ...
-                             size(sample,1), Ntotal);
-                        delete(fireRateCache);
-                    end
+                cached = load(fireRateCache);
+                cFr = cached.fireRate;
+                % Pull the .sps cell array from either flat or nested layout.
+                if isstruct(cFr) && isfield(cFr,'sps') && ~isempty(cFr.sps)
+                    spsCells = cFr.sps;
+                elseif isstruct(cFr)
+                    fn = fieldnames(cFr);
+                    spsCells = cFr.(fn{1}).sps;
+                else
+                    spsCells = {};
                 end
-                clear cached cFr sample
+                if ~isempty(spsCells)
+                    sample = spsCells{1};
+                    Ncol   = size(spsCells, 2);
+                    needsRegen = false;
+                    % Row-count check (#19).
+                    if isfield(condition,'aborted') && ~isempty(sample) && ...
+                            size(sample,1) ~= numel(condition.aborted)
+                        warning('NGL02:fireRateShapeMismatch', ...
+                            ['Cached fireRate.mat has %d rows but condition ', ...
+                             'expects %d (pre-#19 cache). Deleting and regenerating.'], ...
+                             size(sample,1), numel(condition.aborted));
+                        needsRegen = true;
+                    end
+                    % Column-count check (#26).
+                    if ~needsRegen && Ncol ~= numel(opt.alignto)
+                        warning('NGL02:fireRateAlignMismatch', ...
+                            ['Cached fireRate.mat has %d alignment column(s) but ', ...
+                             'opt.alignto requests %d (pre-#26 cache). Deleting ', ...
+                             'and regenerating.'], Ncol, numel(opt.alignto));
+                        needsRegen = true;
+                    end
+                    if needsRegen, delete(fireRateCache); end
+                end
+                clear cached cFr spsCells sample Ncol needsRegen
             end
 
             if ~exist(fireRateCache,'file')

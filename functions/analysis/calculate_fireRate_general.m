@@ -38,11 +38,16 @@ function fireRate = calculate_fireRate_general(neurons, events, condition, opt, 
 %               "semi-independent" by design). See PARAM DEFAULTS below.
 %
 % OUTPUT:
-%   fireRate  - struct with cell arrays sized {Nclust, 1}:
+%   fireRate  - struct with cell arrays sized {Nclust, Nalign}:
 %                 .sps       [Ntotal x Nbins] raw spikes/s per cell.
 %                 .Norm      [Ntotal x Nbins] baseline-normalised.
 %                 .meanNorm  [1 x Nbins] mean of .Norm across ALL trials.
-%               *** SHAPE CONTRACT (#19, 02.06.2026) ***
+%               *** SHAPE CONTRACT (#19 + #26, 02.06.2026) ***
+%               Second cell dimension is the ALIGNMENT index, matching
+%               opt.alignto. Pre-#26 code used {c,1} for every alignment
+%               iteration, so only the LAST alignment's results survived.
+%               Now consumers index as fireRate.sps{c, a} for cluster c,
+%               alignment a in opt.alignto.
 %               .sps and .Norm always have Ntotal rows, where Ntotal is
 %               the per-trial dimension of `neurons.<align>`. Aborted /
 %               filtered-out trials are NOT removed by this function:
@@ -53,9 +58,6 @@ function fireRate = calculate_fireRate_general(neurons, events, condition, opt, 
 %               aborted ones; if you want the legacy "aborted-removed"
 %               mean, compute it via applyTrialFilter + nanmean in your
 %               consumer.
-%               Indexing is kept at {c,1} (column singleton) so
-%               downstream code that iterates `for p = 1:size(...,2)`
-%               continues to work even though there is only one level.
 %
 % PARAM DEFAULTS (inline; override by setting before the call):
 %   .trial2plot 'allInitiated'  no longer filters rows here (#19), but
@@ -123,13 +125,15 @@ for a = 1:length(toalignto)
         %  vectors at all times.
         param.cl = [a c 1];  % alignment, cluster, level (always 1 here)
 
-        [fireRate.sps{c,1}, fireRate.Norm{c,1}, fireRate.meanNorm{c,1}] = ...
+        % Output indexed by [cluster, alignment] so multiple alignments
+        % don't overwrite each other (#26). Previous code used {c,1}.
+        [fireRate.sps{c,a}, fireRate.Norm{c,a}, fireRate.meanNorm{c,a}] = ...
             calcFireRate(toCalculate, param, opt);
 
         % Normalize cell-of-vectors -> matrix where appropriate.
-        if iscell(fireRate.sps{c,1}),      fireRate.sps{c,1}      = cell2mat(fireRate.sps{c,1});      end
-        if iscell(fireRate.Norm{c,1}),     fireRate.Norm{c,1}     = cell2mat(fireRate.Norm{c,1});     end
-        if iscell(fireRate.meanNorm{c,1}), fireRate.meanNorm{c,1} = cell2mat(fireRate.meanNorm{c,1}); end
+        if iscell(fireRate.sps{c,a}),      fireRate.sps{c,a}      = cell2mat(fireRate.sps{c,a});      end
+        if iscell(fireRate.Norm{c,a}),     fireRate.Norm{c,a}     = cell2mat(fireRate.Norm{c,a});     end
+        if iscell(fireRate.meanNorm{c,a}), fireRate.meanNorm{c,a} = cell2mat(fireRate.meanNorm{c,a}); end
     end
 end
 

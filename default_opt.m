@@ -84,6 +84,7 @@ function opts = default_opt()
         'nComponents',  3,      ...  % output embedding dimensionality
         'conditionVar', '',     ...  % field name on `condition` for per-condition grouping (empty = no grouping)
         'dropAborted',  true,   ...  % drop aborted trials before grouping (matches legacy fireRate filter)
+        'alignIdx',     1,      ...  % which opt.alignto entry to analyse (popDyn methods operate on one alignment at a time)
         'trialEmbedMethod','tSNE');  % method used by the legacy trialEmbed view: 'PCA'|'tSNE'|'UMAP'
 
     % Waveform extraction (loadSpikes; consumed during NGL02)

@@ -147,6 +147,8 @@ opt = struct();
     % opt.popDyn.smoothSigma = 0.050;        % Gaussian smoothing sigma, SECONDS.
     % opt.popDyn.nComponents = 3;            % output embedding dimensionality.
     % opt.popDyn.conditionVar = '';          % field name on `condition` for per-condition grouping (empty = no grouping).
+    % opt.popDyn.dropAborted = true;         % drop aborted trials before grouping.
+    % opt.popDyn.alignIdx    = 1;            % which opt.alignto entry to analyse (1-based).
     % opt.popDyn.trialEmbedMethod = 'tSNE';  % 'PCA' | 'tSNE' | 'UMAP'.
 
     % LFP side (NGL02_LFP)

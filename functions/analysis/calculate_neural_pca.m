@@ -83,7 +83,10 @@ K = opt.popDyn.nComponents;
 %% Build [Nclust x Nbins x Ntrials] tensor and smooth along time.
 % NOTE (#19): fireRate.sps now preserves the FULL trial axis. The
 % rateTensor's 3rd dim is Ntotal, matching condition.* vector lengths.
-rateTensor = fireRate_to_tensor(fireRate);
+% NOTE (#26): fireRate.sps is {Nclust x Nalign}; pick the alignment via
+% opt.popDyn.alignIdx (default 1, set in default_opt).
+alignIdx   = opt.popDyn.alignIdx;
+rateTensor = fireRate_to_tensor(fireRate, alignIdx);
 rateTensor = smooth_spikes(rateTensor, opt.popDyn.smoothSigma, binSize_s);
 [Nclust, Nbins, ~] = size(rateTensor);
 
@@ -185,7 +188,7 @@ else
 end
 
 areaTag = ''; if isfield(opt,'area'), areaTag = opt.area; end
-align   = ''; if isfield(opt,'alignto') && ~isempty(opt.alignto), align = opt.alignto{1}; end
+align   = ''; if isfield(opt,'alignto') && numel(opt.alignto) >= alignIdx, align = opt.alignto{alignIdx}; end
 titleStr = sprintf('Population PCA  |  area %s  |  align %s  |  %d conditions, %d/%d PCs', ...
                    areaTag, align, Ncond, Kavail, K);
 

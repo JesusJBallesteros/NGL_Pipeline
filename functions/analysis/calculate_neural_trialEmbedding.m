@@ -59,7 +59,10 @@ K      = max(2, opt.popDyn.nComponents);
 if isfield(opt,'stepSz_ms'), stepSz_ms = opt.stepSz_ms; else, stepSz_ms = 20; end
 binSize_s = stepSz_ms / 1000;
 
-rateTensor = fireRate_to_tensor(fireRate);
+% NOTE (#26): fireRate.sps is {Nclust x Nalign}; pick alignment via
+% opt.popDyn.alignIdx (default 1).
+alignIdx   = opt.popDyn.alignIdx;
+rateTensor = fireRate_to_tensor(fireRate, alignIdx);
 rateTensor = smooth_spikes(rateTensor, opt.popDyn.smoothSigma, binSize_s);
 
 %% Optional: drop aborted trials (#19, default true via opt.popDyn.dropAborted).
@@ -108,7 +111,7 @@ end
 
 %% Plot.
 areaTag = ''; if isfield(opt,'area'),    areaTag = opt.area; end
-align   = ''; if isfield(opt,'alignto') && ~isempty(opt.alignto), align = opt.alignto{1}; end
+align   = ''; if isfield(opt,'alignto') && numel(opt.alignto) >= alignIdx, align = opt.alignto{alignIdx}; end
 titleStr = sprintf('Trial-state embedding (%s)  |  area %s  |  align %s  |  %d trials', ...
                    method, areaTag, align, Ntrials);
 

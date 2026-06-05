@@ -152,15 +152,18 @@ for a = 1:length(toalignto)
 
             param.cl = [a c b];  % alignment, cluster, block
 
-            [fireRate.sps{c,b}, fireRate.Norm{c,b}, fireRate.meanNorm{c,b}] = ...
+            % Output indexed by [cluster, alignment, block] so multiple
+            % alignments don't overwrite each other (#26). Pre-#26 the
+            % alignment loop was ignored in indexing.
+            [fireRate.sps{c,a,b}, fireRate.Norm{c,a,b}, fireRate.meanNorm{c,a,b}] = ...
                 calcFireRate(clusterTrials(spikes2use), param, opt);
 
-            if iscell(fireRate.sps{c,b}),      fireRate.sps{c,b}      = cell2mat(fireRate.sps{c,b});      end
-            if iscell(fireRate.Norm{c,b}),     fireRate.Norm{c,b}     = cell2mat(fireRate.Norm{c,b});     end
-            if iscell(fireRate.meanNorm{c,b}), fireRate.meanNorm{c,b} = cell2mat(fireRate.meanNorm{c,b}); end
+            if iscell(fireRate.sps{c,a,b}),      fireRate.sps{c,a,b}      = cell2mat(fireRate.sps{c,a,b});      end
+            if iscell(fireRate.Norm{c,a,b}),     fireRate.Norm{c,a,b}     = cell2mat(fireRate.Norm{c,a,b});     end
+            if iscell(fireRate.meanNorm{c,a,b}), fireRate.meanNorm{c,a,b} = cell2mat(fireRate.meanNorm{c,a,b}); end
 
             if param.plot
-                plot_single_fireRate(fireRate.sps{c,b}, fireRate.Norm{c,b}, param, opt)
+                plot_single_fireRate(fireRate.sps{c,a,b}, fireRate.Norm{c,a,b}, param, opt)
             end
         end
     end
