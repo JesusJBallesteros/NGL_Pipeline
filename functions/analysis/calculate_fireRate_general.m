@@ -124,17 +124,10 @@ for a = 1:length(toalignto)
         if iscell(fireRate.sps{c,1}),      fireRate.sps{c,1}      = cell2mat(fireRate.sps{c,1});      end
         if iscell(fireRate.Norm{c,1}),     fireRate.Norm{c,1}     = cell2mat(fireRate.Norm{c,1});     end
         if iscell(fireRate.meanNorm{c,1}), fireRate.meanNorm{c,1} = cell2mat(fireRate.meanNorm{c,1}); end
-
-        %% Optional per-cluster plot
-        if param.plot
-            plot_single_fireRate(fireRate.sps{c,1}, fireRate.Norm{c,1}, param, opt)
-        end
     end
 end
-
-%% Optional session-level multi-cluster plot
-if param.plot
-    plot_multi_fireRate(fireRate.meanNorm, param, opt)
-end
+% Plotting decoupled: the per-cluster and session-level plots that used
+% to be drawn inside this function are now in plot_fireRate_session.m
+% (audit item S). NGL02_postPhy calls that helper after this function.
 
 end % function end

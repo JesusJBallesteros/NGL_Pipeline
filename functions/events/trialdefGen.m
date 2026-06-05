@@ -346,12 +346,16 @@ else
         
         % zero times
         if size(trialdef{2,oldN+i},1) == size(idx,1)
-            trialdef{2,oldN+i}(:,3) = EventRecord.TimeMsFromMidnight(idx); 
+            trialdef{2,oldN+i}(:,3) = EventRecord.TimeMsFromMidnight(idx);
         elseif size(trialdef{2,oldN+i},1) ~= size(idx,1)
             trl = 1;
             for td = 1:size(trialdef{2,1},1)
-                if strcmp(opt.newEvent{i,2},'2')
-                    tmps = EventRecord.TimeMsFromMidnight(idx(trl))-1000; % -1000 is an Extintion arena FIX for 079's #1-11)
+                % The -1000 ms correction below is an Extintion-arena fix for
+                % subject 079 sessions #1-11. Gated behind opt.proj_extintion
+                % (#8) so non-Extintion projects don't get the offset.
+                if strcmp(opt.newEvent{i,2},'2') && ...
+                   isfield(opt,'proj_extintion') && opt.proj_extintion
+                    tmps = EventRecord.TimeMsFromMidnight(idx(trl)) - 1000;
                 else
                     tmps = EventRecord.TimeMsFromMidnight(idx(trl));
                 end

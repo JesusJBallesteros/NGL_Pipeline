@@ -1,12 +1,66 @@
-%% NGL02_postPhy
-% To run after manual curation of desired sessions is completed.
-% Reads KS results after manual curation, builds spike and LFP variables
-% in lab-standard format, and performs trial-sorting, firing-rate
-% calculation, and optional LFP time-frequency analysis.
+%% NGL02_postPhy. NGL Electrophysiology Spike Analysis (Stage 2 - spike path)
 %
-% Requires: NGL_SetAndRunMe.m has been run, and Phy curation is complete.
+% PURPOSE:
+%   Per-session SPIKE processing after Phy curation. Loads curated KS+Phy
+%   clusters into the lab-standard spike struct, sorts spikes into trials,
+%   computes firing rate, optionally runs population-dynamics analysis.
+%   Multi-area aware: when input.Areas is set, builds nested
+%   spike.<Area> / neurons.<Area> / fireRate.<Area> / neuralDynamics.<Area>.
 %
-% Jesus 02.06.2026
+% USAGE:
+%   Do NOT run or edit this script directly. Configure and run from your
+%   project's copy of NGL_SetAndRunMe.m. NGL_SetAndRunMe defines
+%   'datadrive', 'studyname', 'subjects', 'dates', and 'opt' before
+%   calling this script.
+%
+% REQUIRED WORKSPACE VARIABLES (set in NGL_SetAndRunMe):
+%   datadrive, studyname, subjects, dates, opt - same as NGL02_LFP.
+%
+% REQUIRES on disk (per session, produced by NGL01_Main + Phy curation):
+%   - Kilosort/Phy output: <preproc>/kilosort4/ (single-area) or
+%                          <preproc>/<Area>/   (multi-area), each with
+%                          params.py and cluster_info.tsv.
+%   - <trialSorted>/trialdef.mat, events.mat, condition.mat.
+%   The pre-flight checkNGL01Outputs (inside prepSession) errors up
+%   front if any of these are missing for the current session.
+%
+% PIPELINE:
+%   00.  NGL00_Prep            - parse inputs into input/opt structs
+%   00b. Areas recovery        - pull input.Areas from master preprocInfo
+%   01.  set_default           - validate opt, build paths
+%   02.  findSessions          - discover session folders on disk
+%     per session:
+%   2.01. prepSession          - prepforsession + pre-flight + preprocInfo overlay
+%   2.02. Offline video        - if opt.offlineTrack (project-specific)
+%   2.03. SPIKE branch         - if opt.doSpikething
+%           loadSpikes -> spike
+%           sort2trials -> neurons
+%           calculate_fireRate_general -> fireRate
+%           calculate_population_dynamics -> neuralDynamics (if opt.popDyn.do)
+%           social-tracking sub-step (if opt.useTrack, single-area only)
+%   2.04. LFP branch warning   - if opt.doLFPthing reaches here, point
+%                                user at NGL02_LFP.m sibling script
+%
+% OUTPUTS (per session, paths set by prepforsession):
+%   <spikeSorted>/spike.mat           Curated clusters (flat or nested per area)
+%   <analysis>/neurons.mat            Per-trial spike times per cluster
+%   <analysis>/fireRate.mat           Binned firing rates
+%   <analysis>/neuralDynamics.mat     (if opt.popDyn.do)
+%   <analysis>/blob.mat               (if opt.offlineTrack)
+%   <analysis>/plots/single_fr/       Per-cluster firing-rate heatmaps
+%   <analysis>/plots/population_dynamics/  PCA trajectories (if popDyn.pca)
+%
+% DEPENDENCIES:
+%   set_default, findSessions, prepSession, loadPreprocInfo, applyPreprocInfo,
+%   checkNGL01Outputs, loadSpikes, sort2trials, calculate_fireRate_general,
+%   calculate_population_dynamics (and the population-dynamics family),
+%   processAndTrack_video, getSocialEvents.
+%
+% SEE ALSO:
+%   NGL02_LFP (LFP path, runs independently of Phy),
+%   NGL03_acrossSession (cross-session aggregator).
+%
+% Last modified 02.06.2026 (Jesus) - NGL01-style doc header (#9 K)
 
 %% 00. Check current inputs.
 % Check if input variable exist already. Parse values.
@@ -149,7 +203,7 @@ for x = 1:input.nsubjects % Subjects.
                     for a = 1:numel(areaList)
                         areaName = areaList{a};
                         % Non-block FR calculation, for block/treatment sessions,
-                        % use 'calculate_fireRate_byBlock' instead. 
+                        % use 'calculate_fireRate_byBlock' instead.
                         % No 'events' needed here.
                         fireRate.(areaName) = calculate_fireRate_general( ...
                                                 neurons.(areaName), [], condition, opt, param);
@@ -161,6 +215,23 @@ for x = 1:input.nsubjects % Subjects.
                     fireRate = calculate_fireRate_general(neurons, [], condition, opt, param);
                 end
                 save(fullfile(opt.analysis, "fireRate.mat"), 'fireRate', '-mat')
+
+                % Plotting decoupled from calculate_fireRate_general
+                % (audit item S). param.plot gates the helper; in multi-
+                % area mode we call it once per area so titles/filenames
+                % carry the right area tag via opt.area.
+                if ~isfield(param,'plot') || param.plot
+                    if isMultiArea
+                        for a = 1:numel(areaList)
+                            areaName     = areaList{a};
+                            optArea      = opt;
+                            optArea.area = areaName;
+                            plot_fireRate_session(fireRate.(areaName), param, optArea);
+                        end
+                    else
+                        plot_fireRate_session(fireRate, param, opt);
+                    end
+                end
 
                 % % Project specific
                 % param.IncludeFS = true; % NS and FS
@@ -215,7 +286,7 @@ for x = 1:input.nsubjects % Subjects.
                     % of a regular 'trialdef'.
                     if ~exist('blob','var'), load(fullfile(opt.analysis, "blob.mat")); end
                     if ~isfield(neurons,"interactions")
-                        [neurons.interactions, ~] = sort2trials(spike, blob.Merges, opt);
+                        neurons.interactions = sort2trials_blob(spike, blob.Merges, opt);
                     end
                     save(fullfile(opt.analysis, "neurons.mat"), 'neurons', '-mat')
 

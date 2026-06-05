@@ -219,7 +219,7 @@ function getfrom_INTAN(opt)
     dsFactor = round(par.fsRaw / par.targetFs);
     fprintf('  Decimating by factor %d (%d Hz → %d Hz)...\n', ...
         dsFactor, par.fsRaw, par.targetFs);
-    accel_ds = zeros(floor(nSampl / dsFactor), nAxes);
+    % accel_ds = zeros(floor(nSampl / dsFactor), nAxes);
     for k = 1:nAxes
         accel_ds(:, k) = decimate(accel(1:nSampl, k), dsFactor);
     end

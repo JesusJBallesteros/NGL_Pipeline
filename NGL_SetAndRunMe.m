@@ -150,10 +150,24 @@ opt = struct();
     % opt.popDyn.trialEmbedMethod = 'tSNE';  % 'PCA' | 'tSNE' | 'UMAP'.
 
     % LFP side (NGL02_LFP)
-    % opt.trialparsed       = false;         % load *_stimOn2.mat (trial-parsed) instead of *_FTcont.mat.
+    % opt.trialparsed       = false;         % load *_<align>.mat (trial-parsed) instead of *_FTcont.mat.
     % opt.artifdet          = false;         % run LFP artifact detection / rejection.
     % opt.spectrogram       = false;         % run multitaper TFR analysis.
-    % opt.FLIP              = false;         % vFLIP laminar power analysis (PLACEHOLDER, project-specific).
+
+    % Project-specific gates (opt-in code paths for specific paradigms).
+    % Off by default; turn on only for the matching paradigm. Code
+    % blocks guarded by these flags live in the toolbox and stay
+    % dormant for any other project.
+    % opt.proj_chgDtctPCue    = false;       % Change-Detection P-Cue paradigm.
+    % opt.proj_socialLearning = false;       % SocialLearning ASL (TFR testname, etc.).
+    % opt.proj_extintion      = false;       % Extintion paradigm (fireRate_extintion, trialdef -1000 offset).
+    % opt.proj_FLIP           = false;       % vFLIP laminar power analysis (was opt.FLIP).
+
+    % Cross-session aggregation (NGL03_acrossSession)
+    % aggregateSubjects requires aggregateSessions=true; subjects can only
+    % be stacked once sessions have been collapsed per subject.
+    % opt.aggregateSessions = false;       % build <subject>_aggregated.mat in data\analysis\<subject>\
+    % opt.aggregateSubjects = false;       % build study-level aggregated.mat in data\analysis\
 
     % Legacy (kept for backward compatibility)
     % opt.neurDyn.do        = false;         % LEGACY trial-state embedding; superseded by opt.popDyn.
@@ -226,17 +240,27 @@ NGL02_postPhy
 
 NGL02_LFP
 
-%% 4  NGL03_acrossSession — cross subject and cross-session aggregation (TODO)
-%   Aggregate per-session outputs (spike / neurons / fireRate / condition
-%   / TFR) into study-level structures.
+%% 4  NGL03_acrossSession — cross-session and cross-subject aggregation.
+%   Aggregates per-session outputs (spike / neurons / fireRate /
+%   condition / events / trialdef; plus neuralDynamics and blob when
+%   their gates are on) into cell arrays indexed by (subject, session).
+%   Gated by opt.aggregateSessions (per-subject) and opt.aggregateSubjects
+%   (study-level). Both default to false; set them in section 2B above.
+%
+%   PRODUCES:
+%     data\analysis\<subject>\<subject>_aggregated.mat   (per subject)
+%     data\analysis\aggregated.mat                       (across subjects)
+%
+%   LFP-side aggregation is planned but not yet wired here; the spike
+%   side is the foundation.
 
-% NGL03_acrossSession
+NGL03_aggregate
 
-%% 4  NGL03_plotting — group-level visualisation (TODO).
+%% 5  NGL03_plotting — group-level visualisation (TODO).
 %   Comprehensive plots across sessions and conditions. Building on the
 %   per-session plots already produced by NGL02_postPhy.
 
-% NGL04_plotting
+% NGL03_plotting
 
 %% More custom stages...
 % NGLXX_something

@@ -62,10 +62,11 @@ function opts = default_opt()
     opts.doSpikething    = true;     % Process single-unit/spike data
     opts.doLFPthing      = true;     % Process LFP data
     opts.offlineTrack    = false;    % Run offline video blob detection
-    opts.FLIP            = false;    % Run vFLIP laminar power analysis
     opts.useTrack        = false;    % Index spiking against social-tracking events
     opts.trialparsed     = false;    % Load trial-parsed FT file (vs continuous)
     opts.artifdet        = false;    % Run LFP artifact detection and rejection
+        opts.artZvalue   = 10;       % z-value cutoff for ft_artifact_zvalue
+        opts.rejValue    = 'zero';   % value to insert into rejected segments ('zero'|'nan'|numeric)
     opts.spectrogram     = false;    % Run multitaper time-frequency analysis
     opts.neurDyn.do      = false;    % LEGACY trial-state embedding (kept for back-compat;
                                      % retired in favour of opt.popDyn below).
@@ -119,5 +120,22 @@ function opts = default_opt()
     % current area name (one of input.areaMap.uniqueAreas) before calling
     % loadSpikes, which uses it to tag every cluster's spike.roi.
     opts.area            = 'all';
+
+    % Project-specific gates (opt-in code paths for specific paradigms).
+    % Each flag guards code blocks that would otherwise be commented out
+    % or hard-wired for one paradigm. Default false everywhere; users
+    % opt in from their NGL_SetAndRunMe. Renaming convention: opt.proj_*.
+    opts.proj_chgDtctPCue    = false;  % Change-Detection P-Cue paradigm fixes (trialdef /32).
+    opts.proj_socialLearning = false;  % SocialLearning ASL: TFR testname, etc.
+    opts.proj_extintion      = false;  % Extintion paradigm: fireRate_extintion, trialdef -1000 offset.
+    opts.proj_FLIP           = false;  % vFLIP laminar power analysis (renamed from opts.FLIP).
+
+    % Cross-session aggregation (NGL03_acrossSession).
+    % aggregateSubjects requires aggregateSessions: subjects can only be
+    % stacked after each subject's sessions have been collapsed into a
+    % per-subject .mat. Both default to false so the aggregation stage
+    % is opt-in.
+    opts.aggregateSessions = false;  % build <subject>_aggregated.mat per subject
+    opts.aggregateSubjects = false;  % build study-level aggregated.mat across subjects
 
 end

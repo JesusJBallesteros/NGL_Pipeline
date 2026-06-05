@@ -24,8 +24,8 @@ Converts raw multi-channel recordings to Kilosort-ready `.bin` files, FieldTrip 
 | `NGL01_Main.m` | Preprocessing | Event extraction → `.bin` → Kilosort 4 → Bombcell QC | NGL00 |
 | `NGL02_postPhy.m` | Spike analysis | Loads curated KS/Phy units; firing rates; population dynamics | NGL01 + **Phy curation** |
 | `NGL02_LFP.m` | LFP analysis | Loads FieldTrip data; artifact rejection; time-frequency analysis | NGL01 (no curation needed) |
-| `NGL03_plotting.m` | Visualisation | Group-level plots across sessions and conditions | NGL02_postPhy / NGL02_LFP |
-| `NGL03_acrossSession.m` (planned) | Aggregation | Cross-session pooling of spike, LFP and condition data | NGL02_postPhy / NGL02_LFP |
+| `NGL03_acrossSession.m` | Aggregation | Cross-session and cross-subject pooling into cell arrays sized (subject × session). Gated by `opt.aggregateSessions` and `opt.aggregateSubjects` | NGL02_postPhy (NGL02_LFP later) |
+| `NGL03_plotting.m` (TODO) | Visualisation | Group-level plots across sessions and conditions | NGL02_postPhy / NGL02_LFP / NGL03_acrossSession |
 
 `NGL02_postPhy` and `NGL02_LFP` are siblings. The LFP path has no dependency on Phy curation, so it can be run as soon as `NGL01_Main` finishes — in parallel with manual curation if desired. All stages are launched via `NGL_SetAndRunMe.m`, which sets options and calls them in sequence.
 

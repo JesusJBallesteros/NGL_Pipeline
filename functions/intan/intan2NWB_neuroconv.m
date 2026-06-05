@@ -66,7 +66,7 @@ cd(opt.FolderProcDataMat)
         command.s1     = " '";
         command.s2     = "'";
         command.var1   = string(fullfile(opt.PathRaw, 'info.rhd'));
-        command.var2   = string(fullfile(opt.FolderProcDataMat, [opt.SavFileName, '.nwb']));
+        command.var2   = string(fullfile(opt.FolderProcDataMat, [opt.SavFileName '.nwb']));
         command.var3   = string(fullfile(input.analysisCode, 'nwb_metadata.yaml'));
 
         command.full = append(command.script, ...

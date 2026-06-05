@@ -108,7 +108,7 @@ EventRecord.Details             = nan(length(EventType),1);
 EventRecord.TimeBreak           = {[] []};
 
 if ~ismember(EventType(1),[0,8])
-    firstEv = find(EventRecord.EventType==8,1,"first");
+    firstEv = find(EventRecord.EventType==8 | EventRecord.EventType==0,1,"first");
     EventRecord.EventType(1:firstEv-1)           = [];
     EventRecord.EventNumber(1:firstEv-1)         = [];
     EventRecord.TimeStamp(1:firstEv-1)           = [];

@@ -66,9 +66,9 @@ else:
     # Parse DDMMYYYY from the immediate parent folder of info.rhd.
     session_folder = Path(file_path).parent.name
     try:
-        day   = int(session_folder[0:2])
-        month = int(session_folder[2:4])
-        year  = int(session_folder[4:8])
+        day   = int(session_folder[6:8])
+        month = int(session_folder[4:6])
+        year  = int(session_folder[0:4])
         # Time of day is unknown; midnight is the best approximation.
         fallback_time = datetime(year, month, day, 0, 0, 0,
                                  tzinfo=ZoneInfo("Europe/Berlin"))

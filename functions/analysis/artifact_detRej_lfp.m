@@ -1,14 +1,27 @@
 function [FT_data_NoArtif] = artifact_detRej_lfp(FT_data, opt)
-% A basic wrapper for the FieldTrip functions 'ft_artifact_zvalue' and
-% 'ft_rejectartifact' which typically go together. Outputs the final
-% FT structure free of artifacts where those have been replaced with zeros
-% (apparently TFR calculations don't like NaNs)
+% artifact_detRej_lfp  z-value artifact detection and rejection on
+%                      FieldTrip LFP data.
 %
-% Jesus 15.04.2025
-
-%% Default
-if ~isfield(opt,'artZvalue'),         opt.artZvalue             = 10;                    end
-if ~isfield(opt,'rejValue'),          opt.rejValue              = 'zero';                end
+% PURPOSE:
+%   Thin wrapper around FieldTrip's ft_artifact_zvalue + ft_rejectartifact
+%   pair. Detects samples whose z-score exceeds opt.artZvalue and
+%   replaces them with opt.rejValue (default 'zero' because TFR
+%   downstream dislikes NaN). Used by NGL02_LFP when opt.artifdet=true.
+%
+% USAGE:
+%   FT_data = artifact_detRej_lfp(FT_data, opt)
+%
+% INPUTS:
+%   FT_data - FieldTrip data struct. Required: FT_data.cfg.trl.
+%   opt     - resolved options struct. Used fields (defaulted by set_default):
+%               .artZvalue  z-value cutoff for ft_artifact_zvalue.
+%               .rejValue   replacement for rejected samples
+%                           ('zero'|'nan'|numeric scalar).
+%
+% OUTPUT:
+%   FT_data_NoArtif - FT_data with artifacts replaced.
+%
+% Last modified 02.06.2026 (Jesus) - docstring + defaults moved to opt (#10 P, Q)
 
 %% Proceed
 cfg = [];

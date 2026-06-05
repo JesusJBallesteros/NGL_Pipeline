@@ -9,12 +9,12 @@ function cfg = NGL_machineConfig()
     cfg.toolbox      = 'C:\Code\ephys-data-pipeline';
 
     % Where the 'kilosort' environment has been created 
-    cfg.KSpythonExe  = 'C:\Users\ACN\miniconda3\envs\kilosort\';
+    cfg.KSpythonExe  = 'C:\Users\ballejd4\AppData\Local\miniconda3\envs\kilosort\';
 
     % Where the 'phy' environment has been created
-    cfg.PHYpythonExe = 'C:\Users\ACN\miniconda3\envs\phy2\';
+    cfg.PHYpythonExe = 'C:\Users\ballejd4\AppData\Local\miniconda3\envs\phy2\';
 
     % The exe file used within the 'neuroconv' environment
-    cfg.NCpythonExe  = 'C:\Users\ACN\miniconda3\envs\neuroconv\';
+    cfg.NCpythonExe  = 'C:\Users\ballejd4\AppData\Local\miniconda3\envs\neuroconv\';
 
 end

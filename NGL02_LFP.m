@@ -177,12 +177,17 @@ for x = 1:input.nsubjects
 
                     %% 06b. Time-frequency (per alignment).
                     if opt.spectrogram
-                        % TODO proj_ASL gate (task #8): the testname default
-                        % and the input.analysisCode forwarding are
-                        % SocialLearning-specific workarounds that will be
-                        % moved behind opt.proj_socialLearning.
-                        if ~isfield(param,'testname'), param.testname = 'trial_TFR_'; end
-                        opt.analysisCode = input.analysisCode;  % TODO clean up
+                        % SocialLearning-specific hooks gated by
+                        % opt.proj_socialLearning (#8). Without that flag,
+                        % use the generic 'trial_TFR_' testname.
+                        if opt.proj_socialLearning
+                            if ~isfield(param,'testname')
+                                param.testname = 'ASL_Clean_Final_Correct';
+                            end
+                            opt.analysisCode = input.analysisCode; %#ok<NASGU>  % required by ASL TFR path
+                        else
+                            if ~isfield(param,'testname'), param.testname = 'trial_TFR_'; end
+                        end
 
                         [TFR, TFRcfg] = trialparsed_MTspectrogram( ...
                                            FT_data, condition, param, opt);
