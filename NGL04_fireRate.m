@@ -169,7 +169,7 @@ if nTracesPerSubplot > plotCfg.busyWarn
         nTracesPerSubplot, plotCfg.busyWarn);
 end
 
-fig = figure('Visible','on','Position',[100 100 max(900, 450*nA) 500]);
+fig = figure('Visible','off','Position',[100 100 max(900, 450*nA) 500]);
 result.upperY = nan(nA, nC, nL);
 axHandles     = gobjects(nA, 1);
 
@@ -256,8 +256,7 @@ if isfinite(maxY) && maxY > 0
 end
 
 %% 06. Save and report (main PSTH).
-outDir = localFireRatePlotField(opt, 'outDir', ...
-            fullfile(input.analysis, 'plots', 'NGL04_fireRate'));
+outDir = fullfile(input.analysis, 'plots', 'fireRate');
 if ~exist(outDir, 'dir'), mkdir(outDir); end
 fname = localEncodeRequest(request);
 result.figFile = fullfile(outDir, [fname '.png']);
@@ -275,7 +274,7 @@ for k = 1:numel(result.pooled)
     if ~isempty(result.pooled{k}.waveforms), anyWF = true; break, end
 end
 if anyWF
-    figWF = figure('Visible','off','Position',[100 100 max(900, 450*nA) 320]);
+    figWF = figure('Visible','on','Position',[100 100 max(900, 450*nA) 320]);
     for aIdx = 1:nA
         if nA > 1, subplot(1, nA, aIdx); end
         hold on
@@ -293,17 +292,18 @@ if anyWF
                     hLast = plot(wf, 'Color', [col, 0.5], 'LineWidth', 1);
                 end
                 if ~isempty(hLast)
-                    legHandles(end+1) = hLast; %#ok<SAGROW>
-                    legNames{end+1}   = sprintf('%s (n=%d shown of %d)', ...
+                    legHandles(end+1) = hLast; 
+                    legNames{end+1}   = sprintf('%s (%d out of %d)', ...
                         localTraceLabel(parsed.varying, parsed, cIdx, lIdx), ...
-                        numel(picks), numel(pool.waveforms)); %#ok<SAGROW>
+                        numel(picks), numel(pool.waveforms));
                 end
             end
         end
         title(['Waveforms | ' parsed.alignment{aIdx}]);
         xlabel('sample'); ylabel('amplitude');
         if ~isempty(legHandles)
-            legend(legHandles, legNames, 'Location', 'best');
+            legend(legHandles, legNames, 'Location', 'southeast');
+            legend Box off
         end
         box off
         hold off
@@ -318,9 +318,7 @@ else
          'example-waveforms diagnostic figure. (Set opt.getwF=true in NGL01.)']);
 end
 
-% ======================================================================
 % Local helpers (TODO bodies — see task #27 for the implementation plan).
-% ======================================================================
 
 function aggregated = localLoadAggregated(input)
 % Load NGL03_acrossSession output. Prefer study-level aggregated.mat;
@@ -391,14 +389,6 @@ function labelPool = localCollectClusterLabels(aggregated)
             valsChar = cellfun(@(v) char(string(v)), vals, 'uni', false);
             labelPool.(field) = union(labelPool.(field), valsChar);
         end
-    end
-end
-
-function v = localFireRatePlotField(opt, fname, dflt)
-    if isfield(opt,'fireRatePlot') && isfield(opt.fireRatePlot, fname)
-        v = opt.fireRatePlot.(fname);
-    else
-        v = dflt;
     end
 end
 
