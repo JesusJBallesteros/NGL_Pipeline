@@ -217,7 +217,7 @@ for x = 1:input.nsubjects % Subjects.
                     sample = spsCells{1};
                     Ncol   = size(spsCells, 2);
                     needsRegen = false;
-                    % Row-count check (#19).
+                    % Row-count check
                     if isfield(condition,'aborted') && ~isempty(sample) && ...
                             size(sample,1) ~= numel(condition.aborted)
                         warning('NGL02:fireRateShapeMismatch', ...
@@ -226,7 +226,7 @@ for x = 1:input.nsubjects % Subjects.
                              size(sample,1), numel(condition.aborted));
                         needsRegen = true;
                     end
-                    % Column-count check (#26).
+                    % Column-count check
                     if ~needsRegen && Ncol ~= numel(opt.alignto)
                         warning('NGL02:fireRateAlignMismatch', ...
                             ['Cached fireRate.mat has %d alignment column(s) but ', ...
@@ -267,9 +267,9 @@ for x = 1:input.nsubjects % Subjects.
                 end
                 save(fullfile(opt.analysis, "fireRate.mat"), 'fireRate', '-mat')
 
-                % Plotting decoupled from calculate_fireRate_general
-                % (audit item S). param.plot gates the helper; in multi-
-                % area mode we call it once per area so titles/filenames
+                % Plotting decoupled from calculate_fireRate_general.
+                % param.plot gates the helper; in multi-area
+                % mode we call it once per area so titles/filenames
                 % carry the right area tag via opt.area.
                 if ~isfield(param,'plot') || param.plot
                     if isMultiArea

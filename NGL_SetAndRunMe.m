@@ -156,6 +156,16 @@ opt = struct();
     % opt.artifdet          = false;         % run LFP artifact detection / rejection.
     % opt.spectrogram       = false;         % run multitaper TFR analysis.
 
+    % NGL04_fireRate (cross-subject PSTH plotter)
+    % opt.fireRatePlot.interval        = [-2000 4000];  % ms window passed to plotPSTH
+    % opt.fireRatePlot.binSize_ms      = 200;            % FR sliding-bin width (ms) inside plot
+    % opt.fireRatePlot.stepSz_ms       = 20;             % FR sliding-bin step (ms) inside plot
+    % opt.fireRatePlot.smoothPlot      = true;           % nanMeanSterrHistogram smoothing
+    % opt.fireRatePlot.errAlpha        = 0.4;            % error-shade alpha
+    % opt.fireRatePlot.labelPriority   = {'HumanLabel','KSLabel','bc_unitType'};
+    % opt.fireRatePlot.busyWarnTraces  = 4;              % warn above N overlaid traces
+    % opt.fireRatePlot.outDir          = '';             % default: <input.analysis>/plots/NGL04_fireRate
+
     % Project-specific gates (opt-in code paths for specific paradigms).
     % Off by default; turn on only for the matching paradigm. Code
     % blocks guarded by these flags live in the toolbox and stay
@@ -258,7 +268,28 @@ NGL02_LFP
 
 NGL03_aggregate
 
-%% 5  NGL03_plotting — group-level visualisation (TODO).
+%% 5  NGL04_fireRate — cross-subject FR PSTH plots.
+%   Consumes the NGL03_acrossSession output. Set `request` as a 1x3
+%   cell, each entry a single value or a 'X vs Y' comparison. Categories
+%   (condition, cluster label, alignment) are inferred from content;
+%   slot order is irrelevant. Zero to three entries may be 'vs'.
+%
+%   Layout rule:
+%     ALIGNMENT controls subplot layout (side-by-side, one per align).
+%     CONDITION x LABEL overlay within each subplot.
+%
+%   Examples:
+%     request = {'correct vs incorrect', 'good', 'stim2'};
+%       % 1 subplot, 2 overlaid traces (cond varies)
+%     request = {'correct', 'good', 'itiOn vs stim2'};
+%       % 2 subplots side-by-side, 1 trace each (align varies)
+%     request = {'correct vs incorrect', 'good', 'itiOn vs stim2'};
+%       % 2 subplots side-by-side, 2 overlaid traces each
+%
+% request = {'correct', 'good', 'stim2'};
+% NGL04_fireRate
+
+%% 6  NGL03_plotting — group-level visualisation (TODO).
 %   Comprehensive plots across sessions and conditions. Building on the
 %   per-session plots already produced by NGL02_postPhy.
 

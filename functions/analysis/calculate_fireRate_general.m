@@ -42,7 +42,6 @@ function fireRate = calculate_fireRate_general(neurons, events, condition, opt, 
 %                 .sps       [Ntotal x Nbins] raw spikes/s per cell.
 %                 .Norm      [Ntotal x Nbins] baseline-normalised.
 %                 .meanNorm  [1 x Nbins] mean of .Norm across ALL trials.
-%               *** SHAPE CONTRACT (#19 + #26, 02.06.2026) ***
 %               Second cell dimension is the ALIGNMENT index, matching
 %               opt.alignto. Pre-#26 code used {c,1} for every alignment
 %               iteration, so only the LAST alignment's results survived.

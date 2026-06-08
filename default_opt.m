@@ -132,6 +132,18 @@ function opts = default_opt()
     opts.proj_extintion      = false;  % Extintion paradigm: fireRate_extintion, trialdef -1000 offset.
     opts.proj_FLIP           = false;  % vFLIP laminar power analysis (renamed from opts.FLIP).
 
+    % Cross-subject FR PSTH plotter (NGL04_fireRate). All defaults are
+    % overridable from NGL_SetAndRunMe via opt.fireRatePlot.<field>.
+    opts.fireRatePlot = struct( ...
+        'interval',       [-2000 4000],                              ...  % ms window around alignment
+        'binSize_ms',     200,                                        ...  % overrides inside the plot
+        'stepSz_ms',      20,                                         ...  % overrides inside the plot
+        'smoothPlot',     true,                                       ...  % nanMeanSterrHistogram smoothing
+        'errAlpha',       0.4,                                        ...  % error-shade alpha (0..1)
+        'labelPriority',  {{'HumanLabel','KSLabel','bc_unitType'}},   ...  % resolution order for cluster-label tokens
+        'busyWarnTraces', 4,                                          ...  % warn above N overlaid traces per subplot
+        'outDir',         '');                                              % '' -> default <input.analysis>/plots/NGL04_fireRate
+
     % Cross-session aggregation (NGL03_acrossSession).
     % aggregateSubjects requires aggregateSessions: subjects can only be
     % stacked after each subject's sessions have been collapsed into a
