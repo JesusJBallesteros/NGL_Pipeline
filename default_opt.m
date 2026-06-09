@@ -142,7 +142,25 @@ function opts = default_opt()
         'errAlpha',       0.4,                                        ...  % error-shade alpha (0..1)
         'labelPriority',  {{'HumanLabel','KSLabel','bc_unitType'}},   ...  % resolution order for cluster-label tokens
         'busyWarnTraces', 4,                                          ...  % warn above N overlaid traces per subplot
-        'outDir',         '');                                              % '' -> default <input.analysis>/plots/NGL04_fireRate
+        'outDir',         '',                                         ...  % '' -> default <input.analysis>/plots/NGL04_fireRate
+        'cacheDir',       '');                                              % '' -> default <input.analysis>/cache/firepools (shared with NGL04_PCA)
+
+    % Cross-subject population PCA plotter (NGL04_PCA). Shares the
+    % firepools cache with NGL04_fireRate, so requests already pooled
+    % by the FR plotter are reused here.
+    opts.pcaPlot = struct( ...
+        'interval',       [-2000 4000],            ...  % ms window around alignment
+        'binSize_ms',     200,                     ...  % FR bin width (ms)
+        'stepSz_ms',      20,                      ...  % FR bin step (ms)
+        'smoothSigma_s',  0.050,                   ...  % Gaussian sigma for smoothing (s)
+        'nComponents',    3,                       ...  % number of PCs to keep
+        'nBootstrap',     100,                     ...  % trial-bootstrap reps for CI tube; 0 disables
+        'rngSeed',        [],                      ...  % integer seed or [] for random
+        'sessionAlpha',   0.18,                    ...  % alpha for per-session grey traces
+        'ciAlpha',        0.20,                    ...  % alpha for 2D CI ribbon
+        'ciStride',       10,                      ...  % 3D CI crosshair every N bins
+        'variants',       {{'singleTrials','ciTube'}}, ...% which figure variants to render
+        'outDir',         '');                              % '' -> default <input.analysis>/plots/NGL04_PCA
 
     % Cross-session aggregation (NGL03_acrossSession).
     % aggregateSubjects requires aggregateSessions: subjects can only be

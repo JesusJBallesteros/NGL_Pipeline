@@ -45,14 +45,19 @@
 %
 % DEPENDENCIES:
 %   plotPSTH, calcFireRate, nanMeanSterrHistogram (toolboxes/BDPAT_NGL/);
-%   aggregated.mat (or per-subject files) from NGL03_acrossSession.
+%   aggregated.mat (or per-subject files) from NGL03_acrossSession;
+%   functions/analysis/{loadAggregatedSpikes, buildRequestCatSets,
+%   parseFireRateRequest, buildFireRatePool, encodeFireRateRequest,
+%   requestSubplotTitle, requestTraceLabel}.
 %
 % MULTI-AREA NOTE:
 %   v1 supports flat (single-area) aggregated cells. For multi-area
 %   aggregation (allspike{x,y}.<Area>.KSLabel), add opt.fireRatePlot.area
-%   to pick the area and update Section 04. See task #27.
+%   to pick the area and update Section 04.
 %
-% Last modified <date> (Jesus) - skeleton; bodies TODO (task #27)
+% Last modified 09.06.2026 (Jesus) - extracted request/pool helpers to
+%                                     functions/analysis/ for reuse by
+%                                     NGL04_PCA (task #30).
 
 %% 00. Standard scaffolding.
 NGL00_Prep
@@ -86,17 +91,12 @@ assert(exist('request','var') == 1 && iscell(request) && numel(request) == 3, ..
 %% 01. Load aggregated cells.
 % Prefer the study-level aggregated.mat (subject-aggregation). Fall back
 % to per-subject files if only session-aggregation ran.
-aggregated = localLoadAggregated(input);
+aggregated = loadAggregatedSpikes(input);
 % Required fields in `aggregated`: allspike, allneurons, allcondition.
 % Optional: allevents, alltrialdef.
 
 %% 02. Build category sets used by content-based category inference.
-catSets = struct();
-catSets.alignments  = opt.alignto;                              % from set_default
-catSets.conditions  = localCollectConditionFields(aggregated);  % union of condition fieldnames
-catSets.labelPool   = localCollectClusterLabels(aggregated);    % union of label-string values
-catSets.labelPriority = localFireRatePlotField(opt, 'labelPriority', ...
-                          {'HumanLabel','KSLabel','bc_unitType'});
+catSets = buildRequestCatSets(aggregated, opt);
 
 %% 03. Parse `request` into per-factor level lists.
 %
@@ -109,7 +109,7 @@ catSets.labelPriority = localFireRatePlotField(opt, 'labelPriority', ...
 % parsed.condition {1x1 or 1x2} cell of condition field names
 % parsed.label     {1x1 or 1x2} cell of label values (with .field tag)
 % parsed.varying   cell of factor names that have >1 levels (e.g. {'alignment','condition'})
-parsed = localParseRequest(request, catSets);
+parsed = parseFireRateRequest(request, catSets);
 
 nA = numel(parsed.alignment);
 nC = numel(parsed.condition);
@@ -120,7 +120,17 @@ fprintf('NGL04_fireRate: %d alignment(s) x %d condition(s) x %d label(s); varyin
 %% 04. Pool per-trial spike cells across all matching (subj, sess, c).
 %
 % Cartesian product over the three factors. Each (aIdx, cIdx, lIdx)
-% cell receives a pooled {1 x N} cell of per-trial spike vectors (ms).
+% cell receives a pool struct. Per-pool cache lives in
+% opt.fireRatePlot.cacheDir (default <input.analysis>/cache/firepools)
+% and is shared with NGL04_PCA; staleness checked against the
+% aggregated.mat mtime.
+cacheDir = localFireRatePlotField(opt, 'cacheDir', '');
+if isempty(cacheDir)
+    cacheDir = fullfile(input.analysis, 'cache', 'firepools');
+end
+sourceFile = fullfile(input.analysis, 'aggregated.mat');
+if ~isfile(sourceFile), sourceFile = ''; end
+
 result        = struct();
 result.pooled = cell(nA, nC, nL);
 result.levels = repmat(struct('alignment','','condition','','label',''), nA, nC, nL);
@@ -134,10 +144,17 @@ for aIdx = 1:nA
             result.levels(aIdx, cIdx, lIdx).alignment = aL;
             result.levels(aIdx, cIdx, lIdx).condition = cL;
             result.levels(aIdx, cIdx, lIdx).label     = lL;
-            pool = localPoolCells(aggregated, aL, cL, lL, lF, catSets);
+
+            cKey         = fireRatePoolCacheKey(aL, cL, lL, lF);
+            [pool, cHit] = loadFireRatePoolCache(cacheDir, cKey, sourceFile);
+            if ~cHit
+                pool = buildFireRatePool(aggregated, aL, cL, lL, lF);
+                saveFireRatePoolCache(cacheDir, cKey, pool);
+            end
             result.pooled{aIdx, cIdx, lIdx} = pool;
-            fprintf('  (%s | %s | %s [%s]): %d trials | %d clust | %d sess | %d subj\n', ...
-                    aL, cL, lL, lF, pool.nTrials, pool.nClust, pool.nSess, pool.nSubj);
+            hitTag = ternaryChar(cHit, '[cache]', '[built]');
+            fprintf('  %s (%s | %s | %s [%s]): %d trials | %d clust | %d sess | %d subj\n', ...
+                    hitTag, aL, cL, lL, lF, pool.nTrials, pool.nClust, pool.nSess, pool.nSubj);
         end
     end
 end
@@ -213,7 +230,7 @@ for aIdx = 1:nA
             result.upperY(aIdx, cIdx, lIdx) = upperY;
         end
         % Enriched legend entry: trace label + pool composition.
-        baseLabel = localTraceLabel(parsed.varying, parsed, cIdx, lIdx);
+        baseLabel = requestTraceLabel(parsed.varying, parsed, cIdx, lIdx);
         traceLabels{end+2, 1} = sprintf('%s; N: %d, n: %d, c: %d, tr: %d', ...
             baseLabel, pool.nSubj, pool.nSess, pool.nClust, pool.nTrials);
     end
@@ -222,7 +239,7 @@ for aIdx = 1:nA
     ax = axHandles(aIdx);
     ax.XTick      = tickBins;
     ax.XTickLabel = tickLab;
-    title(localSubplotTitle(parsed, aIdx));
+    title(requestSubplotTitle(parsed, aIdx));
     xlabel('t since event (s)');
     if aIdx == 1
         ylabel('spikes/s');
@@ -258,7 +275,7 @@ end
 %% 06. Save and report (main PSTH).
 outDir = fullfile(input.analysis, 'plots', 'fireRate');
 if ~exist(outDir, 'dir'), mkdir(outDir); end
-fname = localEncodeRequest(request);
+fname = encodeFireRateRequest(request);
 result.figFile = fullfile(outDir, [fname '.png']);
 exportgraphics(fig, result.figFile, 'Resolution', 300);
 close(fig);
@@ -274,7 +291,7 @@ for k = 1:numel(result.pooled)
     if ~isempty(result.pooled{k}.waveforms), anyWF = true; break, end
 end
 if anyWF
-    figWF = figure('Visible','on','Position',[100 100 max(900, 450*nA) 320]);
+    figWF = figure('Visible','off','Position',[100 100 max(900, 450*nA) 320]);
     for aIdx = 1:nA
         if nA > 1, subplot(1, nA, aIdx); end
         hold on
@@ -292,9 +309,9 @@ if anyWF
                     hLast = plot(wf, 'Color', [col, 0.5], 'LineWidth', 1);
                 end
                 if ~isempty(hLast)
-                    legHandles(end+1) = hLast; 
+                    legHandles(end+1) = hLast;
                     legNames{end+1}   = sprintf('%s (%d out of %d)', ...
-                        localTraceLabel(parsed.varying, parsed, cIdx, lIdx), ...
+                        requestTraceLabel(parsed.varying, parsed, cIdx, lIdx), ...
                         numel(picks), numel(pool.waveforms));
                 end
             end
@@ -318,309 +335,19 @@ else
          'example-waveforms diagnostic figure. (Set opt.getwF=true in NGL01.)']);
 end
 
-% Local helpers (TODO bodies — see task #27 for the implementation plan).
+% Local helpers (UI-only utilities). Anything related to the request
+% parsing / pool building lives under functions/analysis/ and is shared
+% with NGL04_PCA. Anything related to common option lookup or array
+% utilities stays local because it's plotting-specific.
 
-function aggregated = localLoadAggregated(input)
-% Load NGL03_acrossSession output. Prefer study-level aggregated.mat;
-% fall back to stitching per-subject files into a (Nsubj x maxSess)
-% struct of cells.
-    studyFile = fullfile(input.analysis, 'aggregated.mat');
-    if isfile(studyFile)
-        fprintf('NGL04_fireRate: loading study-level %s\n', studyFile);
-        aggregated = load(studyFile);
-        return
+function v = localFireRatePlotField(opt, fname, dflt)
+% Read opt.fireRatePlot.(fname) with a safe default fallback so we
+% don't crash when the user partially populated opt.fireRatePlot.
+    if isfield(opt,'fireRatePlot') && isfield(opt.fireRatePlot, fname)
+        v = opt.fireRatePlot.(fname);
+    else
+        v = dflt;
     end
-    fprintf('NGL04_fireRate: study-level aggregated.mat not found; stitching per-subject files.\n');
-    aggregated = struct();
-    for x = 1:input.nsubjects
-        sname    = input.subjects(x).name;
-        subjFile = fullfile(input.analysis, sname, [sname '_aggregated.mat']);
-        if ~isfile(subjFile)
-            warning('NGL04:missingPerSubject', ...
-                'Per-subject aggregated file missing for %s: %s', sname, subjFile);
-            continue
-        end
-        S  = load(subjFile);
-        fn = fieldnames(S);
-        for k = 1:numel(fn)
-            field = fn{k};
-            row   = S.(field);     % {1 x nSess_for_this_subj}
-            if ~iscell(row), continue, end
-            if ~isfield(aggregated, field), aggregated.(field) = {}; end
-            for y = 1:numel(row)
-                aggregated.(field){x, y} = row{y};
-            end
-        end
-    end
-end
-
-function fields = localCollectConditionFields(aggregated)
-% Union of fieldnames seen across aggregated.allcondition cells.
-    fields = {};
-    if ~isfield(aggregated, 'allcondition'), return; end
-    cells = aggregated.allcondition;
-    for k = 1:numel(cells)
-        c = cells{k};
-        if isempty(c) || ~isstruct(c), continue, end
-        fields = union(fields, fieldnames(c));
-    end
-    fields = fields(:);
-end
-
-function labelPool = localCollectClusterLabels(aggregated)
-% Build a struct keyed by label-field name, each value the cell of
-% unique non-empty string values observed across aggregated.allspike.
-    labelPool = struct( ...
-        'HumanLabel',  {{}}, ...
-        'KSLabel',     {{}}, ...
-        'bc_unitType', {{}}, ...
-        'phyLabel',    {{}});
-    if ~isfield(aggregated, 'allspike'), return; end
-    cells = aggregated.allspike;
-    poolFields = fieldnames(labelPool)';
-    for k = 1:numel(cells)
-        spk = cells{k};
-        if isempty(spk) || ~isstruct(spk), continue, end
-        for f = poolFields
-            field = f{1};
-            if ~isfield(spk, field) || ~iscell(spk.(field)), continue, end
-            vals = spk.(field);
-            vals = vals(~cellfun(@isempty, vals));
-            valsChar = cellfun(@(v) char(string(v)), vals, 'uni', false);
-            labelPool.(field) = union(labelPool.(field), valsChar);
-        end
-    end
-end
-
-function parsed = localParseRequest(request, catSets)
-% Categorise each entry and split on 'vs'. Categories: alignment,
-% condition, label. Priority for ambiguous tokens: alignment > condition
-% > label. For label tokens, the label field is resolved via
-% catSets.labelPriority.
-    assert(iscell(request) && numel(request) == 3, ...
-        'NGL04:badRequest', 'request must be a 3-element cell.');
-
-    entries     = cell(3, 1);
-    entryCats   = cell(3, 1);
-    entryFields = cell(3, 1);
-    for k = 1:3
-        s     = strtrim(request{k});
-        parts = regexp(s, '\s+vs\s+', 'split', 'ignorecase');
-        parts = cellfun(@strtrim, parts, 'uni', false);
-        entries{k}     = parts;
-        entryCats{k}   = cell(1, numel(parts));
-        entryFields{k} = cell(1, numel(parts));
-        for p = 1:numel(parts)
-            [cat, field] = localCategoriseToken(parts{p}, catSets);
-            entryCats{k}{p}   = cat;
-            entryFields{k}{p} = field;
-        end
-        if ~all(strcmp(entryCats{k}, entryCats{k}{1}))
-            error('NGL04:badRequest', ...
-                'Entry ''%s'' mixes categories (%s); both sides of ''vs'' must be the same kind.', ...
-                request{k}, strjoin(entryCats{k}, ', '));
-        end
-    end
-
-    byCat       = struct('alignment', {{}}, 'condition', {{}}, 'label', {{}});
-    labelFields = {};
-    for k = 1:3
-        cat = entryCats{k}{1};
-        if ~isempty(byCat.(cat))
-            error('NGL04:badRequest', ...
-                ['Two entries both resolve to category ''%s'': ''%s'' and ''%s''. ', ...
-                 'Each of the three slots must be a different category.'], ...
-                cat, strjoin(byCat.(cat), ' vs '), strjoin(entries{k}, ' vs '));
-        end
-        byCat.(cat) = entries{k};
-        if strcmp(cat, 'label'), labelFields = entryFields{k}; end
-    end
-
-    for c = {'alignment','condition','label'}
-        if isempty(byCat.(c{1}))
-            error('NGL04:badRequest', ...
-                'No entry in request resolves to category ''%s''.', c{1});
-        end
-    end
-
-    parsed = struct();
-    parsed.alignment  = byCat.alignment;
-    parsed.condition  = byCat.condition;
-    parsed.label      = byCat.label;
-    parsed.labelField = labelFields;
-    parsed.varying    = {};
-    catNames = {'alignment','condition','label'};
-    for c = catNames
-        if numel(byCat.(c{1})) > 1
-            parsed.varying{end+1} = c{1};
-        end
-    end
-end
-
-function [cat, field] = localCategoriseToken(token, catSets)
-    field = '';
-    if any(strcmp(token, catSets.alignments))
-        cat = 'alignment'; return
-    end
-    if any(strcmp(token, catSets.conditions))
-        cat = 'condition'; return
-    end
-    for f = catSets.labelPriority
-        fld = f{1};
-        if isfield(catSets.labelPool, fld) && ...
-                any(strcmp(token, catSets.labelPool.(fld)))
-            cat   = 'label';
-            field = fld;
-            return
-        end
-    end
-    error('NGL04:unknownToken', ...
-        ['Cannot categorise ''%s''. It is not in opt.alignto, not a ', ...
-         'condition fieldname, and not a known cluster label value ', ...
-         '(checked in priority %s).'], token, ...
-        strjoin(catSets.labelPriority, ' > '));
-end
-
-function pool = localPoolCells(aggregated, alignName, condField, labelValue, labelField, catSets) %#ok<INUSL>
-% Walk every aggregated.allspike{x,y} cell. Match clusters whose
-% spike.(labelField){c} == labelValue. For each match, pull
-% allneurons{x,y}.(alignName){c}, filter by allcondition{x,y}.(condField),
-% append to the pooled list and capture the cluster's mean waveform.
-% Returns a struct with cells, counts, and per-cluster mean waveforms.
-    pool = struct( ...
-        'cells',     {{}},  ...
-        'nSubj',     0,     ...
-        'nSess',     0,     ...
-        'nClust',    0,     ...
-        'nTrials',   0,     ...
-        'waveforms', {{}});
-
-    if ~isfield(aggregated,'allspike') || ~isfield(aggregated,'allneurons') ...
-            || ~isfield(aggregated,'allcondition')
-        warning('NGL04:missingAggField', ...
-            'Aggregated file lacks one of allspike/allneurons/allcondition; pool empty.');
-        return
-    end
-
-    [nSubj, nSess] = size(aggregated.allspike);
-    warnedAlign    = false(nSubj, nSess);
-    warnedCond     = false(nSubj, nSess);
-
-    cells       = {};
-    waveforms   = {};
-    subjFlag    = false(nSubj, 1);
-    sessFlag    = false(nSubj, nSess);
-    clustCount  = 0;
-
-    for x = 1:nSubj
-        for y = 1:nSess
-            spk = localSafeIdx(aggregated.allspike,     x, y);
-            neu = localSafeIdx(aggregated.allneurons,   x, y);
-            cnd = localSafeIdx(aggregated.allcondition, x, y);
-            if isempty(spk) || isempty(neu) || isempty(cnd), continue, end
-            if ~isstruct(spk) || ~isfield(spk, labelField), continue, end
-            if ~isstruct(neu) || ~isfield(neu, alignName)
-                if ~warnedAlign(x, y)
-                    warning('NGL04:missingAlign', ...
-                        'allneurons{%d,%d} missing alignment ''%s''; skipping.', ...
-                        x, y, alignName);
-                    warnedAlign(x, y) = true;
-                end
-                continue
-            end
-            if ~isstruct(cnd) || ~isfield(cnd, condField)
-                if ~warnedCond(x, y)
-                    warning('NGL04:missingCond', ...
-                        'allcondition{%d,%d} missing field ''%s''; skipping.', ...
-                        x, y, condField);
-                    warnedCond(x, y) = true;
-                end
-                continue
-            end
-
-            mask = logical(cnd.(condField)(:))';
-            if ~isfield(spk,'label') || isempty(spk.label), continue, end
-            Nclust = numel(spk.label);
-
-            for c = 1:Nclust
-                if c > numel(spk.(labelField)), continue, end
-                lab = spk.(labelField){c};
-                if isempty(lab) || ~strcmp(char(string(lab)), labelValue), continue, end
-                if c > numel(neu.(alignName)), continue, end
-                trialCells = neu.(alignName){c};
-                if isempty(trialCells), continue, end
-                if numel(trialCells) ~= numel(mask)
-                    warning('NGL04:shapeMismatch', ...
-                        'Trial count mismatch at (%d,%d) cluster %d (neurons %d vs condition %d); skipping.', ...
-                        x, y, c, numel(trialCells), numel(mask));
-                    continue
-                end
-                filtered = trialCells(mask);
-                cells    = [cells; filtered(:)]; %#ok<AGROW>
-
-                clustCount     = clustCount + 1;
-                subjFlag(x)    = true;
-                sessFlag(x, y) = true;
-
-                if isfield(spk,'waveform') && c <= numel(spk.waveform) && ~isempty(spk.waveform{c})
-                    wf = spk.waveform{c};
-                    if iscell(wf), wf = wf{1}; end
-                    if isnumeric(wf) && ~isempty(wf)
-                        if isvector(wf)
-                            waveforms{end+1, 1} = wf(:); %#ok<AGROW>
-                        else
-                            waveforms{end+1, 1} = mean(wf, 2, 'omitnan'); %#ok<AGROW>
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    pool.cells     = cells;
-    pool.nSubj     = sum(subjFlag);
-    pool.nSess     = sum(sessFlag(:));
-    pool.nClust    = clustCount;
-    pool.nTrials   = numel(cells);
-    pool.waveforms = waveforms;
-end
-
-function v = localSafeIdx(arr, x, y)
-    [nx, ny] = size(arr);
-    if x > nx || y > ny, v = []; else, v = arr{x, y}; end
-end
-
-function s = localSubplotTitle(parsed, aIdx)
-% Subplot title shows the alignment for this subplot plus any factor
-% that is NOT varying (fixed across the whole figure). Varying non-
-% alignment factors (condition, label) are described in the legend.
-    parts = {};
-    parts{end+1} = parsed.alignment{aIdx};
-    if numel(parsed.condition) == 1, parts{end+1} = parsed.condition{1}; end
-    if numel(parsed.label)     == 1, parts{end+1} = parsed.label{1};     end
-    s = strjoin(parts, ' | ');
-end
-
-function s = localTraceLabel(varying, parsed, cIdx, lIdx)
-% Legend label for one overlaid trace: only the factors that vary
-% within a subplot (condition and/or label, never alignment).
-    parts = {};
-    if any(strcmp(varying, 'condition'))
-        parts{end+1} = parsed.condition{cIdx};
-    end
-    if any(strcmp(varying, 'label'))
-        parts{end+1} = parsed.label{lIdx};
-    end
-    if isempty(parts)
-        if numel(parsed.condition) == 1, parts{end+1} = parsed.condition{1}; end
-        if numel(parsed.label)     == 1, parts{end+1} = parsed.label{1};     end
-    end
-    s = strjoin(parts, ' | ');
-end
-
-function s = localEncodeRequest(request)
-    raw = cellfun(@(c) strrep(c, ' vs ', '_vs_'), request, 'uni', 0);
-    s   = strrep(strjoin(raw, '__'), ' ', '_');
 end
 
 function s = ternaryChar(cond, a, b)
