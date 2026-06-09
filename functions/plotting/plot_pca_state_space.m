@@ -22,8 +22,13 @@ function plot_pca_state_space(result, plotCfg)
 % INPUTS:
 %   result   - struct from calculate_pca_from_pool. Required fields:
 %                .traj_mean, .explained, .timeAxis, .conditions,
-%                .traj_session (singleTrials), .ciLo/.ciHi (ciTube),
+%                .traj_session (singleTrials fallback), .ciLo/.ciHi (ciTube),
 %                .sessionKeys, .nClustPerSess.
+%              Optional:
+%                .traj_trial   {Ncond x 1}, [Nbins x K x Ntrials_c]. When
+%                              populated (single-session case), takes
+%                              precedence over traj_session for the
+%                              'singleTrials' overlay.
 %   plotCfg  - struct:
 %                .variant      'singleTrials' | 'ciTube'    (default 'singleTrials')
 %                .titlePrefix  char (default '')
@@ -71,11 +76,11 @@ function plot_pca_state_space(result, plotCfg)
 
         switch lower(plotCfg.variant)
             case 'singletrials'
-                per_sess = result.traj_session{c};   % [Nbins x K x Nsess]
-                Nsess    = size(per_sess, 3);
-                for s = 1:Nsess
-                    xs = per_sess(:, 1, s);
-                    ys = per_sess(:, 2, s);
+                traces = localPickTraces(result, c);   % [Nbins x K x N]
+                N      = size(traces, 3);
+                for s = 1:N
+                    xs = traces(:, 1, s);
+                    ys = traces(:, 2, s);
                     if all(isnan(xs)) || all(xs == 0 & ys == 0), continue; end
                     plot(ax2, xs, ys, '-', 'Color', [col, plotCfg.sessionAlpha], ...
                         'LineWidth', 0.8);
@@ -120,12 +125,12 @@ function plot_pca_state_space(result, plotCfg)
 
             switch lower(plotCfg.variant)
                 case 'singletrials'
-                    per_sess = result.traj_session{c};
-                    Nsess    = size(per_sess, 3);
-                    for s = 1:Nsess
-                        xs = per_sess(:, 1, s);
-                        ys = per_sess(:, 2, s);
-                        zs = per_sess(:, 3, s);
+                    traces = localPickTraces(result, c);
+                    N      = size(traces, 3);
+                    for s = 1:N
+                        xs = traces(:, 1, s);
+                        ys = traces(:, 2, s);
+                        zs = traces(:, 3, s);
                         if all(isnan(xs)) || all(xs == 0 & ys == 0 & zs == 0), continue; end
                         plot3(ax3, xs, ys, zs, '-', ...
                               'Color', [col, plotCfg.sessionAlpha], 'LineWidth', 0.8);
@@ -163,6 +168,20 @@ function plot_pca_state_space(result, plotCfg)
     if ~isempty(outDir) && ~isfolder(outDir), mkdir(outDir); end
     exportgraphics(fig, plotCfg.outFile, 'Resolution', 300);
     close(fig);
+end
+
+% ------------------------------------------------------------------------
+function traces = localPickTraces(result, c)
+% Prefer real single-trial projections (traj_trial) when present and
+% non-empty for this condition. Otherwise fall back to per-session
+% marginal trajectories (traj_session). Both share the same
+% [Nbins x K x N] shape so the caller can iterate uniformly.
+    if isfield(result, 'traj_trial') && numel(result.traj_trial) >= c ...
+            && ~isempty(result.traj_trial{c}) && size(result.traj_trial{c}, 3) > 0
+        traces = result.traj_trial{c};
+        return
+    end
+    traces = result.traj_session{c};
 end
 
 % ------------------------------------------------------------------------

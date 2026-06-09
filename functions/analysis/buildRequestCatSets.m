@@ -26,6 +26,12 @@ function catSets = buildRequestCatSets(aggregated, opt)
     catSets = struct();
     catSets.alignments    = opt.alignto;
     catSets.conditions    = localCollectConditionFields(aggregated);
+    % 'allInitiated' is a magic condition token recognised by
+    % applyTrialFilter / buildFireRatePool (= ~aborted). Inject it so
+    % parseFireRateRequest accepts it as a valid condition entry.
+    if ~ismember('allInitiated', catSets.conditions)
+        catSets.conditions = [{'allInitiated'}; catSets.conditions(:)];
+    end
     catSets.labelPool     = localCollectClusterLabels(aggregated);
     if isfield(opt,'fireRatePlot') && isfield(opt.fireRatePlot,'labelPriority')
         catSets.labelPriority = opt.fireRatePlot.labelPriority;

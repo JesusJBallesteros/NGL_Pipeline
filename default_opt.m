@@ -76,7 +76,7 @@ function opts = default_opt()
     % aggregates results into a single neuralDynamics struct.
     opts.popDyn          = struct( ...
         'do',           false,  ...  % master gate: run any population-dynamics step
-        'pca',          true,   ...  % trial-averaged smoothed-rate PCA (real time-trajectories)
+        'pca',          true,   ...  % per-session population PCA via calculate_pca_from_pool (single-trial overlay + CI tube)
         'jPCA',         false,  ...  % rotational dynamics (PLACEHOLDER: not yet implemented)
         'GPFA',         false,  ...  % single-trial smooth trajectories (PLACEHOLDER)
         'trialEmbed',   false,  ...  % legacy trial-similarity embedding (PCA/tSNE/UMAP per trial)
@@ -85,7 +85,8 @@ function opts = default_opt()
         'conditionVar', '',     ...  % field name on `condition` for per-condition grouping (empty = no grouping)
         'dropAborted',  true,   ...  % drop aborted trials before grouping (matches legacy fireRate filter)
         'alignIdx',     1,      ...  % which opt.alignto entry to analyse (popDyn methods operate on one alignment at a time)
-        'trialEmbedMethod','tSNE');  % method used by the legacy trialEmbed view: 'PCA'|'tSNE'|'UMAP'
+        'trialEmbedMethod','tSNE', ...% method used by the legacy trialEmbed view: 'PCA'|'tSNE'|'UMAP'
+        'pcaConditions',   {{'allInitiated'}}); % cell of condition tokens for per-session PCA iteration; each entry: single field or 'X vs Y'
 
     % Waveform extraction (loadSpikes; consumed during NGL02)
     opts.getwF           = false;    % Extract raw waveforms per cluster (slow)

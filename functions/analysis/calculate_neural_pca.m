@@ -1,246 +1,240 @@
 function result = calculate_neural_pca(neurons, fireRate, condition, opt) %#ok<INUSL>
-% calculate_neural_pca  Population-PCA on trial-averaged, smoothed firing rates.
-%                       Produces time-resolved neural-state trajectories,
-%                       one per condition (or one overall if no condition
-%                       grouping is requested).
+% calculate_neural_pca  Per-session population PCA via the shared NGL04
+%                       infrastructure: real single-trial trajectories
+%                       overlaid on the condition mean, plus a trial-
+%                       bootstrap CI tube. Iterates over every alignment
+%                       in opt.alignto, every distinct cluster-label value
+%                       observed in the current session, and every entry
+%                       in opt.popDyn.pcaConditions.
 %
 % PURPOSE:
-%   The canonical "first-look" neural-dynamics view used throughout the
-%   systems-neuroscience literature: smooth each cluster's binned firing
-%   rate, average across trials within each condition, project the
-%   resulting [Nclust x Nbins x Ncond] tensor onto the leading principal
-%   components, and plot the projection as one trajectory per condition
-%   through PC space. Time runs along the trajectory.
+%   Replaces the old trial-averaged PCA with the same engine NGL04_PCA
+%   uses cross-subject (buildSingleSessionPool + calculate_pca_from_pool
+%   + plot_pca_state_space). At single-session level the per-trial
+%   projection becomes meaningful (each grey trace is a real recorded
+%   trial), so the 'singleTrials' figure variant automatically uses
+%   traj_trial instead of the cross-session marginal fallback.
 %
-% USAGE:
-%   result = calculate_neural_pca(neurons, fireRate, condition, opt)
+% USAGE (called from calculate_population_dynamics):
+%   result = calculate_neural_pca(neurons, fireRate, condition, opt);
 %
 % INPUTS:
-%   neurons   - struct from sort2trials (kept in signature; only used to
-%               check that ROI labels are available for the title).
-%   fireRate  - struct from calculate_fireRate_general. Required:
-%                 .sps   {Nclust x 1} of [Ntrials x Nbins] firing-rate
-%                        matrices, ALREADY BINNED and rate-normalised by
-%                        calcFireRate.
-%   condition - per-trial condition struct (from conditions_script). If
-%               opt.popDyn.conditionVar names a field, trials with the
-%               same value of condition.(conditionVar) are grouped into
-%               one trajectory. If conditionVar is '' or the field is
-%               absent, all valid trials become a single trajectory.
-%   opt       - resolved options struct. Used subfields:
-%                 .popDyn.smoothSigma   Gaussian sigma in SECONDS
-%                 .popDyn.nComponents   number of PCs to keep (>=2)
-%                 .popDyn.conditionVar  field name on `condition` for grouping
-%                 .alignto              {1} used for the figure title
-%                 .area                 used for the figure title
-%                 .analysis             save directory
-%                 .SavFileName          filename stem
-%   param     - (optional) only param.binSize and param.stepSz are read
-%               to recover the time axis; both fall back to calcFireRate
-%               defaults (binSize=200 ms, stepSz=20 ms) if absent.
+%   neurons    - struct from sort2trials. Required:
+%                  .<alignName>{c,1}   {Ntrials x 1} cell of spike vectors (ms)
+%                  .<labelField>{c}    per-cluster label value, for one of
+%                                       HumanLabel / KSLabel / bc_unitType /
+%                                       phyLabel (resolved via
+%                                       opt.fireRatePlot.labelPriority).
+%                  .ROI{c}             area tag (forwarded to titles).
+%   fireRate   - struct from calculate_fireRate_general. KEPT IN
+%                SIGNATURE for back-compat but no longer consumed; the
+%                new path re-bins from neurons.<alignName> directly.
+%   condition  - per-trial condition struct. Must contain .aborted for
+%                'allInitiated'; any other token requires the named field.
+%   opt        - resolved options struct. Used fields:
+%                  .alignto               cell of alignment names
+%                  .binSize_ms, .stepSz_ms
+%                  .popDyn.smoothSigma
+%                  .popDyn.nComponents
+%                  .popDyn.pcaConditions  cell of condition tokens (single
+%                                          or 'X vs Y'); default
+%                                          {'allInitiated'}.
+%                  .fireRatePlot.interval window around alignment, ms
+%                  .fireRatePlot.labelPriority resolution order for which
+%                                          label field carries the
+%                                          per-cluster identity
+%                  .pcaPlot.{nBootstrap, rngSeed, sessionAlpha, ciAlpha,
+%                            ciStride, variants, outDir}
+%                  .analysis              base dir for output plots
+%                  .area                  area tag (multi-area runs)
+%                  .SavFileName           filename stem for the session
 %
 % OUTPUT:
-%   result    - struct with:
-%                 .method        'PCA'
-%                 .components    [Nclust x K] principal axes
-%                 .explained     [K x 1] percent variance per PC
-%                 .scores        [Nbins x K x Ncond] projected trajectories
-%                 .timeAxis      [1 x Nbins] time in seconds (or relative)
-%                 .conditions    {Ncond x 1} cell of condition labels
-%                 .meanFR        the trial-averaged [Nclust x Nbins x Ncond]
-%                                tensor before projection (handy for QC)
+%   result    - struct:
+%                 .method       'PCA-pool'
+%                 .labelField   which label field was iterated
+%                 .labelValues  cell of label values iterated
+%                 .alignments   echo of opt.alignto
+%                 .pcaConditions echo of opt.popDyn.pcaConditions
+%                 .scans        {Nalign x Nlabel x Nconds} cell of PCA
+%                               results from calculate_pca_from_pool.
+%                               Empty cells indicate "no matching
+%                               clusters/trials" combinations.
+%                 .files        cell of saved PNG paths
+%                 .area         opt.area
 %
 % PLOTS:
-%   - 2-D projection on first two PCs, one line per condition (time as
-%     line progression; markers at start/end).
-%   - 3-D projection on first three PCs (if nComponents>=3).
-%   - Saved to opt.analysis/plots/population_dynamics/.
+%   For each non-empty (alignment, label, conditionEntry) scan, every
+%   variant in opt.pcaPlot.variants ('singleTrials' and/or 'ciTube')
+%   produces one PNG under
+%       <opt.analysis>/plots/population_dynamics/
+%       <SavFileName>_pca_<align>_<label>_<condEntry>_<variant>.png
 %
 % NOTES:
-%   - This function is the modern replacement for the trial-state view
-%     in the legacy calculate_neural_dynamics.m. The trial-state view
-%     lives on as calculate_neural_trialEmbedding.m (also called from
-%     calculate_population_dynamics when opt.popDyn.trialEmbed=true).
-%   - Multi-area awareness lives in the calling wrapper, not here. This
-%     function operates on a single area's fireRate at a time.
+%   - Multi-area awareness lives in the calling wrapper: NGL02 sets
+%     opt.area per area before calling this. We just forward it into the
+%     title prefix.
+%   - opt.popDyn.alignIdx is IGNORED here on purpose: this implementation
+%     iterates all alignments so the user sees the full picture in one
+%     pass. The old single-alignment behaviour is gone.
 %
 % SEE ALSO:
-%   calculate_population_dynamics, smooth_spikes, fireRate_to_tensor,
-%   calculate_neural_jpca, calculate_neural_gpfa, calculate_neural_trialEmbedding.
+%   buildSingleSessionPool, calculate_pca_from_pool, plot_pca_state_space,
+%   calculate_population_dynamics.
 %
-% Last modified 29.05.2026 (Jesus)
+% Last modified 09.06.2026 (Jesus)
 
-%% Recover bin width to size the smoothing kernel.
-% calcFireRate uses param.stepSz (ms) as the bin step in fireRate.sps. We
-% read it back from the saved param if present on opt; otherwise default.
-if isfield(opt,'stepSz_ms'),  stepSz_ms = opt.stepSz_ms;
-else,                          stepSz_ms = 20;
-end
-binSize_s = stepSz_ms / 1000;
+result = struct();
+result.method        = 'PCA-pool';
 
-K = opt.popDyn.nComponents;
-
-%% Build [Nclust x Nbins x Ntrials] tensor and smooth along time.
-% NOTE (#19): fireRate.sps now preserves the FULL trial axis. The
-% rateTensor's 3rd dim is Ntotal, matching condition.* vector lengths.
-% NOTE (#26): fireRate.sps is {Nclust x Nalign}; pick the alignment via
-% opt.popDyn.alignIdx (default 1, set in default_opt).
-alignIdx   = opt.popDyn.alignIdx;
-rateTensor = fireRate_to_tensor(fireRate, alignIdx);
-rateTensor = smooth_spikes(rateTensor, opt.popDyn.smoothSigma, binSize_s);
-[Nclust, Nbins, ~] = size(rateTensor);
-
-%% Optional: drop aborted trials first (#19, default true).
-%   Mirrors the historic calculate_fireRate_general behaviour where
-%   aborted trials were excluded from FR. Toggle via opt.popDyn.dropAborted.
-if isfield(opt.popDyn,'dropAborted') && opt.popDyn.dropAborted ...
-        && isstruct(condition) && isfield(condition,'aborted')
-    validMask  = applyTrialFilter(condition, 'allInitiated');
-    rateTensor = rateTensor(:, :, validMask);
-else
-    validMask  = true(1, size(rateTensor,3));
-end
-Ntrials = size(rateTensor, 3);
-
-%% Group trials by condition.
-% conditionVar names a field on `condition` that gives a per-trial label.
-% Empty / missing field -> one "all" group with every trial.
-% The same validMask is applied to the per-trial label vector so the
-% group indexing stays aligned with rateTensor.
-condVar = opt.popDyn.conditionVar;
-if isempty(condVar) || ~isstruct(condition) || ~isfield(condition, condVar)
-    groupLabels = repmat({'all'}, Ntrials, 1);
-else
-    raw = condition.(condVar);
-    raw = raw(validMask);  % keep aligned with rateTensor
-    if iscell(raw)
-        groupLabels = raw(:);
-    elseif isnumeric(raw) || islogical(raw)
-        groupLabels = arrayfun(@(v) sprintf('%g', v), raw(:), 'uni', 0);
-    elseif iscategorical(raw)
-        groupLabels = cellstr(raw(:));
-    elseif isstring(raw)
-        groupLabels = cellstr(raw(:));
-    else
-        warning('NGL:calculate_neural_pca:badCondType', ...
-            ['condition.%s is of unsupported type %s; falling back to a ', ...
-             'single group.'], condVar, class(raw));
-        groupLabels = repmat({'all'}, Ntrials, 1);
+%% Resolve the label field via priority order.
+% Pick the first label field that's populated on the current neurons
+% struct. ROI is never used as a label here (it's the area tag).
+labelPriority = opt.fireRatePlot.labelPriority;
+labelField    = '';
+for f = labelPriority
+    if isfield(neurons, f{1}) && ~isempty(neurons.(f{1}))
+        labelField = f{1};
+        break
     end
 end
-
-% Drop trials labelled NaN/'' / '<missing>' in the group field.
-isUsable = ~cellfun(@(v) isempty(v) || (ischar(v) && any(strcmp(v, {'NaN','<missing>'}))), groupLabels);
-groupLabels = groupLabels(isUsable);
-rateTensor  = rateTensor(:, :, isUsable);
-
-[uniqueGroups, ~, gIdx] = unique(groupLabels, 'stable');
-Ncond = numel(uniqueGroups);
-
-%% Trial-average per group -> [Nclust x Nbins x Ncond].
-% 'omitnan' handles NaN sentinel rows (zero-spike / no-data trials).
-meanFR = zeros(Nclust, Nbins, Ncond);
-for g = 1:Ncond
-    sel = (gIdx == g);
-    if any(sel)
-        meanFR(:, :, g) = mean(rateTensor(:, :, sel), 3, 'omitnan');
-    end
+if isempty(labelField)
+    warning('NGL:calculate_neural_pca:noLabels', ...
+        ['No populated label field on neurons (checked %s). Falling back to ', ...
+         'treating every cluster as labelValue=''all''.'], ...
+        strjoin(labelPriority, ' > '));
+    labelField   = 'pseudoLabel';
+    pseudoVals   = repmat({'all'}, numel(neurons.ROI), 1);
+    neurons.pseudoLabel = pseudoVals;
 end
 
-% Drop condition groups that ended up all-NaN (no usable trials).
-keepGroup = squeeze(any(any(~isnan(meanFR), 1), 2));
-if ~all(keepGroup)
-    droppedGroups = uniqueGroups(~keepGroup);
-    warning('NGL:calculate_neural_pca:emptyGroups', ...
-        'Dropping %d condition group(s) with no usable trials: %s', ...
-        numel(droppedGroups), strjoin(droppedGroups, ', '));
-    meanFR       = meanFR(:, :, keepGroup);
-    uniqueGroups = uniqueGroups(keepGroup);
-    Ncond        = numel(uniqueGroups);
+% Distinct label values present in this session.
+rawLabels = neurons.(labelField);
+rawLabels = rawLabels(~cellfun(@isempty, rawLabels));
+rawLabels = cellfun(@(v) char(string(v)), rawLabels, 'uni', false);
+labelValues = unique(rawLabels);
+if isempty(labelValues)
+    warning('NGL:calculate_neural_pca:noLabelValues', ...
+        'No usable label values found on neurons.%s; nothing to plot.', labelField);
+    result.labelField   = labelField;
+    result.labelValues  = {};
+    result.alignments   = opt.alignto;
+    result.pcaConditions = opt.popDyn.pcaConditions;
+    result.scans        = {};
+    result.files        = {};
+    return
 end
 
-%% Reshape for PCA: neurons are observations (cols), (time x cond) are rows.
-% pca(X) treats X rows as observations, cols as variables. We want PCs
-% over the neuron axis, so X is [(Nbins*Ncond) x Nclust].
-X = reshape(permute(meanFR, [2 3 1]), Nbins * Ncond, Nclust);
+condEntries = opt.popDyn.pcaConditions;
+nA = numel(opt.alignto);
+nL = numel(labelValues);
+nC = numel(condEntries);
 
-Kavail = min(K, min(size(X)));
-if Kavail < K
-    warning('NGL:calculate_neural_pca:fewerComponents', ...
-        'Requested %d components but only %d available; using %d.', K, Kavail, Kavail);
-end
-[coeff, scoreMat, ~, ~, explained] = pca(X, 'NumComponents', Kavail);
-
-% Reshape scores back to [Nbins x Kavail x Ncond] for per-condition trajectories.
-scores = reshape(scoreMat, Nbins, Ncond, Kavail);
-scores = permute(scores, [1 3 2]);   % [Nbins x Kavail x Ncond]
-
-%% Recover a time axis. calcFireRate centres bins around alignment via
-%   param.interval; without that info, return a relative index in seconds.
-timeAxis = (0:Nbins-1) * binSize_s;
-
-%% Plot trajectories.
-if isfield(opt,'analysis') && ~isempty(opt.analysis)
+%% Output directory.
+if isfield(opt,'pcaPlot') && isfield(opt.pcaPlot,'outDir') && ~isempty(opt.pcaPlot.outDir)
+    outDir = opt.pcaPlot.outDir;
+else
     outDir = fullfile(opt.analysis, 'plots', 'population_dynamics');
-    if ~exist(outDir, 'dir'), mkdir(outDir); end
-else
-    outDir = '';
 end
+if ~isfolder(outDir), mkdir(outDir); end
 
+stem = getfield_default(opt, 'SavFileName', 'session');
 areaTag = ''; if isfield(opt,'area'), areaTag = opt.area; end
-align   = ''; if isfield(opt,'alignto') && numel(opt.alignto) >= alignIdx, align = opt.alignto{alignIdx}; end
-titleStr = sprintf('Population PCA  |  area %s  |  align %s  |  %d conditions, %d/%d PCs', ...
-                   areaTag, align, Ncond, Kavail, K);
 
-cmap = lines(Ncond);
+%% Shared PCA params (same for every scan in this session).
+pcaParams = struct( ...
+    'intervalMs',    opt.fireRatePlot.interval, ...
+    'binSize_ms',    opt.binSize_ms,            ...
+    'stepSz_ms',     opt.stepSz_ms,             ...
+    'smoothSigma_s', opt.popDyn.smoothSigma,    ...
+    'nComponents',   opt.popDyn.nComponents,    ...
+    'nBootstrap',    opt.pcaPlot.nBootstrap,    ...
+    'smpRate',       1000,                      ...
+    'rngSeed',       opt.pcaPlot.rngSeed,       ...
+    'includeTrials', true);
 
-% 2-D figure (PC1 vs PC2). Always available.
-fig2 = figure('Visible','off','Position',[100 100 700 600]);
-hold on;
-for g = 1:Ncond
-    x = scores(:, 1, g);
-    y = scores(:, 2, g);
-    plot(x, y, '-', 'Color', cmap(g,:), 'LineWidth', 1.5);
-    plot(x(1),   y(1),   'o', 'MarkerFaceColor', cmap(g,:), 'MarkerEdgeColor', 'k');
-    plot(x(end), y(end), 's', 'MarkerFaceColor', cmap(g,:), 'MarkerEdgeColor', 'k');
-end
-xlabel(sprintf('PC1 (%.1f%%)', explained(1)));
-ylabel(sprintf('PC2 (%.1f%%)', explained(min(2,end))));
-title(titleStr); legend(uniqueGroups,'Location','bestoutside'); grid on; box off;
-if ~isempty(outDir)
-    exportgraphics(fig2, fullfile(outDir, sprintf('%s_pca_PC1PC2.png', getfield_default(opt,'SavFileName','session'))));
-end
-close(fig2);
+variants = opt.pcaPlot.variants;
+nV       = numel(variants);
 
-% 3-D figure when available.
-if Kavail >= 3
-    fig3 = figure('Visible','off','Position',[100 100 700 600]);
-    hold on;
-    for g = 1:Ncond
-        plot3(scores(:,1,g), scores(:,2,g), scores(:,3,g), '-', ...
-              'Color', cmap(g,:), 'LineWidth', 1.5);
+%% Iterate alignments × labels × condition entries.
+result.labelField    = labelField;
+result.labelValues   = labelValues(:);
+result.alignments    = opt.alignto(:);
+result.pcaConditions = condEntries(:);
+result.scans         = cell(nA, nL, nC);
+result.files         = cell(nA, nL, nC, nV);
+result.area          = areaTag;
+
+for aIdx = 1:nA
+    alignName = opt.alignto{aIdx};
+    if ~isfield(neurons, alignName)
+        warning('NGL:calculate_neural_pca:missingAlign', ...
+            'neurons has no alignment ''%s''; skipping.', alignName);
+        continue
     end
-    xlabel(sprintf('PC1 (%.1f%%)', explained(1)));
-    ylabel(sprintf('PC2 (%.1f%%)', explained(2)));
-    zlabel(sprintf('PC3 (%.1f%%)', explained(3)));
-    title(titleStr); legend(uniqueGroups,'Location','bestoutside'); grid on; view(3);
-    if ~isempty(outDir)
-        exportgraphics(fig3, fullfile(outDir, sprintf('%s_pca_3D.png', getfield_default(opt,'SavFileName','session'))));
+    for lIdx = 1:nL
+        labelValue = labelValues{lIdx};
+        for cIdx = 1:nC
+            condEntry = strtrim(condEntries{cIdx});
+            % 'X vs Y' -> two parts; single -> one part.
+            condParts = regexp(condEntry, '\s+vs\s+', 'split', 'ignorecase');
+            condParts = cellfun(@strtrim, condParts, 'uni', false);
+
+            % Build one pool per condition part on this session.
+            condPools = cell(numel(condParts), 1);
+            for p = 1:numel(condParts)
+                condPools{p} = buildSingleSessionPool( ...
+                    neurons, condition, alignName, condParts{p}, ...
+                    labelValue, labelField);
+            end
+
+            % Skip if no cluster matched in any part.
+            if all(cellfun(@(pp) pp.nClust == 0, condPools))
+                continue
+            end
+
+            try
+                pcaResult = calculate_pca_from_pool(condPools, condParts, pcaParams);
+            catch ME
+                warning('NGL:calculate_neural_pca:scanFailed', ...
+                    '(%s | %s | %s): %s', alignName, labelValue, condEntry, ME.message);
+                continue
+            end
+            result.scans{aIdx, lIdx, cIdx} = pcaResult;
+
+            titlePref = sprintf('PCA | %s | %s | %s', alignName, labelValue, condEntry);
+            if ~isempty(areaTag)
+                titlePref = sprintf('%s | area %s', titlePref, areaTag);
+            end
+            for v = 1:nV
+                variant = variants{v};
+                areaSlug = sanitize(areaTag);
+                if isempty(areaSlug), areaSlug = 'area'; end
+                tag      = sprintf('%s_pca_%s_%s_%s_%s_%s.png', stem, ...
+                             areaSlug, sanitize(alignName), sanitize(labelValue), ...
+                             sanitize(condEntry), variant);
+                outFile  = fullfile(outDir, tag);
+                plot_pca_state_space(pcaResult, struct( ...
+                    'variant',      variant,                  ...
+                    'titlePrefix',  titlePref,                ...
+                    'outFile',      outFile,                  ...
+                    'sessionAlpha', opt.pcaPlot.sessionAlpha, ...
+                    'ciAlpha',      opt.pcaPlot.ciAlpha,      ...
+                    'ciStride',     opt.pcaPlot.ciStride));
+                result.files{aIdx, lIdx, cIdx, v} = outFile;
+                fprintf('calculate_neural_pca: %s\n', outFile);
+            end
+        end
     end
-    close(fig3);
 end
 
-%% Pack result.
-result.method     = 'PCA';
-result.components = coeff;
-result.explained  = explained(1:Kavail);
-result.scores     = scores;
-result.timeAxis   = timeAxis;
-result.conditions = uniqueGroups;
-result.meanFR     = meanFR;
-result.area       = areaTag;
 end
 
 function v = getfield_default(s, fld, default)
     if isfield(s, fld) && ~isempty(s.(fld)), v = s.(fld); else, v = default; end
+end
+
+function s = sanitize(s)
+    s = regexprep(char(string(s)), '[^\w\-]', '_');
+    if isempty(s), s = '_'; end
 end

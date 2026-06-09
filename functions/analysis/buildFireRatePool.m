@@ -102,17 +102,25 @@ function pool = buildFireRatePool(aggregated, alignName, condField, labelValue, 
                 end
                 continue
             end
-            if ~isstruct(cnd) || ~isfield(cnd, condField)
+            % condField can be a real condition field OR the special
+            % token 'allInitiated' (= keep non-aborted trials). For the
+            % token we require cnd.aborted instead of cnd.allInitiated.
+            if strcmpi(condField, 'allInitiated')
+                requiredCond = 'aborted';
+            else
+                requiredCond = condField;
+            end
+            if ~isstruct(cnd) || ~isfield(cnd, requiredCond)
                 if ~warnedCond(x, y)
                     warning('NGL:buildFireRatePool:missingCond', ...
                         'allcondition{%d,%d} missing field ''%s''; skipping.', ...
-                        x, y, condField);
+                        x, y, requiredCond);
                     warnedCond(x, y) = true;
                 end
                 continue
             end
 
-            mask = logical(cnd.(condField)(:))';
+            mask = applyTrialFilter(cnd, condField);
             if ~isfield(spk,'label') || isempty(spk.label), continue, end
             Nclust = numel(spk.label);
 

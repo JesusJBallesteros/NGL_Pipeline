@@ -36,6 +36,15 @@ function result = calculate_pca_from_pool(pools, condLabels, params)
 %                                   (0 disables CI). Default 100.
 %                 .smpRate          spike-time sample rate (1000 for ms)
 %                 .rngSeed          (optional) integer for reproducibility
+%                 .includeTrials    (optional, default false) when true,
+%                                   project EVERY single trial through
+%                                   the fit. Requires a single-session
+%                                   pool (all clusters share the same
+%                                   trial axis per condition); multi-
+%                                   session input emits a warning and
+%                                   leaves traj_trial empty. The grey
+%                                   overlay in 'singleTrials' plots
+%                                   prefers this over per-session marginals.
 %
 % OUTPUT:
 %   result      struct:
@@ -61,6 +70,13 @@ function result = calculate_pca_from_pool(pools, condLabels, params)
 %                 .ciLo          [Nbins x K x Ncond] 5th percentile of bootstrap
 %                                projected condition mean (NaN if nBootstrap==0)
 %                 .ciHi          [Nbins x K x Ncond] 95th percentile (NaN if 0)
+%                 .traj_trial    {Ncond x 1} cell. When includeTrials=true
+%                                AND pool is single-session, each entry is
+%                                [Nbins x K x Ntrials_c] — every real trial
+%                                projected into PC space (the gold-standard
+%                                "single-trial" view at single-session
+%                                level). Empty cells when disabled or
+%                                when the pool spans sessions.
 %                 .params        echoed params
 %
 % NOTES ON CROSS-SESSION HANDLING:
@@ -91,6 +107,7 @@ function result = calculate_pca_from_pool(pools, condLabels, params)
     if ~isfield(params,'smpRate'),       params.smpRate       = 1000;  end
     if ~isfield(params,'smoothSigma_s'), params.smoothSigma_s = 0.050; end
     if ~isfield(params,'rngSeed'),       params.rngSeed       = [];    end
+    if ~isfield(params,'includeTrials'), params.includeTrials = false; end
 
     intervalMs    = params.intervalMs;
     binSize_ms    = params.binSize_ms;
@@ -196,6 +213,58 @@ function result = calculate_pca_from_pool(pools, condLabels, params)
         traj_session{c} = per_sess;
     end
 
+    %% Per-trial projection (single-trial overlay, single-session only).
+    % Requires the pool to come from one session (otherwise trial t for
+    % cluster k may not correspond to trial t for cluster k+1). When the
+    % pool is multi-session, traj_trial is left empty and the plotter
+    % falls back to traj_session.
+    traj_trial = cell(Ncond, 1);
+    if params.includeTrials
+        if numel(sessionKeys) ~= 1
+            warning('NGL:calculate_pca_from_pool:multiSessionTrials', ...
+                'includeTrials=true requires a single-session pool (got %d sessions); skipping per-trial projection.', ...
+                numel(sessionKeys));
+        else
+            for c = 1:Ncond
+                % All non-empty trialMats{:, c} should share the same row
+                % count (= sum of cond-c trial mask). Pull it from any.
+                Ntr_c = 0;
+                for k = 1:Nclust
+                    if ~isempty(trialMats{k, c})
+                        Ntr_c = size(trialMats{k, c}, 1);
+                        break
+                    end
+                end
+                if Ntr_c == 0, traj_trial{c} = zeros(Nbins, Kavail, 0); continue, end
+
+                % Build [Nclust x Nbins x Ntr_c]. Clusters with no entry
+                % for this cond stay zero (matches mu-subtraction = 0).
+                tT = zeros(Nclust, Nbins, Ntr_c);
+                for k = 1:Nclust
+                    mat = trialMats{k, c};
+                    if isempty(mat), continue, end
+                    if size(mat, 1) ~= Ntr_c
+                        % Defensive: ragged Ntrials across clusters
+                        % shouldn't happen in single-session, but skip
+                        % the offender rather than crash.
+                        continue
+                    end
+                    tT(k, :, :) = reshape(mat', 1, Nbins, Ntr_c);
+                end
+                tT(isnan(tT)) = 0;
+                tT = smooth_spikes(tT, smoothSigma_s, binSize_s);
+
+                % Project each trial through original (mu, coeff).
+                proj_t = nan(Nbins, Kavail, Ntr_c);
+                for t = 1:Ntr_c
+                    Y_t = squeeze(tT(:, :, t))';  % [Nbins x Nclust]
+                    proj_t(:, :, t) = (Y_t - mu) * coeff;
+                end
+                traj_trial{c} = proj_t;
+            end
+        end
+    end
+
     %% Bootstrap CI tube (trial bootstrap).
     ciLo = nan(Nbins, Kavail, Ncond);
     ciHi = nan(Nbins, Kavail, Ncond);
@@ -244,6 +313,7 @@ function result = calculate_pca_from_pool(pools, condLabels, params)
     result.nClustPerSess = nClustPerSess;
     result.ciLo          = ciLo;
     result.ciHi          = ciHi;
+    result.traj_trial    = traj_trial;
     result.params        = params;
 end
 
