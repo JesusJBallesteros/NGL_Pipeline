@@ -32,14 +32,41 @@
 %   chanMapXXX.mat        - custom Kilosort channel map (if applicable)
 %
 % NOTES:
-%   - Fields shown UNCOMMENTED are the ones most users override; fields
-%     COMMENTED-OUT show their default value for reference — uncomment
-%     only to override the default.
+%   - Every recognised option appears below, either UNCOMMENTED (the
+%     ones most users override) or COMMENTED-OUT showing the canonical
+%     default. Uncomment to override. If you leave a line commented, the
+%     default from default_opt.m wins.
 %   - The full canonical defaults live in default_opt.m and are validated
-%     by set_default.m.
+%     by set_default.m. If you add an option, you MUST also add it to
+%     default_opt.m + set_default.m (in that order).
 %   - NGL_machineConfig.m is machine-specific; do not commit it to git.
 %
-% Last modified 29.05.2026 (Jesus) - comprehensive opt/param reference
+% LANDMINE: REDUNDANT FIELDS — DO NOT SET DIFFERENT VALUES FOR THE SAME THING.
+%   * opt.binSize_ms / opt.stepSz_ms       canonical FR binning. ALL per-session
+%                                          analyses (calculate_fireRate_general,
+%                                          calculate_neural_pca, etc.) read
+%                                          these. Override here if you want a
+%                                          project-wide non-default.
+%   * opt.fireRatePlot.binSize_ms / .stepSz_ms / .interval
+%                                          ONLY used by NGL04_fireRate's
+%                                          plotPSTH call. Independent from the
+%                                          per-session bins above — change only
+%                                          if you want the cross-subject PSTH
+%                                          to use a different binning than
+%                                          calcFireRate did per session.
+%   * opt.pcaPlot.binSize_ms / .stepSz_ms / .interval
+%                                          ONLY used by NGL04_PCA. Same logic.
+%   * opt.popDyn.smoothSigma + opt.pcaPlot.smoothSigma_s
+%                                          NOT redundant: the former drives
+%                                          per-session calculate_neural_pca
+%                                          (and jPCA/GPFA placeholders); the
+%                                          latter drives NGL04_PCA cross-
+%                                          subject. Keep them aligned unless
+%                                          you have a reason to differ.
+%
+% Last modified 09.06.2026 (Jesus) - added opt.pcaPlot, opt.popDyn.pcaConditions,
+%                                     opt.fireRatePlot.cacheDir, opt.artZvalue,
+%                                     opt.rejValue; section reorg.
 
 %% 1) PREPARE.
 clear all
@@ -81,108 +108,135 @@ dates       = {'YYYYMMDD','YYYYMMDD'};  % char 'all', or cell of session dates e
 %    the default, uncomment ONLY to override.
 opt = struct();
 
-    % Acquisition 
-    opt.numChannels         = 32;            % electrode channel count.
-    % opt.bin               = true;          % create Kilosort .bin file.
-    % opt.FieldTrip         = true;          % produce FieldTrip LFP .mat.
-    % opt.doNWB             = true;          % NWB export (NeuroConv/matNWB).
+    %% -- B.1  ACQUISITION ------------------------------------------------
+    opt.numChannels             = 32;          % electrode channel count.
+    % opt.bin                   = true;        % create Kilosort .bin file.
+    % opt.FieldTrip             = true;        % produce FieldTrip LFP .mat.
+    % opt.doNWB                 = true;        % NWB export (NeuroConv / matNWB).
 
-    % Events 
-    opt.RetrieveEvents      = true;          % extract event log.
-    opt.alignto             = {'itiOn'};     % alignment events (cell of char).
-    % opt.trEvents          = {};            % inter-trial events (block changes, treatments).
-    % opt.addtime           = 0;             % ms padding around trial start/end.
-    % opt.uselog            = false;         % Deuteron text-log fallback.
+    %% -- B.2  EVENTS ----------------------------------------------------
+    opt.RetrieveEvents          = true;        % extract event log.
+    opt.alignto                 = {'itiOn'};   % alignment events (cell of char).
+    % opt.trEvents              = {};          % inter-trial events (block changes, treatments).
+    % opt.addtime               = 0;           % ms padding around trial start/end.
+    % opt.uselog                = false;       % Deuteron text-log fallback.
 
-    % Motion sensors 
-    % opt.GetMotionSensors  = false;         % head-direction sensor data.
+    %% -- B.3  MOTION SENSORS --------------------------------------------
+    % opt.GetMotionSensors      = false;       % head-direction sensor data.
 
-    % Filtering / preprocessing
-    % opt.lowpass           = 9000;          % bin file low-pass, Hz. [] = off.
-    % opt.lowpassFT         = 200;           % FieldTrip LFP low-pass, Hz.
-    % opt.highpass          = [];            % bin file high-pass, Hz. [] = off.
-    % opt.linefilter        = 0;             % line-noise notch centre, Hz. 0 = off.
-    % opt.CAR               = 0;             % common-average rereferencing. 0 = off.
-    % opt.dwnsmplRate       = [];            % LFP downsample target, Hz. [] = auto, 1 KHz
-    % opt.timebreak         = false;         % expect a recording break (Deuteron battery change).
-    % opt.noise             = [];            % reserved for noise-rejection params.
+    %% -- B.4  PREPROCESSING FILTERS -------------------------------------
+    % opt.lowpass               = 9000;        % .bin low-pass, Hz. [] = off.
+    % opt.lowpassFT             = 200;         % FieldTrip LFP low-pass, Hz.
+    % opt.highpass              = [];          % .bin high-pass, Hz. [] = off.
+    % opt.linefilter            = 0;           % line-noise notch centre, Hz. 0 = off.
+    % opt.CAR                   = 0;           % common-average rereferencing. 0 = off.
+    % opt.dwnsmplRate           = [];          % LFP downsample target, Hz. [] = auto (937.5 Hz).
+    % opt.timebreak             = false;       % expect a recording break (Deuteron battery change).
+    % opt.noise                 = [];          % reserved for noise-rejection params.
 
-    % Sorting & curation 
-    % opt.kilosort          = true;          % run Kilosort 4.
-    opt.KSchanMapFile       = '';            % '' = linear array; or e.g. 'chanMap_ATLAS_E32-...mat'.
-    % opt.bombcell          = true;          % run Bombcell QC after sorting.
-    % opt.callBcGUI         = false;         % open Bombcell GUI.
-    % opt.phy               = false;         % open Phy right after each session sorting (blocks MATLAB).
+    %% -- B.5  SORTING & CURATION ----------------------------------------
+    % opt.kilosort              = true;        % run Kilosort 4.
+    opt.KSchanMapFile           = '';          % '' = linear array; or e.g. 'chanMap_ATLAS_E32-...mat'.
+    % opt.bombcell              = true;        % run Bombcell QC after sorting.
+    % opt.callBcGUI             = false;       % open Bombcell GUI.
+    % opt.phy                   = false;       % open Phy right after sorting (BLOCKS MATLAB).
 
-    % NGL02 stage gates 
-    % opt.doSpikething      = true;          % run NGL02_postPhy spike work for each session.
-    % opt.doLFPthing        = true;          % run NGL02_LFP work for each session.
+    %% -- B.6  NGL02 STAGE GATES -----------------------------------------
+    % opt.doSpikething          = true;        % run NGL02_postPhy spike work.
+    % opt.doLFPthing            = true;        % run NGL02_LFP work.
 
-    % Spike side: video + social tracking
-    % opt.offlineTrack      = false;         % run offline video blob detection (social-arena projects).
-    % opt.useTrack          = false;         % spike-vs-social interaction indexing.
+    %% -- B.7  SPIKE SIDE ------------------------------------------------
+    % B.7.a  Video + social tracking
+    % opt.offlineTrack          = false;       % run offline video blob detection (social-arena).
+    % opt.useTrack              = false;       % spike-vs-social interaction indexing.
 
-    % Spike side: waveform extraction (loadSpikes)
-    % opt.getwF             = false;         % extract raw waveforms per cluster (slow).
-    % opt.gwfparams.wfWin   = [-20 41];      % samples around spiketime (negative = before).
-    % opt.gwfparams.nWf     = 2000;          % max waveforms per cluster.
-    % opt.gwfparams.dataType = 'int16';      % overridden internally by loadSpikes.
-    % opt.gwfparams.nCh     = [];            % overridden internally by loadSpikes.
+    % B.7.b  Waveform extraction (loadSpikes)
+    % opt.getwF                 = false;       % extract raw waveforms per cluster (slow).
+    % opt.gwfparams.wfWin       = [-20 41];    % samples around spiketime (negative = before).
+    % opt.gwfparams.nWf         = 2000;        % max waveforms per cluster.
+    % opt.gwfparams.dataType    = 'int16';     % overridden internally by loadSpikes.
+    % opt.gwfparams.nCh         = [];          % overridden internally by loadSpikes.
 
-    % Spike side: cluster loading + ISI binning
-    % opt.spparams.excludeNoise = true;      % skip Phy 'noise' clusters.
-    % opt.spparams.loadPCs      = false;     % load principal components.
-    % opt.isibins           = 0:0.5:200;     % ISI histogram bin edges, ms.
+    % B.7.c  Cluster loading + ISI binning
+    % opt.spparams.excludeNoise = true;        % skip Phy 'noise' clusters.
+    % opt.spparams.loadPCs      = false;       % load principal components.
+    % opt.isibins               = 0:0.5:200;   % ISI histogram bin edges, ms.
 
-    % Firing-rate binning
-    % opt.binSize_ms        = 200;           % FR sliding-bin width (ms).
-    % opt.stepSz_ms         = 20;            % FR sliding-bin step (ms).
+    % B.7.d  Firing-rate binning (CANONICAL — overrides for the whole pipeline)
+    % opt.binSize_ms            = 200;         % FR sliding-bin width (ms).
+    % opt.stepSz_ms             = 20;          % FR sliding-bin step (ms).
 
-    % Population dynamics
-    % opt.popDyn.do          = false;        % master gate.
-    % opt.popDyn.pca         = true;         % trial-averaged smoothed-rate PCA (real time-trajectories).
-    % opt.popDyn.jPCA        = false;        % rotational dynamics.
-    % opt.popDyn.GPFA        = false;        % single-trial smooth trajectories.
-    % opt.popDyn.trialEmbed  = false;        % legacy trial-similarity embedding.
-    % opt.popDyn.smoothSigma = 0.050;        % Gaussian smoothing sigma, SECONDS.
-    % opt.popDyn.nComponents = 3;            % output embedding dimensionality.
-    % opt.popDyn.conditionVar = '';          % field name on `condition` for per-condition grouping (empty = no grouping).
-    % opt.popDyn.dropAborted = true;         % drop aborted trials before grouping.
-    % opt.popDyn.alignIdx    = 1;            % which opt.alignto entry to analyse (1-based).
-    % opt.popDyn.trialEmbedMethod = 'tSNE';  % 'PCA' | 'tSNE' | 'UMAP'.
+    %% -- B.8  POPULATION DYNAMICS (per-session, NGL02 path) -------------
+    % opt.popDyn.do             = false;       % master gate.
+    % opt.popDyn.pca            = true;        % per-session PCA via calculate_pca_from_pool (single-trial overlay + CI tube).
+    % opt.popDyn.jPCA           = false;       % rotational dynamics (PLACEHOLDER).
+    % opt.popDyn.GPFA           = false;       % single-trial smooth trajectories (PLACEHOLDER).
+    % opt.popDyn.trialEmbed     = false;       % legacy trial-similarity embedding.
+    % opt.popDyn.smoothSigma    = 0.050;       % Gaussian smoothing sigma, SECONDS.
+    % opt.popDyn.nComponents    = 3;           % output embedding dimensionality.
+    % opt.popDyn.conditionVar   = '';          % per-condition grouping field name (empty = no grouping). Used by jPCA/GPFA/trialEmbed only.
+    % opt.popDyn.dropAborted    = true;        % drop aborted trials before grouping.
+    % opt.popDyn.alignIdx       = 1;           % 1-based index into opt.alignto. IGNORED by the new PCA path (it iterates all alignments). Kept for jPCA/GPFA placeholders.
+    % opt.popDyn.trialEmbedMethod = 'tSNE';    % 'PCA' | 'tSNE' | 'UMAP'.
+    % opt.popDyn.pcaConditions  = {'allInitiated'};  % cell of condition tokens for per-session PCA iteration. Each entry is one condition fieldname OR an 'X vs Y' comparison; produces one figure pair per (alignment, label, entry). E.g. {'allInitiated','correct vs incorrect'}.
 
-    % LFP side (NGL02_LFP)
-    % opt.trialparsed       = false;         % load *_<align>.mat (trial-parsed) instead of *_FTcont.mat.
-    % opt.artifdet          = false;         % run LFP artifact detection / rejection.
-    % opt.spectrogram       = false;         % run multitaper TFR analysis.
+    %% -- B.9  LFP SIDE (NGL02_LFP) --------------------------------------
+    % opt.trialparsed           = false;       % load *_<align>.mat (trial-parsed) instead of *_FTcont.mat.
+    % opt.artifdet              = false;       % run LFP artifact detection / rejection.
+    % opt.artZvalue             = 10;          % z-value cutoff for ft_artifact_zvalue. Used only if opt.artifdet=true.
+    % opt.rejValue              = 'zero';      % how to fill rejected segments: 'zero' | 'nan' | numeric scalar.
+    % opt.spectrogram           = false;       % run multitaper TFR analysis.
 
-    % NGL04_fireRate (cross-subject PSTH plotter)
-    % opt.fireRatePlot.interval        = [-2000 4000];  % ms window passed to plotPSTH
-    % opt.fireRatePlot.binSize_ms      = 200;            % FR sliding-bin width (ms) inside plot
-    % opt.fireRatePlot.stepSz_ms       = 20;             % FR sliding-bin step (ms) inside plot
-    % opt.fireRatePlot.smoothPlot      = true;           % nanMeanSterrHistogram smoothing
-    % opt.fireRatePlot.errAlpha        = 0.4;            % error-shade alpha
-    % opt.fireRatePlot.labelPriority   = {'HumanLabel','KSLabel','bc_unitType'};
-    % opt.fireRatePlot.busyWarnTraces  = 4;              % warn above N overlaid traces
-    % opt.fireRatePlot.outDir          = '';             % default: <input.analysis>/plots/NGL04_fireRate
+    %% -- B.10  NGL04_fireRate  (cross-subject PSTH plotter) -------------
+    % opt.fireRatePlot.interval        = [-2000 4000];   % ms window passed to plotPSTH.
+    % opt.fireRatePlot.binSize_ms      = 200;             % FR sliding-bin width inside the plot (independent from canonical opt.binSize_ms).
+    % opt.fireRatePlot.stepSz_ms       = 20;              % FR sliding-bin step inside the plot.
+    % opt.fireRatePlot.smoothPlot      = true;            % nanMeanSterrHistogram smoothing.
+    % opt.fireRatePlot.errAlpha        = 0.4;             % error-shade alpha (0..1).
+    % opt.fireRatePlot.labelPriority   = {'HumanLabel','KSLabel','bc_unitType'};   % resolution order for cluster-label tokens (also used by per-session calculate_neural_pca).
+    % opt.fireRatePlot.busyWarnTraces  = 4;               % warn above N overlaid traces per subplot.
+    % opt.fireRatePlot.outDir          = '';              % default: <input.analysis>/plots/NGL04_fireRate
+    % opt.fireRatePlot.cacheDir        = '';              % default: <input.analysis>/cache/firepools (SHARED with NGL04_PCA; first run that pools a (align,cond,label) writes the cache, subsequent runs reuse it).
 
-    % Project-specific gates (opt-in code paths for specific paradigms).
-    % Off by default; turn on only for the matching paradigm. Code
-    % blocks guarded by these flags live in the toolbox and stay
-    % dormant for any other project.
-    % opt.proj_chgDtctPCue    = false;       % Change-Detection P-Cue paradigm.
-    % opt.proj_socialLearning = false;       % SocialLearning ASL (TFR testname, etc.).
-    % opt.proj_extintion      = false;       % Extintion paradigm (fireRate_extintion, trialdef -1000 offset).
-    % opt.proj_FLIP           = false;       % vFLIP laminar power analysis (was opt.FLIP).
+    %% -- B.11  NGL04_PCA / per-session PCA  (state-space plots) --------
+    % NGL04_PCA reads these directly. calculate_neural_pca (per-session,
+    % from NGL02) also reads .nBootstrap/.rngSeed/.sessionAlpha/.ciAlpha/
+    % .ciStride/.variants/.outDir from here; for .interval it uses
+    % opt.fireRatePlot.interval and for binning it uses opt.binSize_ms /
+    % opt.stepSz_ms (see LANDMINE note at the top of this file).
+    % opt.pcaPlot.interval       = [-2000 4000];          % ms window around alignment (NGL04_PCA only).
+    % opt.pcaPlot.binSize_ms     = 200;                   % FR bin width (ms) inside NGL04_PCA only.
+    % opt.pcaPlot.stepSz_ms      = 20;                    % FR bin step (ms) inside NGL04_PCA only.
+    % opt.pcaPlot.smoothSigma_s  = 0.050;                 % Gaussian sigma for smoothing (s).
+    % opt.pcaPlot.nComponents    = 3;                     % number of PCs to keep (>=2).
+    % opt.pcaPlot.nBootstrap     = 100;                   % trial-bootstrap reps for CI tube; 0 disables CI.
+    % opt.pcaPlot.rngSeed        = [];                    % integer seed for reproducible CI, or [] for random.
+    % opt.pcaPlot.sessionAlpha   = 0.18;                  % alpha for grey single-trial / session-marginal traces.
+    % opt.pcaPlot.ciAlpha        = 0.20;                  % alpha for 2D CI ribbon.
+    % opt.pcaPlot.ciStride       = 10;                    % 3D CI crosshair every N bins.
+    % opt.pcaPlot.variants       = {'singleTrials','ciTube'};  % which figure variants to render. Drop one once you decide.
+    % opt.pcaPlot.outDir         = '';                    % default for NGL04_PCA: <input.analysis>/plots/NGL04_PCA. Per-session PCA writes to <opt.analysis>/plots/population_dynamics/ regardless.
 
-    % Cross-session aggregation (NGL03_acrossSession)
+    %% -- B.12  PROJECT-SPECIFIC GATES -----------------------------------
+    % Off by default; turn on only for the matching paradigm. Code blocks
+    % guarded by these flags live in the toolbox and stay dormant for
+    % any other project.
+    % opt.proj_chgDtctPCue       = false;      % Change-Detection P-Cue paradigm (trialdef /32).
+    % opt.proj_socialLearning    = false;      % SocialLearning ASL (TFR testname, etc.).
+    % opt.proj_extintion         = false;      % Extintion paradigm (fireRate_extintion, trialdef -1000 offset).
+    % opt.proj_FLIP              = false;      % vFLIP laminar power analysis (was opt.FLIP).
+
+    %% -- B.13  CROSS-SESSION AGGREGATION (NGL03_acrossSession) ----------
     % aggregateSubjects requires aggregateSessions=true; subjects can only
     % be stacked once sessions have been collapsed per subject.
-    % opt.aggregateSessions = false;       % build <subject>_aggregated.mat in data\analysis\<subject>\
-    % opt.aggregateSubjects = false;       % build study-level aggregated.mat in data\analysis\
+    % opt.aggregateSessions     = false;       % build <subject>_aggregated.mat per subject.
+    % opt.aggregateSubjects     = false;       % build study-level aggregated.mat across subjects.
 
-    % Legacy (kept for backward compatibility)
-    % opt.neurDyn.do        = false;         % LEGACY trial-state embedding; superseded by opt.popDyn.
+    %% -- B.14  PER-AREA CONTEXT (set internally by NGL02) ---------------
+    % opt.area                  = 'all';       % single-area runs leave 'all'; multi-area mode iterates input.areaMap.uniqueAreas. Setting it here has no effect — NGL02 overwrites before each loadSpikes call.
+
+    %% -- B.15  LEGACY --------------------------------------------------
+    % opt.neurDyn.do            = false;       % LEGACY trial-state embedding; superseded by opt.popDyn.trialEmbed. Kept only so old SetAndRunMe files don't crash.
 
 % C) PARAM (analysis/plot tuning, kept as inline-defaulted in functions).
 %    `param` is a semi-independent struct that downstream analysis/plotting
@@ -289,7 +343,27 @@ NGL03_aggregate
 % request = {'correct', 'good', 'stim2'};
 % NGL04_fireRate
 
-%% 6  NGL03_plotting — group-level visualisation (TODO).
+%% 6  NGL04_PCA — cross-subject population PCA state-space plots.
+%   Same 3-cell `request` semantics as NGL04_fireRate. Reuses the shared
+%   firepools cache (opt.fireRatePlot.cacheDir), so if NGL04_fireRate was
+%   run first for this request, the pools are loaded from disk and only
+%   the PCA fit + plot run here. Produces two PNG variants per
+%   (alignment, label):
+%     <encoded-request>_a<A>_l<L>_singleTrials.png   (mean + per-session
+%                                                     grey marginals)
+%     <encoded-request>_a<A>_l<L>_ciTube.png         (mean + bootstrap CI)
+%   plus an <encoded-request>_pca.mat with all PCA results.
+%
+%   Examples:
+%     request = {'correct vs incorrect', 'good', 'stim2'};
+%       % one PC space, 2 trajectories (correct vs incorrect overlaid)
+%     request = {'allInitiated', 'good', 'itiOn vs stim2'};
+%       % two figures (one PC space per alignment), 1 trajectory each
+
+% request = {'correct vs incorrect', 'good', 'stim2'};
+% NGL04_PCA
+
+%% 7  NGL03_plotting — group-level visualisation (TODO).
 %   Comprehensive plots across sessions and conditions. Building on the
 %   per-session plots already produced by NGL02_postPhy.
 

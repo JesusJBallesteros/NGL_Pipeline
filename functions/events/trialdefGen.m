@@ -64,17 +64,10 @@ if isempty(useevents)
                        EventRecord.EventType == opt.eventdef.end2 | ...
                        EventRecord.EventType == opt.eventdef.end3);
 
-    % if idx.start(1)==1 % First trial start event can't be the first event sent. In INTAN this means 'sessionsStart'
-    %     idx.start(1)=[]; %remove it
-    % end
-    
-    if ~(length(idx.start)==length(idx.end)) % matching start-end events
-        warning('A mismatch between number of start/end trials found.')
-        if exist(fullfile(opt.behavFiles,"EventRecord.mat"),"file") 
-            load(fullfile(opt.behavFiles,"EventRecord.mat"), 'EventRecord');
-            warning('A fixed EventRecord variable found.\n')
-        else
-            warning('Recommended to manually check this sessions event files to find out why.')
+    [idx, EventRecord] = checkIdxTrials(idx, EventRecord, opt);
+    % if ~(length(idx.start)==length(idx.end)) % non-matching start-end events
+        % else
+            % warning('Recommended to manually check this sessions event files to find out why.')
             % % Some common causes could be fixed using one of the approached below.
             % %  Delete the bad files produced by this function and try re
             % %  running it with one of the blocks commented below:
@@ -123,37 +116,34 @@ if isempty(useevents)
             %     EventRecord.TimeSource(invalidTrls)    = [];
             %     EventRecord.Details(invalidTrls)       = [];
             % end
-        
             % After any of the fixes, re-run idexing to recover the changes
-            idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 
-            idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
-                               EventRecord.EventType==opt.eventdef.end2 | ...
-                               EventRecord.EventType==opt.eventdef.end3);
+            % idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 
+            % idx.end     = find(EventRecord.EventType==opt.eventdef.end1 | ...
+            %                    EventRecord.EventType==opt.eventdef.end2 | ...
+            %                    EventRecord.EventType==opt.eventdef.end3);
             % Remove INTAN's 'sessionsStart' event again if re-captured
             % if idx.start(1)==1 
             %     idx.start(1)=[];
             % end
-    
             % Final check for start/end trial consistency. Throw warning upon mismatch
-            if length(idx.start)~=length(idx.end)
-                warning('Mismatch in start/end trials unsolved. Check the EventRecord to find the problem.')
-            end
-        end
+            % if length(idx.start)~=length(idx.end)
+            %     warning('Mismatch in start/end trials unsolved. Check the EventRecord to find the problem.')
+            % end
+        % end
 
-        % If there was a timebreak, relativize it to the first timestamp
-        % Also, all times after the break need to be adjusted for the actual
-        % time passed during the delay, erasing it in terms of recording time
-        if isfield(EventRecord,'TimeBreak')
-            if ~isempty(EventRecord.TimeBreak{1,2})
-                EventRecord.TimeBreak{1,2} = EventRecord.TimeBreak{1,2}-EventRecord.TimeMsFromMidnight(1);
-                
-                tbreakdur = EventRecord.TimeBreak{1,2}(2) - EventRecord.TimeBreak{1,2}(1);
-                tbidx = EventRecord.TimeMsFromMidnight > EventRecord.TimeBreak{1,2}(2);
-                EventRecord.TimeMsFromMidnight(tbidx) = EventRecord.TimeMsFromMidnight(tbidx) - tbreakdur;
-            end
+    % If there was a timebreak, relativize it to the first timestamp
+    % Also, all times after the break need to be adjusted for the actual
+    % time passed during the delay, erasing it in terms of recording time
+    if isfield(EventRecord,'TimeBreak') & ~isempty(EventRecord.TimeBreak{1,2})
+        EventRecord.TimeBreak{1,2} = EventRecord.TimeBreak{1,2}-EventRecord.TimeMsFromMidnight(1);
+        if EventRecord.TimeBreak{1,2} > 0
+            tbreakdur = EventRecord.TimeBreak{1,2}(2) - EventRecord.TimeBreak{1,2}(1);
+            tbidx = EventRecord.TimeMsFromMidnight > EventRecord.TimeBreak{1,2}(2);
+            EventRecord.TimeMsFromMidnight(tbidx) = EventRecord.TimeMsFromMidnight(tbidx) - tbreakdur;
         end
-
     end
+
+    % end
     
     % Relativize timestamps to session start keeping it in msec
     % EventRecord.TimeMsFromMidnight = (EventRecord.TimeMsFromMidnight - EventRecord.TimeMsFromMidnight(1));
