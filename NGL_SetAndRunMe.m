@@ -265,6 +265,14 @@ param = struct();
     % Block-aware FR (calculate_fireRate_byBlock)
     % param.blockBounds     = [];            % vector [t0 t1 ... tN] of trial indices defining N blocks.
 
+%% SET 2 (TO MERGE INTAN SESSIONS)
+% subject     = 'NNN';                   % subject ID (string or char)
+% mergeDates  = {'' ''}; % {A, B} in chronological order
+% mergeTag    = 'AABB_merged';          % user-supplied output folder name, preferably NOT a date (change it later)
+% opt.merge.cleanupStaging = true;
+
+% and RUN this ONLY
+% NGL_mergeSessionsINTAN
 
 %% 3) RUN.
 %% 1  NGL01_Main — preprocessing.
