@@ -238,6 +238,37 @@ opt = struct();
     % B.15  LEGACY --------------------------------------------------
     % opt.neurDyn.do            = false;       % LEGACY trial-state embedding; superseded by opt.popDyn.trialEmbed. Kept only so old SetAndRunMe files don't crash.
 
+    % B.16  GAZE / VIDEO PROCESSING (GazEstim) -----------------------
+    % Wrapper around the GazEstim Python toolbox (toolboxes/GazEstim/{pose_clean,pose_render}.py
+    % driven by configfiles/master_gaze.py). Pairs with B.12.a "Video +
+    % social tracking" inside the future NGL06_VideoProcess stage.
+    % Requires: copy configfiles/master_gaze.py (+ HexArena.png if used)
+    % into your <project>\analysisCode\ and set GAZEpythonExe in
+    % NGL_machineConfig.m.
+    % opt.gaze.do               = false;       % master gate: run process_gaze on each discovered DLC csv.
+    % opt.gaze.fps              = 59.94;       % input video fps (Hz).
+    % opt.gaze.downsampleStep   = 2;           % keep 1 frame per N; out_fps = fps/N.
+    % opt.gaze.pCut             = 0.5;         % DLC likelihood gate (0..1).
+    % opt.gaze.devFac           = 0.6;         % jump threshold = devFac * bodyLength.
+    % opt.gaze.smooth           = 5;           % temporal smoothing window (frames).
+    % opt.gaze.wMed             = 9;           % rolling-median window (frames).
+    % opt.gaze.boneTolFrac      = 0.4;         % bone-length tolerance fraction.
+    % opt.gaze.boneTolMad       = 5.0;         % bone-length tolerance (xMAD).
+    % opt.gaze.orderMargin      = 0.10;        % head-behind-wing clamp margin (xbody).
+    % opt.gaze.videoWidth       = 1250;        % source video width (px); must match DLC training.
+    % opt.gaze.videoHeight      = 1160;        % source video height (px).
+    % opt.gaze.drawCones        = true;        % render gaze cones on the output mp4.
+    % opt.gaze.monoFOV          = 170;         % monocular field per eye (degrees).
+    % opt.gaze.binoHalf         = 15;          % binocular half-angle (degrees).
+    % opt.gaze.coneMult         = 2.5;         % cone length = coneMult * birdLength.
+    % opt.gaze.eyeFwdFrac       = 1/3;         % eye base: fraction of head->beak from head.
+    % opt.gaze.eyeLatFrac       = 1/5;         % eye lateral offset: fraction of back->wing.
+    % opt.gaze.dpi              = 120;         % render DPI.
+    % opt.gaze.crf              = 24;          % ffmpeg CRF (lower = better quality, larger files).
+    % opt.gaze.preset           = 'veryfast';  % ffmpeg preset.
+    % opt.gaze.background       = '';          % '' -> <analysisCode>/HexArena.png, else configfiles/HexArena.png.
+    % opt.gaze.masterScript     = '';          % '' -> <analysisCode>/master_gaze.py, else configfiles/master_gaze.py.
+
 % C) PARAM (analysis/plot tuning, kept as inline-defaulted in functions).
 %    `param` is a semi-independent struct that downstream analysis/plotting
 %    functions fill with their own inline defaults if absent. Override here

@@ -118,6 +118,13 @@ input.KSpythonExe  = cfg.KSpythonExe;
 input.KSpyfolder   = fullfile(cfg.KSpythonExe, 'Lib', 'site-packages', 'kilosort');
 input.PHYpythonExe = cfg.PHYpythonExe;
 input.PHYpyfolder  = fullfile(cfg.PHYpythonExe, 'Lib', 'site-packages', 'phy');
+% GazEstim python: optional. Fall back to 'python' (system PATH) when the
+% machine config doesn't set it.
+if isfield(cfg, 'GAZEpythonExe') && ~isempty(cfg.GAZEpythonExe)
+    input.GAZEpythonExe = cfg.GAZEpythonExe;
+else
+    input.GAZEpythonExe = 'python';
+end
 
 input.ReaderDll = fullfile(input.toolbox, 'toolboxes', 'Deuteron', 'software', 'Event_File_Reader_9_0.dll');
 input.exefile   = fullfile(input.toolbox, 'toolboxes', 'Deuteron', 'software', 'Event_File_Reader_9_0.exe');
@@ -179,6 +186,7 @@ addpath(genpath(fullfile('toolboxes', 'matnwb')))
 addpath(genpath(fullfile('toolboxes', 'bombcell')))
 addpath(genpath(fullfile('toolboxes', 'prettify_matlab')))
 addpath(genpath(fullfile('toolboxes', 'spikes')))
+addpath(fullfile('toolboxes', 'GazEstim'))   % Python only; MATLAB-side addpath kept for discoverability
 
 ft_defaults
 
