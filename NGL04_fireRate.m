@@ -8,6 +8,12 @@
 %   Exactly one of the three may be a 'X vs Y' comparison; the plot
 %   layout is chosen accordingly.
 %
+%   Multi-area aware: if aggregated.allspike{x,y} carries per-area
+%   nested sub-structs (matching entries in input.Areas), the script
+%   iterates over those areas and produces one set of outputs per area,
+%   with the area name appended to every filename. Single-area runs
+%   behave exactly as before.
+%
 % USAGE (from NGL_SetAndRunMe section 3.x):
 %   request = {'correct vs incorrect', 'good', 'stim2'};
 %   NGL04_fireRate
@@ -28,36 +34,40 @@
 % PIPELINE:
 %   00.  NGL00_Prep + Areas recovery + set_default + findSessions
 %   01.  Load aggregated cells
-%   02.  Build category sets for inference
-%   03.  Parse `request` into per-factor level lists
-%   04.  Pool per-trial spike cells across all matching (subj, sess, c)
-%   05.  Plot:
-%          varying ALIGNMENT -> two subplots side-by-side
-%          else              -> overlaid traces, different colors
-%        Each trace drawn by plotPSTH(pooled, ..., 'plotcol', ...).
-%   06.  Save PNG; return `result` struct on workspace.
+%   01a. Multi-area discovery (input.Areas)
+%   for each area:
+%     02.  Build category sets for inference on the per-area view
+%     03.  Parse `request` into per-factor level lists
+%     04.  Pool per-trial spike cells across matching (subj, sess, c)
+%     05.  Plot:
+%            varying ALIGNMENT -> two subplots side-by-side
+%            else              -> overlaid traces, different colors
+%     06.  Save PNG (area-suffixed in multi-area mode)
+%     07.  Example waveforms PNG (same naming)
 %
 % OUTPUT (workspace + on disk):
-%   result - struct with .pooled (cell of pooled spike-time cells per
-%            level), .levels (struct describing each level), .meanLines
-%            and .errLines (returned by plotPSTH), and .figFile (PNG path).
-%   PNG    - <input.analysis>/plots/NGL04_fireRate/<encoded-request>.png
+%   result - struct with:
+%       .areas         cell of area tags processed (= {''} in single-area)
+%       .byArea.<area> per-area sub-struct with .pooled / .levels /
+%                      .upperY / .figFile / .figFile_waveforms
+%     In single-area mode the per-area fields are ALSO mirrored at the
+%     top level (result.pooled, result.figFile, ...) for legacy callers.
+%   PNGs - <input.analysis>/plots/fireRate/
+%            <encoded-request>.png                 (single area)
+%            <encoded-request>_<area>.png          (multi-area)
+%            <encoded-request>[_<area>]_waveforms.png
 %
 % DEPENDENCIES:
 %   plotPSTH, calcFireRate, nanMeanSterrHistogram (toolboxes/BDPAT_NGL/);
 %   aggregated.mat (or per-subject files) from NGL03_acrossSession;
 %   functions/analysis/{loadAggregatedSpikes, buildRequestCatSets,
 %   parseFireRateRequest, buildFireRatePool, encodeFireRateRequest,
-%   requestSubplotTitle, requestTraceLabel}.
+%   requestSubplotTitle, requestTraceLabel,
+%   detectMultiAreaFields, flattenAggregatedForArea}.
 %
-% MULTI-AREA NOTE:
-%   v1 supports flat (single-area) aggregated cells. For multi-area
-%   aggregation (allspike{x,y}.<Area>.KSLabel), add opt.fireRatePlot.area
-%   to pick the area and update Section 04.
-%
-% Last modified 09.06.2026 (Jesus) - extracted request/pool helpers to
-%                                     functions/analysis/ for reuse by
-%                                     NGL04_PCA (task #30).
+% Last modified 18.06.2026 (Jesus) - multi-area support: per-area
+%                                     iteration + area-tagged outputs +
+%                                     area in firepools cache key.
 
 %% 00. Standard scaffolding.
 NGL00_Prep
@@ -95,35 +105,19 @@ aggregated = loadAggregatedSpikes(input);
 % Required fields in `aggregated`: allspike, allneurons, allcondition.
 % Optional: allevents, alltrialdef.
 
-%% 02. Build category sets used by content-based category inference.
-catSets = buildRequestCatSets(aggregated, opt);
+%% 01a. Multi-area discovery.
+% If aggregated.allspike{*}'s cells carry per-area nested sub-structs
+% matching input.Areas, iterate over those areas. Otherwise run once
+% with areaTag = '' (single-area / legacy path).
+areasToRun = {};
+if isfield(input,'Areas') && ~isempty(input.Areas)
+    areasToRun = detectMultiAreaFields(aggregated, input.Areas);
+end
+if isempty(areasToRun)
+    areasToRun = {''};           % single-area / flat aggregated
+end
 
-%% 03. Parse `request` into per-factor level lists.
-%
-% Each of the three factors gets a cell of 1 OR 2 entries depending on
-% whether that slot was a single value or a 'X vs Y' comparison. ZERO,
-% ONE, TWO, or THREE factors can vary simultaneously (revised
-% 02.06.2026).
-%
-% parsed.alignment {1x1 or 1x2} cell of alignment names (members of opt.alignto)
-% parsed.condition {1x1 or 1x2} cell of condition field names
-% parsed.label     {1x1 or 1x2} cell of label values (with .field tag)
-% parsed.varying   cell of factor names that have >1 levels (e.g. {'alignment','condition'})
-parsed = parseFireRateRequest(request, catSets);
-
-nA = numel(parsed.alignment);
-nC = numel(parsed.condition);
-nL = numel(parsed.label);
-fprintf('NGL04_fireRate: %d alignment(s) x %d condition(s) x %d label(s); varying = {%s}.\n', ...
-        nA, nC, nL, strjoin(parsed.varying, ', '));
-
-%% 04. Pool per-trial spike cells across all matching (subj, sess, c).
-%
-% Cartesian product over the three factors. Each (aIdx, cIdx, lIdx)
-% cell receives a pool struct. Per-pool cache lives in
-% opt.fireRatePlot.cacheDir (default <input.analysis>/cache/firepools)
-% and is shared with NGL04_PCA; staleness checked against the
-% aggregated.mat mtime.
+% Resolve shared paths once.
 cacheDir = localFireRatePlotField(opt, 'cacheDir', '');
 if isempty(cacheDir)
     cacheDir = fullfile(input.analysis, 'cache', 'firepools');
@@ -131,214 +125,260 @@ end
 sourceFile = fullfile(input.analysis, 'aggregated.mat');
 if ~isfile(sourceFile), sourceFile = ''; end
 
-result        = struct();
-result.pooled = cell(nA, nC, nL);
-result.levels = repmat(struct('alignment','','condition','','label',''), nA, nC, nL);
-for aIdx = 1:nA
-    for cIdx = 1:nC
-        for lIdx = 1:nL
-            aL  = parsed.alignment{aIdx};
-            cL  = parsed.condition{cIdx};
-            lL  = parsed.label{lIdx};
-            lF  = parsed.labelField{lIdx};
-            result.levels(aIdx, cIdx, lIdx).alignment = aL;
-            result.levels(aIdx, cIdx, lIdx).condition = cL;
-            result.levels(aIdx, cIdx, lIdx).label     = lL;
+outDir = fullfile(input.analysis, 'plots', 'fireRate');
+if ~exist(outDir, 'dir'), mkdir(outDir); end
+fname = encodeFireRateRequest(request);
 
-            cKey         = fireRatePoolCacheKey(aL, cL, lL, lF);
-            [pool, cHit] = loadFireRatePoolCache(cacheDir, cKey, sourceFile);
-            if ~cHit
-                pool = buildFireRatePool(aggregated, aL, cL, lL, lF);
-                saveFireRatePoolCache(cacheDir, cKey, pool);
+result        = struct();
+result.areas  = areasToRun;
+result.byArea = struct();
+
+isMultiArea = numel(areasToRun) > 1 || (numel(areasToRun) == 1 && ~isempty(areasToRun{1}));
+if isMultiArea
+    fprintf('NGL04_fireRate: multi-area mode, iterating over %s\n', ...
+            strjoin(areasToRun, ', '));
+end
+
+for areaIdx = 1:numel(areasToRun)
+    areaTag = areasToRun{areaIdx};
+    if isempty(areaTag)
+        aggView  = aggregated;
+        areaSlug = '';
+        areaLbl  = 'all';
+    else
+        aggView  = flattenAggregatedForArea(aggregated, areaTag);
+        areaSlug = ['_' areaTag];
+        areaLbl  = areaTag;
+        fprintf('\nNGL04_fireRate: ===== area %s =====\n', areaTag);
+    end
+
+    %% 02. Build category sets used by content-based category inference.
+    catSets = buildRequestCatSets(aggView, opt);
+
+    %% 03. Parse `request` into per-factor level lists.
+    parsed = parseFireRateRequest(request, catSets);
+
+    nA = numel(parsed.alignment);
+    nC = numel(parsed.condition);
+    nL = numel(parsed.label);
+    fprintf('NGL04_fireRate: %d alignment(s) x %d condition(s) x %d label(s); varying = {%s}.\n', ...
+            nA, nC, nL, strjoin(parsed.varying, ', '));
+
+    %% 04. Pool per-trial spike cells across matching (subj, sess, c).
+    pooled = cell(nA, nC, nL);
+    levels = repmat(struct('alignment','','condition','','label',''), nA, nC, nL);
+    for aIdx = 1:nA
+        for cIdx = 1:nC
+            for lIdx = 1:nL
+                aL = parsed.alignment{aIdx};
+                cL = parsed.condition{cIdx};
+                lL = parsed.label{lIdx};
+                lF = parsed.labelField{lIdx};
+                levels(aIdx, cIdx, lIdx).alignment = aL;
+                levels(aIdx, cIdx, lIdx).condition = cL;
+                levels(aIdx, cIdx, lIdx).label     = lL;
+
+                cKey         = fireRatePoolCacheKey(aL, cL, lL, lF, areaTag);
+                [pool, cHit] = loadFireRatePoolCache(cacheDir, cKey, sourceFile);
+                if ~cHit
+                    pool = buildFireRatePool(aggView, aL, cL, lL, lF);
+                    saveFireRatePoolCache(cacheDir, cKey, pool);
+                end
+                pooled{aIdx, cIdx, lIdx} = pool;
+                hitTag = ternaryChar(cHit, '[cache]', '[built]');
+                fprintf('  %s [%s] (%s | %s | %s [%s]): %d trials | %d clust | %d sess | %d subj\n', ...
+                        hitTag, areaLbl, aL, cL, lL, lF, ...
+                        pool.nTrials/pool.nClust, pool.nClust, pool.nSess, pool.nSubj);
             end
-            result.pooled{aIdx, cIdx, lIdx} = pool;
-            hitTag = ternaryChar(cHit, '[cache]', '[built]');
-            fprintf('  %s (%s | %s | %s [%s]): %d trials | %d clust | %d sess | %d subj\n', ...
-                    hitTag, aL, cL, lL, lF, pool.nTrials, pool.nClust, pool.nSess, pool.nSubj);
         end
     end
-end
 
-%% 05. Plot via plotPSTH.
-%
-% LAYOUT RULE:
-%   ALIGNMENT controls SUBPLOT layout (side-by-side, one per alignment
-%   level, because time references differ across alignments).
-%   CONDITION x LABEL controls OVERLAY within each subplot (one trace
-%   per (condition, label) combination).
-%
-% Units: spike times in aggregated.allneurons are MILLISECONDS, so pass
-% smpRate = 1000 to plotPSTH; binSize/stepSz/interval are also in ms.
-plotCfg = struct();
-plotCfg.interval  = localFireRatePlotField(opt, 'interval',   [-500 4000]);
-plotCfg.binSize   = localFireRatePlotField(opt, 'binSize_ms', opt.binSize_ms);
-plotCfg.stepSz    = localFireRatePlotField(opt, 'stepSz_ms',  opt.stepSz_ms);
-plotCfg.smooth    = localFireRatePlotField(opt, 'smoothPlot', true);
-plotCfg.errAlpha  = localFireRatePlotField(opt, 'errAlpha',   0.4);
-plotCfg.smpRate   = 1000;       % aggregated spike times are ms; treat ms as "samples"
-plotCfg.busyWarn  = localFireRatePlotField(opt, 'busyWarnTraces', 4);
+    %% 05. Plot via plotPSTH.
+    plotCfg = struct();
+    plotCfg.interval  = localFireRatePlotField(opt, 'interval',   [-500 4000]);
+    plotCfg.binSize   = localFireRatePlotField(opt, 'binSize_ms', opt.binSize_ms);
+    plotCfg.stepSz    = localFireRatePlotField(opt, 'stepSz_ms',  opt.stepSz_ms);
+    plotCfg.smooth    = localFireRatePlotField(opt, 'smoothPlot', true);
+    plotCfg.errAlpha  = localFireRatePlotField(opt, 'errAlpha',   0.4);
+    plotCfg.smpRate   = 1000;
+    plotCfg.busyWarn  = localFireRatePlotField(opt, 'busyWarnTraces', 4);
 
-nTracesPerSubplot = nC * nL;
-plotCfg.palette   = lines(max(2, nTracesPerSubplot));
-if nTracesPerSubplot > plotCfg.busyWarn
-    warning('NGL04:busyPlot', ...
-        'Request produces %d overlaid traces per subplot (threshold %d). Consider narrowing the request.', ...
-        nTracesPerSubplot, plotCfg.busyWarn);
-end
-
-fig = figure('Visible','off','Position',[100 100 max(900, 450*nA) 500]);
-result.upperY = nan(nA, nC, nL);
-axHandles     = gobjects(nA, 1);
-
-% Pre-compute seconds-based tick positions (in bin units, which is what
-% plotPSTH's axes use).
-intervalMs = plotCfg.interval;
-stepMs     = plotCfg.stepSz;
-sLo        = floor(intervalMs(1)/1000);
-sHi        = ceil(intervalMs(2)/1000);
-tickSec    = sLo:0.5:sHi;
-tickBins   = (tickSec*1000 - intervalMs(1)) / stepMs + 1;
-tickLab    = arrayfun(@(t) ternaryChar(abs(mod(t,1))<1e-9, sprintf('%g', t), ''), ...
-                      tickSec, 'uni', false);
-alignBin   = (0 - intervalMs(1)) / stepMs + 1;
-
-for aIdx = 1:nA
-    if nA > 1
-        axHandles(aIdx) = subplot(1, nA, aIdx);
-    else
-        axHandles(aIdx) = gca;
+    nTracesPerSubplot = nC * nL;
+    plotCfg.palette   = lines(max(2, nTracesPerSubplot));
+    if nTracesPerSubplot > plotCfg.busyWarn
+        warning('NGL04:busyPlot', ...
+            'Request produces %d overlaid traces per subplot (threshold %d). Consider narrowing the request.', ...
+            nTracesPerSubplot, plotCfg.busyWarn);
     end
-    hold on
-    traceLabels = cell(0,1);
-    for cIdx = 1:nC
-        for lIdx = 1:nL
-            traceIdx = (cIdx-1) * nL + lIdx;    % stable per-(c,l) colour index
-            pool     = result.pooled{aIdx, cIdx, lIdx};
-            if isempty(pool.cells)
-                warning('NGL04:emptyCell', ...
-                    'No matching trials for (%s | %s | %s); skipping this trace.', ...
-                    parsed.alignment{aIdx}, parsed.condition{cIdx}, parsed.label{lIdx});
-                continue
-            end
-            upperY = plotPSTH(pool.cells, ...
+
+    fig    = figure('Visible','off','Position',[100 100 max(900, 450*nA) 500]);
+    upperY = nan(nA, nC, nL);
+    axHandles = gobjects(nA, 1);
+
+    intervalMs = plotCfg.interval;
+    stepMs     = plotCfg.stepSz;
+    sLo        = floor(intervalMs(1)/1000);
+    sHi        = ceil(intervalMs(2)/1000);
+    tickSec    = sLo:0.5:sHi;
+    tickBins   = (tickSec*1000 - intervalMs(1)) / stepMs + 1;
+    tickLab    = arrayfun(@(t) ternaryChar(abs(mod(t,1))<1e-9, sprintf('%g', t), ''), ...
+                          tickSec, 'uni', false);
+    alignBin   = (0 - intervalMs(1)) / stepMs + 1;
+
+    for aIdx = 1:nA
+        if nA > 1
+            axHandles(aIdx) = subplot(1, nA, aIdx);
+        else
+            axHandles(aIdx) = gca;
+        end
+        hold on
+        traceLabels = cell(0,1);
+        for cIdx = 1:nC
+            for lIdx = 1:nL
+                traceIdx = (cIdx-1) * nL + lIdx;
+                pool     = pooled{aIdx, cIdx, lIdx};
+                if isempty(pool.cells)
+                    warning('NGL04:emptyCell', ...
+                        'No matching trials for (%s | %s | %s | %s); skipping this trace.', ...
+                        areaLbl, parsed.alignment{aIdx}, parsed.condition{cIdx}, parsed.label{lIdx});
+                    continue
+                end
+                upY = plotPSTH(pool.cells, ...
                               plotCfg.stepSz, plotCfg.binSize, ...
                               plotCfg.interval, plotCfg.smpRate, ...
                               'plotcol',    plotCfg.palette(traceIdx, :), ...
                               'meanline',   '-', ...
                               'smoothplot', plotCfg.smooth, ...
                               'erralpha',   plotCfg.errAlpha);
-            result.upperY(aIdx, cIdx, lIdx) = upperY;
-        end
-        % Enriched legend entry: trace label + pool composition.
-        baseLabel = requestTraceLabel(parsed.varying, parsed, cIdx, lIdx);
-        traceLabels{end+2, 1} = sprintf('%s; N: %d, n: %d, c: %d, tr: %d', ...
-            baseLabel, pool.nSubj, pool.nSess, pool.nClust, pool.nTrials);
-    end
-
-    % Axes formatting: seconds, integer-only numerals, alignment xline.
-    ax = axHandles(aIdx);
-    ax.XTick      = tickBins;
-    ax.XTickLabel = tickLab;
-    title(requestSubplotTitle(parsed, aIdx));
-    xlabel('t since event (s)');
-    if aIdx == 1
-        ylabel('spikes/s');
-    end
-    xl = xline(alignBin, '--k', parsed.alignment{aIdx});
-    xl.LabelHorizontalAlignment = 'right';
-    xl.LabelVerticalAlignment   = 'top';
-    xl.LabelOrientation         = 'horizontal';
-    xl.FontSize                 = 10;
-    if numel(traceLabels) >= 1 && aIdx == nA
-        traceLabels(1:2:3) = {''};
-        legend(traceLabels, 'Location', 'south');
-        legend Box off
-    end
-    box off
-    hold off
-end
-
-% Harmonise y-axis across all subplots so they're visually comparable.
-% First subplot keeps full y-axis ticks/label; later subplots hide them.
-maxY = max(result.upperY(:), [], 'omitnan');
-if isfinite(maxY) && maxY > 0
-    for aIdx = 1:nA
-        ylim(axHandles(aIdx), [0, maxY * 1.05]);
-        if aIdx > 1
-            axHandles(aIdx).YAxis.Visible = 'off';
-            axHandles(aIdx).YTickLabel = {};
-            axHandles(aIdx).YLabel.String = '';
-        end
-    end
-end
-
-%% 06. Save and report (main PSTH).
-outDir = fullfile(input.analysis, 'plots', 'fireRate');
-if ~exist(outDir, 'dir'), mkdir(outDir); end
-fname = encodeFireRateRequest(request);
-result.figFile = fullfile(outDir, [fname '.png']);
-exportgraphics(fig, result.figFile, 'Resolution', 300);
-close(fig);
-fprintf('NGL04_fireRate: %s\n', result.figFile);
-
-%% 07. Example waveforms — separate diagnostic figure.
-% One panel per alignment, all traces overlaid in their PSTH colour.
-% Each trace contributes up to 4 randomly picked cluster mean-waveforms.
-% Skipped entirely if no contributing cluster carries a waveform (i.e.,
-% opt.getwF was false during NGL01).
-anyWF = false;
-for k = 1:numel(result.pooled)
-    if ~isempty(result.pooled{k}.waveforms), anyWF = true; break, end
-end
-if anyWF
-    figWF = figure('Visible','off','Position',[100 100 max(900, 450*nA) 320]);
-    for aIdx = 1:nA
-        if nA > 1, subplot(1, nA, aIdx); end
-        hold on
-        legHandles = gobjects(0); legNames = {};
-        for cIdx = 1:nC
-            for lIdx = 1:nL
-                traceIdx = (cIdx-1) * nL + lIdx;
-                pool     = result.pooled{aIdx, cIdx, lIdx};
-                if isempty(pool.waveforms), continue, end
-                picks    = localPickRandom(numel(pool.waveforms), 4);
-                col      = plotCfg.palette(traceIdx, :);
-                hLast    = [];
-                for k = picks
-                    wf = pool.waveforms{k};
-                    hLast = plot(wf, 'Color', [col, 0.5], 'LineWidth', 1);
-                end
-                if ~isempty(hLast)
-                    legHandles(end+1) = hLast;
-                    legNames{end+1}   = sprintf('%s (%d out of %d)', ...
-                        requestTraceLabel(parsed.varying, parsed, cIdx, lIdx), ...
-                        numel(picks), numel(pool.waveforms));
-                end
+                upperY(aIdx, cIdx, lIdx) = upY;
             end
+            baseLabel = requestTraceLabel(parsed.varying, parsed, cIdx, lIdx);
+            traceLabels{end+2, 1} = sprintf('%s; N: %d, n: %d, c: %d, tr: %d', ...
+                baseLabel, pool.nSubj, pool.nSess, pool.nClust, pool.nTrials/pool.nClust);
         end
-        title(['Waveforms | ' parsed.alignment{aIdx}]);
-        xlabel('sample'); ylabel('amplitude');
-        if ~isempty(legHandles)
-            legend(legHandles, legNames, 'Location', 'southeast');
+
+        ax = axHandles(aIdx);
+        ax.XTick      = tickBins;
+        ax.XTickLabel = tickLab;
+        title(requestSubplotTitle(parsed, aIdx));
+        xlabel('t since event (s)');
+        if aIdx == 1
+            ylabel('spikes/s');
+        end
+        xl = xline(alignBin, '--k', parsed.alignment{aIdx});
+        xl.LabelHorizontalAlignment = 'right';
+        xl.LabelVerticalAlignment   = 'top';
+        xl.LabelOrientation         = 'horizontal';
+        xl.FontSize                 = 10;
+        if numel(traceLabels) >= 1 && aIdx == nA
+            traceLabels(1:2:3) = {''};
+            legend(traceLabels, 'Location', 'south');
             legend Box off
         end
         box off
         hold off
     end
-    result.figFile_waveforms = fullfile(outDir, [fname '_waveforms.png']);
-    exportgraphics(figWF, result.figFile_waveforms, 'Resolution', 300);
-    close(figWF);
-    fprintf('NGL04_fireRate: %s\n', result.figFile_waveforms);
-else
-    warning('NGL04:noWaveforms', ...
-        ['No contributing cluster carries a .waveform field; skipping ', ...
-         'example-waveforms diagnostic figure. (Set opt.getwF=true in NGL01.)']);
+
+    % Suptitle includes the area in multi-area mode.
+    if isMultiArea
+        sgtitle(fig, sprintf('area %s', areaTag));
+    end
+
+    % Harmonise y-axis across all subplots.
+    maxY = max(upperY(:), [], 'omitnan');
+    if isfinite(maxY) && maxY > 0
+        for aIdx = 1:nA
+            ylim(axHandles(aIdx), [0, maxY * 1.05]);
+            if aIdx > 1
+                axHandles(aIdx).YAxis.Visible = 'off';
+                axHandles(aIdx).YTickLabel = {};
+                axHandles(aIdx).YLabel.String = '';
+            end
+        end
+    end
+
+    %% 06. Save main PSTH PNG.
+    figFile = fullfile(outDir, [fname areaSlug '.png']);
+    exportgraphics(fig, figFile, 'Resolution', 300);
+    close(fig);
+    fprintf('NGL04_fireRate: %s\n', figFile);
+
+    %% 07. Example waveforms — separate diagnostic figure.
+    figFile_waveforms = '';
+    anyWF = false;
+    for k = 1:numel(pooled)
+        if ~isempty(pooled{k}.waveforms), anyWF = true; break, end
+    end
+    if anyWF
+        figWF = figure('Visible','off','Position',[100 100 max(900, 450*nA) 320]);
+        for aIdx = 1:nA
+            if nA > 1, subplot(1, nA, aIdx); end
+            hold on
+            legHandles = gobjects(0); legNames = {};
+            for cIdx = 1:nC
+                for lIdx = 1:nL
+                    traceIdx = (cIdx-1) * nL + lIdx;
+                    pool     = pooled{aIdx, cIdx, lIdx};
+                    if isempty(pool.waveforms), continue, end
+                    picks    = localPickRandom(numel(pool.waveforms), 4);
+                    col      = plotCfg.palette(traceIdx, :);
+                    hLast    = [];
+                    for k = picks
+                        wf = pool.waveforms{k};
+                        hLast = plot(wf, 'Color', [col, 0.5], 'LineWidth', 1);
+                    end
+                    if ~isempty(hLast)
+                        legHandles(end+1) = hLast; %#ok<SAGROW>
+                        legNames{end+1}   = sprintf('%s (%d out of %d)', ...
+                            requestTraceLabel(parsed.varying, parsed, cIdx, lIdx), ...
+                            numel(picks), numel(pool.waveforms));
+                    end
+                end
+            end
+            title(['Waveforms | ' parsed.alignment{aIdx}]);
+            xlabel('sample'); ylabel('amplitude');
+            if ~isempty(legHandles)
+                legend(legHandles, legNames, 'Location', 'southeast');
+                legend Box off
+            end
+            box off
+            hold off
+        end
+        if isMultiArea, sgtitle(figWF, sprintf('Waveforms | area %s', areaTag)); end
+        figFile_waveforms = fullfile(outDir, [fname areaSlug '_waveforms.png']);
+        exportgraphics(figWF, figFile_waveforms, 'Resolution', 300);
+        close(figWF);
+        fprintf('NGL04_fireRate: %s\n', figFile_waveforms);
+    else
+        warning('NGL04:noWaveforms', ...
+            ['No contributing cluster in area %s carries a .waveform field; skipping ', ...
+             'example-waveforms diagnostic figure. (Set opt.getwF=true in NGL01.)'], areaLbl);
+    end
+
+    %% Stash per-area outputs onto result.
+    areaKey = areaTag;
+    if isempty(areaKey), areaKey = 'all'; end
+    result.byArea.(areaKey) = struct( ...
+        'pooled',            {pooled}, ...
+        'levels',            levels,   ...
+        'upperY',            upperY,   ...
+        'figFile',           figFile,  ...
+        'figFile_waveforms', figFile_waveforms, ...
+        'parsed',            parsed);
+
+    % Back-compat mirror for single-area / legacy callers.
+    if ~isMultiArea
+        result.pooled            = pooled;
+        result.levels            = levels;
+        result.upperY            = upperY;
+        result.figFile           = figFile;
+        result.figFile_waveforms = figFile_waveforms;
+    end
 end
 
 % Local helpers (UI-only utilities). Anything related to the request
 % parsing / pool building lives under functions/analysis/ and is shared
-% with NGL04_PCA. Anything related to common option lookup or array
-% utilities stays local because it's plotting-specific.
+% with NGL04_PCA.
 
 function v = localFireRatePlotField(opt, fname, dflt)
 % Read opt.fireRatePlot.(fname) with a safe default fallback so we

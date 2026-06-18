@@ -265,7 +265,7 @@ for x = 1:input.nsubjects % Subjects.
                     % needed here.
                     fireRate = calculate_fireRate_general(neurons, [], condition, opt, param);
                 end
-                save(fullfile(opt.analysis, "fireRate.mat"), 'fireRate', '-mat')
+                save(fullfile(opt.analysis, "fireRate.mat"), 'fireRate', '-mat', '-v7.3')
 
                 % Plotting decoupled from calculate_fireRate_general.
                 % param.plot gates the helper; in multi-area

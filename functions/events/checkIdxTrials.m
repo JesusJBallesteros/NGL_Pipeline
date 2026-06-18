@@ -86,6 +86,36 @@ function [idx, EventRecord] = checkIdxTrials(idx, EventRecord, opt)
             end
         end
 
+        % There is a chance that the problem is either an unproperly initiated
+        % first trial or a unproperly finished last trial. Easy:
+        if any(idx.end(idx.end<idx.start(1)))
+            % trialend events BEFORE first trialstart. Possible error ending
+            % a previous session, leaving the pins in a different state than 
+            % the expected [1 1 0 0], generating succesive arbitrary events 
+            % until a point where the preIni state is enforced. 
+            % Solution, remove all events before first star trial event.
+            EventRecord.EventNumber(1:idx.end(1))   = [];
+            EventRecord.EventType(1:idx.end(1))     = [];
+            EventRecord.TimeStamp(1:idx.end(1))     = [];
+            EventRecord.TimeMsFromMidnight(1:idx.end(1)) = [];
+            EventRecord.TimeSource(1:idx.end(1))    = [];
+            EventRecord.Details(1:idx.end(1))       = [];
+            % Possible FIX to recover these initial trials? Assume first sent event
+            % is start trial. MANUAL CHECK!
+            warning('Events before first trial start removed.')
+        elseif any(idx.start(idx.start>idx.end(end)))
+            % This is a lonely trial start with no apparent end. Error
+            % at session level or at event reading? Get rid of this
+            % lonely last trial.
+            EventRecord.EventNumber(idx.start(end):end)   = [];
+            EventRecord.EventType(idx.start(end):end)     = [];
+            EventRecord.TimeStamp(idx.start(end):end)     = [];
+            EventRecord.TimeMsFromMidnight(idx.start(end):end) = [];
+            EventRecord.TimeSource(idx.start(end):end)    = [];
+            EventRecord.Details(idx.start(end):end)       = [];
+            warning('Events after the last trial end removed.')
+        end
+
         % re-evaluate numel(idxs) to escape while loop when fixed
         idx.start   = find(EventRecord.EventType == opt.eventdef.itiOn); 
         idx.end     = find(EventRecord.EventType == opt.eventdef.end1 | ...
@@ -95,4 +125,7 @@ function [idx, EventRecord] = checkIdxTrials(idx, EventRecord, opt)
 
     % No mismatch found or solved
     disp('Matching number of start/end events. Appears to be a good session.')
+    if tr > 0
+        fprintf('%d misshaped trials removed.', tr)
+    end
 end

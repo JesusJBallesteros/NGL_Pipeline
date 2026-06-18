@@ -139,7 +139,7 @@ function pool = buildFireRatePool(aggregated, alignName, condField, labelValue, 
                 end
                 filtered = trialCells(mask);
                 filtered = filtered(:);
-                cells    = [cells; filtered]; %#ok<AGROW>
+                cells    = [cells; filtered];
 
                 subjFlag(x)    = true;
                 sessFlag(x, y) = true;
