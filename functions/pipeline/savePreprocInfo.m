@@ -36,6 +36,25 @@ function savePreprocInfo(input, opt, mode)
 %                       or 'unknown' if git probe fails (e.g. not a git
 %                       checkout, git missing, or shell error)
 %     .MATLABversion    output of version()
+%     .hardwareFilters  (session mode, INTAN) struct from chckV with the
+%                       hardware notch / HPF / LPF / DSP cutoff actually
+%                       used by the headstage. NaN where unset.
+%     .recordingTime    (session mode, INTAN) wall-clock recording start
+%                       (settings.xml Date + Time), char.
+%     .recordingNotes   (session mode, INTAN) cellstr of non-empty user
+%                       notes (Note1/Note2/Note3) from RHX.
+%     .rhxVersion       (session mode, INTAN) RHX recorder version string.
+%     .controllerType   (session mode, INTAN) RHX controller hardware
+%                       (e.g. 'ControllerRecordUSB3').
+%     .info             (session mode) full snapshot of
+%                       input.sessions(x).info as chckV / recoverInfoForRegen
+%                       returned it. Forward-looking: lets future regen runs
+%                       read whatever chckV captured without re-scanning raw.
+%     .regenFromPreproc (session mode, only when regen path ran) logical true
+%                       so a study-tree grep tells you which sessions were
+%                       rebuilt from preprocessed-only data.
+%     .regenFromSystem  (session mode, only when regen path ran) 'INTAN'
+%                       or 'Deuteron'.
 %
 % NOTES:
 %   - Master mode strips session-specific path fields (PathRaw, SavFileName,
@@ -47,7 +66,11 @@ function savePreprocInfo(input, opt, mode)
 %     this in a try/catch if it wants belt-and-braces protection. Internal
 %     git probing is already best-effort and never throws.
 %
-% Last modified 27.05.2026 (Jesus)
+% Last modified 18.06.2026 (Jesus) - session mode now surfaces
+%                                     hardwareFilters / recordingTime /
+%                                     recordingNotes / rhxVersion from
+%                                     input.sessions(x).info (populated
+%                                     by chckV from INTAN settings.xml).
 
 %% Validate mode
 assert(ischar(mode) && ismember(mode, {'master','session'}), ...
@@ -118,6 +141,37 @@ switch mode
 
         preprocInfo.subject = input.subjects(x).name;
         preprocInfo.session = input.sessions(x).list{y};
+
+        % Pass-through provenance fields from the session's `info`
+        % (populated by chckV in case 3 / INTAN). They're forensic only:
+        % future me trying to figure out why a re-analysis differs from
+        % the original run can read recording wall-clock, the notes the
+        % experimenter typed into RHX, the hardware filter chain, and
+        % the RHX recorder version straight from preprocInfo.mat.
+        if isfield(input,'sessions') && numel(input.sessions) >= x ...
+                && isstruct(input.sessions(x)) && isfield(input.sessions(x),'info')
+            sInfo = input.sessions(x).info;
+            for f = {'hardwareFilters','recordingTime','recordingNotes','rhxVersion','controllerType'}
+                if isfield(sInfo, f{1})
+                    preprocInfo.(f{1}) = sInfo.(f{1});
+                end
+            end
+            % Full info-struct snapshot so future regens can read
+            % everything chckV produced without rescanning raw. Costs a
+            % few hundred bytes and saves a lot of guessing later.
+            preprocInfo.info = sInfo;
+        end
+
+        % Audit trail for regen runs: stamp whether this snapshot came
+        % from a regenFrom.preproc=true execution so a `dir | grep`
+        % across the study tells you which sessions were rebuilt.
+        if isfield(opt,'regenFrom') && isfield(opt.regenFrom,'preproc') ...
+                && opt.regenFrom.preproc
+            preprocInfo.regenFromPreproc = true;
+            if isfield(opt.regenFrom,'system')
+                preprocInfo.regenFromSystem = opt.regenFrom.system;
+            end
+        end
 
         assert(isfield(opt,'FolderProcDataMat') && ~isempty(opt.FolderProcDataMat), ...
             'NGL:savePreprocInfo', ...

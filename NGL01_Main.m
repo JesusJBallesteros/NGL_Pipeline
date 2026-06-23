@@ -46,11 +46,36 @@
 % IKN folder standard:
 %   gitlab.ruhr-uni-bochum.de/ikn/howto/-/wikis/Neurophysiology/hard-disk-data-structure
 %
-% Last modified 08.05.2026 (Jesus)
+% Last modified 18.06.2026 (Jesus) - regen-from-preprocessed mode:
+%                                     opt.regenFrom.preproc=true skips all
+%                                     raw-side steps (Kilosort, Bombcell,
+%                                     NWB, format wrappers) and only
+%                                     re-runs EventProcess so events /
+%                                     trialdef / condition are rebuilt
+%                                     from existing EventRecord.mat.
 
 %% 00. Check current inputs.
 NGL00_Prep
 [input, opt] = set_default(input, opt);
+
+%% 00b. Regen-from-preprocessed mode (LOCAL-PC PostPhy).
+% When opt.regenFrom.preproc=true the user is re-running NGL01 against a
+% data tree where the raw folder is intentionally empty (typically the
+% curated outputs were moved to a different machine and the raw .dat /
+% .rhd files were not transferred). Force the heavy raw-side stages
+% OFF so we never try to read what isn't there, and rebuild
+% events/trialdef/conditions from the existing EventRecord.mat instead.
+regenMode = isfield(opt,'regenFrom') && isfield(opt.regenFrom,'preproc') ...
+            && opt.regenFrom.preproc;
+if regenMode
+    fprintf('\nNGL01_Main: regenFrom.preproc=true (system=''%s''). Forcing kilosort / bombcell / phy / doNWB OFF; will rebuild events / trialdef / conditions only.\n\n', ...
+            opt.regenFrom.system);
+    opt.kilosort  = false;
+    opt.bombcell  = false;
+    opt.callBcGUI = false;
+    opt.phy       = false;
+    opt.doNWB     = false;
+end
 
 %% 01. Find and list requested sessions and subjects.
 input.sessions = findSessions(input);
@@ -68,6 +93,16 @@ for x = 1:input.nsubjects % Subjects.
         [input, opt] = prepforsession(input, opt);
 
         %% 03. Proceed to appropriate pipeline.
+        if regenMode
+           % 03.0 Regen: raw is absent. Skip the format wrapper.
+           % Loads an existing EventRecord.mat, re-runs and writes 
+           % refreshed events.mat, trialdef.mat, condition.mat
+           EventProcess(input, opt);
+           savePreprocInfo(input, opt, 'session');
+           clear FT_data INTANdata txt
+           continue
+        end
+
         switch input.sessions(input.run(1)).info.fileformat
             case {'DT2', 'DF1'}
                % 03.1 Deuteron Pipeline

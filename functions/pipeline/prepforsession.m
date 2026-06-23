@@ -38,26 +38,43 @@ function [input, opt] = prepforsession(input, opt)
 % CALLS:
 %   chckV, findSetting, reduceChanMap
 %
-% Last modified 08.05.2026 (Jesus)
+% Last modified 18.06.2026 (Jesus) - branch on opt.regenFrom.preproc:
+%                                     when true, bypass chckV / raw-folder
+%                                     navigation and build info from
+%                                     recoverInfoForRegen instead.
 
 % Extract subject and session
 subject = input.subjects(input.run(1)).name;
 session = input.sessions(input.run(1)).list{input.run(2)};
-
-% Navigate to session's raw data folder.
-cd(fullfile(input.sessions(input.run(1)).folder, session));
 
 % Report.
 txt = sprintf('\n --> Subject %s, session %d out of %d: %s \n', ...
              subject, input.run(2), input.sessions(input.run(1)).nsessions, session);
 fprintf(txt);
 
-% Check system and version.
-input.sessions(input.run(1)).info = chckV();
+% Regen path: raw folder is intentionally absent. Skip cd / chckV /
+% findSetting / reduceChanMap entirely; build info from the user-declared
+% system enum + opt.numChannels. opt.PathRaw becomes the (non-existent)
+% raw folder path so downstream prints still make sense, but no raw
+% file access happens.
+regenMode = isfield(opt,'regenFrom') && isfield(opt.regenFrom,'preproc') ...
+            && opt.regenFrom.preproc;
 
-% Collect data to create paths.
-opt.PathRaw     = pwd;
-opt.SavFileName = session;
+if regenMode
+    input.sessions(input.run(1)).info = recoverInfoForRegen(input, opt);
+    opt.PathRaw     = fullfile(input.sessions(input.run(1)).folder, session);
+    opt.SavFileName = session;
+else
+    % Navigate to session's raw data folder.
+    cd(fullfile(input.sessions(input.run(1)).folder, session));
+
+    % Check system and version.
+    input.sessions(input.run(1)).info = chckV();
+
+    % Collect data to create paths.
+    opt.PathRaw     = pwd;
+    opt.SavFileName = session;
+end
 
 % Create paths to session-specific folders
 opt.FolderProcDataMat = fullfile(input.processed, subject, session);
@@ -91,14 +108,17 @@ if ~exist(opt.trialSorted,"dir"),       mkdir(opt.trialSorted);       end
 if ~exist(opt.analysis,"dir"),          mkdir(opt.analysis);          end
 
 % Brought here from Intan wrapper so all header info is available already.
-if contains(input.sessions(input.run(1)).info.fileformat,'fileper')
+% Skipped in regen mode (info.rhd isn't on disk).
+if ~regenMode && contains(input.sessions(input.run(1)).info.fileformat,'fileper')
     input = findSetting(input);
 end
 
 % Check number of expected channels vs number of raw files. Create a
 % reduced channel map if mismatched, and save in preprocessing output dir.
-% Only for INTAN (07.01.2026, Winston)
-if contains(input.sessions(input.run(1)).info.fileformat,'fileper')
+% Only for INTAN (07.01.2026, Winston). Skipped in regen mode — the
+% chanMap that was actually used lives in input.analysisCode (transferred
+% with curated data); reduceChanMap requires the raw .dat files.
+if ~regenMode && contains(input.sessions(input.run(1)).info.fileformat,'fileper')
     if length(dir('amp*.dat')) > opt.numChannels
         error('More INTAN files than number of channels specified in NGL_SetAndRunMe.m')
     elseif length(dir('amp*.dat')) < opt.numChannels
@@ -107,5 +127,9 @@ if contains(input.sessions(input.run(1)).info.fileformat,'fileper')
     end
 end
 
-disp('Single session paths created, and their formats and settings extracted.')
+if regenMode
+    disp('Single session paths created (regen mode: raw not visited, info from regenFrom.system).');
+else
+    disp('Single session paths created, and their formats and settings extracted.');
+end
 end

@@ -47,4 +47,13 @@ function optPostChecks(opt)
             ['opt.aggregateSubjects=true requires opt.aggregateSessions=true ', ...
              '(subjects only aggregate after sessions).']);
     end
+
+    if isfield(opt,'regenFrom') && isfield(opt.regenFrom,'preproc') && opt.regenFrom.preproc
+        if isempty(opt.regenFrom.nChannels)
+            assert(isnumeric(opt.numChannels) && isscalar(opt.numChannels) && opt.numChannels > 0, ...
+                'NGL:invalidOption', ...
+                ['opt.regenFrom.preproc=true requires opt.numChannels to be a positive scalar ', ...
+                 '(used as the fallback channel count when opt.regenFrom.nChannels is empty).']);
+        end
+    end
 end

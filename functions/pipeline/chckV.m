@@ -33,13 +33,43 @@ function [info] = chckV(varargin)
 %     .voltageRes           (scalar) voltage resolution
 %     .HDF5chunkSize        (scalar) chunk size for HDF5 output (300 s × Fs)
 %     .bandpass             (char, INTAN only) 'low' or 'amp'
+%     .hardwareFilters      (struct, INTAN only) settings.xml-derived
+%                                   record of the hardware filter chain
+%                                   .notchFreq (Hz, 0=off, NaN=unset)
+%                                   .hpfFreq / .lpfFreq / .dspFreq
+%                                   (NaN where the attribute wasn't set).
+%                                   Attribute names verified against RHX 3.4
+%                                   (NotchFilterFreqHertz, Desired{Lower,Upper}
+%                                   BandwidthHertz, DesiredDSPCutoffFreqHertz).
+%     .recordingTime        (char, INTAN only) reserved; currently always ''.
+%                                   settings.xml does not carry the wall-
+%                                   clock recording time and info.rhd has
+%                                   no absolute timestamp either; we leave
+%                                   the field for a future source (file
+%                                   mtime / folder name parser).
+%     .recordingNotes       (cellstr, INTAN only) non-empty Note1/Note2/Note3
+%                                   from settings.xml GeneralConfig.
+%     .rhxVersion           (char, INTAN only) IntanRHX Version root attribute,
+%                                   e.g. '3.4.0'.
+%     .controllerType       (char, INTAN only) IntanRHX Type root attribute,
+%                                   e.g. 'ControllerRecordUSB3'.
 %     .INTAN_hdr            (struct, added by findSetting) full RHD header
 %
 % CALLS:
 %   Deuteron_GetMetaData (for Deuteron formats)
 %   findSetting (called separately from prepforsession after chckV returns)
 %
-% Last modified 07.11.2023 (Jesus)
+% Last modified 18.06.2026 (Jesus) - case 3: read fileformat from
+%                                     settings.xml GeneralConfig.FileFormat.
+%                                     Verified attribute names against a real
+%                                     RHX 3.4 settings.xml + info.rhd:
+%                                     SampleRateHertz is at the root; filter
+%                                     attrs use a 'Hertz' suffix; Notch can
+%                                     be the string "None". Added
+%                                     info.controllerType from root Type.
+%                                     info.recordingTime is now a reserved
+%                                     empty char (no source in settings.xml
+%                                     or info.rhd).
 
 err = 0;
 % Evaluate if file exist with full name and assign case.
@@ -112,9 +142,108 @@ switch formatis
         end
 
     case 3
-        % Here we look for files of each of the bandpass to use as source. 
-        % 'amp' should always exist. Would be used as primary source of data
+        % INTAN RHX with info.rhd present. Use settings.xml as the
+        % primary source of metadata; fall back to file-count heuristics
+        % only when an attribute is missing (older RHX versions).
         metaData = readstruct('settings.xml');
+
+        % --- File format from GeneralConfig.FileFormat -------------
+        %   'OneFilePerChannel'    -> 'fileperch'    (amp_*.dat per channel)
+        %   'OneFilePerSignalType' -> 'filepertype'  (single amp.dat)
+        %   'Traditional'          -> 'tradFormat'   (handled by case 5;
+        %                                              fall through if we
+        %                                              get here defensively).
+        %   missing / unknown      -> warn and fall back to amp*.dat count.
+        info.fileformat = '';
+        if isfield(metaData, 'GeneralConfig') ...
+                && isfield(metaData.GeneralConfig, 'FileFormatAttribute')
+            fmtAttr = char(string(metaData.GeneralConfig.FileFormatAttribute));
+            switch lower(fmtAttr)
+                case 'onefileperchannel'
+                    info.fileformat = 'fileperch';
+                case 'onefilepersignaltype'
+                    info.fileformat = 'filepertype';
+                case 'traditional'
+                    info.fileformat = 'tradFormat';
+                otherwise
+                    warning('NGL:chckV:unknownFmtAttr', ...
+                        ['settings.xml GeneralConfig.FileFormat=''%s'' is ', ...
+                         'unrecognised; falling back to amp*.dat count heuristic.'], ...
+                        fmtAttr);
+            end
+        else
+            warning('NGL:chckV:missingFmtAttr', ...
+                ['settings.xml has no GeneralConfig.FileFormat attribute; ', ...
+                 'falling back to amp*.dat count heuristic. ', ...
+                 'This suggests an older RHX version — consider re-exporting.']);
+        end
+
+        % --- Amplifier sample rate (settings.xml root attribute) ------
+        % Verified against RHX 3.4 (June 2026): SampleRateHertz lives on
+        % the document root <IntanRHX>, NOT inside GeneralConfig.
+        % findSetting (called later from prepforsession) also fills this
+        % from info.rhd; we set it here so any caller that runs chckV in
+        % isolation gets it directly.
+        if isfield(metaData, 'SampleRateHertzAttribute')
+            info.amplifier_sample_rate = double(metaData.SampleRateHertzAttribute);
+        elseif isfield(metaData, 'GeneralConfig') ...
+                && isfield(metaData.GeneralConfig, 'SampleRateHertzAttribute')
+            info.amplifier_sample_rate = double(metaData.GeneralConfig.SampleRateHertzAttribute);
+        end
+        if isfield(info, 'amplifier_sample_rate') && ~isempty(info.amplifier_sample_rate)
+            info.HDF5chunkSize = 300 * info.amplifier_sample_rate;
+        end
+
+        % --- Provenance metadata (user notes, recorder version, type).
+        %     Pass-through fields; not consumed by analysis but stamped
+        %     onto preprocInfo for forensic continuity. The wall-clock
+        %     recording time has NO source in settings.xml or info.rhd
+        %     (verified against RHX 3.4); leave it empty until a better
+        %     source is wired up (file mtime / folder name).
+        info.recordingTime   = '';   % no source in settings.xml; reserved
+        info.recordingNotes  = {};   % cellstr of non-empty Note1/Note2/Note3 (GeneralConfig)
+        info.rhxVersion      = '';   % e.g. '3.4.0' (root attribute)
+        info.controllerType  = '';   % e.g. 'ControllerRecordUSB3' (root attribute)
+        meta_gc = struct();
+        if isfield(metaData, 'GeneralConfig'), meta_gc = metaData.GeneralConfig; end
+
+        for n = 1:3
+            attr = sprintf('Note%dAttribute', n);
+            v    = localPickAttr({meta_gc, metaData}, attr);
+            if ~isempty(v), info.recordingNotes{end+1, 1} = v; end
+        end
+
+        info.rhxVersion     = localPickAttr({metaData, meta_gc}, 'VersionAttribute');
+        info.controllerType = localPickAttr({metaData, meta_gc}, 'TypeAttribute');
+
+        % --- Hardware filter settings (informational; downstream sanity
+        %     checks against opt.lowpass / opt.highpass / opt.linefilter
+        %     should consult these). Attribute names verified against
+        %     RHX 3.4 — all carry a '*Hertz' suffix and live in
+        %     GeneralConfig. NotchFilterFreqHertz can be the string
+        %     "None"/"Off" rather than 0, which we coerce explicitly.
+        info.hardwareFilters = struct( ...
+            'notchFreq', NaN, ...  % 50 / 60 Hz notch (0 = off, NaN = unset)
+            'hpfFreq',   NaN, ...  % desired hardware HPF (lower bandwidth)
+            'lpfFreq',   NaN, ...  % desired hardware LPF (upper bandwidth)
+            'dspFreq',   NaN);     % desired DSP cutoff (settling HPF)
+        if isfield(metaData, 'GeneralConfig')
+            gc = metaData.GeneralConfig;
+            if isfield(gc, 'NotchFilterFreqHertzAttribute')
+                info.hardwareFilters.notchFreq = localNotchToHz(gc.NotchFilterFreqHertzAttribute);
+            end
+            if isfield(gc, 'DesiredLowerBandwidthHertzAttribute')
+                info.hardwareFilters.hpfFreq = double(gc.DesiredLowerBandwidthHertzAttribute);
+            end
+            if isfield(gc, 'DesiredUpperBandwidthHertzAttribute')
+                info.hardwareFilters.lpfFreq = double(gc.DesiredUpperBandwidthHertzAttribute);
+            end
+            if isfield(gc, 'DesiredDSPCutoffFreqHertzAttribute')
+                info.hardwareFilters.dspFreq = double(gc.DesiredDSPCutoffFreqHertzAttribute);
+            end
+        end
+
+        %  Per-port channel counts 
         for b = 1:size(metaData.SignalGroup,2)
             if strlength(metaData.SignalGroup(b).PrefixAttribute)==1
                 % Read only info from analog inputs, labeled "A", "B", etc
@@ -129,7 +258,7 @@ switch formatis
 
         % Add all channels detected across ports
         info.nChannels     = sum(nchan);
-                  
+
        for i = 1:2
            % look for low band data first (legacy need from past for LFP)
            info.files = dir('low*.dat');
@@ -145,11 +274,14 @@ switch formatis
        end
        % Check how many of those files exist
        info.nfiles = length(info.files);
-        
-       % If there are many files, is 'fileperch', if there is only one, is 'filepertype'
-       % If we have several types with file per channel format, 'fileperch' applies anyways.
-       if info.nfiles > 1, info.fileformat = 'fileperch';
-       else,               info.fileformat = 'filepertype';  end
+
+       % Fall-back: if GeneralConfig.FileFormat couldn't be read above,
+       % use the legacy amp*.dat count heuristic. fileperch when >1 file,
+       % filepertype when ==1 file.
+       if isempty(info.fileformat)
+           if info.nfiles > 1, info.fileformat = 'fileperch';
+           else,               info.fileformat = 'filepertype';  end
+       end
 
     case 4
         info.fileformat = 'FieldTrip';
@@ -190,4 +322,40 @@ if err
     return
 end
 
+end
+
+% ----------------------------------------------------------------------
+function f = localNotchToHz(raw)
+% RHX writes NotchFilterFreqHertz as the string "None" / "Off" when the
+% notch is disabled, or a numeric "50" / "60" when on. Coerce to Hz with
+% 0 for the off-states (so downstream "notch active?" checks are simple
+% f > 0) and NaN only when we genuinely can't tell.
+    s = strtrim(char(string(raw)));
+    if isempty(s)
+        f = NaN;
+        return
+    end
+    switch lower(s)
+        case {'none','off','0'}
+            f = 0;
+        otherwise
+            f = str2double(s);
+    end
+end
+
+% ----------------------------------------------------------------------
+function v = localPickAttr(structs, attrName)
+% Return the first non-empty value of `attrName` across the candidate
+% structs (in order). Coerces to char and trims. Empty char when none.
+    v = '';
+    for k = 1:numel(structs)
+        s = structs{k};
+        if isstruct(s) && isfield(s, attrName)
+            raw = s.(attrName);
+            if ~isempty(raw)
+                v = strtrim(char(string(raw)));
+                if ~isempty(v), return, end
+            end
+        end
+    end
 end

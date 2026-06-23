@@ -301,6 +301,24 @@ function S = optSchema()
     S(end+1) = optEntry('gaze.masterScript', '', isCh, 'Gaze', ...
         'master_gaze.py path. Empty -> <analysisCode>/master_gaze.py then configfiles/master_gaze.py.');
 
+    % --- Regen from preprocessed-only (LOCAL-PC PostPhy) --------------
+    % Run NGL01 against a data tree where the raw folder is deliberately
+    % empty (data moved between machines; raw too big to transfer).
+    % chckV is bypassed; recoverInfoForRegen builds info from .system +
+    % opt.numChannels. NGL01_Main forces kilosort/bombcell/doNWB off
+    % and only re-runs the events/trialdef/conditions chain.
+    isRegenSystem = @(v) ischar(v) && ~isempty(v) && ismember(upper(v), {'INTAN','DEUTERON'});
+    S(end+1) = optEntry('regenFrom.preproc', false, isLog, 'Regen', ...
+        'Master gate. true = skip raw-only steps, rebuild events/trialdef/conditions from existing EventRecord.mat.');
+    S(end+1) = optEntry('regenFrom.system', 'INTAN', isRegenSystem, 'Regen', ...
+        '''INTAN'' (-> fileperch / 30 kHz) or ''Deuteron'' (-> DF1 / 32 kHz). Only consulted when .preproc=true.');
+    S(end+1) = optEntry('regenFrom.fileformat', '', isCh, 'Regen', ...
+        'Override fileformat. Empty -> derive from .system.');
+    S(end+1) = optEntry('regenFrom.sample_rate', [], isEoP, 'Regen', ...
+        'Override amplifier_sample_rate (Hz). Empty -> derive from .system.');
+    S(end+1) = optEntry('regenFrom.nChannels', [], isEoP, 'Regen', ...
+        'Override channel count. Empty -> use opt.numChannels.');
+
     % --- Cross-session aggregation (NGL03_acrossSession) --------------
     S(end+1) = optEntry('aggregateSessions', false, isLog, 'Aggregation', ...
         'Build <subject>_aggregated.mat per subject.');
