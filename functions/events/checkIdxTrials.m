@@ -81,6 +81,21 @@ function [idx, EventRecord] = checkIdxTrials(idx, EventRecord, opt)
                         EventRecord.TimeMsFromMidnight(i+1:nextstart) = [];
                         EventRecord.TimeSource(i+1:nextstart) = [];
                         EventRecord.Details(i+1:nextstart) = [];
+
+                    elseif EventRecord.EventType(i) == EventRecord.EventType(i+1)
+                        % added weird case where i = i+1, all other checks
+                        % have been performed and the event is repeated,an
+                        % error at the session or event reading? i will be
+                        % deleted and continued with the check.
+
+                        tr = tr+1;
+                        EventRecord.EventType(i) = [];
+                        EventRecord.EventNumber(i) = [];
+                        EventRecord.TimeStamp(i) = [];
+                        EventRecord.TimeMsFromMidnight(i) = [];
+                        EventRecord.TimeSource(i) = [];
+                        EventRecord.Details(i) = [];
+
                     end
                 end
             end

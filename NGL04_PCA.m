@@ -162,7 +162,19 @@ result.subjects = {subjects.name};
 result.areas    = areasToRun;
 result.bySubject = struct();
 
-aggregated = [];   % lazy
+% Workspace-aware lazy aggregated handle. If a previous interactive
+% run already loaded aggregated.mat into the base workspace, reuse it
+% when its fingerprint (studyName + analysis path + subject count +
+% source mtime) matches the current input. Otherwise reset to [] so
+% the first cache miss triggers a fresh load. Makes
+% "tweak request → re-run NGL04" iterations free.
+if exist('aggregated','var') && isstruct(aggregated) ...
+        && isfield(aggregated, 'srcFingerprint') ...
+        && isequaln(aggregated.srcFingerprint, localAggFingerprint(input))
+    fprintf('NGL04_PCA: reusing aggregated already in workspace (fingerprint match).\n');
+else
+    aggregated = [];
+end
 
 if isMultiSubj
     fprintf('NGL04_PCA: %d subjects in input.subjects; will iterate per subject.\n', nSubj);
@@ -327,10 +339,32 @@ end
 
 function aggregated = localEnsureAggregated(aggregated, input)
 % Lazy-load aggregated.mat on the first cache miss. Once loaded, the
-% handle is reused across all subjects + areas in the same run.
+% handle is reused across all subjects + areas in the same run AND
+% (because the script preserves it in the base workspace) across
+% subsequent runs whose fingerprint matches.
     if isempty(aggregated)
         fprintf('NGL04_PCA: loading aggregated.mat (first cache miss this run)...\n');
         aggregated = loadAggregatedSpikes(input);
+        aggregated.srcFingerprint = localAggFingerprint(input);
+    end
+end
+
+function fp = localAggFingerprint(input)
+% Cheap identity tag stamped on aggregated. Compared on subsequent
+% NGL04 runs to decide whether the in-workspace copy is still valid.
+% sourceMtime catches the "user re-ran NGL03 since last load" case.
+    fp = struct( ...
+        'studyName',   '', ...
+        'analysis',    '', ...
+        'nSubj',       0, ...
+        'sourceMtime', NaN);
+    if isfield(input,'studyName'), fp.studyName = input.studyName; end
+    if isfield(input,'analysis'),  fp.analysis  = input.analysis;  end
+    if isfield(input,'subjects'),  fp.nSubj     = numel(input.subjects); end
+    src = fullfile(fp.analysis, 'aggregated.mat');
+    if isfile(src)
+        d = dir(src);
+        if ~isempty(d), fp.sourceMtime = d.datenum; end
     end
 end
 
