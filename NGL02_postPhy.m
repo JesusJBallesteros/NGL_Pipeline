@@ -150,6 +150,14 @@ for x = 1:input.nsubjects % Subjects.
                 end
             end
 
+            % skipAreas accumulates names of areas that have no usable
+            % clusters (loadSpikes errored or returned 0). Every per-area
+            % loop below checks this list and skips those areas. Single-
+            % area equivalent: skipSession = true means we bail out of
+            % the whole doSpikething block for this session.
+            skipAreas    = {};
+            skipSession  = false;
+
             if needsBuild
                 if isMultiArea
                     spike = struct();
@@ -159,16 +167,94 @@ for x = 1:input.nsubjects % Subjects.
                         optArea.area     = areaName;
                         optArea.KSfolder = opt.KSfolders.(areaName);
                         fprintf('NGL02 doSpikething: loading clusters for area %s\n', areaName);
-                        tmp = loadSpikes(optArea);
-                        if isfield(tmp,'spike'), tmp = tmp.spike; end
+                        try
+                            tmp = loadSpikes(optArea);
+                            if isfield(tmp,'spike'), tmp = tmp.spike; end
+                        catch ME
+                            warning('NGL02:loadSpikesFailed', ...
+                                'loadSpikes failed for area %s (%s). Marking area as skipped.', ...
+                                areaName, ME.message);
+                            noteSkippedArea(opt, areaName, ...
+                                sprintf(['loadSpikes errored. Most likely cause: no ', ...
+                                         'cluster_info.tsv (Phy curation not run yet) ', ...
+                                         'or Kilosort produced no output for this area.\n', ...
+                                         '\nMATLAB error:\n  %s'], ME.message));
+                            skipAreas{end+1} = areaName;
+                            continue
+                        end
+                        if ~isfield(tmp,'label') || isempty(tmp.label)
+                            warning('NGL02:emptyArea', ...
+                                'Area %s: 0 curated clusters. Marking area as skipped.', areaName);
+                            noteSkippedArea(opt, areaName, ...
+                                ['loadSpikes returned 0 clusters for this area. ', ...
+                                 'Likely all clusters are Phy-labelled noise, or ', ...
+                                 'opt.spparams.excludeNoise=true is filtering them out.']);
+                            skipAreas{end+1} = areaName;
+                            continue
+                        end
+                        if ~hasCuratedClusters(tmp)
+                            warning('NGL02:noCuratedClusters', ...
+                                ['Area %s: %d clusters loaded but none have HumanLabel ', ...
+                                 'in {good, mua}. Marking area as skipped.'], ...
+                                areaName, numel(tmp.label));
+                            noteSkippedArea(opt, areaName, ...
+                                ['Area has loaded clusters but none have Phy HumanLabel = ', ...
+                                 '''good'' or ''mua''. Most likely Phy curation is incomplete: ', ...
+                                 'open Phy and assign good / mua / noise to every cluster, then re-run NGL02.']);
+                            skipAreas{end+1} = areaName;
+                            continue
+                        end
                         spike.(areaName) = tmp;
+                    end
+                    if numel(skipAreas) == numel(areaList)
+                        warning('NGL02:allAreasEmpty', ...
+                            'All areas have 0 clusters. Skipping doSpikething for this session.');
+                        noteSkippedArea(opt, 'all', ...
+                            'Every area in input.areaMap returned 0 clusters or errored in loadSpikes; see per-area *_skipped.txt files.');
+                        skipSession = true;
                     end
                 else
                     % Single-area: opt.area defaults to 'all' from set_default.
-                    spike = loadSpikes(opt);
-                    if isfield(spike,'spike'), spike = spike.spike; end
+                    try
+                        spike = loadSpikes(opt);
+                        if isfield(spike,'spike'), spike = spike.spike; end
+                    catch ME
+                        warning('NGL02:loadSpikesFailed', ...
+                            'loadSpikes failed (%s). Skipping doSpikething for this session.', ...
+                            ME.message);
+                        noteSkippedArea(opt, 'all', ...
+                            sprintf(['loadSpikes errored. Most likely cause: no ', ...
+                                     'cluster_info.tsv (Phy curation not run yet) ', ...
+                                     'or Kilosort produced no output.\n', ...
+                                     '\nMATLAB error:\n  %s'], ME.message));
+                        skipSession = true;
+                    end
+                    if ~skipSession && (~isfield(spike,'label') || isempty(spike.label))
+                        warning('NGL02:emptySession', ...
+                            '0 curated clusters. Skipping doSpikething for this session.');
+                        noteSkippedArea(opt, 'all', ...
+                            ['loadSpikes returned 0 clusters. Likely all clusters are ', ...
+                             'Phy-labelled noise, or opt.spparams.excludeNoise=true.']);
+                        skipSession = true;
+                    end
+                    if ~skipSession && ~hasCuratedClusters(spike)
+                        warning('NGL02:noCuratedClusters', ...
+                            ['%d clusters loaded but none have HumanLabel in {good, mua}. ', ...
+                             'Skipping doSpikething for this session.'], numel(spike.label));
+                        noteSkippedArea(opt, 'all', ...
+                            ['Session has loaded clusters but none have Phy HumanLabel = ', ...
+                             '''good'' or ''mua''. Most likely Phy curation is incomplete: ', ...
+                             'open Phy and assign good / mua / noise to every cluster, then re-run NGL02.']);
+                        skipSession = true;
+                    end
                 end
-                save(fullfile(opt.spikeSorted, "spike.mat"), 'spike', '-mat');
+                if ~skipSession
+                    save(fullfile(opt.spikeSorted, "spike.mat"), 'spike', '-mat');
+                end
+            end
+            if skipSession
+                clear events trialdef condition blob neurons spike fireRate
+                continue   % next session
             end
 
             %% neurons: sort spikes into trials, per area if multi
@@ -179,6 +265,7 @@ for x = 1:input.nsubjects % Subjects.
                     neurons = struct();
                     for a = 1:numel(areaList)
                         areaName = areaList{a};
+                        if ismember(areaName, skipAreas), continue, end
                         [neurons.(areaName), ~] = sort2trials(spike.(areaName), trialdef, opt);
                     end
                 else
@@ -253,6 +340,7 @@ for x = 1:input.nsubjects % Subjects.
                     fireRate = struct();
                     for a = 1:numel(areaList)
                         areaName = areaList{a};
+                        if ismember(areaName, skipAreas), continue, end
                         % Non-block FR calculation, for block/treatment sessions,
                         % use 'calculate_fireRate_byBlock' instead.
                         % No 'events' needed here.
@@ -275,6 +363,7 @@ for x = 1:input.nsubjects % Subjects.
                     if isMultiArea
                         for a = 1:numel(areaList)
                             areaName     = areaList{a};
+                            if ismember(areaName, skipAreas), continue, end
                             optArea      = opt;
                             optArea.area = areaName;
                             plot_fireRate_session(fireRate.(areaName), condition, param, optArea);
@@ -312,6 +401,7 @@ for x = 1:input.nsubjects % Subjects.
                         neuralDynamics = struct();
                         for a = 1:numel(areaList)
                             areaName         = areaList{a};
+                            if ismember(areaName, skipAreas), continue, end
                             optArea          = opt;
                             optArea.area     = areaName;
                             neuralDynamics.(areaName) = calculate_population_dynamics( ...

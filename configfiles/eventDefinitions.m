@@ -93,7 +93,7 @@ function [eventdef] = eventDefinitions(format)
 %% DO NOT MODIFY. Function
 eventdef = reservedEvents(); % hic sunt dracones. DO NOT MODIFY!
 
-% THis is a DESCRIPTION of the events. DO NOT uncomment/change anything without explicit consent.
+% THIS is a DESCRIPTION of the events. DO NOT uncomment/change anything without explicit consent.
 
 % % % WITHIN TRIAL
 % % % itiOn   = 0  [0 0 0 0]  Trial start.
@@ -109,11 +109,11 @@ eventdef = reservedEvents(); % hic sunt dracones. DO NOT MODIFY!
 % % % end3    = 15 [1 1 1 1]  End of trial after reward.
 
 % % % OUT TRIAL
+% % % preIni  = 8  [1 0 0 0]  Transition sequence. Per convention and consistency, we send it before itiOn.
 % % % tr1     = 9  [1 0 0 1]  Treatment/block/phase 1. Or odd blocks/phases/... Or block/phase/treatment start.
 % % % tr2     = 13 [1 1 0 1]  Treatment/block/phase 2. Or even blocks/phases/... Or block/phase/treatment end.
-% % % na2     = 14 [1 1 1 0]  Transition sequence. (meaningless to Intan).
-% % % na1     = 12 [1 1 0 0]  Transition sequence. (meaningless to Intan).
-% % % preIni  = 8  [1 0 0 0]  Transition sequence. (meaningless to Intan).
+% % % na2     = 14 [1 1 1 0]  Transition sequence in Deuteron. Can be assigned any meaning in INTAN
+% % % na1     = 12 [1 1 0 0]  Transition sequence in Deuteron. Can be assigned any meaning in INTAN
 
 %% ONLY MODIFY THIS TWO BLOCKS.
 if strcmpi(format,'DF1') 

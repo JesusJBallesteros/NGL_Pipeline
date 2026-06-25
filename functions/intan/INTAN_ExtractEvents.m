@@ -11,6 +11,13 @@ function EventRecord = INTAN_ExtractEvents(input, opt)
 %   A security check at the end looks for the first 0/8 appearance. If
 %   neither are the first event, all other events until the first 8
 %   are removed.
+%   A second repair walks every itiOn (0) and, when the immediately
+%   preceding event is NOT preIni (8), inserts a synthetic 8 at
+%   ts_0 - 30 samples — provided that 30-sample window is otherwise
+%   empty. Covers the case where the behavioural task drops preIni
+%   either entirely or on individual trials. The number of orphan
+%   zeros, repaired zeros and unrepairable zeros is reported in a
+%   single warning (NGL:INTAN_ExtractEvents:insertedPreIni).
 %
 % USAGE:
 %   EventRecord = INTAN_ExtractEvents(input, opt)
@@ -36,7 +43,12 @@ function EventRecord = INTAN_ExtractEvents(input, opt)
 %   (codes ≥ 16). See eventDefinitions.m for the full vocabulary.
 %   Decimal 0 (itiOn, all pins low) is a valid event — it marks trial start.
 %
-% Last modified 07.05.2026 (Jesus)
+% Last modified 25.06.2026 (Jesus) - added missing-preIni repair: every
+%                                     itiOn (0) without an immediately
+%                                     preceding preIni (8) gets a
+%                                     synthetic 8 inserted 30 samples
+%                                     before it (if the window is empty),
+%                                     with a clear warning.
 
 %% Defaults
 pth     = opt.PathRaw; % folder for reading events
@@ -115,7 +127,79 @@ if ~ismember(EventType(1),[0,8])
     EventRecord.TimeMsFromMidnight(1:firstEv-1)  = [];
     EventRecord.TimeSource(1:firstEv-1)          = [];
     EventRecord.Details(1:firstEv-1)             = [];
-    warning('While extracting events, first event was neither 0 nor 8. Every event before the first 8 was removed.\n')
+    warning('While extracting events, first event was neither 0 nor 8. Every event before the first encounter was removed.\n')
+end
+
+%% Repair missing preIni (8) events.
+% Convention enforced by the trial-state machine: every itiOn (0) must be
+% IMMEDIATELY preceded by a preIni (8). Some recordings drop preIni
+% entirely (the behavioural script never sent 8) or lose it on
+% individual trials. Detect either case and patch by inserting a
+% synthetic 8 event 30 samples before each orphan 0 — only when that
+% 30-sample window is otherwise empty (no other event there) and the
+% inserted timestamp would not fall before sample 1. Warn loudly with
+% counts so the experimenter sees there was a problem AND that the
+% pipeline tried to recover.
+zeroIdx     = find(EventRecord.EventType == 0);
+orphanZeros = [];
+for k = 1:numel(zeroIdx)
+    z = zeroIdx(k);
+    if z > 1 && EventRecord.EventType(z-1) == 8
+        continue
+    end
+    orphanZeros(end+1, 1) = z;
+end
+
+if ~isempty(orphanZeros)
+    insertTs  = zeros(0, 1);
+    skippedTs = zeros(0, 1);
+    for k = 1:numel(orphanZeros)
+        z      = orphanZeros(k);
+        tsZero = EventRecord.TimeStamp(z);
+        tsIns  = tsZero - 30;
+        if tsIns < 1
+            skippedTs(end+1, 1) = tsZero;
+            continue
+        end
+        % Window (tsIns, tsZero) must hold no existing event.
+        inWindow = (EventRecord.TimeStamp >  tsIns) ...
+                 & (EventRecord.TimeStamp <  tsZero);
+        if any(inWindow)
+            skippedTs(end+1, 1) = tsZero;
+            continue
+        end
+        insertTs(end+1, 1) = tsIns;
+    end
+
+    % Apply insertions: append, then re-sort all parallel arrays by
+    % TimeStamp and renumber EventNumber.
+    if ~isempty(insertTs)
+        nNew       = numel(insertTs);
+        sampleRate = input.sessions(input.run(1)).info.amplifier_sample_rate;
+
+        EventRecord.EventType          = [EventRecord.EventType; repmat(8, nNew, 1)];
+        EventRecord.TimeStamp          = [EventRecord.TimeStamp; insertTs];
+        EventRecord.TimeMsFromMidnight = [EventRecord.TimeMsFromMidnight; insertTs / (sampleRate/1000)];
+        EventRecord.TimeSource         = [EventRecord.TimeSource; nan(nNew, 1)];
+        EventRecord.Details            = [EventRecord.Details; nan(nNew, 1)];
+
+        [EventRecord.TimeStamp, sortIdx] = sort(EventRecord.TimeStamp);
+        EventRecord.EventType          = EventRecord.EventType(sortIdx);
+        EventRecord.TimeMsFromMidnight = EventRecord.TimeMsFromMidnight(sortIdx);
+        EventRecord.TimeSource         = EventRecord.TimeSource(sortIdx);
+        EventRecord.Details            = EventRecord.Details(sortIdx);
+        EventRecord.EventNumber        = (1:numel(EventRecord.EventType))';
+    end
+
+    warning('NGL:INTAN_ExtractEvents:insertedPreIni', ...
+        ['%d itiOn (0) event(s) had no immediately preceding preIni (8). ', ...
+         '%d repaired by inserting a synthetic 8 thirty samples before each 0. ', ...
+         '%d could NOT be repaired (the 30-sample window already held another ', ...
+         'event, or fell before sample 1); those zeros remain orphaned and ', ...
+         'trialdefGen will see them out of sequence. ', ...
+         'Most likely cause: the behavioural task was not sending preIni reliably ', ...
+         '(check the task script and/or DIO wiring).'], ...
+        numel(orphanZeros), numel(insertTs), numel(skippedTs));
 end
 
 fprintf('Successfully created ''EventRecord'' structure.\n');

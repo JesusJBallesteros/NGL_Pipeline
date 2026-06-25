@@ -204,9 +204,8 @@ function EventRecord = extractFromLog(opt)
     pinChange = regexp(logevents(:,5),'\d','Match'); % Find matching expressions to a single digit
     idx = cell2mat(cellfun(@length,pinChange,'UniformOutput', false)); % assess size of results
     pinChange = pinChange(idx==1); % Keep only those of length=1
-    % pinChange = cellfun(@cell2mat,pinChange,'UniformOutput', false); % Convert each cell to matrix
-    pinChange = cellfun(@str2num,pinChange,'UniformOutput', false); % Convert each cell to matrix
-    pinChange = single(cell2mat(pinChange)); % Convert all values to single
+    pinChange = cellfun(@cell2mat,pinChange,'UniformOutput', false); % Convert each cell to matrix
+    pinChange = single(str2double(pinChange)); % Convert all values to single
     
     % Update also the valid timestamps
     tsmsec = tsmsec(idx==1); % Keep only those related to valid events
@@ -215,9 +214,8 @@ function EventRecord = extractFromLog(opt)
     % retrieve new status received by pin
     pinStatus = regexp(logevents(:,6),'\d','Match'); % Find expressions of input channel state and others
     pinStatus = pinStatus(idx==1); % Keep only those related to valid events
-    % pinStatus = cellfun(@cell2mat,pinStatus,'UniformOutput',false); % Convert each cell to matrix
-    pinStatus = cellfun(@str2num,pinStatus,'UniformOutput',false); % Convert each cell to matrix
-    pinStatus = single(cell2mat(pinStatus)); % Convert all values to single
+    pinStatus = cellfun(@cell2mat,pinStatus,'UniformOutput',false); % Convert each cell to matrix
+    pinStatus = single(str2double(pinStatus)); % Convert all values to single
     
     %% Create a log of all pin states (including the initial one) and a vector
     % with the decimal values of such states
