@@ -321,7 +321,7 @@ function S = optSchema()
 
     % --- Cross-session aggregation (NGL03_acrossSession) --------------
     S(end+1) = optEntry('aggregateSessions', false, isLog, 'Aggregation', ...
-        'Build <subject>_aggregated.mat per subject.');
+        'Build <subject>_aggregated_<area>.mat per (subject, area).');
     S(end+1) = optEntry('aggregateSubjects', false, isLog, 'Aggregation', ...
-        'Build study-level aggregated.mat across subjects (requires aggregateSessions).');
+        'Build study-level aggregated_<area>.mat per area (requires aggregateSessions).');
 end

@@ -14,9 +14,10 @@ function [pool, hit] = loadFireRatePoolCache(cacheDir, key, sourceFile)
 %   cacheDir   - char, directory holding <key>.mat files. Empty / missing
 %                directory yields hit = false.
 %   key        - char, from fireRatePoolCacheKey(...).
-%   sourceFile - (optional) absolute path to aggregated.mat. If supplied
-%                and exists, its modification time is compared with the
-%                cache entry's; older cache => treated as miss.
+%   sourceFile - (optional) absolute path to the per-area aggregated
+%                file (aggregated_<area>.mat) that backs this cache. If
+%                supplied and exists, its modification time is compared
+%                with the cache entry's; older cache => treated as miss.
 %
 % OUTPUTS:
 %   pool       - the pool struct on hit, [] on miss.

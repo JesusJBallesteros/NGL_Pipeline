@@ -22,15 +22,23 @@ function pool = buildFireRatePool(aggregated, alignName, condField, labelValue, 
 %                 ('HumanLabel'|'KSLabel'|'bc_unitType'|'phyLabel')
 %
 % OUTPUT (struct):
-%   .cells       {Ntrials x 1} flat list of spike-time vectors (ms).
-%                Trials from different clusters are concatenated;
-%                identity is lost. PSTH plotters consume this directly.
-%   .nSubj       number of distinct subjects contributing >=1 cluster
-%   .nSess       number of distinct (subj, sess) pairs contributing
-%   .nClust      number of clusters contributing
-%   .nTrials     numel(cells)
-%   .waveforms   {nClust x 1} cell of mean waveforms (where available)
-%   .byCluster   {nClust x 1} struct array, ONE ENTRY PER CLUSTER:
+%   .cells           {N x 1} flat list of (cluster x trial) spike-time
+%                    vectors (ms). Each session-trial appears ONCE PER
+%                    matching cluster in that session. PSTH plotters
+%                    consume this directly (averaging spikes/s across
+%                    cluster-trial entries gives the population PSTH).
+%   .nSubj           number of distinct subjects contributing >=1 cluster
+%   .nSess           number of distinct (subj, sess) pairs contributing
+%   .nClust          number of clusters contributing
+%   .nTrials         UNIQUE session-trial total: sum over contributing
+%                    (subj, sess) pairs of sum(mask) in that session.
+%                    Does NOT scale with nClust. This is what NGL04
+%                    reports as "tr: %d".
+%   .nClusterTrials  numel(.cells) - (cluster x trial) pairings;
+%                    diagnostic only, what plotPSTH receives. Equals
+%                    nTrials only when nClust = 1.
+%   .waveforms       {nClust x 1} cell of mean waveforms (where available)
+%   .byCluster       {nClust x 1} struct array, ONE ENTRY PER CLUSTER:
 %                  .subjIdx     row index into aggregated
 %                  .sessIdx     column index into aggregated
 %                  .sessionKey  sprintf('%d_%d', subjIdx, sessIdx)
@@ -41,23 +49,33 @@ function pool = buildFireRatePool(aggregated, alignName, condField, labelValue, 
 %                  .trials      {Ntrials_c x 1} cell of spike vectors
 %                               (condition-filtered, same content as
 %                               the slice contributed to .cells)
-%                  .nTrials     numel(trials)
+%                  .nTrials     numel(trials)   (per-cluster trial count;
+%                               equals sum(mask) for that cluster's session)
 %                  .waveform    mean waveform vector, or []
 %
 % CONTRACT:
 %   The flat .cells field is provided strictly for backward
 %   compatibility with PSTH callers. PCA callers should use .byCluster.
+%   nTrials counts SESSION trials uniquely (sum of sum(mask) over
+%   contributing sessions). It does NOT scale with nClust. Pre-26.06.2026
+%   pools wrote byCluster(1).nTrials here (trials in ONE session only)
+%   and may report a too-low value; rebuild the pool (delete its cache
+%   entry) to get the corrected count.
 %
-% Last modified 09.06.2026 (Jesus)
+% Last modified 26.06.2026 (Jesus) - fix nTrials accounting: count
+%                                     session-trials uniquely across
+%                                     contributing sessions; expose
+%                                     nClusterTrials for diagnostics.
 
     pool = struct( ...
-        'cells',     {{}},  ...
-        'nSubj',     0,     ...
-        'nSess',     0,     ...
-        'nClust',    0,     ...
-        'nTrials',   0,     ...
-        'waveforms', {{}},  ...
-        'byCluster', struct([]));
+        'cells',          {{}},  ...
+        'nSubj',          0,     ...
+        'nSess',          0,     ...
+        'nClust',         0,     ...
+        'nTrials',        0,     ...
+        'nClusterTrials', 0,     ...
+        'waveforms',      {{}},  ...
+        'byCluster',      struct([]));
 
     if ~isfield(aggregated,'allspike') || ~isfield(aggregated,'allneurons') ...
             || ~isfield(aggregated,'allcondition')
@@ -83,8 +101,11 @@ function pool = buildFireRatePool(aggregated, alignName, condField, labelValue, 
         'trials',     {}, ...
         'nTrials',    {}, ...
         'waveform',   {});
-    subjFlag    = false(nSubj, 1);
-    sessFlag    = false(nSubj, nSess);
+    subjFlag       = false(nSubj, 1);
+    sessFlag       = false(nSubj, nSess);
+    sessTrialCount = zeros(nSubj, nSess);  % session-scoped trial count
+                                            % captured ONCE per contributing
+                                            % session (see nTrials below).
 
     for x = 1:nSubj
         for y = 1:nSess
@@ -141,7 +162,14 @@ function pool = buildFireRatePool(aggregated, alignName, condField, labelValue, 
                 filtered = filtered(:);
                 cells    = [cells; filtered];
 
-                subjFlag(x)    = true;
+                subjFlag(x) = true;
+                if ~sessFlag(x, y)
+                    % First matching cluster from this session: capture
+                    % the session's trial count ONCE. Subsequent matching
+                    % clusters in this session must NOT add to it -
+                    % trials are session-scoped, not per cluster.
+                    sessTrialCount(x, y) = sum(mask);
+                end
                 sessFlag(x, y) = true;
 
                 % Per-cluster waveform (mean across spikes if a matrix).
@@ -157,7 +185,7 @@ function pool = buildFireRatePool(aggregated, alignName, condField, labelValue, 
                         end
                     end
                 end
-                if ~isempty(wf), waveforms{end+1, 1} = wf; end %#ok<AGROW>
+                if ~isempty(wf), waveforms{end+1, 1} = wf; end 
 
                 % Per-cluster area tag (set by loadSpikes via opt.area).
                 area = '';
@@ -181,13 +209,22 @@ function pool = buildFireRatePool(aggregated, alignName, condField, labelValue, 
         end
     end
 
-    pool.cells     = cells;
-    pool.nSubj     = sum(subjFlag);
-    pool.nSess     = sum(sessFlag(:));
-    pool.nClust    = numel(byCluster);
-    pool.nTrials   = numel(cells);
-    pool.waveforms = waveforms;
-    pool.byCluster = byCluster;
+    pool.cells          = cells;
+    pool.nSubj          = sum(subjFlag);
+    pool.nSess          = sum(sessFlag(:));
+    pool.nClust         = numel(byCluster);
+    % nTrials: unique session-trials summed across contributing sessions.
+    % Each session contributes sum(mask) ONCE, regardless of how many
+    % matching clusters that session had. This is the honest "trials"
+    % number for NGL04's display.
+    pool.nTrials        = sum(sessTrialCount(:));
+    % nClusterTrials: numel(.cells) = (cluster x trial) pairings. This is
+    % what plotPSTH actually receives; kept as a separate field so the
+    % cluster-multiplied count is still available for diagnostics but
+    % cannot be mistaken for a trial count.
+    pool.nClusterTrials = numel(cells);
+    pool.waveforms      = waveforms;
+    pool.byCluster      = byCluster;
 end
 
 function v = localSafeIdx(arr, x, y)

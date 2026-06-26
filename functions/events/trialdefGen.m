@@ -109,12 +109,12 @@ if isempty(useevents)
             % 
             %     invalidTrls = invalidTrials(EventRecord.EventType); % double check output before proceeding
             % 
-            %     EventRecord.EventNumber(invalidTrls)   = [];
-            %     EventRecord.EventType(invalidTrls)     = [];
-            %     EventRecord.TimeStamp(invalidTrls)     = [];
-            %     EventRecord.TimeMsFromMidnight(invalidTrls) = [];
-            %     EventRecord.TimeSource(invalidTrls)    = [];
-            %     EventRecord.Details(invalidTrls)       = [];
+            %     EventRecord.EventNumber(1)   = [];
+            %     EventRecord.EventType(1)     = [];
+            %     EventRecord.TimeStamp(1)     = [];
+            %     EventRecord.TimeMsFromMidnight(1) = [];
+            %     EventRecord.TimeSource(1)    = [];
+            %     EventRecord.Details(1)       = [];
             % end
             % After any of the fixes, re-run idexing to recover the changes
             % idx.start   = find(EventRecord.EventType==opt.eventdef.itiOn); 

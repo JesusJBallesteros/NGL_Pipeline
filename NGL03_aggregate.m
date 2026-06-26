@@ -1,15 +1,38 @@
-%% NGL03_aggregate. Cross-session and cross-subject aggregator.
+%% NGL03_aggregate. Cross-session and cross-subject aggregator (per-area).
 %
 % PURPOSE:
 %   Stage 3 aggregator: pulls together the per-session outputs that
-%   NGL02_postPhy and NGL02_LFP produced and packs them into cell
-%   arrays indexed by (subject, session). Two gates, with a dependency:
-%       opt.aggregateSessions  -> build per-subject aggregated .mat under
-%                                 data\analysis\<subject>\<subject>_aggregated.mat
-%       opt.aggregateSubjects  -> build study-level aggregated .mat at
-%                                 data\analysis\aggregated.mat
+%   NGL02_postPhy and NGL02_LFP produced and packs them into per-area
+%   cell-array files indexed by (subject, session). Two gates, with a
+%   dependency:
+%       opt.aggregateSessions  -> per-subject per-area files at
+%                                 data\analysis\<subject>\
+%                                 <subject>_aggregated_<area>.mat
+%       opt.aggregateSubjects  -> study-level per-area files at
+%                                 data\analysis\aggregated_<area>.mat
 %                                 (requires aggregateSessions=true)
-%   Both default to false; the aggregation is opt-in.
+%   Both default to false; aggregation is opt-in.
+%
+% ARCHITECTURE NOTE (refactor 26.06.2026):
+%   Pre-26.06.2026 NGL03 wrote ONE nested file per scope:
+%       aggregated.mat                 with .allspike{x,y}.NCL / .STR
+%       <subj>_aggregated.mat          per-subject equivalent
+%   That shape forced every downstream consumer to know about area-nesting
+%   and silently broke buildRequestCatSets (which iterated cells as if
+%   they were flat spike structs). The new layout writes ONE file PER
+%   AREA with a uniformly FLAT shape:
+%       aggregated_NCL.mat             allspike{x,y} is a flat spike struct
+%       aggregated_STR.mat             ditto, for STR
+%       <subj>_aggregated_NCL.mat      per-subject equivalent
+%   Single-area runs (input.Areas empty or one entry with no name) write
+%   aggregated_main.mat. Consumers (loadAggregatedSpikes / NGL04) load
+%   one file per area and never see nesting.
+%
+% LEGACY:
+%   If you have legacy aggregated.mat / <subj>_aggregated.mat from before
+%   26.06.2026, run migrate_aggregated_to_perArea.m once to split them
+%   into the new per-area form. Re-running NGL03 from the per-session
+%   files always produces the new shape directly.
 %
 % USAGE:
 %   Do NOT run or edit this script directly. Configure via your project's
@@ -24,23 +47,33 @@
 %   01.  set_default       - validate opt, build paths
 %   02.  findSessions      - discover session folders on disk
 %   03.  Build aggregation target list from opt flags
+%   03b. Resolve areas-to-write list (default 'main' if none declared)
 %   04.  Per-subject session aggregation (if opt.aggregateSessions)
+%        -> one file per area
 %   05.  Cross-subject aggregation       (if opt.aggregateSubjects)
+%        -> one file per area
 %
-% AGGREGATION SHAPE:
+% AGGREGATION SHAPE (per area):
 %   Cell arrays of size (Nsubj, Nsess) where each cell contains the
-%   loaded variable for that (subject, session). Cells corresponding to
-%   missing files stay empty.
+%   loaded variable for that (subject, session), with any area-level
+%   nesting in the source file DRILLED INTO at load time so the saved
+%   payload is the flat single-area shape.
 %   - Per-subject file: (1 x nSess_for_this_subject) cells per variable.
 %   - Study-level file: (Nsubj x maxSess_across_subjects) cells, padded
 %     with empties where a subject ran fewer sessions than maxSess.
 %
-% VARIABLES AGGREGATED (this version — SPIKE SIDE ONLY):
+% VARIABLES AGGREGATED (this version - SPIKE SIDE ONLY):
 %   Always (when opt.doSpikething): spike, neurons, fireRate,
 %                                    condition, events, trialdef.
 %   Conditional:
 %     - neuralDynamics  if opt.popDyn.do
 %     - blob            if opt.offlineTrack or opt.useTrack
+%
+%   "Global" payloads (condition / events / trialdef) are not area-
+%   nested in the per-session files. They are written verbatim into
+%   EVERY per-area aggregated file. Disk overhead is minor and keeps
+%   consumers symmetric (they read one file per area and find everything
+%   they need there).
 %
 %   LFP-side aggregation is planned but not yet here. The LFP outputs
 %   (continuous, per-alignment trial-parsed, artifact-rejected copies)
@@ -49,12 +82,12 @@
 %   varList in a follow-up.
 %
 % OUTPUTS:
-%   - data\analysis\<subject>\<subject>_aggregated.mat
-%       (one per subject, when aggregateSessions=true)
-%   - data\analysis\aggregated.mat
-%       (study-level, when aggregateSubjects=true)
+%   - data\analysis\<subject>\<subject>_aggregated_<area>.mat
+%       (one per (subject, area), when aggregateSessions=true)
+%   - data\analysis\aggregated_<area>.mat
+%       (one per area, when aggregateSubjects=true)
 %
-% Last modified 29.05.2026 (Jesus) - new script (task #23)
+% Last modified 26.06.2026 (Jesus)
 
 %% 00. Check current inputs.
 NGL00_Prep
@@ -135,6 +168,19 @@ end
 fprintf('NGL03_acrossSession: will aggregate %d variables: %s\n', ...
         size(varList,1), strjoin(varList(:,1)', ', '));
 
+%% 03b. Resolve the list of area tags to write one file per.
+% Multi-area: input.Areas is e.g. {'NCL','NCL','STR'}; the unique-stable
+% list is {'NCL','STR'} and we write one file per entry.
+% Single-area: input.Areas absent or empty -> use 'main' as the sentinel
+% so file naming stays uniform (aggregated_main.mat).
+if isfield(input,'Areas') && ~isempty(input.Areas)
+    areasToWrite = unique(input.Areas, 'stable');
+else
+    areasToWrite = {'main'};
+end
+fprintf('NGL03_acrossSession: writing per-area files for: %s\n', ...
+        strjoin(areasToWrite, ', '));
+
 %% 04. Session aggregation per subject.
 if opt.aggregateSessions
     fprintf('NGL03_acrossSession: aggregating sessions per subject...\n');
@@ -143,13 +189,17 @@ if opt.aggregateSessions
         subject = input.subjects(x).name;
         nSess   = input.sessions(x).nsessions;
 
-        % Pre-allocate one (1 x nSess) cell per target.
-        perSubject = struct();
-        for v = 1:size(varList,1)
-            perSubject.(['all' varList{v,1}]) = cell(1, nSess);
+        % Pre-allocate one (1 x nSess) cell per (area, target).
+        perArea = struct();
+        for a = 1:numel(areasToWrite)
+            ak = areasToWrite{a};
+            for v = 1:size(varList,1)
+                perArea.(ak).(['all' varList{v,1}]) = cell(1, nSess);
+            end
         end
 
-        % Walk sessions, load each existing file into its cell.
+        % Walk sessions, load each existing file into its (area-drilled)
+        % per-area accumulator.
         for y = 1:nSess
             session = input.sessions(x).list{y};
             for v = 1:size(varList,1)
@@ -173,61 +223,79 @@ if opt.aggregateSessions
                         fpath, varName);
                     continue
                 end
-                perSubject.(['all' varName]){1, y} = payload;
+
+                % Split per area. Variables that aren't area-nested in
+                % the source (e.g. condition / events / trialdef) get
+                % written verbatim into every per-area file.
+                for a = 1:numel(areasToWrite)
+                    ak       = areasToWrite{a};
+                    extracted = localExtractAreaPayload(payload, ak, areasToWrite);
+                    perArea.(ak).(['all' varName]){1, y} = extracted;
+                end
             end
         end
 
-        % Save the per-subject aggregated file.
+        % Save the per-subject per-area aggregated files.
         outDir = fullfile(input.analysis, subject);
         if ~exist(outDir, 'dir'), mkdir(outDir); end
-        outFile = fullfile(outDir, [subject '_aggregated.mat']);
-        save(outFile, '-struct', 'perSubject', '-v7.3');
-        fprintf('  %s\n', outFile);
+        for a = 1:numel(areasToWrite)
+            ak         = areasToWrite{a};
+            outFile    = fullfile(outDir, [subject '_aggregated_' ak '.mat']);
+            perSubject = perArea.(ak);
+            save(outFile, '-struct', 'perSubject', '-v7.3');
+            fprintf('  %s\n', outFile);
+        end
 
-        clear perSubject
+        clear perArea perSubject
     end
 end
 
 %% 05. Cross-subject aggregation.
-% Stitches the per-subject files (just produced in §04) into a single
-% study-level (Nsubj x maxSess) cell array per variable. We re-read from
-% disk rather than carry the per-subject structs in memory, so this also
-% works if §04 ran in a previous MATLAB session and the workspace is fresh.
+% Stitches the per-subject per-area files (just produced in §04) into a
+% single per-area (Nsubj x maxSess) cell array per variable. We re-read
+% from disk rather than carry the per-subject structs in memory, so this
+% also works if §04 ran in a previous MATLAB session and the workspace
+% is fresh.
 if opt.aggregateSubjects
     fprintf('NGL03_acrossSession: aggregating subjects...\n');
 
     maxSess = max(arrayfun(@(s) s.nsessions, input.sessions));
 
-    studyLevel = struct();
-    for v = 1:size(varList,1)
-        studyLevel.(['all' varList{v,1}]) = cell(input.nsubjects, maxSess);
-    end
+    for a = 1:numel(areasToWrite)
+        ak = areasToWrite{a};
 
-    for x = 1:input.nsubjects
-        subject        = input.subjects(x).name;
-        perSubjectFile = fullfile(input.analysis, subject, [subject '_aggregated.mat']);
-        if ~isfile(perSubjectFile)
-            warning('NGL03:missingPerSubject', ...
-                ['Per-subject aggregated file missing for %s: %s. Run with ', ...
-                 'opt.aggregateSessions=true first, or process the missing ', ...
-                 'subject. Leaving that row empty.'], ...
-                subject, perSubjectFile);
-            continue
-        end
-        S = load(perSubjectFile);
+        studyLevel = struct();
         for v = 1:size(varList,1)
-            fld = ['all' varList{v,1}];
-            if isfield(S, fld)
-                rowLen = size(S.(fld), 2);
-                rowLen = min(rowLen, maxSess);
-                studyLevel.(fld)(x, 1:rowLen) = S.(fld)(1, 1:rowLen);
+            studyLevel.(['all' varList{v,1}]) = cell(input.nsubjects, maxSess);
+        end
+
+        for x = 1:input.nsubjects
+            subject        = input.subjects(x).name;
+            perSubjectFile = fullfile(input.analysis, subject, ...
+                                      [subject '_aggregated_' ak '.mat']);
+            if ~isfile(perSubjectFile)
+                warning('NGL03:missingPerSubject', ...
+                    ['Per-subject aggregated file missing for %s/%s: %s. ', ...
+                     'Run with opt.aggregateSessions=true first, or process ', ...
+                     'the missing subject. Leaving that row empty.'], ...
+                    subject, ak, perSubjectFile);
+                continue
+            end
+            S = load(perSubjectFile);
+            for v = 1:size(varList,1)
+                fld = ['all' varList{v,1}];
+                if isfield(S, fld)
+                    rowLen = size(S.(fld), 2);
+                    rowLen = min(rowLen, maxSess);
+                    studyLevel.(fld)(x, 1:rowLen) = S.(fld)(1, 1:rowLen);
+                end
             end
         end
-    end
 
-    outFile = fullfile(input.analysis, 'aggregated.mat');
-    save(outFile, '-struct', 'studyLevel', '-v7.3');
-    fprintf('  %s\n', outFile);
+        outFile = fullfile(input.analysis, ['aggregated_' ak '.mat']);
+        save(outFile, '-struct', 'studyLevel', '-v7.3');
+        fprintf('  %s\n', outFile);
+    end
 end
 
 % ----------------------------------------------------------------------
@@ -242,4 +310,37 @@ function folder = localSessionFolder(input, sourceKey, subject, session)
                 'Unknown source key ''%s'' in varList. Use analysis|spikeSorted|trialSorted.', ...
                 sourceKey);
     end
+end
+
+function out = localExtractAreaPayload(payload, areaKey, areasToWrite)
+% Per-area extractor used at NGL03 write time. Behaviour:
+%   * payload empty or non-struct -> pass through verbatim (caller's
+%     job to handle nil).
+%   * payload is a struct with `areaKey` as a struct-valued field
+%     (the multi-area shape, e.g. spike.NCL.HumanLabel) -> drill in
+%     and return payload.(areaKey).
+%   * payload is a struct WITHOUT `areaKey` but with one of the other
+%     areas in areasToWrite -> it IS area-nested but not for this area;
+%     return [] (no data for this (subj, sess, area)).
+%   * otherwise (flat single-area struct, no area-nesting) -> pass
+%     through verbatim. Single-area variables (condition / events /
+%     trialdef) take this path and get copied into every area file.
+    if isempty(payload), out = []; return; end
+    if ~isstruct(payload), out = payload; return; end
+
+    if isfield(payload, areaKey) && isstruct(payload.(areaKey))
+        out = payload.(areaKey);
+        return
+    end
+
+    fns        = fieldnames(payload);
+    otherAreas = setdiff(areasToWrite, {areaKey});
+    if any(ismember(otherAreas, fns))
+        % Nested by area but not THIS area -> empty for this slot.
+        out = [];
+        return
+    end
+
+    % Flat / single-area / non-area-nested payload (e.g. condition).
+    out = payload;
 end

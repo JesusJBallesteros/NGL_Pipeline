@@ -12,6 +12,16 @@ function catSets = buildRequestCatSets(aggregated, opt)
 % USAGE:
 %   catSets = buildRequestCatSets(aggregated, opt);
 %
+% CONTRACT:
+%   `aggregated` MUST be the FLAT single-area shape produced by
+%   loadAggregatedSpikes(input, area). Each cell of aggregated.allspike
+%   is a spike struct with HumanLabel / KSLabel / bc_unitType / phyLabel
+%   directly as fields (NOT nested by area). This was always the assumed
+%   shape; up to 26.06.2026 multi-area runs accidentally passed area-
+%   nested cells in here and labelPool came back empty. The NGL03 26.06
+%   refactor writes one aggregated_<area>.mat per area so callers always
+%   see this flat shape now and there is no multi-area branch in here.
+%
 % OUTPUT FIELDS:
 %   .alignments     opt.alignto verbatim
 %   .conditions     cell of unique fieldnames from aggregated.allcondition
@@ -21,7 +31,10 @@ function catSets = buildRequestCatSets(aggregated, opt)
 %   .labelPriority  resolution order for label tokens (defaults to
 %                   {'HumanLabel','KSLabel','bc_unitType'})
 %
-% Last modified 09.06.2026 (Jesus)
+% Last modified 26.06.2026 (Jesus) - docstring nails down flat-shape
+%                                     contract; per-area aggregated
+%                                     layout from NGL03 means there is
+%                                     never anything else to feed in.
 
     catSets = struct();
     catSets.alignments    = opt.alignto;

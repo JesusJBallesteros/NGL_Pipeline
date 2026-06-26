@@ -1,4 +1,4 @@
-%% NGL04_PCA. Per-subject (× per-area) population PCA state-space plotter.
+%% NGL04_PCA. Per-subject (x per-area) population PCA state-space plotter.
 %
 % PURPOSE:
 %   Sibling of NGL04_fireRate. Takes the same 3-cell `request` and
@@ -20,13 +20,15 @@
 %   Per-subject pooling: iterates each subject in input.subjects and
 %   produces one set of outputs per subject. The cache lives in
 %   <cacheDir>/<subject>/ so subject A's pools never contaminate
-%   subject B's request. Aggregated.mat is loaded LAZILY — when every
-%   pool and the parsed-request the run needs are already cached, the
-%   large file is never touched.
+%   subject B's request. Aggregated files are loaded LAZILY per AREA -
+%   when every pool and parsed-request the run needs are already
+%   cached, no aggregated file is touched.
 %
-%   Multi-area aware: when input.Areas declares more than one area,
-%   the script also iterates per area, with the area name appended to
-%   every filename.
+%   Multi-area: when input.Areas declares more than one area, the
+%   script iterates per area, with the area name appended to every
+%   filename. Each area loads its own aggregated_<area>.mat (since
+%   NGL03 26.06.2026), so there is no per-area "drill-into-subfield"
+%   step anywhere on this side.
 %
 % USAGE (from NGL_SetAndRunMe section 4.2):
 %   request = {'correct vs incorrect', 'good', 'stimOn2'};
@@ -43,15 +45,16 @@
 %
 % PIPELINE:
 %   00.  NGL00_Prep + Areas recovery + set_default + findSessions
-%   01.  Set up shared paths (no aggregated load yet)
+%   01.  Set up shared paths
 %   for each subject:
-%     02.  Try cached parsed-request; load aggregated only if miss
-%     03.  Parse `request` into per-factor level lists
 %     for each area:
-%       04.  Build / load pools (cache HIT or restrict-aggregated build)
-%       05.  PCA per (alignment, label) via calculate_pca_from_pool
-%       06.  Plot each variant via plot_pca_state_space
-%       07.  Save .mat with PCA results for this (subject, area)
+%       02.  Try cached parsed-request for this (subj, area); load
+%            per-area aggregated only on miss
+%       03.  Build / load pools (cache HIT or build from per-area
+%            aggregated)
+%       04.  PCA per (alignment, label) via calculate_pca_from_pool
+%       05.  Plot each variant via plot_pca_state_space
+%       06.  Save .mat with PCA results for this (subject, area)
 %
 % OUTPUT (workspace + on disk):
 %   result - struct with:
@@ -70,8 +73,8 @@
 %
 % CACHE LAYOUT (matches NGL04_fireRate):
 %   <cacheDir>/<subject>/
-%       <encoded-request>__parsed.mat       parsed request struct
-%       <align>__<cond>__<label>_<labelField>[__area_<NCL>].mat   pool struct
+%       <encoded-request>__area_<NAME>__parsed.mat                  parsed
+%       <align>__<cond>__<label>_<labelField>__area_<NAME>.mat      pool
 %   Pools written by NGL04_fireRate are re-used here and vice-versa.
 %
 % DEPENDENCIES:
@@ -80,15 +83,15 @@
 %   loadFireRatePoolCache, saveFireRatePoolCache, encodeFireRateRequest,
 %   calculate_pca_from_pool, requestSubplotTitle,
 %   restrictAggregatedToSubject, loadParsedRequestCache,
-%   saveParsedRequestCache, flattenAggregatedForArea};
+%   saveParsedRequestCache};
 %   functions/plotting/plot_pca_state_space;
 %   toolboxes/BDPAT_NGL/calcFireRate.
 %
-% Last modified 25.06.2026 (Jesus) - per-subject iteration; per-subject
-%                                     cache folder (subject in path);
-%                                     lazy aggregated load skipped when
-%                                     parsed + all pools are cached.
-%                                     Mirrors the NGL04_fireRate pattern.
+% Last modified 26.06.2026 (Jesus) - per-area aggregated load (one file
+%                                     per area); per-(subject, area)
+%                                     parsed cache; multi-area drill-in
+%                                     helpers removed; workspace handle
+%                                     becomes a per-area container.
 
 %% 00. Standard scaffolding.
 NGL00_Prep
@@ -119,13 +122,11 @@ assert(exist('request','var') == 1 && iscell(request) && numel(request) == 3, ..
     ['NGL04_PCA requires a workspace cell `request` of length 3, ', ...
      'e.g. request = {''correct vs incorrect'', ''good'', ''stim2''}.']);
 
-%% 01. Shared paths + lazy aggregated handle.
+%% 01. Shared paths.
 baseCacheDir = opt.fireRatePlot.cacheDir;
 if isempty(baseCacheDir)
     baseCacheDir = fullfile(input.analysis, 'cache', 'firepools');
 end
-sourceFile = fullfile(input.analysis, 'aggregated.mat');
-if ~isfile(sourceFile), sourceFile = ''; end
 
 outDir = opt.pcaPlot.outDir;
 if isempty(outDir)
@@ -134,7 +135,9 @@ end
 if ~isfolder(outDir), mkdir(outDir); end
 fname_root = encodeFireRateRequest(request);
 
-% Area discovery from input.Areas (no aggregated probe needed).
+% Area discovery from input.Areas. Empty -> {''} sentinel meaning the
+% legacy "no area declared" single-area mode; localAreaKey maps that
+% to 'main' for file naming. Multi-area runs get the unique list.
 if isfield(input,'Areas') && ~isempty(input.Areas)
     areasToRun = unique(input.Areas, 'stable');
 else
@@ -162,18 +165,11 @@ result.subjects = {subjects.name};
 result.areas    = areasToRun;
 result.bySubject = struct();
 
-% Workspace-aware lazy aggregated handle. If a previous interactive
-% run already loaded aggregated.mat into the base workspace, reuse it
-% when its fingerprint (studyName + analysis path + subject count +
-% source mtime) matches the current input. Otherwise reset to [] so
-% the first cache miss triggers a fresh load. Makes
-% "tweak request → re-run NGL04" iterations free.
-if exist('aggregated','var') && isstruct(aggregated) ...
-        && isfield(aggregated, 'srcFingerprint') ...
-        && isequaln(aggregated.srcFingerprint, localAggFingerprint(input))
-    fprintf('NGL04_PCA: reusing aggregated already in workspace (fingerprint match).\n');
+% Workspace-aware per-area aggregated container (see NGL04_fireRate).
+if exist('aggregated','var') && isstruct(aggregated) && isfield(aggregated, 'areaCache')
+    fprintf('NGL04_PCA: reusing per-area aggregated container already in workspace.\n');
 else
-    aggregated = [];
+    aggregated = struct('areaCache', struct());
 end
 
 if isMultiSubj
@@ -190,30 +186,12 @@ for sIdx = 1:nSubj
     if ~isfolder(subjCacheDir), mkdir(subjCacheDir); end
     fprintf('\nNGL04_PCA: ===== subject %s =====\n', subj);
 
-    %% 02. Parsed-request cache (skip aggregated load when possible).
-    [parsed, pHit] = loadParsedRequestCache(subjCacheDir, request, sourceFile);
-    if ~pHit
-        aggregated = localEnsureAggregated(aggregated, input);
-        aggView    = restrictAggregatedToSubject(aggregated, sIdx);
-        catSets    = buildRequestCatSets(aggView, opt);
-        parsed     = parseFireRateRequest(request, catSets);
-        saveParsedRequestCache(subjCacheDir, request, parsed);
-        fprintf('  parsed request built from aggregated (cache miss).\n');
-    else
-        fprintf('  parsed request loaded from cache.\n');
-    end
-
-    nA = numel(parsed.alignment);
-    nC = numel(parsed.condition);
-    nL = numel(parsed.label);
-    fprintf('NGL04_PCA: %d alignment(s) x %d condition(s) x %d label(s); varying = {%s}.\n', ...
-            nA, nC, nL, strjoin(parsed.varying, ', '));
-
     result.bySubject.(subj).byArea = struct();
 
-    %% Per-area loop 
+    %% Per-area loop
     for areaIdx = 1:numel(areasToRun)
         areaTag = areasToRun{areaIdx};
+        areaKey = localAreaKey(areaTag);
         if isempty(areaTag)
             areaSlug = '';
             areaLbl  = 'all';
@@ -222,6 +200,28 @@ for sIdx = 1:nSubj
             areaLbl  = areaTag;
             fprintf('\nNGL04_PCA: ----- area %s -----\n', areaTag);
         end
+
+        sourceFile = fullfile(input.analysis, ['aggregated_' areaKey '.mat']);
+        if ~isfile(sourceFile), sourceFile = ''; end
+
+        %% 02. Parsed-request cache (per (subject, area)).
+        [parsed, pHit] = loadParsedRequestCache(subjCacheDir, request, areaKey, sourceFile);
+        if ~pHit
+            aggregated = localEnsureAggregated(aggregated, input, areaTag);
+            aggView    = restrictAggregatedToSubject(aggregated.areaCache.(areaKey), sIdx);
+            catSets    = buildRequestCatSets(aggView, opt);
+            parsed     = parseFireRateRequest(request, catSets);
+            saveParsedRequestCache(subjCacheDir, request, areaKey, parsed);
+            fprintf('  parsed request built from aggregated_%s (cache miss).\n', areaKey);
+        else
+            fprintf('  parsed request loaded from cache.\n');
+        end
+
+        nA = numel(parsed.alignment);
+        nC = numel(parsed.condition);
+        nL = numel(parsed.label);
+        fprintf('NGL04_PCA: %d alignment(s) x %d condition(s) x %d label(s); varying = {%s}.\n', ...
+                nA, nC, nL, strjoin(parsed.varying, ', '));
 
         %% 03. Build / load pools. SHARED cache layout with NGL04_fireRate.
         pools  = cell(nA, nC, nL);
@@ -240,12 +240,9 @@ for sIdx = 1:nSubj
                     cKey         = fireRatePoolCacheKey(aL, cL, lL, lF, areaTag);
                     [pool, cHit] = loadFireRatePoolCache(subjCacheDir, cKey, sourceFile);
                     if ~cHit
-                        aggregated = localEnsureAggregated(aggregated, input);
-                        aggView    = restrictAggregatedToSubject(aggregated, sIdx);
-                        if ~isempty(areaTag)
-                            aggView = flattenAggregatedForArea(aggView, areaTag);
-                        end
-                        pool = buildFireRatePool(aggView, aL, cL, lL, lF);
+                        aggregated = localEnsureAggregated(aggregated, input, areaTag);
+                        aggView    = restrictAggregatedToSubject(aggregated.areaCache.(areaKey), sIdx);
+                        pool       = buildFireRatePool(aggView, aL, cL, lL, lF);
                         saveFireRatePoolCache(subjCacheDir, cKey, pool);
                     end
                     pools{aIdx, cIdx, lIdx} = pool;
@@ -302,7 +299,7 @@ for sIdx = 1:nSubj
             end
         end
 
-        %% 07. Per-(subject, area) result + .mat dump.
+        %% 06. Per-(subject, area) result + .mat dump.
         matFile = fullfile(outDir, [fname_root, '_', subj, areaSlug, '_pca.mat']);
         areaResult = struct( ...
             'pools',   {pools},   ...
@@ -314,8 +311,8 @@ for sIdx = 1:nSubj
         save(matFile, 'areaResult', '-v7.3');
         fprintf('NGL04_PCA: %s\n', matFile);
 
-        areaKey = areaTag; if isempty(areaKey), areaKey = 'all'; end
-        result.bySubject.(subj).byArea.(areaKey) = areaResult;
+        areaResultKey = areaTag; if isempty(areaResultKey), areaResultKey = 'all'; end
+        result.bySubject.(subj).byArea.(areaResultKey) = areaResult;
 
         % Single-subject single-area legacy mirror.
         if ~isMultiSubj && ~isMultiArea
@@ -337,34 +334,49 @@ end
 % parsing / pool building lives under functions/analysis/ and is
 % shared with NGL04_fireRate.
 
-function aggregated = localEnsureAggregated(aggregated, input)
-% Lazy-load aggregated.mat on the first cache miss. Once loaded, the
-% handle is reused across all subjects + areas in the same run AND
-% (because the script preserves it in the base workspace) across
-% subsequent runs whose fingerprint matches.
-    if isempty(aggregated)
-        fprintf('NGL04_PCA: loading aggregated.mat (first cache miss this run)...\n');
-        aggregated = loadAggregatedSpikes(input);
-        aggregated.srcFingerprint = localAggFingerprint(input);
+function aggregated = localEnsureAggregated(aggregated, input, areaTag)
+% Lazy-load the per-area aggregated file on the first cache miss for
+% this area. Mirrors NGL04_fireRate's helper of the same name. Workspace
+% container is reused across runs whose per-area fingerprint matches.
+    areaKey = localAreaKey(areaTag);
+    fp      = localAggFingerprint(input, areaTag);
+    if isfield(aggregated.areaCache, areaKey) ...
+            && isfield(aggregated.areaCache.(areaKey), 'srcFingerprint') ...
+            && isequaln(aggregated.areaCache.(areaKey).srcFingerprint, fp)
+        return
     end
+    fprintf('NGL04_PCA: loading aggregated_%s.mat (first cache miss this area)...\n', areaKey);
+    loaded = loadAggregatedSpikes(input, areaTag);
+    loaded.srcFingerprint = fp;
+    aggregated.areaCache.(areaKey) = loaded;
 end
 
-function fp = localAggFingerprint(input)
-% Cheap identity tag stamped on aggregated. Compared on subsequent
-% NGL04 runs to decide whether the in-workspace copy is still valid.
-% sourceMtime catches the "user re-ran NGL03 since last load" case.
+function fp = localAggFingerprint(input, areaTag)
+% Per-area identity tag. sourceMtime catches the "user re-ran NGL03 for
+% this area since last load" case.
+    areaKey = localAreaKey(areaTag);
     fp = struct( ...
         'studyName',   '', ...
         'analysis',    '', ...
         'nSubj',       0, ...
+        'area',        areaKey, ...
         'sourceMtime', NaN);
     if isfield(input,'studyName'), fp.studyName = input.studyName; end
     if isfield(input,'analysis'),  fp.analysis  = input.analysis;  end
     if isfield(input,'subjects'),  fp.nSubj     = numel(input.subjects); end
-    src = fullfile(fp.analysis, 'aggregated.mat');
+    src = fullfile(fp.analysis, ['aggregated_' areaKey '.mat']);
     if isfile(src)
         d = dir(src);
         if ~isempty(d), fp.sourceMtime = d.datenum; end
+    end
+end
+
+function k = localAreaKey(areaTag)
+% Translate areaTag '' -> 'main' for file naming.
+    if isempty(areaTag)
+        k = 'main';
+    else
+        k = char(areaTag);
     end
 end
 
