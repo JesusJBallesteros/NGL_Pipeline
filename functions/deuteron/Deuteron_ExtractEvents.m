@@ -30,7 +30,7 @@ function [EventRecord, opt] = Deuteron_ExtractEvents(input, opt)
 %                    .EventNumber          (double)
 %                    .EventType            (double)
 %                    .TimeStamp            (string)
-%                    .TimeMsFromMidnight   (double)
+%                    .TimeMsFromMidnight   (double), relative to first ts
 %                    .TimeSource           (string)
 %                    .Details              (string)
 %                    .TimeBreak            (Nx2 cell) — populated by check_timebreaks
@@ -38,7 +38,7 @@ function [EventRecord, opt] = Deuteron_ExtractEvents(input, opt)
 %                    .channelOrder   active channel IDs from the channel-map log entry
 %                    .numChannels    numel(opt.channelOrder)
 %
-% Last modified 07.05.2026 (Jesus)
+% Last modified 29.06.2026 (Jesus)
 
 %% Case
 if opt.uselog, EventRecord = extractFromLog(opt);
@@ -237,8 +237,8 @@ function EventRecord = extractFromLog(opt)
     %% Place extracted information into a proper EventRecord
     EventRecord.EventNumber         = double(1:1:length(stateLog))';
     EventRecord.EventType           = single(bin2dec(stateLog));
-    EventRecord.TimeStamp           = string(ts); % Convert to string array
-    EventRecord.TimeMsFromMidnight  = tsmsec;
+    EventRecord.TimeStamp           = string(ts); % Convert to string array. This keeps the real time
+    EventRecord.TimeMsFromMidnight  = tsmsec - tsmsec(1); % Relativize this one to the beginning
     EventRecord.TimeSource          = nan(length(stateLog),1);
     EventRecord.Details             = nan(length(stateLog),1);
     EventRecord.TimeBreak           = {[] []};
