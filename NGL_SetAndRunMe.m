@@ -269,8 +269,16 @@ opt = struct();
     % opt.gaze.dpi              = 120;         % render DPI.
     % opt.gaze.crf              = 24;          % ffmpeg CRF (lower = better quality, larger files).
     % opt.gaze.preset           = 'veryfast';  % ffmpeg preset.
-    % opt.gaze.background       = '';          % '' -> <analysisCode>/HexArena.png, else configfiles/HexArena.png.
-    % opt.gaze.masterScript     = '';          % '' -> <analysisCode>/master_gaze.py, else configfiles/master_gaze.py.
+    % opt.gaze.background       = '';          % '' -> <analysisCode>/HexArena.png (NGL06 asserts it exists).
+    % opt.gaze.masterScript     = '';          % '' -> <analysisCode>/master_gaze.py (NGL06 asserts it exists).
+    % opt.gaze.pythonExe        = '';          % '' -> input.GAZEpythonExe (falls back to 'python' via NGL_machineConfig).
+    % opt.gaze.previewFrame     = [];          % render one still PNG at this frame idx instead of the full mp4.
+    % opt.gaze.targetFps        = [];          % alternative to downsampleStep; pick step so out_fps ~= targetFps.
+    % opt.gaze.startTime        = [];          % [s] analyse from this time; [] -> from first frame.
+    % opt.gaze.endTime          = [];          % [s] analyse up to this time; [] -> to last frame.
+    % opt.gaze.maxFrames        = [];          % cap rendered output frames; [] -> unbounded.
+    % opt.gaze.maxSeconds       = [];          % cap rendered output duration [s]; [] -> unbounded.
+    % opt.gaze.overwrite        = false;       % true -> re-render even if output file already exists.
 
 % C) PARAM (analysis/plot tuning, kept as inline-defaulted in functions).
 %    `param` is a semi-independent struct that downstream analysis/plotting
@@ -413,6 +421,22 @@ NGL04_PCA
 %   per-session plots already produced by NGL02_postPhy.
 
 % NGL03_plotting
+
+%% 8  NGL06_videoAnalysis — video-based gaze pipeline.
+%   Fans out the GazEstim Python pipeline (pose_clean + pose_render,
+%   driven by configfiles/master_gaze.py) across every discovered
+%   (subject, session). One DLC csv per session is expected at
+%   <input.bhvfolder>/<subject>/<session>/*.csv; NGL06 writes the
+%   gaze-cone-overlaid mp4 (or single PNG when opt.gaze.previewFrame is
+%   set) next to the csv.
+%
+%   PROJECT-LOCAL COPIES REQUIRED at <input.analysisCode>/:
+%     master_gaze.py   copy once from <toolbox>/configfiles/master_gaze.py
+%     HexArena.png     copy once from <toolbox>/configfiles/HexArena.png
+%
+%   Toggle opt.gaze.do = true in B.16 to enable. See docs/gaze_pipeline.md.
+
+% NGL06_videoAnalysis
 
 %% More custom stages...
 % NGLXX_something
