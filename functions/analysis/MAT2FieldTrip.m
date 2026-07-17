@@ -84,10 +84,17 @@ if cont
         % Then give the FT_data a proper 'continous' state.
         cfg = [];
         cfg.continuous = 'yes';
-        
+
         FT_data = ft_redefinetrial(cfg, FT_data);
         clear cfg
-        
+
+        % Pass 2 (26.06.2026): bake per-channel area tags into the FT file
+        % from the moment it's written. Downstream (NGL02_LFP, NGL07)
+        % pick this up without needing to reconstruct area membership from
+        % channel maps. Backfills to 'main' when opt.areaMap is absent
+        % (single-area studies).
+        FT_data = ensureChanArea(FT_data, localAreaMap(opt));
+
         % Save this session data.
         save(fullfile(opt.FolderProcDataMat, strcat(opt.SavFileName,'_FTcont.mat')), 'FT_data', '-v7.3');
         clear data
@@ -120,10 +127,13 @@ if ~isempty(trialdef)
     
             % Redefine trials
             FT_data = ft_redefinetrial(cfg, FT_data_cont);
-        
+
             % Update FT header info manually
             FT_data.hdr.nTrials = length(FT_data.trial);
-        
+
+            % Bake per-channel area tags (Pass 2, 26.06.2026).
+            FT_data = ensureChanArea(FT_data, localAreaMap(opt));
+
             % Save this session data.
             save(fullfile(opt.trialSorted, strcat(opt.SavFileName, '_', trialdef{1,i} ,'.mat')), 'FT_data', '-v7.3')
         end
@@ -131,4 +141,12 @@ if ~isempty(trialdef)
 
 end
 
+end
+
+% -----------------------------------------------------------------------
+function m = localAreaMap(opt)
+% Return opt.areaMap when the caller wrapper (INTAN/Deuteron pipeline
+% wrapper) has stashed it there; else empty so ensureChanArea falls back
+% to the 'main' default.
+    if isfield(opt, 'areaMap'), m = opt.areaMap; else, m = []; end
 end

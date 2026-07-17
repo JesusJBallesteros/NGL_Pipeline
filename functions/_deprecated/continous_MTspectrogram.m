@@ -1,4 +1,25 @@
 function [TFR] = continous_MTspectrogram(FT_data, condition, param, opt) %#ok<INUSD>
+% continous_MTspectrogram  DEPRECATED (moved to functions/_deprecated/ on 26.06.2026).
+%
+% WHY DEPRECATED:
+%   Monolithic compute+plot with hardcoded cfg, computed on channel 1
+%   only (title claimed 'allCh'), returned a TFR but the caller threw it
+%   away and re-plotted from disk. Split into:
+%       computeContinuousTFR - returns + saves the TFR .mat (with provenance)
+%       plotContinuousTFR    - reads the .mat and draws the PNG
+%   NGL02_LFP now calls them in sequence, so re-plotting is free.
+%
+% WHAT TO USE INSTEAD:
+%   Compute + save : functions/analysis/computeContinuousTFR.m
+%   Plot           : functions/analysis/plotContinuousTFR.m
+%
+% This file is kept only so a lingering `continous_MTspectrogram(...)`
+% call in an old project script fails with a discoverable location
+% rather than a missing-function error.
+%
+% Last modified 26.06.2026 (Jesus) - deprecation header added.
+%
+% ------------------------------------------------------------------- ORIGINAL:
 % Argument 'condition' (singular) aligns with the rest of the pipeline
 % (calculate_fireRate_general, condition.mat file). The body does not
 % currently reference it, but the name is kept for callsite consistency.

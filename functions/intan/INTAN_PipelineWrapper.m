@@ -81,6 +81,11 @@ if opt.FieldTrip
     % Includes a mix of INTAN funtions. CREATES and GIVES proper
     % FieldTrip format without trial-parsing.
     INTANdata = intan2MAT_wrapper(input.sessions(input.run(1)), opt);
+    % Pass 2 (LFP, 26.06.2026): stash input.areaMap onto opt so
+    % MAT2FieldTrip -> ensureChanArea can tag every FT channel with
+    % its area label. Missing / empty areaMap defaults to 'main' for
+    % every channel.
+    if isfield(input, 'areaMap'), opt.areaMap = input.areaMap; end
     MAT2FieldTrip(INTANdata, opt, trialdef, 1); %(data, options, trialdefinitions, force continuous)
 end
 

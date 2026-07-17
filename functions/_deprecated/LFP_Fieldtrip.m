@@ -1,6 +1,31 @@
 function LFP_Fieldtrip(neurons, spike, trialdef, input, opt)
-%UNTITLED3 Summary of this function goes here
-%   Detailed explanation goes here
+% LFP_Fieldtrip  DEPRECATED (moved to functions/_deprecated/ on 26.06.2026).
+%
+% WHY DEPRECATED:
+%   * `if ~isfield('artifact_rejection', opt, ...)` (lines below) — arg
+%     order swapped, always false; three misleading defaults.
+%   * `if op.artifact_rejection` — typo (`op` vs `opt`), runtime NGL:undefined
+%     if reached.
+%   * Loads `input.sessions(...).info.files.name` from `opt.analysis` —
+%     but FTcont lives in `opt.FolderProcDataMat`, not `opt.analysis`.
+%   * References `opt.chgDtctPCue`, `opt.FLIP`, `opt.artifact_rejection`
+%     — none are in the schema.
+%   * Not called from anywhere in the pipeline. Stale scaffolding from
+%     the single-project era.
+%
+% WHAT TO USE INSTEAD:
+%   Per-session quick-look LFP  -> NGL02_LFP (schema-driven, area-aware).
+%   vFLIP spectrolaminar mapping -> functions/video/vFLIP_NGL.m (planned
+%       to be wired into a caller as part of the NGL07_LFPanalysis rollout).
+%   Research-grade LFP analyses  -> NGL07_LFPanalysis (planned; will
+%       cover trial-parsed TFR, oscillation detection, phase, spike-field,
+%       LFP-behavior regression).
+%
+% This file is kept only so a lingering `LFP_Fieldtrip(...)` call in an
+% old project script fails with a discoverable location rather than a
+% missing-function error.
+%
+% Last modified 26.06.2026 (Jesus) - deprecation header added.
 if ~isfield('artifact_rejection',opt),  opt.artifact_rejection  = false; end
 if ~isfield('FLIP',opt),                opt.FLIP                = false; end
 if ~isfield('chgDtctPCue',opt),         opt.chgDtctPCue         = false; end

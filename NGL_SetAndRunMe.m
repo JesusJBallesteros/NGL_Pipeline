@@ -182,12 +182,63 @@ opt = struct();
     % opt.popDyn.trialEmbedMethod = 'tSNE';    % 'PCA' | 'tSNE' | 'UMAP'.
     % opt.popDyn.pcaConditions  = {'allInitiated'};  % cell of condition tokens for per-session PCA iteration. Each entry is one condition fieldname OR an 'X vs Y' comparison; produces one figure pair per (alignment, label, entry). E.g. {'allInitiated','correct vs incorrect'}.
 
-    % B.9 LFP SIDE (NGL02_LFP) 
+    % B.9 LFP SIDE (NGL02_LFP - quick-look; research-grade analyses live in NGL07_LFPanalysis)
     % opt.trialparsed           = false;       % load *_<align>.mat (trial-parsed) instead of *_FTcont.mat.
     % opt.artifdet              = false;       % run LFP artifact detection / rejection.
     % opt.artZvalue             = 10;          % z-value cutoff for ft_artifact_zvalue. Used only if opt.artifdet=true.
     % opt.rejValue              = 'zero';      % how to fill rejected segments: 'zero' | 'nan' | numeric scalar.
-    % opt.spectrogram           = false;       % run multitaper TFR analysis.
+    % opt.spectrogram           = false;       % run multitaper TFR analysis (continuous or trial-parsed per opt.trialparsed).
+    % TFR (trial-parsed) knobs consumed by trialparsed_MTspectrogram and plot_superletsTFR_*:
+    % opt.freqInterest          = {};          % cell of freq vectors per band, e.g. {[4:1:30] [30:2:150]}. REQUIRED for trial-parsed TFR.
+    % opt.TFRmethod             = 'wavelet';   % 'wavelet' | 'mtmconvol' | 'superlet'.
+    % opt.superletOrder         = {};          % cell of superlet orders per band (only when TFRmethod = 'superlet').
+    % opt.width                 = {};          % cell of superlet widths per band  (only when TFRmethod = 'superlet').
+    % opt.combine               = 'additive';  % superlet combine mode.
+    % opt.timeResol             = 0.2;         % TFR toi step (s). e.g. cfg.toi = opt.toi(1):timeResol:opt.toi(2).
+    % opt.toi                   = [-.5 4];      % TFR time-of-interest range [t0 t1] (seconds).
+    % opt.blocks                = 'all';       % 'all' -> derive from condition.block, or integer N.
+    % opt.chbych                = false;       % trigger plot_superletsTFR_extintion_chbych.
+    % opt.trialbytrial          = false;       % trigger plot_superletsTFR_extintion_tbt.
+    % opt.lfp.tfrAreaFilter     = '';          % restrict TFR to a subset of channels by chanArea; '' | 'NCL' | {'NCL','STR'}.
+    % opt.lfp.tfrCacheDir       = '';          % override for the TFR cache folder; '' -> <analysis>/cache/lfp_tfr/.
+    % opt.lfp.alignSubset       = {};          % restrict LFP path to a subset of opt.alignto (e.g. {'itiOn'}); {} -> all.
+    % opt.lfp.downsampleFs      = [];          % explicit target Hz for ft_resampledata; overrides autoDownsample when set. [] -> per-band auto.
+    % opt.lfp.autoDownsample    = true;        % per-band ft_resampledata to autoDownsampleFactor * max(band). ~5x speedup on low band.
+    % opt.lfp.autoDownsampleFactor = 4;        % Nyquist safety (2x required; 4x = generous, 3x aggressive, 5x extra safe).
+    % opt.lfp.autoMethod        = true;        % below autoMethodThresholdHz use mtmconvol+hanning (FT-recommended low-freq path; ~2x faster).
+    % opt.lfp.autoMethodThresholdHz = 30;      % method-switch cutoff (Hz).
+    % opt.lfp.autoFoi           = true;        % replace linear foi with quarter-octave log-spaced per band (halves nFreq).
+    % opt.lfp.autoFoiStep       = 1/4;         % log-spacing step in octaves; 1/6 denser, 1/2 half-octave (coarser).
+    % opt.lfp.parallel          = 'trials';    % 'none' | 'bands' (parfor over freqInterest) | 'trials' (FT-native per-trial via cfg.parallel).
+    
+    % NGL07_LFPanalysis (research-grade session-level LFP; runs after NGL02_postPhy + NGL06_videoAnalysis)
+    % opt.lfp.session.do        = false;       % master gate for NGL07.
+    % opt.lfp.session.tfr       = true;        % (a) trial-parsed TFR per opt.alignto.
+    % opt.lfp.session.bursts    = false;       % (b) per-band burst detection (detectBursts).
+    % opt.lfp.session.phase     = false;       % (c) continuous phase + envelope per band (hilbertBandpass).
+    % opt.lfp.session.spikeField= false;       % (d) spike-field coupling PPC + coherence (needs NGL02_postPhy spike.mat).
+    % opt.lfp.session.behReg    = false;       % (e) LFP x behaviour regression (STUB; needs NGL06 gaze.mat sidecar).
+    % opt.lfp.session.flip      = false;       % (f) spectrolaminar (vFLIP) mapping.
+    % opt.lfp.bands             = {{'theta',[4 8]},{'beta',[15 30]},{'gamma',[30 90]}}; % bands for (b) (c).
+    % opt.lfp.burst.threshMult  = 3;           % detectBursts z-sigma threshold.
+    % opt.lfp.burst.minDurationMs = 100;       % detectBursts minimum episode duration.
+    % opt.lfp.spikeField.minSpikes = 50;       % spikeFieldCoupling: skip clusters below this.
+    % opt.lfp.spikeField.ppcMethod = 'ppc2';   % 'ppc0'|'ppc1'|'ppc2' (Vinck et al.).
+    % opt.lfp.spikeField.timwin = 0.5;         % STA window (s) around each spike.
+    % opt.lfp.spikeField.foi    = 2:2:100;     % coherence frequency vector (Hz).
+    % opt.lfp.hilbert.storePhase= true;        % save per-band phase matrix.
+    % opt.lfp.hilbert.storeEnv  = true;        % save per-band envelope matrix.
+    % opt.lfp.hilbert.dtype     = 'single';    % storage dtype (single|double).
+    % opt.lfp.flip.laminaraxis  = 0:0.05:1.55; % probe laminar axis (mm).
+    % opt.lfp.flip.freqaxis     = 1:150;       % vFLIP freq axis (Hz).
+    % opt.lfp.flip.setfreqbool  = 0;           % 0 = vFLIP (auto), 1 = default fixed FLIP bands.
+    % opt.lfp.plot.visible      = 'off';       % NGL02_LFP quick-look plots: figure visibility.
+    % opt.lfp.plot.Resolution   = 300;         % exportgraphics DPI for the quick-look PNGs.
+    % opt.lfp.plot.zlim         = [];          % colour-axis limits [zmin zmax]; [] -> auto.
+    % opt.lfp.plot.colormap     = 'parula';    % colormap name or Nx3 matrix.
+    % opt.lfp.plot.trialFilter  = 'correct';   % quick-look TFR trial mask: condition field to filter on ('' -> all trials).
+    % opt.lfp.plot.baseline     = [-0.5 0];    % [t0 t1] seconds for dB baseline; [] -> raw power. Default matches new opt.toi = [-0.5 4].
+    % opt.lfp.plot.interp       = 'bilinear';  % imagesc interpolation: 'bilinear' (smooth) | 'nearest' | 'none'.
 
     % B.10 NGL04_fireRate  (cross-subject PSTH plotter) 
     opt.fireRatePlot.interval        = [-1000 4000];   % ms window passed to plotPSTH.
@@ -437,6 +488,19 @@ NGL04_PCA
 %   Toggle opt.gaze.do = true in B.16 to enable. See docs/gaze_pipeline.md.
 
 % NGL06_videoAnalysis
+
+%% 9  NGL07_LFPanalysis - research-grade session-level LFP analyses.
+%   Consumes NGL01 FTcont + NGL02_postPhy spikes + (optional) NGL06 gaze
+%   sidecar, and runs the analyses enabled under opt.lfp.session.*:
+%     (a) trial-parsed TFR  (b) burst detection  (c) phase + envelope
+%     (d) spike-field PPC / coherence  (e) LFP x behaviour regression
+%
+%   Multi-area handled via FT_data.chanArea + opt.lfp.tfrAreaFilter -
+%   the SAME FT file feeds each per-area subselect (Q3 (b) design).
+%
+%   See docs/lfp_pipeline.md for the full opt.lfp.* reference.
+
+% NGL07_LFPanalysis
 
 %% More custom stages...
 % NGLXX_something
