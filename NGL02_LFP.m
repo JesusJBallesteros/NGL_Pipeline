@@ -106,6 +106,7 @@ end
 %% 01. Find and list requested sessions and subjects.
 input.sessions = findSessions(input);
 
+ft_warning off
 %% 02. Proceed with data per session
 for x = 1:input.nsubjects
     for y = 1:input.sessions(x).nsessions
@@ -217,10 +218,10 @@ for x = 1:input.nsubjects
                     load(ftFile, "-mat", 'FT_data');
                     if isfield(FT_data,"FT_data"), FT_data = FT_data.FT_data; end
 
-                    % attach chanArea if missing
-                    areaMapForBackfill = [];
-                    if isfield(input, 'areaMap'), areaMapForBackfill = input.areaMap; end
-                    FT_data = ensureChanArea(FT_data, areaMapForBackfill);
+                    % % attach chanArea if missing
+                    % areaMapForBackfill = [];
+                    % if isfield(input, 'areaMap'), areaMapForBackfill = input.areaMap; end
+                    % FT_data = ensureChanArea(FT_data, areaMapForBackfill);
 
                     %% 05b. Artifact rejection (per alignment).
                     if opt.artifdet
@@ -229,6 +230,11 @@ for x = 1:input.nsubjects
                                       [opt.SavFileName '_' alignName '_FT_data_NoArtif.mat']), ...
                              'FT_data', '-mat');
                     end
+
+                    % attach chanArea if missing
+                    areaMapForBackfill = [];
+                    if isfield(input, 'areaMap'), areaMapForBackfill = input.areaMap; end
+                    FT_data = ensureChanArea(FT_data, areaMapForBackfill);
 
                     %% 06b. Time-frequency (per alignment).
                     if opt.spectrogram

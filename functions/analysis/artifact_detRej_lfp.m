@@ -21,7 +21,7 @@ function [FT_data_NoArtif] = artifact_detRej_lfp(FT_data, opt)
 % OUTPUT:
 %   FT_data_NoArtif - FT_data with artifacts replaced.
 %
-% Last modified 02.06.2026 (Jesus) - docstring + defaults moved to opt (#10 P, Q)
+% Last modified 23.07.2026 (Jesus)
 
 %% Proceed
 cfg = [];
@@ -30,7 +30,8 @@ cfg = [];
     cfg.artfctdef.zvalue.cutoff     = opt.artZvalue;
     cfg.artfctdef.zvalue.trlpadding = 0;
     cfg.artfctdef.zvalue.fltpadding = 0;
-    cfg.artfctdef.zvalue.artpadding = 0;                
+    cfg.artfctdef.zvalue.artpadding = 0;    
+    cfg.artfctdef.zvalue.continuous = 'no';
     
     % The optional configuration settings (see below) are:
       cfg.artfctdef.zvalue.artfctpeak       = 'yes';
@@ -41,7 +42,8 @@ cfg = [];
 
     % The following configuration options are supported
     cfg = [];
-      cfg.artfctdef.reject          = opt.rejValue;
+      cfg.artfctdef.reject          = 'partial';
+      % cfg.artfctdef.value           = 'nan';
       cfg.artfctdef.zvalue.artifact = artifact;
 
     [FT_data_NoArtif] = ft_rejectartifact(cfg, FT_data);
