@@ -1,0 +1,37 @@
+# ── NGL toolbox — git attributes ─────────────────────────────────────────────
+
+# Normalise line endings: store text as LF in the repo, check out native on each
+# platform. Windows/MATLAB users get CRLF working copies, Linux/Python get LF.
+# Keeps diffs clean across the MATLAB (Windows) + Python (Linux) split.
+* text=auto
+
+# Code / config: treat as text explicitly (always diffable)
+*.m      text
+*.py     text
+*.json   text
+*.yaml   text
+*.yml    text
+*.md     text
+*.txt    text
+
+# Binary assets — never diff or line-ending-convert these
+*.mat    binary
+*.mlx    binary
+*.mex*   binary
+*.slxc   binary
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.tif    binary
+*.tiff   binary
+*.mp4    binary
+*.avi    binary
+*.pdf    binary
+*.dll    binary
+*.exe    binary
+*.npy    binary
+
+# Bundled third-party toolboxes: keep them out of GitHub language stats and
+# collapse them in diffs/PR reviews so FieldTrip etc. don't dominate.
+toolboxes/**   linguist-vendored

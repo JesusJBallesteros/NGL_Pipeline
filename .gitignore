@@ -43,3 +43,14 @@ __pycache__/
 
 # Toolboxes of no interest on tracking
 toolboxes/matnwb/
+
+# ── Local working aids (not part of the shared toolbox) ──────────────────────
+# Agent/session scaffolding kept per-checkout, not version-controlled.
+/CLAUDE.md
+docs/AGENT_HANDOFF.md
+
+# Parked / retired code kept locally for reference only (each file's header says
+# why it was retired and where the replacement lives).
+# NOTE: this folder is ALREADY TRACKED, so this rule is inert until you untrack
+# it once (local files are kept):   git rm -r --cached functions/_deprecated
+functions/_deprecated/
