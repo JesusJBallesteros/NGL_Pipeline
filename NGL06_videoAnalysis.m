@@ -1,12 +1,17 @@
 %% NGL06_videoAnalysis. Video-based gaze analysis over per-session DLC CSVs.
 %
 % PURPOSE:
-%   Stage 6: fans out the GazEstim Python pipeline (pose_clean + pose_render,
-%   driven by configfiles/master_gaze.py) across every discovered
-%   (subject, session) DLC csv. Produces one gaze-cone-overlaid mp4
-%   (or single PNG when opt.gaze.previewFrame is set) alongside each
-%   csv. There is no area loop and no aggregated data - the stage is a
-%   pure fan-out over the on-disk csv list.
+%   Stage 6: fans out the GazEstim Python pipeline (pose_clean -> features ->
+%   pose_render, driven by configfiles/master_gaze.py) across every discovered
+%   (subject, session) DLC csv. Per csv it can produce, next to the csv:
+%     - a gaze-cone-overlaid mp4 (or a single PNG when opt.gaze.previewFrame
+%       is set),
+%     - derived per-frame kinematic features as a .mat plus a summary .png
+%       figure (opt.gaze.features), and can run features-only with the video
+%       off (opt.gaze.video = false) for a much faster pass.
+%   Body-part selection (opt.gaze.parts) and role remap (opt.gaze.roles.*) are
+%   forwarded too. There is no area loop and no aggregated data - the stage is
+%   a pure fan-out over the on-disk csv list.
 %
 % USAGE:
 %   Do NOT run or edit this script directly. Configure via your project's
@@ -32,20 +37,23 @@
 %   00.  NGL00_Prep + set_default + findSessions
 %   00b. Gate on opt.gaze.do
 %   01.  Resolve toolbox / analysisCode / python paths + smoke-test
-%   02.  Build the params struct once from opt.gaze.*
+%   02.  Build the params struct once from opt.gaze.* (incl. video / features /
+%        parts / roles); fail fast if the config would produce no output.
 %   03.  Loop subjects x sessions:
 %          - discover csv, decide skip / process / halt-per-session
-%          - process_gaze() -> mp4/png next to csv
+%          - process_gaze() -> mp4/png and/or features .mat + figure next to csv
 %          - failures are caught: warning + per-csv <name>_gazeFailed.txt
-%   04.  Print summary (nProcessed / nSkippedExists / nSkippedNoCsv /
+%   04.  Print summary (nProcessed / nFeatures / nSkippedExists / nSkippedNoCsv /
 %        nSkippedMultiCsv / nFailed).
 %
-% OUTPUT (per successful csv):
-%   <csv_folder>/<csvName>_gaze.mp4    (or ..._gaze.png if previewFrame)
+% OUTPUT (per successful csv; any subset, depending on opt.gaze.*):
+%   <csv_folder>/<csvName>_gaze.mp4                      (video; ..._gaze.png if previewFrame)
+%   <csv_folder>/<csvName>_gaze_estimated_features.mat   (if opt.gaze.features)
+%   <csv_folder>/<csvName>_gaze_estimated_features.png   (features summary figure)
 %
 % DEPENDENCIES:
 %   functions/video/process_gaze.m (this wrapper)
-%   toolboxes/GazEstim/{pose_clean, pose_render, make_plate}.py
+%   toolboxes/GazEstim/{pose_clean, features, pose_render, make_plate}.py
 %   configfiles/master_gaze.py     (template; runtime copy at analysisCode)
 %   configfiles/HexArena.png       (template; runtime copy at analysisCode)
 %
@@ -53,7 +61,11 @@
 %   docs/gaze_pipeline.md, docs/examples/gaze/ (bundled smoke-test csv +
 %   reference mp4).
 %
-% Last modified 26.06.2026 (Jesus) - new script (integrates GazEstim).
+% Last modified 24.07.2026 (Jesus) - forward opt.gaze.video / features / parts /
+%                                     roles; features-only mode; per-mode
+%                                     skip-if-exists (mp4 / png /
+%                                     _estimated_features.mat); capture + report
+%                                     produced files. Tracks GazEstim features.py.
 
 %% 00. Standard scaffolding.
 NGL00_Prep
@@ -157,6 +169,53 @@ for k = 1:size(fwdList, 1)
     end
 end
 
+% --- New GazEstim outputs / toggles (features.py, video off, parts, roles) ---
+% Handled explicitly rather than via the generic forwarder above: roles is a
+% nested struct (drop the empty identity leaves before forwarding), and
+% features/video are booleans the generic '~isempty' rule would forward even
+% when false.
+if isfield(opt.gaze, 'video')
+    params.video = logical(opt.gaze.video);          % false -> features-only (skip mp4)
+end
+featuresOn = false;
+if isfield(opt.gaze, 'features')
+    ff = opt.gaze.features;
+    if (islogical(ff) && isscalar(ff) && ff) || (ischar(ff) && ~isempty(ff))
+        params.features = ff;                        % true, or an explicit .mat path
+        featuresOn = true;                           % process_gaze adds the summary figure by default
+    end
+end
+if isfield(opt.gaze, 'parts') && ~isempty(opt.gaze.parts)
+    params.parts = opt.gaze.parts;                   % cellstr subset of DLC labels
+end
+if isfield(opt.gaze, 'roles') && isstruct(opt.gaze.roles)
+    rr = localCompactStruct(opt.gaze.roles);         % keep only non-empty role->label maps
+    if ~isempty(fieldnames(rr)), params.roles = rr; end
+end
+
+% Which primary file marks a session as already done (drives skip-if-exists)?
+%   previewFrame -> _gaze.png ; video on -> _gaze.mp4 ;
+%   video off (features-only) -> _gaze_estimated_features.mat
+wantPreview = isfield(opt.gaze,'previewFrame') && ~isempty(opt.gaze.previewFrame);
+videoOff    = isfield(opt.gaze,'video') && islogical(opt.gaze.video) && ~opt.gaze.video;
+if wantPreview
+    primarySuffix = '_gaze.png';
+elseif ~videoOff
+    primarySuffix = '_gaze.mp4';
+else
+    primarySuffix = '_gaze_estimated_features.mat';
+end
+
+% Fail fast: a config asking for no video, no features and no preview would make
+% process_gaze error once per session. Catch it up front (mirrors the other
+% NGL06 pre-flight checks).
+if videoOff && ~featuresOn && ~wantPreview
+    error('NGL06:nothingToDo', ...
+        ['opt.gaze.video = false but neither opt.gaze.features nor ', ...
+         'opt.gaze.previewFrame is set: nothing would be produced. Enable ', ...
+         'opt.gaze.features (features-only pass) or set opt.gaze.previewFrame.']);
+end
+
 skipIfExists = ~(isfield(opt.gaze,'overwrite') && opt.gaze.overwrite);
 
 fprintf('\nNGL06_videoAnalysis: python=%s\n', pythonExe);
@@ -164,9 +223,12 @@ fprintf('  toolboxes = %s\n', toolboxDir);
 fprintf('  master    = %s\n', masterScript);
 fprintf('  background= %s\n', background);
 fprintf('  skipIfExists = %s\n', localBool2Str(skipIfExists));
+fprintf('  video = %s ; features = %s ; primary = *%s\n', ...
+        localBool2Str(~videoOff), localBool2Str(featuresOn), primarySuffix);
 
 %% 03. Fan out over (subject, session).
 nProcessed        = 0;
+nFeatures         = 0;
 nSkippedExists    = 0;
 nSkippedNoCsv     = 0;
 nSkippedMultiCsv  = 0;
@@ -209,12 +271,9 @@ for x = 1:input.nsubjects
 
         csvPath   = fullfile(hits(1).folder, hits(1).name);
         [~, cnm] = fileparts(csvPath);
-        % Expected output path mirrors process_gaze's default naming.
-        if isfield(opt.gaze,'previewFrame') && ~isempty(opt.gaze.previewFrame)
-            expectedOut = fullfile(sessDir, [cnm '_gaze.png']);
-        else
-            expectedOut = fullfile(sessDir, [cnm '_gaze.mp4']);
-        end
+        % Primary output for skip-if-exists depends on the mode (set in 02):
+        % _gaze.png (preview) / _gaze.mp4 (video) / _gaze_estimated_features.mat.
+        expectedOut = fullfile(sessDir, [cnm primarySuffix]);
         if skipIfExists && isfile(expectedOut)
             fprintf('NGL06: [%s/%s] output already exists (%s); skipping.\n', ...
                     subject, session, expectedOut);
@@ -224,8 +283,20 @@ for x = 1:input.nsubjects
 
         fprintf('\nNGL06: ===== [%s/%s] %s =====\n', subject, session, hits(1).name);
         try
-            result = process_gaze(csvPath, params); %#ok<NASGU>
+            result = process_gaze(csvPath, params);
             nProcessed = nProcessed + 1;
+            % process_gaze / master_gaze already wrote each artifact next to
+            % the csv; report exactly what came back so the log names them.
+            if isfield(result,'output') && ~isempty(result.output)
+                fprintf('  video    -> %s\n', result.output);
+            end
+            if isfield(result,'features') && ~isempty(result.features)
+                fprintf('  features -> %s\n', result.features);
+                nFeatures = nFeatures + 1;
+            end
+            if isfield(result,'figure') && ~isempty(result.figure)
+                fprintf('  figure   -> %s\n', result.figure);
+            end
         catch ME
             warning('NGL06:gazeFailed', ...
                 '[%s/%s] gaze pipeline failed: %s', subject, session, ME.message);
@@ -244,11 +315,12 @@ end
 %% 04. Summary.
 fprintf(['\n=== NGL06_videoAnalysis summary ===\n', ...
          '  processed        : %d\n', ...
+         '  features saved   : %d\n', ...
          '  skipped (exists) : %d\n', ...
          '  skipped (no csv) : %d\n', ...
          '  skipped (multi)  : %d\n', ...
          '  failed           : %d\n'], ...
-        nProcessed, nSkippedExists, nSkippedNoCsv, nSkippedMultiCsv, nFailed);
+        nProcessed, nFeatures, nSkippedExists, nSkippedNoCsv, nSkippedMultiCsv, nFailed);
 
 
 %% ===================================================================
@@ -261,6 +333,21 @@ end
 
 function s = localBool2Str(b)
     if b, s = 'true'; else, s = 'false'; end
+end
+
+function s = localCompactStruct(in)
+% Keep only the fields of `in` whose value is a non-empty char. Used to strip
+% the empty identity leaves from opt.gaze.roles before forwarding them to
+% process_gaze (which expects .roles = struct of role->label maps).
+    s = struct();
+    if ~isstruct(in), return; end
+    fn = fieldnames(in);
+    for i = 1:numel(fn)
+        v = in.(fn{i});
+        if ischar(v) && ~isempty(v)
+            s.(fn{i}) = v;
+        end
+    end
 end
 
 function localWriteNote(dstDir, fname, body, subject, session)

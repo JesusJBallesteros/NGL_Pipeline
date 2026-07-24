@@ -12,18 +12,25 @@
 %   called from within this file — they should never be opened directly.
 %
 % SECTIONS:
-%   1) PREPARE   - set study metadata, drive and project name, run NGL00_Prep
-%   2) SET       - choose subjects/sessions and configure opt / param
-%                    2A) subjects + dates
-%                    2A2) multi-area (optional)
-%                    2B) opt struct (required + commonly-defaulted)
-%                    2C) param struct (analysis/plot tuning, kept semi-independent)
-%   3) RUN       - call the pipeline stages in order:
-%                    3.1  NGL01_Main           preprocessing
-%                    3.2  NGL02_postPhy        spike (requires Phy curation)
-%                    3.3  NGL02_LFP            LFP (independent of Phy)
-%                    3.4  NGL03_plotting       (TODO)
-%                    3.5  NGL03_acrossSession  cross-session aggregation
+%   1) PREPARE   - study metadata, data drive + project name, run NGL00_Prep.
+%   2) SET       - choose subjects/sessions and configure opt / param:
+%                    A)  subjects + dates
+%                    A2) multi-area (optional)
+%                    B)  opt struct (grouped B.1..B.15; commented lines show
+%                        the schema default, uncomment to override)
+%                    C)  param struct (analysis/plot tuning, semi-independent)
+%                  SET 2 (optional) - merge two INTAN sessions
+%                        (NGL_mergeSessionsINTAN); run on its own.
+%   3) RUN       - call the pipeline stages in order (comment out any to skip):
+%                    1  NGL01_Main          preprocessing + spike sorting
+%                    2  NGL02_postPhy       spike side (requires Phy curation)
+%                    3  NGL02_LFP           LFP quick-look (independent of Phy)
+%                    4  NGL03_aggregate     cross-session / cross-subject
+%                    5  NGL04_fireRate      cross-subject PSTH plots
+%                    6  NGL04_PCA           cross-subject population PCA
+%                    7  NGL05_plotting      group-level plots (TODO)
+%                    8  NGL06_videoAnalysis DLC gaze pipeline
+%                    9  NGL07_LFPanalysis   research-grade session-level LFP
 %
 % REQUIRED CONFIG FILES (place in analysisCode\ alongside this script):
 %   NGL_machineConfig.m   - machine-specific Python env and toolbox paths
@@ -32,13 +39,17 @@
 %   chanMapXXX.mat        - custom Kilosort channel map (if applicable)
 %
 % NOTES:
-%   - Every recognised option appears below, either UNCOMMENTED (the
-%     ones most users override) or COMMENTED-OUT showing the canonical
-%     default. Uncomment to override. If you leave a line commented, the
-%     default from default_opt.m wins.
-%   - The full canonical defaults live in default_opt.m and are validated
-%     by set_default.m. If you add an option, you MUST also add it to
-%     default_opt.m + set_default.m (in that order).
+%   - Every recognised option appears below, either UNCOMMENTED (the ones
+%     most users override) or COMMENTED-OUT showing the canonical default.
+%     Uncomment to override; a commented line falls back to its schema default.
+%   - Options are SCHEMA-DRIVEN. The single source of truth is
+%     functions/config/optSchema.m — each option is one optEntry(name,
+%     default, validator, group, help) line. default_opt() builds the defaults
+%     from it (generateDefaultsFromSchema); set_default() validates every field
+%     against it (validateOptAgainstSchema + optPostChecks for cross-field
+%     rules). To ADD an option, append one optEntry line to optSchema.m — that
+%     is the only file to touch (default_opt.m / set_default.m are now thin
+%     wrappers over the schema, not hand-maintained lists).
 %   - NGL_machineConfig.m is machine-specific; do not commit it to git.
 %
 % LANDMINE: REDUNDANT FIELDS — DO NOT SET DIFFERENT VALUES FOR THE SAME THING.
@@ -64,9 +75,7 @@
 %                                          subject. Keep them aligned unless
 %                                          you have a reason to differ.
 %
-% Last modified 09.06.2026 (Jesus) - added opt.pcaPlot, opt.popDyn.pcaConditions,
-%                                     opt.fireRatePlot.cacheDir, opt.artZvalue,
-%                                     opt.rejValue; section reorg.
+% Last modified 24.07.2026 
 
 %% 1) PREPARE.
 clear all
@@ -128,7 +137,7 @@ opt = struct();
     % B.2 EVENTS 
     opt.RetrieveEvents          = true;        % extract event log.
     opt.alignto                 = {'itiOn'};   % alignment events (cell of char).
-    opt.addtime                 = 0;           % ms padding around trial start/end.
+    opt.addtime                 = 500;         % Adds (ms) around trial start/end. Gives a BL for itiOn, avoids edge artifacts in several calculations
     opt.trEvents                = {};          % inter-trial events (block changes, treatments).
     % opt.uselog                = false;       % Deuteron text-log fallback.
     % opt.timebreak             = false;       % expect a recording break (Deuteron battery change).
@@ -137,8 +146,8 @@ opt = struct();
     opt.GetMotionSensors        = false;       % head-direction sensor data.
 
     % B.4 PREPROCESSING FILTERS 
-    % opt.lowpass               = 9000;        % .bin low-pass, Hz. [] = off.
-    % opt.lowpassFT             = 200;         % FieldTrip LFP low-pass, Hz.
+    % opt.lowpass               = 9000;        % .bin low-pass, Hz
+    % opt.lowpassFT             = 300;         % FieldTrip LFP low-pass, Hz.
     % opt.linefilter            = 0;           % line-noise notch centre, Hz. 0 = off.
     % opt.noise                 = [];          % reserved for noise-rejection params.
 
@@ -146,8 +155,8 @@ opt = struct();
     opt.kilosort                = true;        % run Kilosort 4.
     opt.KSchanMapFile           = '';          % '' = linear array; or e.g. 'chanMap_ATLAS_E32-...mat'.
     opt.bombcell                = true;        % run Bombcell QC after sorting.
-    opt.callBcGUI               = true;        % open Bombcell GUI.
-    % opt.phy                   = false;       % open Phy right after sorting (BLOCKS MATLAB).
+    opt.callBcGUI               = false;       % open Bombcell GUI after QC
+    % opt.phy                   = false;       % open Phy right after QC and GUI (BLOCKS MATLAB).
 
     % B.6 NGL02 STAGE GATES 
     opt.doSpikething            = true;        % run NGL02_postPhy spike work.
@@ -155,9 +164,9 @@ opt = struct();
 
     % B.7 SPIKE SIDE 
     % B.7.b  Waveform extraction (loadSpikes)
-    opt.getwF                   = true;        % extract raw waveforms per cluster (slow).
+    opt.getwF                   = true;        % extract raw waveforms per cluster (useful).
     opt.gwfparams.nWf           = 1000;        % max waveforms per cluster.
-    % opt.gwfparams.wfWin       = [-20 41];    % samples around spiketime (negative = before).
+    % opt.gwfparams.wfWin       = [-20 41];    % samples around spiketime.
 
     % B.7.c Cluster loading + ISI binning
     % opt.spparams.excludeNoise = true;        % skip Phy 'noise' clusters.
@@ -169,7 +178,7 @@ opt = struct();
     opt.stepSz_ms             = 20;          % FR sliding-bin step (ms).
 
     % B.8 POPULATION DYNAMICS (per-session, NGL02 path) 
-    % opt.popDyn.do             = false;       % master gate.
+    opt.popDyn.do             = false;         % master gate.
     % opt.popDyn.pca            = true;        % per-session PCA via calculate_pca_from_pool (single-trial overlay + CI tube).
     % opt.popDyn.jPCA           = false;       % rotational dynamics (PLACEHOLDER).
     % opt.popDyn.GPFA           = false;       % single-trial smooth trajectories (PLACEHOLDER).
@@ -183,19 +192,19 @@ opt = struct();
     % opt.popDyn.pcaConditions  = {'allInitiated'};  % cell of condition tokens for per-session PCA iteration. Each entry is one condition fieldname OR an 'X vs Y' comparison; produces one figure pair per (alignment, label, entry). E.g. {'allInitiated','correct vs incorrect'}.
 
     % B.9 LFP SIDE (NGL02_LFP - quick-look; research-grade analyses live in NGL07_LFPanalysis)
-    % opt.trialparsed           = false;       % load *_<align>.mat (trial-parsed) instead of *_FTcont.mat.
-    % opt.artifdet              = false;       % run LFP artifact detection / rejection.
+    opt.trialparsed           = false;       % load *_<align>.mat (trial-parsed) instead of *_FTcont.mat.
+    opt.artifdet              = false;       % run LFP artifact detection / rejection.
     % opt.artZvalue             = 10;          % z-value cutoff for ft_artifact_zvalue. Used only if opt.artifdet=true.
     % opt.rejValue              = 'zero';      % how to fill rejected segments: 'zero' | 'nan' | numeric scalar.
-    % opt.spectrogram           = false;       % run multitaper TFR analysis (continuous or trial-parsed per opt.trialparsed).
+    opt.spectrogram           = false;       % run multitaper TFR analysis (continuous or trial-parsed per opt.trialparsed).
     % TFR (trial-parsed) knobs consumed by trialparsed_MTspectrogram and plot_superletsTFR_*:
-    % opt.freqInterest          = {};          % cell of freq vectors per band, e.g. {[4:1:30] [30:2:150]}. REQUIRED for trial-parsed TFR.
-    % opt.TFRmethod             = 'wavelet';   % 'wavelet' | 'mtmconvol' | 'superlet'.
+    opt.freqInterest          = {[1:1:29] [30:2:98] [100:5:250]};  % cell of freq vectors per band, e.g. {[4:1:30] [30:2:150]}. REQUIRED for trial-parsed TFR.
+    % opt.TFRmethod             = 'wavelet';   % 'wavelet' | 'mtmconvol' |'superlet'. Automatically 'mtmconvol' for low frequencies
     % opt.superletOrder         = {};          % cell of superlet orders per band (only when TFRmethod = 'superlet').
     % opt.width                 = {};          % cell of superlet widths per band  (only when TFRmethod = 'superlet').
     % opt.combine               = 'additive';  % superlet combine mode.
     % opt.timeResol             = 0.2;         % TFR toi step (s). e.g. cfg.toi = opt.toi(1):timeResol:opt.toi(2).
-    % opt.toi                   = [-.5 4];      % TFR time-of-interest range [t0 t1] (seconds).
+    % opt.toi                   = [-0.5 4];      % TFR time-of-interest range [t0 t1] (seconds).
     % opt.blocks                = 'all';       % 'all' -> derive from condition.block, or integer N.
     % opt.chbych                = false;       % trigger plot_superletsTFR_extintion_chbych.
     % opt.trialbytrial          = false;       % trigger plot_superletsTFR_extintion_tbt.
@@ -209,10 +218,10 @@ opt = struct();
     % opt.lfp.autoMethodThresholdHz = 30;      % method-switch cutoff (Hz).
     % opt.lfp.autoFoi           = true;        % replace linear foi with quarter-octave log-spaced per band (halves nFreq).
     % opt.lfp.autoFoiStep       = 1/4;         % log-spacing step in octaves; 1/6 denser, 1/2 half-octave (coarser).
-    % opt.lfp.parallel          = 'trials';    % 'none' | 'bands' (parfor over freqInterest) | 'trials' (FT-native per-trial via cfg.parallel).
+    % opt.lfp.parallel          = 'none';      % 'none' | 'bands' (parfor over freqInterest) | 'trials' (FT-native per-trial via cfg.parallel).
     
     % NGL07_LFPanalysis (research-grade session-level LFP; runs after NGL02_postPhy + NGL06_videoAnalysis)
-    % opt.lfp.session.do        = false;       % master gate for NGL07.
+    opt.lfp.session.do        = false;       % master gate for NGL07.
     % opt.lfp.session.tfr       = true;        % (a) trial-parsed TFR per opt.alignto.
     % opt.lfp.session.bursts    = false;       % (b) per-band burst detection (detectBursts).
     % opt.lfp.session.phase     = false;       % (c) continuous phase + envelope per band (hilbertBandpass).
@@ -241,9 +250,9 @@ opt = struct();
     % opt.lfp.plot.interp       = 'bilinear';  % imagesc interpolation: 'bilinear' (smooth) | 'nearest' | 'none'.
 
     % B.10 NGL04_fireRate  (cross-subject PSTH plotter) 
-    opt.fireRatePlot.interval        = [-1000 4000];   % ms window passed to plotPSTH.
-    opt.fireRatePlot.binSize_ms      = opt.binSize_ms;             % FR sliding-bin width inside the plot (independent from canonical opt.binSize_ms).
-    opt.fireRatePlot.stepSz_ms       = opt.stepSz_ms;              % FR sliding-bin step inside the plot.
+    opt.fireRatePlot.interval        = [-1000 4000];      % ms window passed to plotPSTH.
+    opt.fireRatePlot.binSize_ms      = opt.binSize_ms;    % FR sliding-bin width inside the plot.
+    opt.fireRatePlot.stepSz_ms       = opt.stepSz_ms;     % FR sliding-bin step inside the plot.
     % opt.fireRatePlot.smoothPlot      = true;            % nanMeanSterrHistogram smoothing.
     % opt.fireRatePlot.errAlpha        = 0.4;             % error-shade alpha (0..1).
     % opt.fireRatePlot.labelPriority   = {'HumanLabel','KSLabel','bc_unitType'};   % resolution order for cluster-label tokens (also used by per-session calculate_neural_pca).
@@ -257,9 +266,9 @@ opt = struct();
     % .ciStride/.variants/.outDir from here; for .interval it uses
     % opt.fireRatePlot.interval and for binning it uses opt.binSize_ms /
     % opt.stepSz_ms (see LANDMINE note at the top of this file).
-    opt.pcaPlot.interval       = opt.fireRatePlot.interval;          % ms window around alignment (NGL04_PCA only).
-    opt.pcaPlot.binSize_ms     = opt.binSize_ms;                   % FR bin width (ms) inside NGL04_PCA only.
-    opt.pcaPlot.stepSz_ms      = opt.stepSz_ms;                    % FR bin step (ms) inside NGL04_PCA only.
+    opt.pcaPlot.interval        = opt.fireRatePlot.interval;  % ms window around alignment (NGL04_PCA only).
+    opt.pcaPlot.binSize_ms      = opt.binSize_ms;         % FR bin width (ms) inside NGL04_PCA only.
+    opt.pcaPlot.stepSz_ms       = opt.stepSz_ms;          % FR bin step (ms) inside NGL04_PCA only.
     % opt.pcaPlot.smoothSigma_s  = 0.050;                 % Gaussian sigma for smoothing (s).
     % opt.pcaPlot.nComponents    = 3;                     % number of PCs to keep (>=2).
     % opt.pcaPlot.nBootstrap     = 100;                   % trial-bootstrap reps for CI tube; 0 disables CI.
@@ -286,8 +295,8 @@ opt = struct();
     % B.13 CROSS-SESSION AGGREGATION (NGL03_acrossSession) 
     % aggregateSubjects requires aggregateSessions=true; subjects can only
     % be stacked once sessions have been collapsed per subject.
-    opt.aggregateSessions     = true;       % build <subject>_aggregated_<area>.mat per (subject, area).
-    opt.aggregateSubjects     = true;      % build study-level aggregated_<area>.mat per area (requires aggregateSessions).
+    opt.aggregateSessions     = true;          % build <subject>_aggregated_<area>.mat per (subject, area).
+    opt.aggregateSubjects     = true;          % build study-level aggregated_<area>.mat per area (requires aggregateSessions).
 
     % B.14 PER-AREA CONTEXT (set internally by NGL02) 
     % opt.area                  = 'all';       % single-area runs leave 'all'; multi-area mode iterates input.areaMap.uniqueAreas. Setting it here has no effect — NGL02 overwrites before each loadSpikes call.
@@ -299,7 +308,16 @@ opt = struct();
     % Requires: copy configfiles/master_gaze.py (+ HexArena.png if used)
     % into your <project>\analysisCode\ and set GAZEpythonExe in
     % NGL_machineConfig.m.
-    % opt.gaze.do               = false;       % master gate: run process_gaze on each discovered DLC csv.
+    opt.gaze.do                 = false;       % master gate: run process_gaze on each discovered DLC csv.
+    opt.gaze.features           = false;       % <output>_estimated_features.mat + a .png figure
+    opt.gaze.video              = true;        % optional: features only, skip the mp4
+    % opt.gaze.videoWidth       = 1250;        % source video width (px); must match DLC training.
+    % opt.gaze.videoHeight      = 1160;        % source video height (px).
+    % opt.gaze.parts            = {'beak','tail','wing_l','wing_r','back','HS_f'}; % can be a subset of the total
+    % opt.gaze.roles.beak       = 'HS_f';      % which label will be the 'beak' if such does not exist
+    % opt.gaze.roles.head       = 'HS_f';      %
+    % opt.gaze.roles.left_wing  = 'wing_l';    % 
+    % opt.gaze.roles.right_wing = 'wing_r';    %
     % opt.gaze.fps              = 59.94;       % input video fps (Hz).
     % opt.gaze.downsampleStep   = 2;           % keep 1 frame per N; out_fps = fps/N.
     % opt.gaze.pCut             = 0.5;         % DLC likelihood gate (0..1).
@@ -309,8 +327,6 @@ opt = struct();
     % opt.gaze.boneTolFrac      = 0.4;         % bone-length tolerance fraction.
     % opt.gaze.boneTolMad       = 5.0;         % bone-length tolerance (xMAD).
     % opt.gaze.orderMargin      = 0.10;        % head-behind-wing clamp margin (xbody).
-    % opt.gaze.videoWidth       = 1250;        % source video width (px); must match DLC training.
-    % opt.gaze.videoHeight      = 1160;        % source video height (px).
     % opt.gaze.drawCones        = true;        % render gaze cones on the output mp4.
     % opt.gaze.monoFOV          = 170;         % monocular field per eye (degrees).
     % opt.gaze.binoHalf         = 15;          % binocular half-angle (degrees).
