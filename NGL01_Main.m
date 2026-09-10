@@ -24,12 +24,14 @@
 %   00. set_default       - validate opt, build paths, load dependencies
 %   01. findSessions      - discover session folders on disk
 %   02. prepforsession    - per-session path setup and format detection
+%   02b. process_chirp    - raw pre-sorter survey (if opt.chirp.do)
 %   03. processing        - INTAN or Deuteron Wrappers
 %   04. master_kilosort4  - Kilosort 4 spike sorting (loop per area if multi-area)
 %   05. Bombcell_Main     - automatic cluster quality (if opt.bombcell)
 %   06. Phy               - manual curation GUI (if opt.phy; blocks MATLAB)
 %
 % OUTPUTS (per session, paths set in prepforsession):
+%   chirp\              - raw survey CSV + report (preprocessing\, if opt.chirp.do)
 %   <session>.bin       - flat int16 binary for Kilosort (preprocessing\)
 %   kilosort\           - KS4 output folder, or <Area>\ in multi-area mode
 %   EventRecord.mat     - raw event list (preprocessing\)
@@ -91,6 +93,26 @@ for x = 1:input.nsubjects % Subjects.
         %% 02. Prepare to proceed with a single session.
         input.run = [x y];
         [input, opt] = prepforsession(input, opt);
+
+        %% 02b. CHIRP raw survey (optional quick check, before anything heavy).
+        % Reads the raw amp*.dat straight off disk and reports per-channel
+        % spike statistics, so the sorter's settings can be chosen from
+        % measurements rather than assumed. Deliberately placed here:
+        % prepforsession has already resolved the paths, the sample rate and
+        % the channel count, and nothing expensive has run yet. With
+        % opt.kilosort / opt.bombcell / opt.doNWB off this is a pure triage
+        % pass. Skipped in regen mode (the raw folder is empty by design) and
+        % for any format that is not INTAN one-file-per-channel.
+        if ~regenMode && isfield(opt, 'chirp') && opt.chirp.do
+            try
+                process_chirp(input, opt);
+            catch ME
+                % A survey is advisory: never let it stop the preprocessing
+                % run it was meant to inform.
+                warning('NGL01:chirp', 'CHIRP survey failed (%s): %s', ...
+                        ME.identifier, ME.message);
+            end
+        end
 
         %% 03. Proceed to appropriate pipeline.
         if regenMode

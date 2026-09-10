@@ -134,7 +134,35 @@ opt = struct();
     % EventProcess to rebuild events.mat / trialdef.mat / condition.mat
     % from the EventRecord.mat already on disk.
 
-    % B.2 EVENTS 
+    % B.1c RAW SURVEY (CHIRP) — pre-sorter triage, runs early in NGL01.
+    % Reads the raw amp*.dat before any conversion, detects spikes, splits
+    % them by amplitude and writes preprocessing\<session>\chirp\ with a
+    % per-channel table and a report. Use the numbers to choose the Kilosort
+    % settings: trough-to-peak and half-width size the template window
+    % (nt / nt0min), sigma and share_frac flag channels to drop from the map,
+    % and the SNR spread says whether the detection thresholds will be
+    % comfortable. INTAN 'fileperch' only; other formats are skipped.
+    % For a pure triage run, set kilosort / bombcell / doNWB above to false.
+    opt.chirp.do                = false;       % run the survey.
+    % opt.chirp.duration        = 10;          % window length, s.
+    % opt.chirp.segments        = 3;           % best windows measured per channel.
+    % opt.chirp.band            = [450 8000];  % band-pass before detection, Hz.
+    % opt.chirp.negK            = 5;           % detection threshold, sigma.
+    % opt.chirp.posK            = 8;           % artifact rejection, sigma.
+    % opt.chirp.artifactK       = 18;          % window-scan cleanliness, sigma.
+    % opt.chirp.maxClusters     = 3;           % amplitude clusters per channel (1-3).
+    % opt.chirp.scanStep        = 60;          % candidate window spacing, s.
+    % opt.chirp.scanRange       = [];          % [from to] s. [] = whole recording.
+    % opt.chirp.start           = [];          % fixed start, s. [] = scan.
+    % opt.chirp.video           = false;       % also render MP4s (needs ffmpeg).
+    % opt.chirp.videoTop        = 0;           % render N best channels/area. 0 = all.
+    % opt.chirp.pythonExe       = '';          % '' = auto-detect and cache.
+    % opt.chirp.autoInstall     = false;       % pip-install missing packages.
+    % Multi-area (A2 above): each area is surveyed as its own channel group,
+    % because CHIRP's "shared across many channels = noise" test is relative
+    % to the number of channels it saw.
+
+    % B.2 EVENTS
     opt.RetrieveEvents          = true;        % extract event log.
     opt.alignto                 = {'itiOn'};   % alignment events (cell of char).
     opt.addtime                 = 500;         % Adds (ms) around trial start/end. Gives a BL for itiOn, avoids edge artifacts in several calculations
