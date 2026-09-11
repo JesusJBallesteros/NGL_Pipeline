@@ -143,19 +143,33 @@ opt = struct();
     % and the SNR spread says whether the detection thresholds will be
     % comfortable. INTAN 'fileperch' only; other formats are skipped.
     % For a pure triage run, set kilosort / bombcell / doNWB above to false.
+    %   'fast' - best 3 windows per channel at one threshold (~1 min for
+    %            64 ch x 2 h on 8 cores).
+    %   'deep' - the whole recording, 12 windows one per slice of it, the
+    %            threshold swept over -4/-5/-6 sigma on the same windows, each
+    %            channel re-clustered across windows, and a suggested threshold
+    %            per area (chirp_suggestion.json): the strictest one keeping all
+    %            units while the smallest loses <= 25% of its spikes (~4-5 min
+    %            for 64 ch x 2 h on 8 cores). Set estimateOnly first to see.
+    % Settings marked "preset" follow the mode unless set here.
     opt.chirp.do                = false;       % run the survey.
+    % opt.chirp.mode            = 'fast';      % 'fast' | 'deep'.
+    % opt.chirp.estimateOnly    = false;       % print the expected run time, skip the survey.
     % opt.chirp.duration        = 10;          % window length, s.
-    % opt.chirp.segments        = 3;           % best windows measured per channel.
+    % opt.chirp.segments        = [];          % windows per channel. preset: fast 3, deep 12.
+    % opt.chirp.sampling        = '';          % 'best' | 'stratified'. preset: fast best, deep stratified.
+    % opt.chirp.shareWindows    = [];          % windows for the sharing test. preset: fast 1, deep 5.
     % opt.chirp.band            = [450 8000];  % band-pass before detection, Hz.
-    % opt.chirp.negK            = 5;           % detection threshold, sigma.
+    % opt.chirp.negK            = [];          % detection threshold, sigma. [] = 5; ignored in deep (swept).
     % opt.chirp.posK            = 8;           % artifact rejection, sigma.
     % opt.chirp.artifactK       = 18;          % window-scan cleanliness, sigma.
     % opt.chirp.maxClusters     = 3;           % amplitude clusters per channel (1-3).
-    % opt.chirp.scanStep        = 60;          % candidate window spacing, s.
+    % opt.chirp.scanStep        = [];          % candidate window spacing, s. preset: fast 60, deep = duration.
     % opt.chirp.scanRange       = [];          % [from to] s. [] = whole recording.
-    % opt.chirp.start           = [];          % fixed start, s. [] = scan.
+    % opt.chirp.start           = [];          % fixed start, s, fast only. [] = scan.
     % opt.chirp.video           = false;       % also render MP4s (needs ffmpeg).
     % opt.chirp.videoTop        = 0;           % render N best channels/area. 0 = all.
+    % opt.chirp.workers         = [];          % parallel processes. [] = auto (~physical cores; serial if small); 1 = serial.
     % opt.chirp.pythonExe       = '';          % '' = auto-detect and cache.
     % opt.chirp.autoInstall     = false;       % pip-install missing packages.
     % Multi-area (A2 above): each area is surveyed as its own channel group,

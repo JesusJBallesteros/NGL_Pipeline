@@ -39,6 +39,7 @@ import shutil
 import subprocess
 import tempfile
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -59,7 +60,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from dat_to_audio import (
-    FOLDER, SAMPLE_RATE, DEFAULT_BAND, FILTER_ORDER, EDGE_PAD_S,
+    FOLDER, SAMPLE_RATE, DEFAULT_BAND, EDGE_PAD_S,
     file_duration_s, read_segment, bandpass, normalize, to_pcm, __version__,
 )
 from scipy.io import wavfile
@@ -121,6 +122,54 @@ _POPEN_KW = ({"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x0800000
 
 class Cancelled(RuntimeError):
     """Raised when the caller asks for an in-progress job to stop."""
+
+
+def fmt_seconds(seconds):
+    s = int(round(seconds))
+    return f"{s // 60}m{s % 60:02d}s" if s >= 60 else f"{s}s"
+
+
+class Progress:
+    """
+    One status line that rewrites itself:  `channels  42% (27/64) ~1m05s left`.
+
+    Rewritten with backspaces rather than a carriage return: MATLAB's Command
+    Window, which shows this output when NGL01 runs the survey, does not honour
+    \\r, while terminals honour both. Redrawn only when the whole percentage
+    changes, so even a long run writes at most ~100 updates to one line.
+    """
+
+    def __init__(self, label, total, enabled=True):
+        self.label, self.total = f"{label:<9s}", max(1, total)
+        self.enabled = enabled and total > 0
+        self.t0 = time.perf_counter()
+        self.pct, self.width = -1, 0
+
+    def _draw(self, text):
+        width = max(self.width, len(text))
+        sys.stdout.write("\b" * self.width + text.ljust(width))
+        sys.stdout.flush()
+        self.width = width
+
+    def update(self, done):
+        if not self.enabled:
+            return
+        pct = int(100 * done / self.total)
+        if pct == self.pct:
+            return
+        self.pct = pct
+        elapsed = time.perf_counter() - self.t0
+        left = (f" ~{fmt_seconds(elapsed / done * (self.total - done))} left"
+                if 0 < done < self.total else "")
+        self._draw(f"{self.label} {pct:3d}% ({done}/{self.total}){left}")
+
+    def close(self, note=""):
+        if not self.enabled:
+            return
+        self._draw(f"{self.label} 100% ({self.total}/{self.total}) in "
+                   f"{fmt_seconds(time.perf_counter() - self.t0)}{note}")
+        sys.stdout.write("\n")
+        sys.stdout.flush()
 
 
 # ------------------------------------------------------------------ helpers --
@@ -359,6 +408,12 @@ def waveform_residual(W):
     return float(np.sqrt(((W - m) ** 2).mean()) / depth)
 
 
+def shared_across_batch(share_count, n_channels):
+    """True when a channel's spikes coincide with a large batch of channels."""
+    return (share_count is not None and bool(n_channels) and n_channels >= 2
+            and share_count > max(SHARE_MIN_CHANNELS, SHARE_FRAC * n_channels))
+
+
 def auto_quality(share_count, n_channels, residual, rate_sp_s):
     """
     Apply the screen. `share_count` is the median number of channels co-active
@@ -367,9 +422,8 @@ def auto_quality(share_count, n_channels, residual, rate_sp_s):
     Sharing is tested first on purpose: a common-mode waveform is extremely
     repeatable and would otherwise score as a textbook single unit.
     """
-    if share_count is not None and n_channels and n_channels >= 2:
-        if share_count > max(SHARE_MIN_CHANNELS, SHARE_FRAC * n_channels):
-            return 3
+    if shared_across_batch(share_count, n_channels):
+        return 3
     if residual is None:
         return 0
     if residual <= RESID_ISOLATED:
@@ -487,9 +541,20 @@ def channel_stats(path, start, duration, band, fs, neg_k, pos_k,
     sig = load_excerpt(path, start, duration, band, fs)
     a = analyse(sig, fs, neg_k, pos_k, pre_ms, post_ms, refractory_ms,
                 max_k=max_k)
+    rows = rows_from_analysis(a, path.stem, start, duration, fs, pre_ms,
+                              segment, share_count, n_channels)
+    return rows, a
+
+
+def rows_from_analysis(a, channel, start, duration, fs, pre_ms, segment=1,
+                       share_count=None, n_channels=0):
+    """
+    The CSV rows for one analysed excerpt - channel_stats() without the read,
+    so one filtered excerpt can be analysed at several thresholds.
+    """
     rows = cluster_stats(a, fs, duration, pre_ms)
     for r in rows:
-        r.update(channel=path.stem, segment=segment,
+        r.update(channel=channel, segment=segment,
                  n_clusters=len(a["centres"]),
                  n_rejected=a["n_rej"], start_s=round(start, 3),
                  duration_s=duration,
@@ -499,7 +564,43 @@ def channel_stats(path, start, duration, band, fs, neg_k, pos_k,
                  auto_quality=auto_quality(share_count, n_channels,
                                            r["wf_residual"],
                                            r["firing_rate_sp_s"]))
-    return rows, a
+    return rows
+
+
+def missing_fraction(amp, thresholds_uv, min_spikes=20):
+    """
+    Estimated fraction of a unit's spikes lost below the detection threshold.
+
+    Only spikes deeper than the threshold are ever seen, so the trough depths
+    are a normal distribution cut off at the threshold. Fitting that truncated
+    normal by maximum likelihood recovers the whole distribution, and the part
+    on the undetected side is the missing fraction - the same idea as
+    Bombcell's Gaussian "percentage of spikes missing". Each spike carries the
+    threshold of the window it came from (k x that window's sigma); the
+    fraction is reported at their median. NaN below `min_spikes`, or if the fit
+    fails.
+    """
+    from scipy.optimize import minimize
+    from scipy.stats import norm
+
+    depth = -np.asarray(amp, dtype=float)
+    thr = np.broadcast_to(np.asarray(thresholds_uv, dtype=float), depth.shape)
+    if len(depth) < min_spikes:
+        return float("nan")
+
+    def nll(p):
+        mu, s = p[0], np.exp(p[1])
+        tail = norm.sf((thr - mu) / s)                 # mass beyond threshold
+        if np.any(tail < 1e-12):
+            return 1e12
+        return -(norm.logpdf(depth, mu, s) - np.log(tail)).sum()
+
+    fit = minimize(nll, [depth.mean(), np.log(depth.std() + 1e-6)],
+                   method="Nelder-Mead")
+    if not fit.success:
+        return float("nan")
+    mu, s = fit.x[0], np.exp(fit.x[1])
+    return float(norm.cdf((np.median(thr) - mu) / s))
 
 
 def analyse(x, fs, neg_k, pos_k, pre_ms, post_ms, refractory_ms, max_k=3):
@@ -720,17 +821,21 @@ def render(path: Path, out_dir: Path, duration: float, start,
            neg_k: float, pos_k: float, pre_ms: float, post_ms: float,
            refractory_ms: float, wave_frac: float, keep_wav: bool,
            out_stem: str | None = None, cancel=None, progress=None,
-           max_k: int = 3, theme=None) -> Path:
+           max_k: int = 3, theme=None, verbose=True) -> Path:
+    """
+    Render one excerpt to MP4 with its audio. With `verbose`, prints a single
+    self-updating line - channel, resolution, frame rate, then the frame
+    progress - that ends with the clip's length and file size.
+    """
     if shutil.which("ffmpeg") is None:
         raise RuntimeError("ffmpeg not found on PATH")
 
-    total_s = file_duration_s(path, fs)
     sig = load_excerpt(path, start, duration, band, fs)
 
     a = analyse(sig, fs, neg_k, pos_k, pre_ms, post_ms, refractory_ms,
                 max_k=max_k)
     waves, idx, sigma, n_rej = a["waves"], a["idx"], a["sigma"], a["n_rej"]
-    amp, labels, centres, sep = a["amp"], a["labels"], a["centres"], a["sep"]
+    amp, labels, centres = a["amp"], a["labels"], a["centres"]
     n_clusters = len(centres)
     if len(waves) == 0:
         raise ValueError(f"no spikes crossed -{neg_k:g} sigma in this window")
@@ -749,26 +854,11 @@ def render(path: Path, out_dir: Path, duration: float, start,
         os.close(_fd)
         wav_path = Path(_tmp)
 
-    y, ref_uv, n_clipped = normalize(sig, headroom_db=headroom_db)
+    y, _, _ = normalize(sig, headroom_db=headroom_db)
     wavfile.write(wav_path, max(1, int(round(fs / slow))), to_pcm(y, bit_depth))
 
     w, h = (int(v) // 2 * 2 for v in size)
     ylim = (-ylim_uv, ylim_uv)
-
-    print(f"{path.name}: {total_s / 60:.1f} min total -> "
-          f"{start:.1f}-{start + duration:.1f} s")
-    print(f"  band-pass {band[0]:.0f}-{band[1]:.0f} Hz "
-          f"(Butterworth order {FILTER_ORDER}, zero-phase), sigma {sigma:.2f} uV")
-    print(f"  {len(idx)} spikes accepted, {n_rej} rejected at "
-          f"+{pos_k:g} sigma ({100 * n_rej / (len(idx) + n_rej):.1f}% of events)")
-    if n_clusters > 1:
-        parts = ", ".join(f"{centres[k]:.0f} uV (n={int(np.sum(labels == k))})"
-                          for k in range(n_clusters))
-        print(f"  {n_clusters} amplitude clusters: {parts}, "
-              f"weakest separation {sep:.2f}")
-    else:
-        print(f"  single amplitude population (separation {sep:.2f} "
-              f"below threshold) - one colour")
 
     fig, art = build_figure(sig, fs, duration, band, path.stem, (w, h), dpi,
                             ylim, waves, idx, labels, centres, sigma,
@@ -813,8 +903,10 @@ def render(path: Path, out_dir: Path, duration: float, start,
         "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
         "-shortest", str(mp4_path),
     ]
-    print(f"  {w}x{h} @ {fps} fps, {n_frames} frames"
-          + (f", {slow:g}x slow motion" if slow != 1 else ""))
+    # The actual canvas size, which dpi rounding can shift from the request.
+    prog = Progress(f"video {path.stem}  {w}x{h} @ {fps} fps"
+                    + (f", {slow:g}x slow" if slow != 1 else ""),
+                    n_frames, verbose)
 
     rej_t = np.sort(a["rej_idx"] / fs) if n_rej else np.zeros(0)
     rej_a = a["rej_amp"][np.argsort(a["rej_idx"])] if n_rej else np.zeros(0)
@@ -846,25 +938,21 @@ def render(path: Path, out_dir: Path, duration: float, start,
             fig.canvas.draw()
             proc.stdin.write(
                 np.asarray(fig.canvas.buffer_rgba())[:h, :w, :3].tobytes())
-            if i % max(1, n_frames // 20) == 0:
-                print(f"\r  rendering {100 * i / n_frames:5.1f}%",
-                      end="", flush=True)
+            prog.update(i + 1)
+            if progress is not None:
+                progress((i + 1) / n_frames)
     finally:
         if proc.stdin:
             proc.stdin.close()
         fig.clear()
     rc = proc.wait()
-    print("\r  rendering 100.0%")
     if rc != 0:
         raise RuntimeError(f"ffmpeg exited with code {rc}")
 
     if not keep_wav:
         wav_path.unlink(missing_ok=True)
-    print(f"  scale reference {ref_uv:.1f} uV"
-          + (f", {n_clipped} samples clipped" if n_clipped else ""))
-    print(f"  -> {mp4_path.name}  ({duration * slow:.1f} s, "
-          f"{mp4_path.stat().st_size / 1e6:.2f} MB)"
-          + (f"   + {wav_path.name}" if keep_wav else ""))
+    prog.close(f" -> {mp4_path.name} ({duration * slow:.1f} s, "
+               f"{mp4_path.stat().st_size / 1e6:.2f} MB)")
     return mp4_path
 
 

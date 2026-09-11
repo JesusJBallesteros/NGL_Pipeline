@@ -29,14 +29,30 @@ function result = process_chirp(input, opt)
 %                .FolderProcDataMat  preprocessing output folder
 %                .chirp.*            settings, see optSchema / NGL_SetAndRunMe
 %
-%   OUTPUT (per session, in <FolderProcDataMat>\chirp\):
-%     chirp_cluster_stats.csv  one row per area x channel x window x cluster
-%     chirp_report.txt         the same run summarised per area
-%     *.mp4                    only when opt.chirp.video is true
+%   MODES (opt.chirp.mode):
+%     'fast'  the best few windows per channel at one threshold (default).
+%     'deep'  the whole recording scanned, 12 windows one per equal slice,
+%             detection swept over -4/-5/-6 sigma on those same windows, each
+%             channel re-clustered on its spikes pooled across windows, and a
+%             suggested threshold per area: the strictest threshold keeping
+%             every real unit while its smallest loses <= 25% of its spikes.
+%     opt.chirp.estimateOnly prints the expected run time and skips the survey.
 %
-%   result is a struct: .status .csv .report .videos .n_rows .n_channels
-%                       .groups .isolated .noise .chirp_version
-%   plus .table, the CSV read back as a MATLAB table.
+%   OUTPUT (per session, in <FolderProcDataMat>\chirp\):
+%     chirp_cluster_stats.csv     one row per area x channel x window x cluster
+%                                 (x threshold in deep mode)
+%     chirp_channel_clusters.csv  deep: pooled clusters, area x channel x threshold
+%     chirp_threshold_sweep.csv   deep: one row per area x channel x threshold
+%     chirp_suggestion.json       deep: suggested threshold per area + evidence
+%     chirp_report.txt            the run summarised per area
+%     *.mp4                       only when opt.chirp.video is true
+%
+%   result is a struct: .status .mode .csv .report .videos .n_rows .n_channels
+%                       .groups .isolated .noise .chirp_version .estimate
+%                       .timings (.survey_s .work_s .workers .busy)
+%                       deep: .clusters_csv .sweep_csv .suggestion_json
+%                             .suggested_neg_k (struct, one field per area)
+%   plus .table (and deep: .clusterTable, .sweepTable), read back as tables.
 %
 %   MULTI-AREA: when input.areaMap is present each area is surveyed as its own
 %   channel group. CHIRP's noise test calls a waveform common when it appears
@@ -47,7 +63,7 @@ function result = process_chirp(input, opt)
 %   For an ad-hoc check outside the pipeline, CHIRP's own CLI is simpler:
 %       python toolboxes\CHIRP\dat_to_stats.py --folder <raw> --all
 %
-% Jesus. rev. 10.09.2026
+% Jesus. rev. 11.09.2026 - fast/deep modes, estimateOnly, parallel workers
 
     result = struct('status', 'skipped');
 
@@ -110,44 +126,84 @@ function result = process_chirp(input, opt)
     cfg.groups     = groups;
     cfg.out_dir    = outDir;
     cfg.fs         = fs;
+    cfg.mode       = getp(opt.chirp, 'mode',       'fast');
+    cfg.estimate_only = logical(getp(opt.chirp, 'estimateOnly', false));
     cfg.duration   = getp(opt.chirp, 'duration',   10);
     cfg.band       = getp(opt.chirp, 'band',       [450 8000]);
-    cfg.neg_k      = getp(opt.chirp, 'negK',       5);
     cfg.pos_k      = getp(opt.chirp, 'posK',       8);
     cfg.artifact_k = getp(opt.chirp, 'artifactK',  18);
     cfg.max_k      = getp(opt.chirp, 'maxClusters', 3);
-    cfg.segments   = getp(opt.chirp, 'segments',   3);
-    cfg.scan_step  = getp(opt.chirp, 'scanStep',   60);
     cfg.video      = wantVideo;
     cfg.video_top  = getp(opt.chirp, 'videoTop',   0);
     cfg.label      = sprintf('%s / %s', input.subjects(input.run(1)).name, ...
                              opt.SavFileName);
-    scanRange = getp(opt.chirp, 'scanRange', []);
-    if ~isempty(scanRange), cfg.scan_range = scanRange; end
-    startAt = getp(opt.chirp, 'start', []);
-    if ~isempty(startAt), cfg.start = startAt; end
-
-    fprintf('\nCHIRP: %d channel(s), %d group(s), %g s windows at %g Hz -> %s\n', ...
-            numel(fullPaths), numel(groups), cfg.duration, fs, outDir);
+    % Sent only when set: an unset one falls back to the mode's preset, which
+    % is defined once, in Python (dat_to_stats.PRESETS). workers [] lets Python
+    % pick ~the physical core count, or serial for a small job.
+    optional = {'negK', 'neg_k'; 'segments', 'segments'; 'scanStep', 'scan_step';
+                'sampling', 'sampling'; 'shareWindows', 'share_windows';
+                'scanRange', 'scan_range'; 'start', 'start'; 'workers', 'workers'};
+    for i = 1:size(optional, 1)
+        v = getp(opt.chirp, optional{i, 1}, []);
+        if ~isempty(v), cfg.(optional{i, 2}) = v; end
+    end
 
     % --- run ----------------------------------------------------------------
+    % The master prints its own one-line header and a self-updating progress
+    % line per phase; this wrapper adds a single summary line at the end.
+    fprintf('\n');
     result = run_master(pythonExe, master, cfg);
 
-    % Read the table back so callers can filter without touching the CSV.
-    result.table = table();
-    if isfield(result, 'csv') && isfile(result.csv)
-        try
-            result.table = readtable(result.csv);
-        catch ME
-            warning('process_chirp:readtable', ...
-                'stats CSV written but could not be read back: %s', ME.message);
-        end
+    if getp2(result, 'estimate_only', false)
+        e = result.estimate;
+        fprintf(['CHIRP: estimate only - %s mode, %d channel(s): ~%s of work if ' ...
+                 'run serially (%d analyses x %.0f ms), %d worker(s). Nothing surveyed.\n'], ...
+                result.mode, result.n_channels, fmtSeconds(e.serial_s), ...
+                e.analyses, e.window_ms, result.workers);
+        return
     end
-    fprintf(['CHIRP: %d cluster row(s) over %d channel(s). ' ...
-             '%d channel(s) look isolated, %d look like noise.\n'], ...
-            getp2(result, 'n_rows', 0), getp2(result, 'n_channels', 0), ...
-            getp2(result, 'isolated', 0), getp2(result, 'noise', 0));
-    fprintf('CHIRP: %s\n', getp2(result, 'report', '(no report)'));
+
+    % Read the tables back so callers can filter without touching the CSVs.
+    result.table        = readBack(result, 'csv');
+    result.clusterTable = readBack(result, 'clusters_csv');    % deep only
+    result.sweepTable   = readBack(result, 'sweep_csv');       % deep only
+
+    t = getp2(result, 'timings', struct('survey_s', NaN, 'workers', 1));
+    fprintf('CHIRP: %d of %d channel(s) look isolated, %d like noise; %.1f s on %d worker(s) -> %s\n', ...
+            getp2(result, 'isolated', 0), getp2(result, 'n_channels', 0), ...
+            getp2(result, 'noise', 0), t.survey_s, t.workers, ...
+            getp2(result, 'report', '(no report)'));
+    sug = getp2(result, 'suggested_neg_k', []);
+    if isstruct(sug)
+        areas = fieldnames(sug);
+        txt = cell(1, numel(areas));
+        for a = 1:numel(areas)
+            k = sug.(areas{a});
+            if isempty(k), txt{a} = sprintf('%s none', areas{a});
+            else,          txt{a} = sprintf('%s -%g sigma', areas{a}, k);
+            end
+        end
+        fprintf('CHIRP: suggested threshold: %s (evidence in %s)\n', ...
+                strjoin(txt, ', '), result.suggestion_json);
+    end
+end
+
+function T = readBack(result, field)
+    T = table();
+    f = getp2(result, field, '');
+    if isempty(f) || ~isfile(f), return; end
+    try
+        T = readtable(f);
+    catch ME
+        warning('process_chirp:readtable', '%s written but could not be read back: %s', ...
+                f, ME.message);
+    end
+end
+
+function s = fmtSeconds(sec)
+    if sec >= 60, s = sprintf('%dm%02ds', floor(sec / 60), round(mod(sec, 60)));
+    else,         s = sprintf('%.0fs', sec);
+    end
 end
 
 % ---------------- channel grouping ----------------
@@ -210,7 +266,6 @@ function result = run_master(pythonExe, master, cfg)
     if ispc && startsWith(strtrim(cmd), '"')
         cmd = ['"' cmd '"'];   % only when the exe itself needed quoting
     end
-    fprintf('process_chirp: running\n  %s\n', cmd);
     st = system(cmd);
     if isfile(tmp), delete(tmp); end
 
@@ -222,8 +277,10 @@ function result = run_master(pythonExe, master, cfg)
             'no result file written (exit %d) - see output above', st));
     end
     if st ~= 0 || ~strcmp(getp2(result, 'status', 'error'), 'ok')
-        error('process_chirp:failed', 'CHIRP survey failed: %s', ...
-              getp2(result, 'message', 'see output above'));
+        % The command is only shown here, so a failed run can be repeated by
+        % hand without it cluttering every successful one.
+        error('process_chirp:failed', 'CHIRP survey failed: %s\n  command: %s', ...
+              getp2(result, 'message', 'see output above'), cmd);
     end
 end
 
