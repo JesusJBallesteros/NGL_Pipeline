@@ -101,6 +101,10 @@ function localWriteReadme(root, a, truth)
     for k = 1:numel(truth)
         L{end+1} = sprintf('%s: %.0f s, %d trials, seed %d', truth(k).session, ...
                            truth(k).duration, truth(k).nTrials, truth(k).seed); %#ok<AGROW>
+        for b = truth(k).blocks(:)'
+            L{end+1} = sprintf('   BLOCK- %-5s %6.1f - %6.1f s, %d trials', ...
+                b.task, b.tStart, b.tEnd, numel(b.trials)); %#ok<AGROW>
+        end
         for n = truth(k).lfp.notes(:)'
             L{end+1} = ['   LFP  - ' n{1}]; %#ok<AGROW>
         end

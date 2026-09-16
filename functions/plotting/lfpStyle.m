@@ -40,9 +40,14 @@ function st = lfpStyle(opt, kind)
 
     st.diverging  = strcmp(kind, 'diverging');
     if st.diverging
+        % '' is the documented way to ask for the built-in blue-white-red, and
+        % it is the schema default - so an empty value here means "use it",
+        % not "use no colormap at all".
         st.colormap = localOpt(opt, {'lfp','plot','divergingColormap'}, localRdBu());
+        if ischar(st.colormap) && isempty(st.colormap), st.colormap = localRdBu(); end
     else
         st.colormap = localOpt(opt, {'lfp','plot','colormap'}, 'parula');
+        if ischar(st.colormap) && isempty(st.colormap), st.colormap = 'parula'; end
     end
     st.zlim       = localOpt(opt, {'lfp','plot','zlim'}, []);
     st.interp     = localOpt(opt, {'lfp','plot','interp'}, 'bilinear');

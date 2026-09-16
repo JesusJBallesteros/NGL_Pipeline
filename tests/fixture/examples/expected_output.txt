@@ -1,0 +1,80 @@
+Example run of the MRX fixture.
+Produced by tests/fixture/makeFixtureExamples.m - do not edit by hand.
+MATLAB 2026a
+========================================================================
+== GENERATE
+========================================================================
+makeFakeSession: MRX / 19850214 - 626 s, 32 channels, 298 trials in 3 block(s), 8 units
+makeFakeSession: MRX / 19860704 - 621 s, 32 channels, 298 trials in 3 block(s), 8 units
+makeFakeSession: MRX / 19870321 - 622 s, 32 channels, 298 trials in 3 block(s), 8 units
+makeFakeStudy: 3 session(s) of MRX under C:\Users\ballejd4\AppData\Local\Temp\MRXFIX_examples
+  set subjects = {'MRX'} and dates = {'19850214', '19860704', '19870321'} in NGL_SetAndRunMe to use them.
+========================================================================
+== CHECK 19850214
+========================================================================
+checkFixture: MRX / 19850214 (298 trials, 626 s)
+  [PASS] layout    9 expected files present
+set_default: skipping synthetic subject(s) MRX - name them explicitly to analyse the fixture.
+  [PASS] isolation marked in 4 trees; 'all' skips it, alone it runs flagged, mixed with real data it is refused
+  [PASS] trials    298 trials, 45 correct / 11 incorrect / 6 omitted / 2 aborted / 234 passive; dms length 0.38-10.60 s; dms ends 2.85 s after stimOn2, always
+  [PASS] events    1613 events, 298 trials paired, 234 tagging codes; outcomes follow the peck by 120 ms
+  [PASS] blocks    dms 4-233 s (40), arena 241-485 s (24), nft 492-613 s (234); gating holds
+  [PASS] channels  LFP_23 dead (0.0% of typical variance, tagging z=-0.9), LFP_20 noisy (14x)
+  [PASS] spikes    8 units; stimOn1 drive 5.8x (others 1.3x), drift -25% over the session
+  [PASS] psth      unit 101 after stimOn1: dms 2.3x (quiet 1.0x), arena 3.7x (quiet 1.1x), nft 2.0x (quiet 1.0x) (control = 3 pooled units)
+  [PASS] imu       recall 100% of 78 pecks, precision 100%; peck jerk is 55x the noise MAD
+  [PASS] csd       sink at 300 um (planted 325, spacing 50) at +120 ms
+computeTrialparsedTFR: band 1 raw=[8:1:40]Hz -> foi=[8..40] 11 pts | method=wavelet | dsFs=937.5 -> 160 Hz (5.9x)
+computeTrialparsedTFR: cache miss -> wrote C:\Users\ballejd4\AppData\Local\Temp\MRXFIX_examples\data\analysis\MRX\19850214\cache\lfp_tfr\TFR__stimOn2__wavelet__freq1x8-40-33p__area_all__timeRes_0_05__combine_additive__autoDs_T__autoDsFc_4__autoMet__0e232285.mat
+  [PASS] contrast  NCL cluster p=0.002 at 23 Hz (planted 20, band 15-30); STR no cluster (correct)
+  [PASS] nft       1.3 Hz: NCL z 5.1, 8.0 harmonics; STR z -0.3, 0.0; 2.6 Hz: NCL z 43.5, 8.0 harmonics; STR z -0.2, 1.0
+checkFixture: 12/12 checks passed
+========================================================================
+== CHECK 19860704
+========================================================================
+checkFixture: MRX / 19860704 (298 trials, 621 s)
+  [PASS] layout    9 expected files present
+set_default: skipping synthetic subject(s) MRX - name them explicitly to analyse the fixture.
+  [PASS] isolation marked in 4 trees; 'all' skips it, alone it runs flagged, mixed with real data it is refused
+  [PASS] trials    298 trials, 50 correct / 6 incorrect / 4 omitted / 4 aborted / 234 passive; dms length 0.38-10.50 s; dms ends 2.85 s after stimOn2, always
+  [PASS] events    1615 events, 298 trials paired, 234 tagging codes; outcomes follow the peck by 120 ms
+  [PASS] blocks    dms 4-232 s (40), arena 239-480 s (24), nft 487-608 s (234); gating holds
+  [PASS] channels  LFP_23 dead (0.0% of typical variance, tagging z=0.9), LFP_20 noisy (14x)
+  [PASS] spikes    8 units; stimOn1 drive 5.2x (others 1.2x), drift -25% over the session
+  [PASS] psth      unit 101 after stimOn1: dms 2.3x (quiet 1.0x), arena 2.9x (quiet 1.0x), nft 1.8x (quiet 1.0x) (control = 3 pooled units)
+  [PASS] imu       recall 100% of 82 pecks, precision 100%; peck jerk is 52x the noise MAD
+  [PASS] csd       sink at 300 um (planted 325, spacing 50) at +119 ms
+computeTrialparsedTFR: band 1 raw=[8:1:40]Hz -> foi=[8..40] 11 pts | method=wavelet | dsFs=937.5 -> 160 Hz (5.9x)
+computeTrialparsedTFR: cache miss -> wrote C:\Users\ballejd4\AppData\Local\Temp\MRXFIX_examples\data\analysis\MRX\19860704\cache\lfp_tfr\TFR__stimOn2__wavelet__freq1x8-40-33p__area_all__timeRes_0_05__combine_additive__autoDs_T__autoDsFc_4__autoMet__0e232285.mat
+  [PASS] contrast  NCL cluster p=0.002 at 19 Hz (planted 20, band 15-30); STR no cluster (correct)
+  [PASS] nft       1.3 Hz: NCL z 5.6, 8.0 harmonics; STR z -0.2, 0.0; 2.6 Hz: NCL z 39.2, 8.0 harmonics; STR z -0.2, 0.0
+checkFixture: 12/12 checks passed
+========================================================================
+== CHECK 19870321
+========================================================================
+checkFixture: MRX / 19870321 (298 trials, 622 s)
+  [PASS] layout    9 expected files present
+set_default: skipping synthetic subject(s) MRX - name them explicitly to analyse the fixture.
+  [PASS] isolation marked in 4 trees; 'all' skips it, alone it runs flagged, mixed with real data it is refused
+  [PASS] trials    298 trials, 41 correct / 13 incorrect / 5 omitted / 5 aborted / 234 passive; dms length 0.38-10.38 s; dms ends 2.85 s after stimOn2, always
+  [PASS] events    1612 events, 298 trials paired, 234 tagging codes; outcomes follow the peck by 120 ms
+  [PASS] blocks    dms 4-231 s (40), arena 238-482 s (24), nft 489-610 s (234); gating holds
+  [PASS] channels  LFP_23 dead (0.0% of typical variance, tagging z=2.9), LFP_20 noisy (14x)
+  [PASS] spikes    8 units; stimOn1 drive 5.0x (others 1.4x), drift -25% over the session
+  [PASS] psth      unit 101 after stimOn1: dms 2.0x (quiet 0.9x), arena 3.0x (quiet 1.1x), nft 2.1x (quiet 1.0x) (control = 3 pooled units)
+  [PASS] imu       recall 100% of 81 pecks, precision 100%; peck jerk is 54x the noise MAD
+  [PASS] csd       sink at 350 um (planted 325, spacing 50) at +117 ms
+computeTrialparsedTFR: band 1 raw=[8:1:40]Hz -> foi=[8..40] 11 pts | method=wavelet | dsFs=937.5 -> 160 Hz (5.9x)
+computeTrialparsedTFR: cache miss -> wrote C:\Users\ballejd4\AppData\Local\Temp\MRXFIX_examples\data\analysis\MRX\19870321\cache\lfp_tfr\TFR__stimOn2__wavelet__freq1x8-40-33p__area_all__timeRes_0_05__combine_additive__autoDs_T__autoDsFc_4__autoMet__0e232285.mat
+  [PASS] contrast  NCL cluster p=0.002 at 19 Hz (planted 20, band 15-30); STR no cluster (correct)
+  [PASS] nft       1.3 Hz: NCL z 5.0, 8.0 harmonics; STR z -0.1, 0.5; 2.6 Hz: NCL z 39.7, 8.0 harmonics; STR z -0.1, 0.0
+checkFixture: 12/12 checks passed
+========================================================================
+== FIGURES
+========================================================================
+computeTrialparsedTFR: cache hit (TFR__stimOn2__wavelet__freq1x8-40-33p__area_all__timeRes_0_05__combine_additive__autoDs_T__autoDsFc_4__autoMet__0e232285).
+wrote C:\Code\ephys-data-pipeline\tests\fixture\examples\example_contrast.png
+wrote C:\Code\ephys-data-pipeline\tests\fixture\examples\example_csd.png
+wrote C:\Code\ephys-data-pipeline\tests\fixture\examples\example_tagging.png
+wrote C:\Code\ephys-data-pipeline\tests\fixture\examples\example_psth.png
+wrote C:\Code\ephys-data-pipeline\tests\fixture\examples\example_pecks.png

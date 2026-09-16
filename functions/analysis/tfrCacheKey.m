@@ -31,6 +31,28 @@ function key = tfrCacheKey(alignName, method, freqInterest, area, extra)
     if isstruct(extra) && ~isempty(fieldnames(extra))
         key = [key '__' localExtraSignature(extra)];
     end
+
+    % Windows refuses a path over 260 characters, and MATLAB reports that
+    % refusal as "the file appears to be corrupt" - so a long key does not look
+    % like a naming problem at all, it looks like a broken cache. Keep the
+    % readable head and fold the rest into a hash: still unique, still stable
+    % across runs, and short enough to live under a deep study folder.
+    maxLen = 120;
+    if numel(key) > maxLen
+        h = localHash(key);
+        key = [key(1:maxLen - numel(h) - 2) '__' h];
+    end
+end
+
+function h = localHash(s)
+% FNV-1a, 32 bit: a few lines, no toolbox, and the same value on every
+% machine and MATLAB version - which a cache key has to be.
+    hash = uint64(2166136261);
+    for c = uint64(double(s))
+        hash = bitxor(hash, c);
+        hash = bitand(hash * uint64(16777619), uint64(4294967295));
+    end
+    h = lower(dec2hex(hash, 8));
 end
 
 function sig = localFreqSignature(freqInterest)

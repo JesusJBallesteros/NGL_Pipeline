@@ -71,6 +71,7 @@ function truth = makeFakeSession(root, subject, session, varargin)
     if isempty(seed), seed = mod(str2double(session), 2^31 - 1); end
     rng(seed, 'twister');
 
+    localAddToolboxPaths();
     cfg = fixtureConfig(a.length, a.fs);
     cfg.subject = subject; cfg.session = session; cfg.seed = seed;
 
@@ -101,6 +102,13 @@ function truth = makeFakeSession(root, subject, session, varargin)
     save(fullfile(paths.preproc, 'MotionData_raw.mat'), '-struct', 'motion', '-v7.3');
     % (-struct writes the single variable `raw`, the name GetMotionSensors uses)
 
+    % Read the block markers back out of the event record with the pipeline's
+    % own reader, and save what it found. This is a session-level product, not
+    % a per-trial one: it says when each stage ran and which trials were in it,
+    % which is what decides later which analysis may touch which trials.
+    sessionBlockTable = localSessionBlocks(EventRecord, cfg); %#ok<NASGU>
+    save(fullfile(paths.trial, 'blocks.mat'), 'sessionBlockTable', '-v7.3');
+
     [events, trialdef, condition] = localTrialTables(blocks, eventList, cfg);
     save(fullfile(paths.trial, 'events.mat'), 'events', '-v7.3');
     save(fullfile(paths.trial, 'trialdef.mat'), 'trialdef', '-v7.3');
@@ -118,6 +126,15 @@ function truth = makeFakeSession(root, subject, session, varargin)
                    'chanMapFile', cfg.chanMapFile, 'lfp', sigTruth.lfp, ...
                    'spikes', sigTruth.spikes, 'imu', sigTruth.imu, 'nTrials', ...
                    sum(arrayfun(@(b) numel(b.trials), blocks)));
+    truth.blockCodes = cfg.blockCodes;
+    truth.code = cfg.code;
+    % Which analysis each task can carry. A real study declares its own; the
+    % point is that the declaration exists and is keyed by the block label, so
+    % an analysis asks the block table instead of assuming the whole session.
+    truth.taskAnalyses = struct( ...
+        'dms',   {{'contrast', 'csd', 'spikes'}}, ...
+        'arena', {{'csd', 'spikes'}}, ...
+        'nft',   {{'nft', 'spikes'}});
     save(fullfile(paths.preproc, 'fixture_truth.mat'), '-struct', 'truth');
 
     fprintf(['makeFakeSession: %s / %s - %.0f s, %d channels, %d trials in %d ' ...
@@ -126,6 +143,16 @@ function truth = makeFakeSession(root, subject, session, varargin)
 end
 
 % ======================= configuration =======================
+function localAddToolboxPaths()
+% The generator calls pipeline functions (sessionBlocks), so the toolbox has to
+% be reachable whether or not the user has run NGL_SetAndRunMe first.
+    here = fileparts(mfilename('fullpath'));
+    fdir = fullfile(fileparts(fileparts(here)), 'functions');
+    if isempty(which('sessionBlocks')) && isfolder(fdir)
+        addpath(genpath(fdir));
+    end
+end
+
 function cfg = fixtureConfig(len, fs)
     cfg = struct();
     cfg.fs = fs;
@@ -140,8 +167,21 @@ function cfg = fixtureConfig(len, fs)
     cfg.code = struct('itiOn', 0, 'stimOn1', 1, 'stimOn2', 2, 'bhv', 3, ...
                       'end1', 4, 'rwd', 7, 'preIni', 8, 'end2', 10, ...
                       'pun', 11, 'end3', 15);
-    % Project codes for the tagging stimuli (>= 16, as the convention requires).
+    % Project codes (>= 16, as the convention requires).
+    %   block markers: read once per session, not per trial (sessionBlocks)
+    %   tagging stimuli: one per stimulus in the stream
+    cfg.code.blockOn  = 16;
+    cfg.code.blockOff = 17;
+    cfg.blockCodes = struct('dms', 18, 'arena', 19, 'nft', 20);
     cfg.nftCodes = 8001:8006;
+    cfg.clockStart = 9 * 3600;      % the session starts at 09:00:00
+    % Response windows and the buffer after them. The trial-end event sits at a
+    % FIXED offset - the longest the trial can legally run - so a fast response
+    % and a slow one give the same trial length and the same analysis window.
+    % Only the events inside move.
+    cfg.dms   = struct('respWindow', 2.0, 'outcomeDelay', 0.12, 'endBuffer', 0.5);
+    cfg.arena = struct('respWindow', 3.0, 'returnWindow', 2.5, ...
+                       'outcomeDelay', 0.12, 'endBuffer', 0.5);
     cfg.bands = struct('theta', [4 8], 'beta', [15 30]);
 end
 
@@ -160,6 +200,17 @@ function [geom, mapFile] = localGeometry()
     geom.area(geom.kcoords == 2) = {'STR'};
 end
 
+function tbl = localSessionBlocks(EventRecord, cfg)
+% The fixture's block markers, read back by the pipeline function. Codes are
+% passed explicitly because the fixture does not ship an eventDefinitions copy.
+    % t0 is passed because this record's first event is a block marker, not the
+    % start of recording: the fixture clock starts at 09:00:00 exactly.
+    tbl = sessionBlocks(EventRecord, struct(), ...
+        'onCode', cfg.code.blockOn, 'offCode', cfg.code.blockOff, ...
+        'trialCode', cfg.code.itiOn, 'labels', cfg.blockCodes, ...
+        't0', cfg.clockStart);
+end
+
 function paths = localPaths(root, subject, session)
     paths.preproc = fullfile(root, 'data', 'preprocessing', subject, session);
     paths.trial   = fullfile(root, 'data', 'trialSorted',   subject, session);
@@ -169,7 +220,33 @@ function paths = localPaths(root, subject, session)
     f = fieldnames(paths);
     for k = 1:numel(f)
         if ~isfolder(paths.(f{k})), mkdir(paths.(f{k})); end
+        % Mark the SUBJECT folder in every tree as synthetic. set_default
+        % reads this marker to keep the fixture out of 'all' and to refuse to
+        % run it alongside real animals; isSyntheticSubject is the reader.
+        localMarkSynthetic(fileparts(paths.(f{k})), subject);
     end
+end
+
+function localMarkSynthetic(subjectFolder, subject)
+% One line-per-tree marker file, written once. It is not documentation: it is
+% what set_default reads to keep this subject out of a real analysis.
+    marker = fullfile(subjectFolder, 'SYNTHETIC_DATA.txt');
+    if isfile(marker), return; end
+    fid = fopen(marker, 'w');
+    if fid < 0, return; end
+    txt = {
+        'SYNTHETIC DATA - NOT A REAL ANIMAL, NOT REAL RECORDINGS.'
+        ''
+        sprintf(['Subject %s was generated by tests/fixture/makeFakeStudy.m. ' ...
+                 'Every effect'], subject)
+        'in it was planted deliberately; see fixture_truth.mat next to each session.'
+        ''
+        'This file is a guard, not a note. set_default reads it (through'
+        'isSyntheticSubject) and will skip this subject when subjects = ''all'','
+        'and refuse outright to run it alongside real subjects. Deleting it'
+        'removes that protection.'};
+    fprintf(fid, '%s\n', txt{:});
+    fclose(fid);
 end
 
 % ======================= trial structure =======================
@@ -197,21 +274,21 @@ function blk = localBuildBlock(task, t0, cfg)
                 end
                 switch tr.outcome
                     case 'omission'
-                        tr.rt = NaN; tr.resolve = 2.0;      % the response window
+                        tr.rt = NaN;                        % never responded
                     case 'aborted'
-                        tr.rt = 0.05 + 0.1 * rand;          % pecked too early
-                        tr.resolve = tr.rt;
+                        tr.rt = -(0.05 + 0.1 * rand);       % pecked before the test
                     otherwise
                         % Floor: nobody reacts instantly. Ceiling: the window.
-                        tr.rt = min(0.18 + 0.35 * abs(randn), 2.0);
-                        tr.resolve = tr.rt;
+                        tr.rt = min(0.18 + 0.35 * abs(randn), cfg.dms.respWindow);
                 end
                 tr.tITI   = t;
                 tr.tStim1 = t + tr.iti;
                 tr.tStim2 = tr.tStim1 + tr.sample + tr.delay;
-                tr.tResp  = tr.tStim2 + tr.test + tr.resolve;
-                tr.tEnd   = tr.tResp + 0.4 + 0.3 * rand;
-                if ~strcmp(tr.outcome, 'omission'), tr.pecks = tr.tResp; end
+                if ~isnan(tr.rt), tr.tResp = tr.tStim2 + tr.test + tr.rt; end
+                % The end event is fixed at the longest this trial can run,
+                % whatever the response did.
+                tr.tEnd = tr.tStim2 + tr.test + cfg.dms.respWindow + cfg.dms.endBuffer;
+                if ~isnan(tr.tResp), tr.pecks = tr.tResp; end
                 t = tr.tEnd + 0.2;
                 trials{end+1} = tr; %#ok<AGROW>
             end
@@ -230,19 +307,23 @@ function blk = localBuildBlock(task, t0, cfg)
                 else,            tr.outcome = 'omission';
                 end
                 if strcmp(tr.outcome, 'omission')
-                    tr.rt = NaN; tr.resolve = 4.0;
+                    tr.rt = NaN;
                 else
-                    tr.rt = min(0.2 + 0.5 * abs(randn), 3.0);
-                    tr.resolve = tr.rt;
+                    tr.rt = min(0.2 + 0.5 * abs(randn), cfg.arena.respWindow);
                 end
                 tr.tITI    = t;
                 tr.tStim1  = t + tr.iti;
                 tr.tStim2  = tr.tStim1 + tr.sample + tr.travel;   % reaches screen
-                tr.tResp   = tr.tStim2 + tr.resolve;
-                tr.tReturn = tr.tResp + 1.4 + 1.0 * rand;         % walks back
-                tr.tEnd    = tr.tReturn;
-                if ~strcmp(tr.outcome, 'omission')
-                    tr.pecks = [tr.tResp, tr.tReturn - 0.2];      % screen, feeder
+                if ~isnan(tr.rt)
+                    tr.tResp   = tr.tStim2 + tr.rt;
+                    tr.tReturn = tr.tResp + 1.4 + 1.0 * rand;     % walks back
+                end
+                % Again fixed: the response window, the longest walk back, the
+                % buffer.
+                tr.tEnd = tr.tStim2 + cfg.arena.respWindow + ...
+                          cfg.arena.returnWindow + cfg.arena.endBuffer;
+                if ~isnan(tr.tResp)
+                    tr.pecks = [tr.tResp, tr.tReturn];            % screen, feeder
                 end
                 t = tr.tEnd + 0.3;
                 trials{end+1} = tr; %#ok<AGROW>
@@ -294,6 +375,12 @@ function [EventRecord, eventList] = localEventRecord(blocks, cfg)
 % The digital-input record NGL01 would extract: one row per code transition.
     times = []; codes = [];
     for b = 1:numel(blocks)
+        % Block markers: an opening code, then the code saying which block this
+        % is. They belong to the session, not to any trial, and sessionBlocks
+        % is what reads them back.
+        times(end+1) = blocks(b).tStart - 0.5;  codes(end+1) = cfg.code.blockOn; %#ok<AGROW>
+        times(end+1) = blocks(b).tStart - 0.49; %#ok<AGROW>
+        codes(end+1) = cfg.blockCodes.(blocks(b).task);                          %#ok<AGROW>
         for k = 1:numel(blocks(b).trials)
             tr = blocks(b).trials(k);
             times(end+1) = tr.tITI - 0.03;   codes(end+1) = cfg.code.preIni; %#ok<AGROW>
@@ -305,26 +392,36 @@ function [EventRecord, eventList] = localEventRecord(blocks, cfg)
             if ~isnan(tr.tStim2)
                 times(end+1) = tr.tStim2;    codes(end+1) = cfg.code.stimOn2;%#ok<AGROW>
             end
-            if ~isnan(tr.tResp) && ~strcmp(tr.outcome, 'omission')
-                times(end+1) = tr.tResp;     codes(end+1) = cfg.code.bhv;    %#ok<AGROW>
+            % The peck, then what it earned. Reward and punishment follow the
+            % response by a fixed short delay: they are its consequence, so
+            % they cannot precede it or float free of it.
+            if ~isnan(tr.tResp)
+                times(end+1) = tr.tResp; codes(end+1) = cfg.code.bhv; %#ok<AGROW>
             end
-            % Outcome marker, then the trial-end code. EVERY trial ends with
-            % one of end1/end2/end3: trialdefGen pairs itiOn with those to
-            % count trials, so a trial without an end code is not a trial.
             switch tr.outcome
                 case 'correct'
-                    times(end+1) = tr.tEnd - 0.2; codes(end+1) = cfg.code.rwd;  %#ok<AGROW>
+                    times(end+1) = tr.tResp + localOutcomeDelay(tr, cfg); %#ok<AGROW>
+                    codes(end+1) = cfg.code.rwd;                          %#ok<AGROW>
                     endCode = cfg.code.end1;
                 case 'incorrect'
-                    times(end+1) = tr.tEnd - 0.2; codes(end+1) = cfg.code.pun;  %#ok<AGROW>
+                    times(end+1) = tr.tResp + localOutcomeDelay(tr, cfg); %#ok<AGROW>
+                    codes(end+1) = cfg.code.pun;                          %#ok<AGROW>
                     endCode = cfg.code.end2;
                 case 'omission',  endCode = cfg.code.end2;   % no response given
                 case 'aborted',   endCode = cfg.code.end3;   % broken off early
                 otherwise,        endCode = cfg.code.end1;   % passive stream
             end
+            % EVERY trial ends with one of end1/end2/end3, at the trial's fixed
+            % maximum length: trialdefGen pairs itiOn with those to count
+            % trials, so a trial without an end code is not a trial.
             times(end+1) = tr.tEnd; codes(end+1) = endCode; %#ok<AGROW>
         end
     end
+    % Each block closes just after its last trial ended.
+    for b = 1:numel(blocks)
+        times(end+1) = blocks(b).tEnd + 0.2; codes(end+1) = cfg.code.blockOff; %#ok<AGROW>
+    end
+
     [times, order] = sort(times(:));
     codes = codes(order);
     codes = codes(:);
@@ -333,12 +430,21 @@ function [EventRecord, eventList] = localEventRecord(blocks, cfg)
     EventRecord.EventType          = codes;
     EventRecord.EventNumber        = (1:numel(codes))';
     EventRecord.TimeStamp          = round(times * 30000);      % raw samples
-    EventRecord.TimeMsFromMidnight = times * 1000 + 9 * 3600 * 1000;  % 09:00 start
-    EventRecord.TimeSecFromMidnight= times + 9 * 3600;
+    EventRecord.TimeMsFromMidnight = (times + cfg.clockStart) * 1000;
+    EventRecord.TimeSecFromMidnight= times + cfg.clockStart;
     EventRecord.TimeSource         = nan(size(codes));
     EventRecord.Details            = nan(size(codes));
     EventRecord.TimeBreak          = {[], []};
     eventList = struct('time', times, 'code', codes);
+end
+
+function d = localOutcomeDelay(tr, cfg)
+% How long after the peck its consequence arrives. Per task, because the
+% hardware differs: a perched bird gets the feeder at its beak, one in the
+% arena has to be signalled where to go.
+    if strcmp(tr.task, 'arena'), d = cfg.arena.outcomeDelay;
+    else,                        d = cfg.dms.outcomeDelay;
+    end
 end
 
 function [events, trialdef, condition] = localTrialTables(blocks, eventList, ~)

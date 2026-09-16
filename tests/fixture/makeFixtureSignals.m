@@ -46,11 +46,20 @@ function [lfp, truth] = localBuildLFP(blocks, geom, duration, cfg)
     truth.notes = {};
 
     % A dead channel and a noisy one: real recordings have them, and code that
-    % cannot cope with them should fail here rather than on real data.
-    truth.deadChannel  = geom.label{7};
-    truth.noisyChannel = geom.label{20};
-    lfp(7, :) = 0.5 * randn(1, n);
-    lfp(20, :) = lfp(20, :) + 120 * randn(1, n);
+    % cannot cope with them should fail here rather than on real data. They are
+    % applied at the END of this function, after every planted effect - a dead
+    % channel that still carries the response is not dead, and because its
+    % noise floor is tiny it would look like the BEST channel in the probe.
+    % Both live on shank 2, away from the shank carrying the planted current
+    % sink: a dead contact punches a hole in the depth profile, and a second
+    % spatial derivative across that hole invents a sink where the hole is.
+    % Interpolating a dead contact before a CSD is a real requirement, and one
+    % the pipeline does not do yet - so the fixture keeps the two apart and
+    % says so, rather than planting a sink that cannot be recovered.
+    deadChan  = 23;
+    noisyChan = 20;
+    truth.deadChannel  = geom.label{deadChan};
+    truth.noisyChannel = geom.label{noisyChan};
 
     % Laminar evoked response with a KNOWN current source density: a sink at
     % 325 um with flanking sources. The potential is its double spatial
@@ -84,7 +93,13 @@ function [lfp, truth] = localBuildLFP(blocks, geom, duration, cfg)
                     if strcmp(tr.outcome, 'correct')
                         % Beta only on correct trials and only in NCL: the
                         % contrast must find it there and nowhere else.
-                        lfp = localAddBurst(lfp, t, fs, tr.tStim2 + 0.35, 0.22, ...
+                        % The envelope reaches 3 half-widths either side, so a
+                        % half-width of 0.11 s keeps the whole burst after
+                        % stimOn2 and out of the [-0.5 0] baseline. A burst
+                        % that leaks into its own baseline makes the baseline
+                        % period read as a decrease - true of the analysis, but
+                        % not the thing this fixture is here to plant.
+                        lfp = localAddBurst(lfp, t, fs, tr.tStim2 + 0.35, 0.11, ...
                                             20, 55, isNCL);
                     end
                 end
@@ -115,6 +130,13 @@ function [lfp, truth] = localBuildLFP(blocks, geom, duration, cfg)
                     '%s Hz in NCL; STR not driven'], mat2str(rates));
         end
     end
+    % Now the bad channels, over the top of everything that was planted.
+    lfp(deadChan, :)  = 0.5 * randn(1, n);              % amplifier says nothing
+    lfp(noisyChan, :) = lfp(noisyChan, :) + 120 * randn(1, n);
+    truth.notes{end+1} = sprintf(['%s is dead (no signal at all) and %s is ' ...
+        'noisy; both keep whatever the analysis does to them honest'], ...
+        truth.deadChannel, truth.noisyChannel);
+
     lfp = single(lfp);
 end
 

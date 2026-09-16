@@ -61,18 +61,31 @@ nclus = length(spike.label);
 for c = 1:nclus
     %% for each requested alignment
     for a = 1:size(opt.alignto,2)
-        ntrial = size(trialdef{2,a},1);
+        % Match the alignment by NAME, not by position. trialdef carries its
+        % own names in row 1, and a caller that asks for a subset of them (or
+        % for them in another order) would otherwise get another alignment's
+        % windows returned under the name it asked for - silently, and looking
+        % entirely plausible. Position is kept only as the fallback for a
+        % trialdef whose row 1 does not name this alignment.
+        col = find(strcmp(trialdef(1,:), opt.alignto{1,a}), 1);
+        if isempty(col)
+            assert(a <= size(trialdef,2), 'NGL:sort2trials:noAlignment', ...
+                ['alignment ''%s'' is not in trialdef, and there is no ', ...
+                 'column %d to fall back to.'], opt.alignto{1,a}, a);
+            col = a;
+        end
+        ntrial = size(trialdef{2,col},1);
         neurons.(opt.alignto{1,a}){c,1} = cell(ntrial,1);
         % for each trial
         for i=1:ntrial
             st = spike.timestamp{1,c}*1000; % convert spike times to msec
 
             % index for spiketimes ...
-            idx = st >= trialdef{2,a}(i,1) & ... % btw trial start
-                  st <  trialdef{2,a}(i,2);      % and trial end
+            idx = st >= trialdef{2,col}(i,1) & ... % btw trial start
+                  st <  trialdef{2,col}(i,2);      % and trial end
 
             % relativize times to the given alignment point
-            neurons.(opt.alignto{1,a}){c,1}{i,1} = st(idx) - trialdef{2,a}(i,3);
+            neurons.(opt.alignto{1,a}){c,1}{i,1} = st(idx) - trialdef{2,col}(i,3);
         end
     end
     % Forward per-cluster metadata onto neurons, so downstream

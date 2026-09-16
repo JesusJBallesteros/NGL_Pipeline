@@ -146,7 +146,8 @@ end
 cd(searchRoot)
 available = dir('???*');
 
-if strcmp(input.subjects, 'all')
+askedForAll = ischar(input.subjects) && strcmp(input.subjects, 'all');
+if askedForAll
     input.subjects = available;
 elseif iscell(input.subjects)
     idx = ismember({available.name}, input.subjects);
@@ -156,6 +157,12 @@ else
         ['input.subjects was neither ''all'' nor a cell array. ', ...
          'Assuming it was set from a previous NGL01 run. Re-assign to change the subset.']);
 end
+
+% Synthetic (fixture) subjects look like real ones to every later stage, so
+% they are separated here, at the single point where every stage resolves its
+% subject list. 'all' never picks them up; naming one explicitly runs it, but
+% never alongside a real animal. See isSyntheticSubject.
+input = guardSyntheticSubjects(input, searchRoot, askedForAll, available);
 
 input.nsubjects = numel(input.subjects);
 
