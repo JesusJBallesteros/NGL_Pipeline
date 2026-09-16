@@ -59,6 +59,11 @@ function [stat, info] = lfpClusterStats(A, B, opt, varargin)
 %     channels; each channel is clustered in time-frequency alone.
 %   * numrand 1000 resolves p down to 0.001. Below ~500 the p-values are too
 %     grainy to interpret near alpha.
+%   * FieldTrip's "Not all replications are used for the computation of the
+%     statistic" is expected on wavelet TFRs: the edge cone is NaN, so the
+%     bins there have fewer trials than the design lists. FieldTrip drops
+%     them per bin (nanmean/nanvar) and the test stays valid. Restricting
+%     'latency' to the cone-free window silences it.
 %
 % Last modified 16.09.2026 (Jesus) - new helper (LFP analysis Phase 0).
 

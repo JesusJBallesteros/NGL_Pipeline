@@ -64,6 +64,33 @@ Cross-area falls out for free: index `sfc.coherence` on `sfc.chanArea` dimension
 - `ft_freqstatistics` with `cfg.statistic = 'ft_statfun_depsamplesregrT'`, cluster-permutation
 - output `LFP_behReg_<covariate>.mat` per covariate
 
+### (g) Event-centered power contrasts — `computeTFRcontrast` (Phase 1)
+
+Gated on `opt.lfp.session.contrast`. For every alignment × area × entry in
+`opt.lfp.contrast.pairs`:
+
+1. `parseTrialContrast` turns `'correct vs error'` into two trial masks.
+   Each side is a condition field (non-zero = in), `~field` for its
+   complement, or `all`. A struct with `.A` / `.B` masks covers contrasts a
+   condition field cannot express. A length mismatch against the TFR's trials
+   raises — artifact rejection after `condition.mat` was written is the usual
+   cause, and silently comparing the wrong trials is worse than stopping.
+   Overlapping sides warn: the independent-samples test assumes they don't.
+2. `computeTFRcontrast` normalises each side (maps) and tests the contrast on
+   **raw** power (statistics), via the Phase 0 helpers. Averaging is trials
+   first, then channels.
+3. `plotTFRcontrast` draws condition A, condition B (shared colour scale) and
+   their difference with the cluster outlined, one row per band.
+
+Output: `<SavFileName>_LFP_TFRcontrast_<area>_<align>_<A>-vs-<B>.{mat,png}`.
+The TFR itself comes from `computeTrialparsedTFR`, whose cache means turning
+this on alongside (a) costs one TFR, not two.
+
+Bands keep separate colour scales here, unlike the quick-look plot: power
+falls steeply with frequency, and one scale across a 4 Hz and a 60 Hz band
+flattens the faster one. The question here is each band's shape, not which
+band is larger.
+
 ### (f) Spectrolaminar mapping — `spectrolaminarFLIP`
 
 Thin wrapper around `vFLIP_NGL`. Identifies superficial / deep channels via low- vs high-freq power crossover along the shank (Mendoza-Halliday et al. 2024). Output: `<SavFileName>_LFP_FLIP.mat`.
@@ -107,6 +134,11 @@ carries counts, p-values and `pFloor = 1/numrand`, the smallest p obtainable.
 Set `opt.lfp.stats.latency` to the post-event window when that is the question;
 leaving the baseline in weakens a contrast and makes a `baseline` design partly
 circular.
+
+FieldTrip's *"Not all replications are used for the computation of the
+statistic"* is expected on wavelet TFRs — the edge cone is NaN, so those bins
+hold fewer trials than the design lists. FieldTrip drops them per bin and the
+test stays valid; a `latency` inside the cone-free window silences it.
 
 ### `lfpStyle` / `plotTFRpanel` — one panel, reused
 
@@ -163,6 +195,12 @@ Flat legacy names still supported:
 - `opt.lfp.flip.laminaraxis` (default 0:0.05:1.55)
 - `opt.lfp.flip.freqaxis` (default 1:150)
 - `opt.lfp.flip.setfreqbool` (0 = vFLIP, 1 = default fixed FLIP bands)
+
+### Contrasts (Phase 1)
+- `opt.lfp.session.contrast` — gate for NGL07 (g)
+- `opt.lfp.contrast.pairs` — e.g. `{'correct vs error', 'stim2 vs ~stim2'}`
+- `opt.lfp.contrast.areas` — `{}` = every area in `chanArea`
+- `opt.lfp.contrast.plot` — write the three-panel figure (default true)
 
 ### Normalisation (Phase 0)
 - `opt.lfp.norm.method` (`'db'` | `'relchange'` | `'percent'` | `'z'` | `'absolute'` | `'none'`; default `'db'`)

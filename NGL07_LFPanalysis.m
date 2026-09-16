@@ -12,6 +12,8 @@
 %     (e) LFP x behaviour regression (STUB; needs NGL06 sidecar)
 %                                                         opt.lfp.session.behReg
 %     * (f) Spectrolaminar (vFLIP) mapping                  opt.lfp.session.flip
+%       (g) Event-centered power contrasts, cluster-corrected
+%                                                          opt.lfp.session.contrast
 %
 %   Each analysis is opt-gated so users pick what they need per project.
 %   Multi-area handling is via FT_data.chanArea + opt.lfp.tfrAreaFilter -
@@ -241,6 +243,26 @@ for x = 1:input.nsubjects
             end
         end
 
+        %% (g) Event-centered power: condition contrasts, cluster-corrected.
+        % Reuses the TFR from (a) through computeTrialparsedTFR's own cache,
+        % so turning this on without (a) costs one TFR, not two.
+        if localGate(opt, {'lfp','session','contrast'}, false)
+            pairs = localGate(opt, {'lfp','contrast','pairs'}, {});
+            if isempty(pairs)
+                warning('NGL07:noContrasts', ...
+                    ['[%s/%s] opt.lfp.session.contrast is on but ', ...
+                     'opt.lfp.contrast.pairs is empty; nothing to compare.'], ...
+                    subject, session);
+            elseif isempty(condition)
+                warning('NGL07:noCondition', ...
+                    ['[%s/%s] condition.mat not found in %s; contrasts need it ', ...
+                     'to know which trials are which.'], subject, session, opt.trialSorted);
+            else
+                localRunContrasts(input, opt, condition, areaMapForBackfill, ...
+                                  subject, session);
+            end
+        end
+
         %% (f) vFLIP spectrolaminar mapping.
         if localGate(opt, {'lfp','session','flip'}, false)
             try
@@ -269,6 +291,107 @@ function v = localGate(opt, path, dflt)
         end
     end
     v = cursor;
+end
+
+function localRunContrasts(input, opt, condition, areaMapForBackfill, subject, session)
+% Every (alignment x area x contrast) for this session, each written as one
+% .mat and one figure. Failures are per-combination: a contrast naming a
+% missing condition field must not cost the others.
+    aligns = opt.alignto;
+    subset = localGate(opt, {'lfp','alignSubset'}, {});
+    if ~isempty(subset), aligns = aligns(ismember(aligns, subset)); end
+    pairs  = localGate(opt, {'lfp','contrast','pairs'}, {});
+    if ischar(pairs), pairs = {pairs}; end
+    wantAreas = localGate(opt, {'lfp','contrast','areas'}, {});
+    if ischar(wantAreas) && ~isempty(wantAreas), wantAreas = {wantAreas}; end
+    doPlot = localGate(opt, {'lfp','contrast','plot'}, true);
+
+    for k = 1:numel(aligns)
+        alignName = aligns{k};
+        ftAlignFile = fullfile(opt.trialSorted, [opt.SavFileName '_' alignName '.mat']);
+        if ~isfile(ftAlignFile)
+            warning('NGL07:contrastNoFT', ...
+                '[%s/%s] no trial-parsed FT for ''%s''; skipping its contrasts.', ...
+                subject, session, alignName);
+            continue
+        end
+        S = load(ftAlignFile, '-mat', 'FT_data');
+        FTal = S.FT_data;
+        if isfield(FTal, 'FT_data'), FTal = FTal.FT_data; end
+        FTal = ensureChanArea(FTal, areaMapForBackfill);
+
+        % chanArea lives on the FT data; ft_freqanalysis does not carry it
+        % through, so the label lists are taken here and used to select
+        % channels in the TFR.
+        areas = localAreaMap(FTal, wantAreas);
+        try
+            TFR = computeTrialparsedTFR(FTal, condition, struct(), opt, alignName);
+        catch ME
+            warning('NGL07:contrastTFRfail', ...
+                '[%s/%s] TFR for ''%s'' failed: %s', subject, session, alignName, ME.message);
+            continue
+        end
+
+        for p = 1:numel(pairs)
+            for aI = 1:numel(areas)
+                areaName = areas(aI).name;
+                try
+                    res = cell(numel(TFR), 1);
+                    for b = 1:numel(TFR)
+                        band = TFR{b};
+                        if ~isempty(areaName)
+                            band = ft_selectdata(struct('channel', {areas(aI).labels}), band);
+                        end
+                        spec = parseTrialContrast(pairs{p}, condition, size(band.powspctrm, 1));
+                        res{b} = computeTFRcontrast(band, spec, opt, ...
+                                    'area', areaName, 'align', alignName);
+                    end
+                    payload = struct('contrast', {res});
+                    outFile = saveLFPresult(payload, 'TFRcontrast', input, opt, ...
+                        'area', areaName, 'align', alignName, ...
+                        'tags', {res{1}.spec.label}, 'sourceFT', ftAlignFile, ...
+                        'norm', res{1}.norm, 'stats', res{1}.stats);
+                    fprintf('NGL07: wrote %s (%s, %d/%d trials, %d cluster(s))\n', ...
+                        outFile, res{1}.spec.request, res{1}.nA, res{1}.nB, ...
+                        res{1}.stats.nPos + res{1}.stats.nNeg);
+                    if doPlot
+                        [fig, figFile] = plotTFRcontrast(res, opt);
+                        close(fig);
+                        fprintf('NGL07: wrote %s\n', figFile);
+                    end
+                catch ME
+                    warning('NGL07:contrastFail', ...
+                        '[%s/%s] contrast ''%s'' (%s, %s) failed: %s', ...
+                        subject, session, pairs{p}, areaName, alignName, ME.message);
+                end
+            end
+        end
+        clear FTal S TFR
+    end
+end
+
+function areas = localAreaMap(FTal, wanted)
+% One entry per area to analyse, with the channel labels it owns. Empty name
+% = every channel together, which is also the fallback when the data carry no
+% area tagging.
+    areas = struct('name', {}, 'labels', {});
+    if ~isfield(FTal, 'chanArea') || isempty(FTal.chanArea)
+        areas(1) = struct('name', '', 'labels', {FTal.label(:)'});
+        return
+    end
+    tags = string(FTal.chanArea(:));
+    names = unique(tags, 'stable');
+    if ~isempty(wanted)
+        names = names(ismember(names, string(wanted)));
+    end
+    for k = 1:numel(names)
+        sel = tags == names(k);
+        areas(end+1) = struct('name', char(names(k)), ...
+                              'labels', {FTal.label(sel)'}); %#ok<AGROW>
+    end
+    if isempty(areas)
+        areas(1) = struct('name', '', 'labels', {FTal.label(:)'});
+    end
 end
 
 function out = localLoadIfExists(fpath, varName)
