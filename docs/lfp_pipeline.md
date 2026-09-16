@@ -68,6 +68,66 @@ Cross-area falls out for free: index `sfc.coherence` on `sfc.chanArea` dimension
 
 Thin wrapper around `vFLIP_NGL`. Identifies superficial / deep channels via low- vs high-freq power crossover along the shank (Mendoza-Halliday et al. 2024). Output: `<SavFileName>_LFP_FLIP.mat`.
 
+## Shared foundation (Phase 0, Sep 2026)
+
+Five helpers every power analysis is built on. They exist so that a power map,
+a contrast, a comodulogram and a CSD from the same session are normalised,
+tested, drawn and named the same way — and so each of those decisions travels
+with the file that resulted from it.
+
+### `normalizeTFR` — power relative to what
+
+`[freq, info] = normalizeTFR(freq, opt)`. Methods: `db` (default), `relchange`,
+`percent`, `z`, `absolute`, `none`. Window from `opt.lfp.norm.baseline`,
+falling back to `opt.lfp.plot.baseline`.
+
+Unlike `ft_freqbaseline` it keeps trials (statistics need them), adds the
+z-score against baseline *variability*, and refuses input that would silently
+produce `Inf`: a zero/negative baseline yields NaN with one warning naming the
+channels — normalising an already-normalised TFR is the usual cause. Normalise
+first, average second: with dB the two orders differ.
+
+`info` (method, window, samples, single-trial, units) goes into provenance.
+
+### `lfpClusterStats` — one corrected test
+
+`[stat, info] = lfpClusterStats(A, B, opt)`, wrapping `ft_freqstatistics`
+cluster permutation (Maris & Oostenveld 2007). Designs:
+
+- `trials` (default) — two conditions' trials, independent samples.
+- `paired` — same units in two conditions (sessions/subjects at group level).
+- `baseline` — a condition against its own baseline, dependent samples. Run it
+  on **raw** power: normalising first makes the comparison circular.
+
+What it returns is a cluster-level claim — where a cluster is significant the
+data differ *somewhere in it*; the bins inside are not individually
+significant and the cluster's edges are not a confidence interval. `info`
+carries counts, p-values and `pFloor = 1/numrand`, the smallest p obtainable.
+
+Set `opt.lfp.stats.latency` to the post-event window when that is the question;
+leaving the baseline in weakens a contrast and makes a `baseline` design partly
+circular.
+
+### `lfpStyle` / `plotTFRpanel` — one panel, reused
+
+`lfpStyle(opt)` resolves colour map, limits, fonts and size once;
+`lfpStyle(opt, 'diverging')` gives a blue-white-red map with limits symmetric
+about zero, for signed quantities (contrasts, CSD) where zero must be legible.
+
+`plotTFRpanel(ax, t, f, M, st, ...)` draws one time × frequency panel: robust
+colour limits (2nd–98th percentile, so one artifact bin cannot flatten the
+map), the event line, and significance as an **outline** rather than a blank —
+a non-significant trend stays visible instead of being hidden by the test. NaN
+bins (a wavelet's edge cone) are transparent, so they cannot be read as a
+strong effect.
+
+### `lfpResultName` / `saveLFPresult` / `saveLFPfigure` — where things land
+
+`<SavFileName>_LFP_<kind>[_<area>][_<align>][_<tags>]` with `.mat` and `.png`
+differing only in extension. `saveLFPresult` attaches `provenance` via
+`buildLFPProvenance`, including the `normalize` and `statistics` info structs,
+and saves `-v7.3` so a TFR with trials is not truncated.
+
 ## `opt.lfp.*` reference (Pass 2 + Pass 3)
 
 ### NGL02_LFP quick-look (Pass 1)
@@ -103,6 +163,22 @@ Flat legacy names still supported:
 - `opt.lfp.flip.laminaraxis` (default 0:0.05:1.55)
 - `opt.lfp.flip.freqaxis` (default 1:150)
 - `opt.lfp.flip.setfreqbool` (0 = vFLIP, 1 = default fixed FLIP bands)
+
+### Normalisation (Phase 0)
+- `opt.lfp.norm.method` (`'db'` | `'relchange'` | `'percent'` | `'z'` | `'absolute'` | `'none'`; default `'db'`)
+- `opt.lfp.norm.baseline` (default `[-0.5 0]`)
+- `opt.lfp.norm.singleTrial` (default true)
+
+### Statistics (Phase 0)
+- `opt.lfp.stats.design` (`'trials'` | `'paired'` | `'baseline'`; default `'trials'`)
+- `opt.lfp.stats.numrand` (default 1000), `.alpha` (0.05), `.clusteralpha` (0.05)
+- `opt.lfp.stats.clusterstatistic` (`'maxsum'`), `.tail` (0 = two-sided)
+- `opt.lfp.stats.avgoverchan` (default true), `.minnbchan` (0)
+- `opt.lfp.stats.latency` / `.frequency` (`'all'` or `[lo hi]`)
+
+### Figures (Phase 0)
+- `opt.lfp.plot.divergingColormap` (`''` = built-in blue-white-red)
+- `opt.lfp.plot.figSize` (`[1100 700]`), `.fontSize` (10)
 
 ### Behaviour regression (stub)
 - `opt.lfp.behReg.covariates` (default `{'x','y','head_dir'}`)
