@@ -91,6 +91,50 @@ falls steeply with frequency, and one scale across a 4 Hz and a 60 Hz band
 flattens the faster one. The question here is each band's shape, not which
 band is larger.
 
+### (h) Current source density — `computeCSD` (Phase 2)
+
+Gated on `opt.lfp.session.csd`. Per alignment × shank, from the trial-parsed
+data:
+
+    CSD = -sigma * d²(phi)/dz²
+
+**Sign convention: a sink is negative, a source positive.** A sink is current
+entering cells — the extracellular negativity under an active input — and the
+figure draws it blue.
+
+`lfpChannelGeometry` reads the channel map (`xcoords`, `ycoords` in µm,
+`kcoords` per shank) and returns one entry per shank with contacts in depth
+order. Channels are matched to map rows **by position** — the same assumption
+Kilosort makes reading the `.bin` — and the function refuses when the counts
+differ rather than pairing the first N and hoping (a reduced map from
+`reduceChanMap` is the usual cause; point `'chanMap'` at the reduced one).
+
+Things that matter:
+
+- **Uniform spacing is required and enforced.** The second difference weights
+  unequal gaps wrongly; an irregular array needs an inverse method (iCSD),
+  which is not implemented.
+- **Smoothing across contacts** (`opt.lfp.csd.smoothPasses`, default 1) is the
+  main knob. Differentiating amplifies noise, so some smoothing is standard —
+  too little gives a speckled map, too much merges neighbouring sinks.
+- **Vaknin's extension** (default on) duplicates the end contacts so CSD is
+  defined at every depth. The two edge depths then rest on the assumption that
+  the potential is flat beyond the probe, not on a measurement; the figure
+  labels them.
+- The CSD is computed on the **trial average**. `'keeptrials'` returns
+  per-trial CSD, which is far noisier and mainly useful as input to a
+  statistic.
+- Colour limits use wide percentiles (0.2–99.8) here, unlike the TFR panels:
+  an evoked CSD occupies tens of milliseconds of the epoch, and the default
+  robust limits would scale to the baseline and saturate the response.
+
+Verified by round trip on the real ATLAS 2-shank map (16 contacts, 50 µm): a
+known CSD integrated twice into a potential, then recovered — sink returned
+within half a contact spacing of where it was planted, at the right latency,
+with the other shank flat.
+
+Output: `<SavFileName>_LFP_CSD_<area>_<align>_shank<N>.{mat,png}`.
+
 ### (f) Spectrolaminar mapping — `spectrolaminarFLIP`
 
 Thin wrapper around `vFLIP_NGL`. Identifies superficial / deep channels via low- vs high-freq power crossover along the shank (Mendoza-Halliday et al. 2024). Output: `<SavFileName>_LFP_FLIP.mat`.
@@ -196,6 +240,12 @@ Flat legacy names still supported:
 - `opt.lfp.flip.freqaxis` (default 1:150)
 - `opt.lfp.flip.setfreqbool` (0 = vFLIP, 1 = default fixed FLIP bands)
 
+### CSD (Phase 2)
+- `opt.lfp.session.csd` — gate for NGL07 (h)
+- `opt.lfp.csd.conductivity` (0.3 S/m), `.smoothPasses` (1), `.vaknin` (true)
+- `opt.lfp.csd.trials` — condition field restricting the trials averaged; `''` = all
+- `opt.lfp.csd.plot` (true)
+
 ### Contrasts (Phase 1)
 - `opt.lfp.session.contrast` — gate for NGL07 (g)
 - `opt.lfp.contrast.pairs` — e.g. `{'correct vs error', 'stim2 vs ~stim2'}`
@@ -253,6 +303,41 @@ frequency drifts and cancels.
 | Response | `taggingResponse` | SNR/z per bin; harmonics of the base, minus any colliding with mains or with an excluded frequency; summed baseline-corrected amplitude over significant harmonics. |
 | Phase | `computeITPC` | ITPC, Rayleigh z and p. Biased upward at small n — the function warns under 10 epochs. |
 | Figure | `plotTaggingSpectrum` | z spectrum with harmonics marked, response per harmonic, ITPC per harmonic. |
+
+### Event convention — to confirm against real data (Sep 2026)
+
+Stated by the owner, **not yet verified against a recording**; treat as the
+working assumption until a real session is analysed:
+
+- Every stimulus carries a **`stimOn`** event followed by its own code. Codes
+  are arbitrary but continuous per stimulus (A–E ≈ 8001–8006), defined in
+  `analysisCode/eventDefinitions.m` (copied from `configfiles/`; reserved
+  codes 0–15 are hardware-locked, project codes start at 16).
+- Stimuli are paired into fixed **"syllables"** (AB, CD, FE): the second
+  member always follows the first, while what precedes the first varies.
+- That asymmetry is the experiment: the **transition probability** creates
+  structure at half the component rate, and finding neural energy at that
+  frequency is the point of the analysis.
+
+What this means for the analysis, once confirmed:
+
+- Block windows can be derived from the first and last `stimOn` of each block
+  rather than supplied by hand, which is what `opt.nft.blocks` currently
+  wants. A helper turning event codes into blocks is the obvious next piece.
+- Two frequencies per block, not one: the **component rate** (2.6 Hz) and the
+  **syllable rate** (1.3 Hz = component/2, the pairing). Run the block twice,
+  with `.base` set to each. The component peak says the stimuli drove a
+  response at all; the syllable peak says the transition structure was picked
+  up. They are different claims.
+- The **random-sequence blocks are the control**: with no fixed pairing there
+  should be a component peak and *no* syllable peak. A syllable-rate peak in a
+  random block means something other than learning produced it — a periodicity
+  in the stimulus set, or a block-window boundary artifact.
+- Beware the harmonic collision: the syllable rate's 2nd harmonic *is* the
+  component rate. `taggingResponse` already drops harmonics that land on an
+  excluded frequency — pass the component rate in `'exclude'` when testing the
+  syllable rate, or the component response will be read as evidence of
+  structure.
 
 ### Block windows are yours to supply
 

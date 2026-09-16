@@ -14,6 +14,8 @@
 %     * (f) Spectrolaminar (vFLIP) mapping                  opt.lfp.session.flip
 %       (g) Event-centered power contrasts, cluster-corrected
 %                                                          opt.lfp.session.contrast
+%       (h) Current source density per shank (needs a channel map)
+%                                                          opt.lfp.session.csd
 %
 %   Each analysis is opt-gated so users pick what they need per project.
 %   Multi-area handling is via FT_data.chanArea + opt.lfp.tfrAreaFilter -
@@ -263,6 +265,18 @@ for x = 1:input.nsubjects
             end
         end
 
+        %% (h) Current source density down each shank.
+        if localGate(opt, {'lfp','session','csd'}, false)
+            try
+                shanks = lfpChannelGeometry(FT_data, input, opt);
+                localRunCSD(input, opt, condition, areaMapForBackfill, shanks, ...
+                            subject, session);
+            catch ME
+                warning('NGL07:csdFail', '[%s/%s] CSD failed: %s', ...
+                        subject, session, ME.message);
+            end
+        end
+
         %% (f) vFLIP spectrolaminar mapping.
         if localGate(opt, {'lfp','session','flip'}, false)
             try
@@ -367,6 +381,66 @@ function localRunContrasts(input, opt, condition, areaMapForBackfill, subject, s
             end
         end
         clear FTal S TFR
+    end
+end
+
+function localRunCSD(input, opt, condition, areaMapForBackfill, shanks, subject, session)
+% One CSD per alignment x shank, from the trial-parsed data of that alignment.
+    aligns = opt.alignto;
+    subset = localGate(opt, {'lfp','alignSubset'}, {});
+    if ~isempty(subset), aligns = aligns(ismember(aligns, subset)); end
+    trialField = localGate(opt, {'lfp','csd','trials'}, '');
+    doPlot = localGate(opt, {'lfp','csd','plot'}, true);
+
+    for k = 1:numel(aligns)
+        alignName = aligns{k};
+        ftAlignFile = fullfile(opt.trialSorted, [opt.SavFileName '_' alignName '.mat']);
+        if ~isfile(ftAlignFile)
+            warning('NGL07:csdNoFT', ...
+                '[%s/%s] no trial-parsed FT for ''%s''; skipping its CSD.', ...
+                subject, session, alignName);
+            continue
+        end
+        S = load(ftAlignFile, '-mat', 'FT_data');
+        FTal = S.FT_data;
+        if isfield(FTal, 'FT_data'), FTal = FTal.FT_data; end
+        FTal = ensureChanArea(FTal, areaMapForBackfill);
+
+        % One condition field may restrict the trials averaged (e.g. 'correct');
+        % '' averages every trial.
+        mask = [];
+        if ~isempty(trialField)
+            if isstruct(condition) && isfield(condition, trialField)
+                v = condition.(trialField);
+                mask = v(:) ~= 0 & ~isnan(v(:));
+            else
+                warning('NGL07:csdNoField', ...
+                    ['[%s/%s] condition.%s not found; averaging every trial for ', ...
+                     'the CSD.'], subject, session, trialField);
+            end
+        end
+
+        for s = 1:numel(shanks)
+            try
+                csd = computeCSD(FTal, shanks(s), opt, 'trials', mask);
+                outFile = saveLFPresult(struct('csd', csd), 'CSD', input, opt, ...
+                    'area', csd.info.area, 'align', alignName, ...
+                    'tags', {sprintf('shank%g', csd.info.shank)}, ...
+                    'sourceFT', ftAlignFile, 'extra', struct('csd', csd.info));
+                fprintf('NGL07: wrote %s (%d contacts, %g um, %d trials)\n', ...
+                        outFile, numel(csd.depth), csd.info.spacing_um, csd.info.nTrials);
+                if doPlot
+                    [fig, figFile] = plotCSD(csd, opt, 'align', alignName);
+                    close(fig);
+                    fprintf('NGL07: wrote %s\n', figFile);
+                end
+            catch ME
+                warning('NGL07:csdShankFail', ...
+                    '[%s/%s] CSD (%s, shank %g) failed: %s', ...
+                    subject, session, alignName, shanks(s).shank, ME.message);
+            end
+        end
+        clear FTal S
     end
 end
 

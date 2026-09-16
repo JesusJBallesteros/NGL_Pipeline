@@ -27,6 +27,8 @@ function h = plotTFRpanel(ax, t, f, M, st, varargin)
 %     'event'     time(s) of vertical marker lines (default 0; [] for none)
 %     'clim'      explicit [lo hi], overriding the style's rule
 %     'logf'      true = logarithmic frequency axis (default false)
+%     'ydir'      'normal' (default) or 'reverse', for a depth axis that
+%                 should run downwards
 %     'colorbar'  true = attach one to this panel (default false; a shared
 %                 colorbar per figure is usually what you want)
 %
@@ -35,8 +37,11 @@ function h = plotTFRpanel(ax, t, f, M, st, varargin)
 %
 % NOTES:
 %   * Colour limits: 'clim' if given, else st.zlim, else the data's robust
-%     range (2nd to 98th percentile) so a single artifact bin cannot flatten
-%     the whole map. Diverging styles force the range symmetric about zero.
+%     range ('climPercentile', 2nd to 98th by default) so a single artifact
+%     bin cannot flatten the whole map. Diverging styles force the range
+%     symmetric about zero. Widen the percentiles when the interesting part
+%     of the map is a small fraction of it - an evoked CSD occupies a few
+%     tens of milliseconds and saturates at the default.
 %   * The mask outlines the cluster rather than blanking what is outside it:
 %     a non-significant trend stays visible and honest, instead of being
 %     hidden by the test.
@@ -55,6 +60,8 @@ function h = plotTFRpanel(ax, t, f, M, st, varargin)
     p.addParameter('clim',      []);
     p.addParameter('logf',      false);
     p.addParameter('colorbar',  false);
+    p.addParameter('ydir',      'normal');   % 'reverse' for depth downwards
+    p.addParameter('climPercentile', [2 98]);
     p.parse(varargin{:});
     a = p.Results;
 
@@ -66,13 +73,13 @@ function h = plotTFRpanel(ax, t, f, M, st, varargin)
 
     cl = a.clim;
     if isempty(cl), cl = st.zlim; end
-    if isempty(cl), cl = localRobustLimits(M, st.diverging); end
+    if isempty(cl), cl = localRobustLimits(M, st.diverging, a.climPercentile); end
 
     h.image = imagesc(ax, t, f, M);
     if strcmpi(st.interp, 'bilinear')
         set(h.image, 'Interpolation', 'bilinear');   % R2022a+; ignored if absent
     end
-    set(ax, 'YDir', 'normal', 'FontSize', st.fontSize, 'Layer', 'top', ...
+    set(ax, 'YDir', a.ydir, 'FontSize', st.fontSize, 'Layer', 'top', ...
             'TickDir', 'out', 'Box', 'off');
     clim(ax, cl);
     colormap(ax, st.colormap);
@@ -123,10 +130,10 @@ function h = plotTFRpanel(ax, t, f, M, st, varargin)
     if a.colorbar, h.colorbar = colorbar(ax); end
 end
 
-function cl = localRobustLimits(M, diverging)
+function cl = localRobustLimits(M, diverging, pct)
     v = M(isfinite(M));
     if isempty(v), cl = [0 1]; return; end
-    lo = prctile(v, 2); hi = prctile(v, 98);
+    lo = prctile(v, pct(1)); hi = prctile(v, pct(2));
     if diverging
         m = max(abs([lo hi]));
         if m == 0, m = 1; end
