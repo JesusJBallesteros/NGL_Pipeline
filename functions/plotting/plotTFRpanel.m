@@ -112,7 +112,11 @@ function h = plotTFRpanel(ax, t, f, M, st, varargin)
         hold(ax, 'off');
     end
 
-    if ~isempty(a.title),  title(ax, a.title, 'FontWeight', 'normal'); end
+    % Interpreter 'none': channel and condition labels carry underscores,
+    % which TeX would silently turn into subscripts.
+    if ~isempty(a.title)
+        title(ax, a.title, 'FontWeight', 'normal', 'Interpreter', 'none');
+    end
     if ~isempty(a.xlabel), xlabel(ax, a.xlabel); end
     if ~isempty(a.ylabel), ylabel(ax, a.ylabel); end
     h.colorbar = gobjects(0);

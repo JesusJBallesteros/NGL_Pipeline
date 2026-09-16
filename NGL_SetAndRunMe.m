@@ -560,5 +560,27 @@ NGL04_PCA
 
 % NGL07_LFPanalysis
 
+%% 10 NGL08_NFT — neural frequency tagging (project stage).
+%   Frequency-domain analysis of blocks of periodic stimulation, read from the
+%   continuous LFP: response at the tagging frequency and its harmonics
+%   (SNR and z against neighbouring bins) plus phase consistency across
+%   epochs. Needs <SavFileName>_FTcont.mat from NGL01.
+%
+%   Block windows are study-specific and are NOT guessed: give each block its
+%   name, base frequency and [t0 t1] in seconds of the recording.
+%
+%   PRODUCES (per session x block x area):
+%     <SavFileName>_LFP_NFT_<area>_<block>_<base>Hz.mat and .png
+%
+% opt.nft.do     = true;
+% opt.nft.blocks = struct( ...
+%     'name',   {'stream1.3', 'stream2.6', 'pairs2.6'}, ...
+%     'base',   {1.3,          2.6,         2.6}, ...
+%     'window', {[10 190],     [195 287],   [292 427]});
+%   % Block 3's pairs repeat at base/3 (0.867 Hz); to test the pair rate, add
+%   % the same window again with 'base' set to 0.8667.
+%
+% NGL08_NFT
+
 %% More custom stages...
 % NGLXX_something

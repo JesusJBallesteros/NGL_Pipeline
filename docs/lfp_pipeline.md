@@ -223,6 +223,67 @@ Flat legacy names still supported:
 - `opt.lfp.behReg.numrand` (default 1000)
 - `opt.lfp.behReg.alpha` (default 0.05)
 
+## Neural frequency tagging — NGL08_NFT (project stage, Sep 2026)
+
+Project-specific (Q1 convention): analyses in
+`functions/analysis/projects/NFT/`, behind `opt.nft.do`, driven by
+`NGL08_NFT.m`. Input is the **continuous** FT file, not the trial-parsed one:
+tagging is read from long stretches of periodic stimulation, not from
+event-locked epochs.
+
+### The idea
+
+A tagged response sits at a frequency the experiment chose, so it is judged
+against its own neighbourhood — the neighbouring bins carry the same noise at
+almost the same frequency, measured at the same time. Two numbers per
+frequency: **SNR** (amplitude ÷ mean neighbour, 1 when nothing is there) and
+**z** ((amplitude − mean) ÷ SD of neighbours).
+
+Amplitude alone cannot separate driving from ongoing rhythm, so **ITPC**
+across epochs is computed from the same transform: a driven response keeps its
+phase every epoch and the unit vectors add; ongoing activity at the same
+frequency drifts and cancels.
+
+### The chain
+
+| Step | Function | What matters |
+|---|---|---|
+| Epoch | `nftEpochs` | Epochs hold a **whole number of stimulation cycles**, so the tag lands exactly on an FFT bin. A fractional epoch smears the peak *and* raises the baseline it is measured against — both errors push the response down. |
+| Spectrum | `computeTaggingSpectrum` | `mtmfft`, amplitude averaged over epochs, complex spectrum kept. Amplitude is averaged (not the complex values), so a response drifting in phase survives here and is judged by ITPC instead. |
+| Response | `taggingResponse` | SNR/z per bin; harmonics of the base, minus any colliding with mains or with an excluded frequency; summed baseline-corrected amplitude over significant harmonics. |
+| Phase | `computeITPC` | ITPC, Rayleigh z and p. Biased upward at small n — the function warns under 10 epochs. |
+| Figure | `plotTaggingSpectrum` | z spectrum with harmonics marked, response per harmonic, ITPC per harmonic. |
+
+### Block windows are yours to supply
+
+`opt.nft.blocks` is a struct array of `.name`, `.base` (Hz) and `.window`
+`[t0 t1]` in seconds. Mapping blocks to windows depends on the stimulation
+log and the study's event codes, so the stage does not guess: a session whose
+blocks are unknown is skipped with a warning rather than analysed against
+invented boundaries.
+
+For the three-block design in use (1.3 Hz stream, 2.6 Hz stream, 2.6 Hz
+components in pairs with a gap), note that the pair structure of block 3
+repeats at base/3 — run that block a second time with `.base` set to the pair
+rate to test it, as the demo does.
+
+### Caveats worth keeping in mind
+
+- `zThreshold` (default 1.64, one-sided p = 0.05) is a **screen, not a
+  corrected test**: across 6 harmonics a pure-noise channel has roughly a 1-in-4
+  chance of one harmonic crossing it. Judge a channel by its base frequency and
+  by ITPC, not by "at least one significant harmonic".
+- `sumAmp` sums only significant harmonics, so it cannot go below zero. Compare
+  channels by it only when both have a significant harmonic; otherwise compare z.
+- Overlapping epochs (`opt.nft.overlap` > 0) are not independent: both the
+  Rayleigh test and the ITPC bias correction become optimistic.
+
+### `opt.nft.*`
+- `nft.do`, `nft.blocks`, `nft.areas` (`{}` = all), `nft.plot`
+- `nft.epochSeconds` (20), `nft.overlap` (0), `nft.taper` (`'hanning'`), `nft.fmax` (40)
+- `nft.neighbours` (12), `nft.gap` (1), `nft.zThreshold` (1.64)
+- `nft.maxHarmonic` (8), `nft.lineFreq` (50; 0 = ignore)
+
 ## Provenance (Pass 2)
 
 Every LFP output file carries a `provenance` struct via `buildLFPProvenance`:
