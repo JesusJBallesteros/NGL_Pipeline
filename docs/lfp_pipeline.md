@@ -5,6 +5,11 @@ Two LFP stages sit alongside the spike-side chain. They serve different roles.
 - **NGL02_LFP** — per-session quick-look. Runs after NGL01. Verifies the FT file loads, optionally rejects artifacts, computes a lightweight continuous or trial-parsed TFR. Purpose: catch bad sessions early.
 - **NGL07_LFPanalysis** — research-grade session-level LFP. Runs after NGL02_postPhy (needs spike sort) and, optionally, NGL06_videoAnalysis (behaviour sidecar). Does the trial-parsed TFR per condition, oscillation / burst detection, phase + envelope, spike-field coupling, LFP × behaviour regression, and spectrolaminar (vFLIP) mapping.
 
+To try any of this against data whose answers are known in advance, see
+[`test_fixture.md`](test_fixture.md): a seeded synthetic subject (`MRX`) with a
+planted beta burst, laminar sink, tagging response, spikes and IMU, plus
+`checkFixture` to assert the analyses recover them.
+
 ## Data flow
 
 ```
